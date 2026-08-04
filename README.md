@@ -22,7 +22,7 @@ Standalone client ──HTTP──▶ MinimalChatApi (this project)
                                  │
                                  ▼
                     LLM (Ollama / DeepSeek / Z.ai / Gemini / DeepseekBridge)
-                    + agent tools (WebAgent, SearchAgent, WordAgent, SpreadsheetAgent)
+                    + agent tools (WebTool, FileTool, WordTool, SpreadsheetTool)
 ```
 
 ## Quick start

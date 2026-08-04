@@ -38,7 +38,7 @@ var providerName = builder.Configuration["LLM:Provider"] ?? nameof(LLMUtility.LL
 Enum.TryParse<LLMUtility.LLMProvider>(providerName, ignoreCase: true, out var provider);
 
 // This host has no settings UI of its own: load credentials persisted by the previous
-// run (Setup.Save) from %LocalAppData%\{app}\setup.json — SMTP/IMAP for EMailAgent,
+// run (Setup.Save) from %LocalAppData%\{app}\setup.json — SMTP/IMAP for EMailTool,
 // API keys. Provider selection above stays appsettings-driven (Setup.Load only restores
 // Setup.ProviderConfig if the file contains ProviderName). See Setup.Load XML docs.
 Setup.Load();
@@ -324,20 +324,20 @@ static Type[] ResolveAgentTypes(string? model)
 {
     return model?.ToLower() switch
     {
-        "web-agent" => new[] { typeof(AIOrchestrator.API.SearchAgent), typeof(AIOrchestrator.API.WebAgent) },
-        "word-agent" => new[] { typeof(AIOrchestrator.API.WordAgent) },
-        "spreadsheet-agent" => new[] { typeof(AIOrchestrator.API.SpreadsheetAgent) },
-        "search-agent" or "research-agent" => new[] { typeof(AIOrchestrator.API.SearchAgent) },
-        "email-agent" => new[] { typeof(AIOrchestrator.API.EMailAgent) },
+        "web-agent" => new[] { typeof(AIOrchestrator.API.FileTool), typeof(AIOrchestrator.API.WebTool) },
+        "word-agent" => new[] { typeof(AIOrchestrator.API.WordTool) },
+        "spreadsheet-agent" => new[] { typeof(AIOrchestrator.API.SpreadsheetTool) },
+        "search-agent" or "research-agent" => new[] { typeof(AIOrchestrator.API.FileTool) },
+        "email-agent" => new[] { typeof(AIOrchestrator.API.EMailTool) },
         "multi-agent" => new[]
         {
-            typeof(AIOrchestrator.API.SearchAgent),
-            typeof(AIOrchestrator.API.WebAgent),
-            typeof(AIOrchestrator.API.WordAgent),
-            typeof(AIOrchestrator.API.SpreadsheetAgent),
-            typeof(AIOrchestrator.API.EMailAgent)
+            typeof(AIOrchestrator.API.FileTool),
+            typeof(AIOrchestrator.API.WebTool),
+            typeof(AIOrchestrator.API.WordTool),
+            typeof(AIOrchestrator.API.SpreadsheetTool),
+            typeof(AIOrchestrator.API.EMailTool)
         },
-        _ => new[] { typeof(AIOrchestrator.API.SearchAgent), typeof(AIOrchestrator.API.WebAgent) }
+        _ => new[] { typeof(AIOrchestrator.API.FileTool), typeof(AIOrchestrator.API.WebTool) }
     };
 }
 
