@@ -21,7 +21,7 @@ Standalone client ──HTTP──▶ MinimalChatApi (this project)
                           AIOrchestrator (AgentOrchestrator)
                                  │
                                  ▼
-                    LLM (Ollama / DeepSeek / Z.ai / Gemini / DeepseekBridge)
+                    LLM (Ollama / DeepSeek / Z.ai / Gemini / DeepSeekBridge)
                     + agent tools (WebTool, FileTool, WordTool, SpreadsheetTool)
 ```
 
@@ -57,16 +57,55 @@ curl http://localhost:5290/health
   "Logging": { ... },
   "AllowedHosts": "*",
   "Urls": "http://localhost:5290",
+  "SkipIndexingOnStartup": false,
   "LLM": {
-    "Provider": "DeepseekBridge"
+    "Provider": "DeepSeekBridge",
+    "Anonymize": false
   }
 }
 ```
 
 | Key | Values | Description |
 |---|---|---|
-| `LLM:Provider` | `Ollama_Granite3b`, `DeepSeek`, `DeepseekBridge`, `Zai`, `Gemini`, ... | Which `LLMUtility.LLMProvider` the `AgentOrchestrator` uses (one instance per HTTP request). Default `DeepseekBridge` (see the codex-deepseek-bridge proxy on `127.0.0.1:8787`). |
+| `LLM:Provider` | `Ollama_Granite3b`, `DeepSeek`, `DeepSeekBridge`, `Zai`, `Gemini`, ... | Which `LLMUtility.LLMProvider` the `AgentOrchestrator` uses (one instance per HTTP request). Default `DeepSeekBridge` (see the codex-deepseek-bridge proxy on `127.0.0.1:8787`). |
+| `LLM:Anonymize` | `true` / `false` | When `true`, NameOrKey elements (names, keys) found in prompts, support documents and tool results are replaced with placeholders before they reach the LLM and translated back in the response. Applies to the main agent **and** subagent sessions. See `LLMUtility` for details. |
+| `SkipIndexingOnStartup` | `true` / `false` | When `true`, the DocumentsPath index is neither built nor refreshed and the file watcher is not started. Use during debug/dev when **no document searches are needed** — skips the multi-minute full index on large folders. File searches then return empty results. |
 | `Urls` | e.g. `http://localhost:5290` | Kestrel listening address. |
+
+### Command-line overrides & `--help`
+
+Every key in `appsettings.json` can be overridden from the command line with `--Key:SubKey <value>`
+(the ASP.NET config chain gives CLI precedence over `appsettings.json`), so a single
+`builder.Configuration` read covers both sources:
+
+```bash
+dotnet run --project MinimalChatApi.csproj -- --LLM:Provider Zai
+dotnet run --project MinimalChatApi.csproj -- --LLM:Anonymize true
+dotnet run --project MinimalChatApi.csproj -- --SkipIndexingOnStartup true
+```
+
+Run `--help` (or `-h`) to print the supported options:
+
+```bash
+dotnet run --project MinimalChatApi.csproj -- --help
+```
+
+> **⚠️ For coding agents & debug runs**: this server indexes the `DocumentsPath` folder at
+> startup (full build if no index exists, incremental refresh in Release). On a large folder
+> (e.g. the developer's Documents, 33k files) the initial index takes **minutes**, burns
+> CPU/RAM and logs nothing until it finishes — it looks hung but is working. When the feature
+> under test does **not** need document searches (chat-only, streaming, file-upload flows,
+> agent-loop fixes), start the server with `--SkipIndexingOnStartup true` for a fast, quiet
+> startup. Only drop it when the test actually queries the Documents index (FileTool searches,
+> auto-search context).
+>
+> **Note**: the `LLM:Anonymize` flag requires an explicit boolean value (`--LLM:Anonymize true`).
+> A bare flag without a value reads as `false`.
+>
+> **Streaming caveat**: LLM-native streaming (`SendQueryStream`) does not support
+> anonymization and throws `NotSupportedException` — the `/v1/chat/completions` SSE endpoint
+> here is response-side only (the agent result is computed with non-streaming `SendQuery`),
+> so it is unaffected.
 
 ## Endpoints
 
@@ -127,7 +166,7 @@ Limits: 25 MB per upload (hard-coded); files are kept in an **in-memory** cache,
 
 > **E2E regression harness**: `e2e/run_e2e.ps1` (+ `e2e/make_corpus.ps1`) runs a 33-test
 > battery against a live server (chat, streaming, agent sets, auto-search, uploads of 8 formats,
-> `file_ids`, error paths, concurrency). Requires the DeepseekBridge on `127.0.0.1:8787` and a
+> `file_ids`, error paths, concurrency). Requires the DeepSeekBridge on `127.0.0.1:8787` and a
 > server started with `DocumentsPath` pointing to the generated corpus
 > (via `rag_settings.json` next to the executable).
 

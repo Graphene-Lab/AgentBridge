@@ -28,14 +28,63 @@ using UISupportGeneric;
 //  (AllToMarkdown for documents, Z.ai GLM-OCR for images).
 // ═══════════════════════════════════════════════════════════════════════
 
+// ─────────────────────────────────────────────────────────────────────
+// Command-line help — print usage and exit before the server starts.
+// Any appsettings.json key is already overridable from the command line
+// (WebApplication.CreateBuilder wires the command-line config provider
+// with precedence over appsettings.json), so the help documents the
+// app-specific keys plus that general mechanism.
+// ─────────────────────────────────────────────────────────────────────
+if (args.Contains("-h") || args.Contains("--help") || args.Contains("/?"))
+{
+    Console.WriteLine("""
+        MinimalChatApi — OpenAI-compatible HTTP server for AgentOrchestrator
+
+        Usage:
+          dotnet run --project MinimalChatApi.csproj [-- <options>]
+
+        Options (command line overrides appsettings.json; any key is overridable
+        with --Key:SubKey <value>):
+          --LLM:Provider <name>   LLM provider: DeepSeekBridge (default), DeepSeek, Zai,
+                                  Gemini, Ollama_Granite3b, ExllamaV2_Llama3b
+          --LLM:Anonymize <bool>  Anonymize NameOrKey elements before sending to the LLM
+                                  (true|false)
+          --SkipIndexingOnStartup <bool>
+                                  Skip the DocumentsPath index build/refresh + file watcher
+                                  at startup (true|false) — use during debug/dev when no
+                                  document searches are needed (large folders index for minutes)
+          --Urls <address>        Kestrel listening address, e.g. http://localhost:5290
+          --environment <name>    ASP.NET environment: Development | Production
+
+        Examples:
+          dotnet run --project MinimalChatApi.csproj -- --LLM:Provider Zai
+          dotnet run --project MinimalChatApi.csproj -- --LLM:Anonymize true
+          dotnet run --project MinimalChatApi.csproj -- --SkipIndexingOnStartup true
+        """);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-// Configure the LLM provider via appsettings "LLM:Provider" (e.g. DeepseekBridge).
-var providerName = builder.Configuration["LLM:Provider"] ?? nameof(LLMUtility.LLMProvider.DeepseekBridge);
+// Configure the LLM provider via appsettings "LLM:Provider" (e.g. DeepSeekBridge).
+var providerName = builder.Configuration["LLM:Provider"] ?? nameof(LLMUtility.LLMProvider.DeepSeekBridge);
 Enum.TryParse<LLMUtility.LLMProvider>(providerName, ignoreCase: true, out var provider);
+
+// Anonymization flag from appsettings "LLM:Anonymize" (default false). Overridable from the
+// command line with --LLM:Anonymize true — the ASP.NET config chain already gives CLI
+// precedence over appsettings.json, so a single Configuration read covers both sources.
+var anonymize = builder.Configuration.GetValue<bool>("LLM:Anonymize");
+
+// Startup indexing toggle from appsettings "SkipIndexingOnStartup" (default false, CLI
+// --SkipIndexingOnStartup true). When true, the DocumentsPath index is neither built nor
+// refreshed and the file watcher is not started: use during debug/dev when no document
+// searches are needed, to skip the multi-minute full index on large folders. MUST be set
+// before Setup.Load() below — Setup.RagDocumentProcessor is created lazily on first use,
+// so this early assignment is what the processor sees (see Setup.SkipIndexingOnStartup).
+Setup.SkipIndexingOnStartup = builder.Configuration.GetValue<bool>("SkipIndexingOnStartup");
 
 // This host has no settings UI of its own: load credentials persisted by the previous
 // run (Setup.Save) from %LocalAppData%\{app}\setup.json — SMTP/IMAP for EMailTool,
@@ -47,7 +96,7 @@ Setup.Load();
 // conversation history and the subagent sessions in instance state (LLMUtility._messageHistory,
 // _subagentSessions, _pendingSubagentResult). A singleton shared across concurrent requests
 // would interleave those lists — two overlapping chats would corrupt each other's context.
-builder.Services.AddScoped<AgentOrchestrator>(_ => new AgentOrchestrator(provider));
+builder.Services.AddScoped<AgentOrchestrator>(_ => new AgentOrchestrator(provider, anonymize));
 
 var app = builder.Build();
 app.UseCors();
