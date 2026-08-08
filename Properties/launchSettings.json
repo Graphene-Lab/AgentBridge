@@ -1,12 +1,12 @@
 {
   "profiles": {
-    "MinimalChatApi": {
+    "AgentBridge": {
       "commandName": "Project",
-      "launchBrowser": true,
+      "launchBrowser": false,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "https://localhost:52956;http://localhost:52957"
+      "applicationUrl": "http://localhost:5290"
     }
   }
 }

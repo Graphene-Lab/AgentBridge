@@ -2,7 +2,7 @@
     [string]$BaseUrl = 'http://127.0.0.1:5290',
     [string]$Corpus = 'C:\Users\andre\AppData\Local\Temp\aioffice_e2e_corpus',
     [string]$Work = 'C:\Users\andre\AppData\Local\Temp\aioffice_e2e_work',
-    [string]$LogsDir = 'C:\Users\andre\OneDrive\Sorgenti\MinimalChatApi\bin\Debug\net10.0\logs',
+    [string]$LogsDir = 'C:\Users\andre\OneDrive\Sorgenti\AgentBridge\bin\Debug\net10.0\logs',
     [string]$Bridge = 'http://127.0.0.1:8787'
 )
 $ErrorActionPreference = 'Continue'
@@ -56,7 +56,7 @@ function MaxPromptLen() {
 # ── pre-flight: bridge must return real content, not empty deltas ──
 # NB: PowerShell 5.1 strips double quotes when passing args to native apps, so
 # JSON bodies are always written to files and sent with --data-binary @file.
-Write-Host '=== Pre-flight: DeepseekBridge probe ==='
+Write-Host '=== Pre-flight: DeepSeekBridge probe ==='
 $probeBody = Join-Path $bodies 'probe.json'
 [System.IO.File]::WriteAllText($probeBody, '{"model":"deepseek-web/deepseek-chat","messages":[{"role":"user","content":"Say banana"}]}', (New-Object System.Text.UTF8Encoding($false)))
 $probe = curl.exe -s -m 30 -X POST "$Bridge/v1/chat/completions" -H 'Content-Type: application/json' --data-binary "@$probeBody"
@@ -278,13 +278,59 @@ T 'T28 upload >25MB → 400' ($code -eq '400')
 Write-Host ''
 Write-Host '=== C5: misc endpoints ==='
 
-# T29 models
+# T29 models (agent sets + LLM providers)
 $code = HttpReq 'GET' "$BaseUrl/v1/models" '' (Join-Path $out 'models.json') 30
 $j = ReadJson (Join-Path $out 'models.json')
 $count = if ($j -and $j.data) { @($j.data).Count } else { 0 }
 $hasDefault = $false
 if ($j -and $j.data) { $hasDefault = @($j.data | Where-Object { $_.id -eq 'default-agent' }).Count -gt 0 }
-T 'T29 models list (6, incl default-agent)' ($code -eq '200' -and $count -eq 6 -and $hasDefault) "count=$count"
+T 'T29 models list (agents + providers)' ($code -eq '200' -and $count -ge 12 -and $hasDefault) "count=$count"
+
+# T32 models include LLM providers with characteristics (context_window, model_name)
+$providers = @($j.data | Where-Object { $_.owned_by -eq 'llm-provider' })
+$zai = @($providers | Where-Object { $_.id -eq 'Zai' } | Select-Object -First 1)
+T 'T32 models include LLM providers w/ characteristics' ($providers.Count -ge 5 -and $zai.context_window -gt 0 -and $zai.model_name -ne '')
+
+# T33 GET /v1/models/{id} — provider detail + unknown → 404
+$code = HttpReq 'GET' "$BaseUrl/v1/models/Zai" '' (Join-Path $out 'm_zai.json') 30
+$code2 = HttpReq 'GET' "$BaseUrl/v1/models/nope" '' (Join-Path $out 'm_nope.json') 30
+T 'T33 single model detail (200) + unknown (404)' ($code -eq '200' -and $code2 -eq '404')
+
+# T34 file raw content + DELETE lifecycle (200 → deleted → 404)
+$code = HttpReq 'GET' "$BaseUrl/v1/files/$script:txtId/content" '' (Join-Path $out 'raw.txt') 30
+$raw = Get-Content (Join-Path $out 'raw.txt') -Raw -ErrorAction SilentlyContinue
+$codeD = HttpReq 'DELETE' "$BaseUrl/v1/files/$script:txtId" '' (Join-Path $out 'del.json') 30
+$del = ReadJson (Join-Path $out 'del.json')
+$codeD2 = HttpReq 'DELETE' "$BaseUrl/v1/files/$script:txtId" '' (Join-Path $out 'del2.json') 30
+T 'T34 file content + DELETE lifecycle' ($code -eq '200' -and $raw -ne '' -and $codeD -eq '200' -and $del.deleted -eq $true -and $codeD2 -eq '404')
+
+# T35 /v1/control: create session → state
+$b = NewBody 't35' '{"create":true}'
+$code = HttpReq 'POST' "$BaseUrl/v1/control" $b (Join-Path $out 'ctl_create.json') 30
+$j = ReadJson (Join-Path $out 'ctl_create.json')
+$sid = if ($j) { $j.session_id } else { '' }
+T 'T35 control create session' ($code -eq '200' -and $sid -ne '' -and $j.llm -and $j.llm.provider -ne '')
+
+# T36 /v1/control: switch LLM in use (config-only, no connectivity needed) + features + capabilities
+$b = NewBody 't36' "{""session_id"":""$sid"",""llm_provider"":""Zai"",""features"":{""tts"":true}}"
+$code = HttpReq 'POST' "$BaseUrl/v1/control" $b (Join-Path $out 'ctl_switch.json') 30
+$j = ReadJson (Join-Path $out 'ctl_switch.json')
+$switched = $j -and $j.llm -and $j.llm.provider -eq 'Zai' -and $j.features.tts -eq $true
+$codeC = HttpReq 'GET' "$BaseUrl/v1/control" '' (Join-Path $out 'ctl_caps.json') 30
+$cap = ReadJson (Join-Path $out 'ctl_caps.json')
+T 'T36 control switch LLM + capabilities' ($code -eq '200' -and $switched -and $codeC -eq '200' -and $cap.capabilities -and @($cap.capabilities.providers).Count -ge 5)
+
+# T37 chat with explicit llm_provider (stateless per-request provider)
+$b = NewBody 't37' "{""model"":""default-agent"",""llm_provider"":""DeepSeekBridge"",""messages"":[{""role"":""user"",""content"":""rispondi in una frase: 3+3?""}],""max_tokens"":200}"
+$code = HttpReq 'POST' "$BaseUrl/v1/chat/completions" $b (Join-Path $out 't37.json')
+$j = ReadJson (Join-Path $out 't37.json')
+$c37 = if ($j -and $j.choices) { $j.choices[0].message.content } else { '' }
+T 'T37 chat with explicit llm_provider' ($code -eq '200' -and $c37 -ne '')
+
+# T38 TTS voices endpoint responds (kokoro engine; available or 501 depending on assets)
+$code = HttpReq 'GET' "$BaseUrl/v1/audio/voices" '' (Join-Path $out 'voices.json') 60
+$j = ReadJson (Join-Path $out 'voices.json')
+T 'T38 /v1/audio/voices responds' ($code -eq '200' -and $j -and $j.engine -eq 'kokoro')
 
 # T30 health
 $code = HttpReq 'GET' "$BaseUrl/health" '' (Join-Path $out 'health.json') 30

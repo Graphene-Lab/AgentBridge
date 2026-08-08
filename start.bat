@@ -1,8 +1,8 @@
 @echo off
-title MinimalChatApi Launcher
+title AgentBridge Launcher
 
 echo ========================================
-echo  MINIMAL CHAT API - LAUNCHER
+echo  AGENT BRIDGE - LAUNCHER
 echo ========================================
 echo.
 
@@ -16,12 +16,14 @@ if errorlevel 0 goto :done
 
 :start_server
 echo.
-echo [2/2] Starting MinimalChatApi (dotnet run)...
+echo [2/2] Starting AgentBridge...
+echo   Terminal UI: chat, /commands, voice, model switch, help
 echo   OpenAI-compatible API:  http://localhost:5290
 echo   Health check:           http://localhost:5290/health
+echo   Server-only (no UI):    dotnet run --project AgentBridge.csproj -- --headless
 echo   Press Ctrl+C to stop.
 echo.
-dotnet run --project MinimalChatApi.csproj
+dotnet run --project AgentBridge.csproj -- %*
 goto :done
 
 :done

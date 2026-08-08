@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <!-- The executable is named `agent` (agent.exe on Windows, agent on Linux/macOS),
+         like `qwen` in Qwen Code. -->
+    <AssemblyName>agent</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" Version="0.57.2" />
+    <ProjectReference Include="..\AIOrchestrator\AIOrchestrator.csproj" />
+    <!-- Kokoro neural TTS (same engine/voices as AIOffice.VoiceAgent.Win). The package ships
+         voices/ + espeak/ as content (copied to the output directory); only kokoro.onnx
+         (~325 MB, not tracked in git) is handled by the DownloadKokoroModel target below.
+         TTS endpoints return 501 until the model file is present. -->
+    <PackageReference Include="KokoroSharp" Version="0.6.7" />
+  </ItemGroup>
+
+  <!-- e2e/ hosts standalone tooling (TuiSmoke, run_e2e.ps1) — never part of this
+       project. WITHOUT these Remove items the Web SDK's default globbing compiles
+       e2e/TuiSmoke/Program.cs into AgentBridge (duplicate `Program` with the
+       top-level statements) and every build FAILS silently. Keep them. -->
+  <ItemGroup>
+    <Compile Remove="e2e\**" />
+    <Content Remove="e2e\**" />
+    <None Remove="e2e\**" />
+    <EmbeddedResource Remove="e2e\**" />
+  </ItemGroup>
+
+  <!-- Provide kokoro.onnx in the output directory (the 325 MB model binary is not tracked in
+       git). Preferred source: the sibling VoiceAgent build output (already downloaded there on
+       dev machines); fallback: the local copy at the project root; last resort: download with
+       curl (same URL as AIOffice.VoiceAgent.Win). -->
+  <Target Name="DownloadKokoroModel" BeforeTargets="Build;Publish" Condition="!Exists('$(OutputPath)kokoro.onnx')">
+    <MakeDir Directories="$(OutputPath)" />
+    <Copy Condition="Exists('..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\kokoro.onnx')" SourceFiles="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\kokoro.onnx" DestinationFiles="$(OutputPath)kokoro.onnx" />
+    <Copy Condition="!Exists('$(OutputPath)kokoro.onnx') and Exists('kokoro.onnx')" SourceFiles="kokoro.onnx" DestinationFiles="$(OutputPath)kokoro.onnx" />
+    <Exec Condition="!Exists('$(OutputPath)kokoro.onnx')" Command="curl.exe -L --fail -o &quot;$(OutputPath)kokoro.onnx&quot; &quot;https://github.com/Lyrcaxis/KokoroSharpBinaries/releases/download/v2.0.0/kokoro.onnx&quot;" />
+    <Message Text="kokoro.onnx ready at $(OutputPath)" Importance="high" />
+  </Target>
+
+  <!-- Optional Windows voice bridge: when the sibling AIOffice.VoiceAgent.Win build output
+       exists, copy its whole output (exe + voices/ + espeak/ + kokoro.onnx + runtime deps) next
+       to this server so POST /v1/voice/listen can spawn it. Without it the voice endpoint
+       reports itself unavailable (501) — the TTS endpoints keep working from the in-process
+       KokoroSharp assets above. Runs on Publish too so the single-file production exe has
+       the voice bridge alongside (single-file bundles the managed code, not these assets). -->
+  <Target Name="CopyVoiceAgentOutput" AfterTargets="Build;Publish" Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\AIOffice.VoiceAgent.Win.exe')">
+    <ItemGroup>
+      <_VoiceAgentFiles Include="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\**\*" Exclude="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\logs\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_VoiceAgentFiles)" DestinationFiles="@(_VoiceAgentFiles->'$(OutputPath)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Message Text="VoiceAgent.Win output copied to $(OutputPath)" Importance="high" />
+  </Target>
+
+</Project>
