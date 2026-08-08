@@ -82,7 +82,7 @@ public static class ConsoleTui
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
 
-        private const string PlaceholderText = "Scrivi un messaggio o / per i comandi...";
+        private const string PlaceholderText = "Type a message or / for commands...";
         private const int MaxHistory = 1000;
 
         private sealed class Entry
@@ -201,10 +201,10 @@ public static class ConsoleTui
             _history.Add(new Entry
             {
                 Role = "system",
-                Text = "Benvenuto in AGENT — parla con gli agenti direttamente da terminale.\n"
-                     + "Scrivi un messaggio e premi Invio · / apre i comandi · @ i file · ? le scorciatoie · F1 l'aiuto · F10 il menu.",
+                Text = "Welcome to AGENT — talk to the agents straight from the terminal.\n"
+                     + "Type a message and press Enter · / opens commands · @ files · ? shortcuts · F1 help · F10 the menu.",
             });
-            _history.Add(new Entry { Role = "system", Text = $"server: {_serverUrl} — l'API resta attiva in parallelo ({_serverUrl}/v1/chat/completions)" });
+            _history.Add(new Entry { Role = "system", Text = $"server: {_serverUrl} — the API keeps answering in parallel ({_serverUrl}/v1/chat/completions)" });
             if (!string.IsNullOrEmpty(_hostError))
                 _history.Add(new Entry { Role = "system", Text = $"local host start failed ({_hostError}) — connecting to an existing instance" });
         }
@@ -276,28 +276,28 @@ public static class ConsoleTui
             {
                 new("_File", new MenuItem[]
                 {
-                    new MenuItem("_Nuova Chat", Key.Empty, () => RunCommandByName("new", "")),
-                    new MenuItem("_Esci", Key.Q.WithCtrl, () => RequestExit()),
+                    new MenuItem("_New Chat", Key.Empty, () => RunCommandByName("new", "")),
+                    new MenuItem("_Exit", Key.Q.WithCtrl, () => RequestExit()),
                 }),
                 new("_Chat", new MenuItem[]
                 {
-                    new MenuItem("_Pulisci cronologia", Key.L.WithCtrl, () => RunCommandByName("clear", "")),
-                    new MenuItem("_Comandi (/...)", Key.Empty, () => ShowCommandMenu("")),
-                    new MenuItem("_Ripeti ultima (/retry)", Key.Y.WithCtrl, () => RunCommandByName("retry", "")),
+                    new MenuItem("_Clear History", Key.L.WithCtrl, () => RunCommandByName("clear", "")),
+                    new MenuItem("_Commands (/...)", Key.Empty, () => ShowCommandMenu("")),
+                    new MenuItem("_Retry Last (/retry)", Key.Y.WithCtrl, () => RunCommandByName("retry", "")),
                 }),
-                new("_Sessione", new MenuItem[]
+                new("_Session", new MenuItem[]
                 {
-                    new MenuItem("_Modello LLM (/model)", Key.Empty, () => RunCommandByName("model", "")),
-                    new MenuItem("_Agente (/agent)", Key.Empty, () => RunCommandByName("agent", "")),
-                    new MenuItem("_Stato (/status)", Key.Empty, () => RunCommandByName("status", "")),
-                    new MenuItem("_Salute (/health)", Key.Empty, () => RunCommandByName("health", "")),
+                    new MenuItem("_LLM Model (/model)", Key.Empty, () => RunCommandByName("model", "")),
+                    new MenuItem("_Agent (/agent)", Key.Empty, () => RunCommandByName("agent", "")),
+                    new MenuItem("_Status (/status)", Key.Empty, () => RunCommandByName("status", "")),
+                    new MenuItem("_Health (/health)", Key.Empty, () => RunCommandByName("health", "")),
                 }),
-                new("_Aiuto", new MenuItem[]
+                new("_Help", new MenuItem[]
                 {
-                    new MenuItem("_Aiuto (/help)", Key.F1, () => RunCommandByName("help", "")),
-                    new MenuItem("_Scorciatoie (/shortcuts)", Key.Empty, () => RunCommandByName("shortcuts", "")),
-                    new MenuItem("_Documentazione (/docs)", Key.Empty, () => RunCommandByName("docs", "")),
-                    new MenuItem("_Informazioni", Key.Empty, () => ShowAbout()),
+                    new MenuItem("_Help (/help)", Key.F1, () => RunCommandByName("help", "")),
+                    new MenuItem("_Shortcuts (/shortcuts)", Key.Empty, () => RunCommandByName("shortcuts", "")),
+                    new MenuItem("_Documentation (/docs)", Key.Empty, () => RunCommandByName("docs", "")),
+                    new MenuItem("_About", Key.Empty, () => ShowAbout()),
                 }),
             });
             _mainWindow.Add(menu);
@@ -383,7 +383,7 @@ public static class ConsoleTui
 
             var sendButton = new Button
             {
-                Text = " Invia ",
+                Text = " Send ",
                 X = Pos.Right(_inputField), Y = 0,
                 Width = 10, Height = 1,
             };
@@ -1326,10 +1326,10 @@ public static class ConsoleTui
             var lines = new List<string>
             {
                 "QUICK START",
-                "  • Scrivi un messaggio e premi Invio per parlare con gli agenti (default/web/search/word/spreadsheet/email/multi).",
-                "  • / apre la palette comandi (filtra mentre scrivi): /model cambia LLM, /files carica documenti, /voice detta, /tts fa parlare.",
-                "  • @ apre i file caricati (attacca/detacca) · ? scorciatoie · F1 questo aiuto · F10 il menu in alto.",
-                "  • La barra in fondo mostra server, provider, modello, sessione e contesto.",
+                "  • Type a message and press Enter to talk to the agents (default/web/search/word/spreadsheet/email/multi).",
+                "  • / opens the command palette (filters as you type): /model switches LLM, /files uploads documents, /voice dictates, /tts speaks.",
+                "  • @ opens the uploaded files (attach/detach) · ? shortcuts · F1 this help · F10 the top menu.",
+                "  • The bottom bar shows server, provider, model, session and context.",
                 "",
                 "COMMANDS  (type / to open the live list)",
             };
@@ -1378,7 +1378,7 @@ public static class ConsoleTui
             var list = new ListView { X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 2 };
             var hint = new Label
             {
-                Text = "digita per filtrare la cronologia · ↑↓ · Invio seleziona · Esc chiude",
+                Text = "type to filter the history · ↑↓ · Enter selects · Esc closes",
                 X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
             };
             var matches = new List<string>();
@@ -1489,11 +1489,11 @@ public static class ConsoleTui
             };
             var hint = new Label
             {
-                Text = "— scorri con ↑↓ / PgUp-PgDn · chiudi con Esc o Invio —",
+                Text = "— scroll with ↑↓ / PgUp-PgDn · close with Esc or Enter —",
                 X = 0, Y = Pos.Bottom(tv), Width = Dim.Fill(),
             };
             dlg.Add(tv, hint);
-            dlg.AddButton(new Button { Text = "Chiudi" });
+            dlg.AddButton(new Button { Text = "Close" });
             _app.Run(dlg);
             dlg.Dispose();
             _inputField?.SetFocus();
@@ -1516,7 +1516,7 @@ public static class ConsoleTui
         {
             var dlg = new Dialog
             {
-                Title = "Comandi disponibili",
+                Title = "Available commands",
                 Width = Dim.Percent(80),
                 Height = Dim.Percent(60),
                 SchemeName = "Dark",
@@ -1525,7 +1525,7 @@ public static class ConsoleTui
             var list = new ListView { X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 2 };
             var hint = new Label
             {
-                Text = "digita per filtrare · ↑↓ · Tab completa · Invio esegue · Esc chiude",
+                Text = "type to filter · ↑↓ · Tab completes · Enter runs · Esc closes",
                 X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
             };
             var visible = new List<CliCommand>();
@@ -1621,7 +1621,7 @@ public static class ConsoleTui
 
         private void ShowAbout()
         {
-            _ = MessageBox.Query(_app, "AGENT", "AGENT v2 - TUI moderna\nPowered by Terminal.Gui", "OK");
+            _ = MessageBox.Query(_app, "AGENT", "AGENT v2 - Modern TUI\nPowered by Terminal.Gui", "OK");
         }
 
         // ── Server state ──
