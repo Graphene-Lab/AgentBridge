@@ -1,14 +1,26 @@
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Channels;
-using Spectre.Console;
+using Terminal.Gui;
+using Terminal.Gui.App;
+using Terminal.Gui.Configuration;
+using Terminal.Gui.Drawing;
+using Terminal.Gui.Editor;
+using Terminal.Gui.Editor.Document;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
+using Terminal.Gui.Views;
+
+// Terminal.Gui.Drawing.Attribute collides with System.Attribute (implicit using).
+using TuiAttribute = Terminal.Gui.Drawing.Attribute;
 
 /// <summary>
-/// The Qwen-Code-style terminal UI of AgentBridge: a plain HTTP client of the
-/// server (chat, slash commands, voice/TTS/model/files) with keyboard + mouse
-/// support. See README.md → "Terminal UI".
+/// The Terminal.Gui terminal UI of AgentBridge: a menu bar, an AGENT logo panel, a
+/// streaming chat panel with an input line, a status bar, slash-command and file
+/// palettes, keyboard shortcuts and mouse support — while the HTTP server keeps
+/// answering API calls in the same process. See README.md → "Terminal UI".
 /// </summary>
 public static class ConsoleTui
 {
@@ -16,37 +28,43 @@ public static class ConsoleTui
     public static Task RunAsync(string serverUrl, string? hostError = null)
         => new Tui(serverUrl, hostError).RunAsync();
 
-    private sealed class Tui
+    private sealed class Tui : IDisposable
     {
+        private readonly IApplication _app;
         private readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(10) };
         private readonly string _serverUrl;
         private readonly string? _hostError;
-        private readonly object _lock = new();
 
         private readonly List<Entry> _history = new();
         private readonly List<string> _promptHistory = new();
         private readonly List<FileRef> _files = new();
         private readonly List<string> _attached = new();
+        private readonly Dictionary<string, bool> _features = new();
 
-        private bool _exit;
-        private bool _resized;
-        private bool _compact;
-        private int _height = 24, _width = 80;
-        private int _logoLines = 6, _statusLine, _sepLine, _historyTop, _inputLine, _historyHeight, _paletteHeight;
+        private Window? _mainWindow;
+        private Editor? _chatView;
+        private TextField? _inputField;
+        private Label? _statusLabel;
+        private Scheme _baseScheme = new();
+        private bool _inputPlaceholderActive = true;
+        private bool _suppressCommandMenu;
+        private bool _disposed;
 
-        private string _input = "";
-        private int _cursor;
-        private int _escCount;
-        private int _scrollFromBottom;
-        private int _histIndex = -1;
-        private string _histDraft = "";
-        private Palette? _palette;
-
-        private bool _chatRunning;
+        // Shared state (files/attachments/features/chat control) is touched from the
+        // background tasks (HTTP, streaming) as well as the UI thread: guard the
+        // collections and the chat CancellationTokenSource with one lock, and make
+        // the chat-running flag atomic so a double Enter cannot start two streams.
+        private readonly object _stateLock = new();
+        private bool _connected;
+        private int _chatRunning;   // 0 idle, 1 generating (Interlocked)
         private CancellationTokenSource? _chatCts;
         private Entry? _pending;
+        private bool _followBottom = true;
         private string _lastPrompt = "";
         private bool _lastFailed;
+        private int _escCount;
+        private int _histIndex = -1;
+        private string _histDraft = "";
 
         private string _provider = "";
         private string _modelName = "";
@@ -54,23 +72,18 @@ public static class ConsoleTui
         private int _historyTokens;
         private string _sessionId = "";
         private string _agentSet = "default-agent";
-        private readonly Dictionary<string, bool> _features = new();
         private bool _ttsAvailable, _voiceAvailable;
         private string _ttsDetail = "", _voiceDetail = "";
-        private bool _connected;
         private string _statusNote = "";
-
-        private Channel<UiEvent> _events = null!;
-        private Thread? _inputThread;
-        private IntPtr _hIn;
-        private PickerState? _picker;
-        private bool _mouseConfirm;
 
         private static readonly JsonSerializerOptions JsonOpts = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
+
+        private const string PlaceholderText = "Scrivi un messaggio o / per i comandi...";
+        private const int MaxHistory = 1000;
 
         private sealed class Entry
         {
@@ -87,22 +100,8 @@ public static class ConsoleTui
             public bool Attached;
         }
 
-        private sealed class Palette
-        {
-            public enum Kind { Commands, Files }
-            public required Kind Type;
-            public string Filter = "";
-            public int Selected;
-            public List<CliCommand> Commands = new();
-            public List<FileRef> Files = new();
-        }
-
         private sealed record CliCommand(
-            string Name,
-            string Args,
-            string Help,
-            Func<Tui, string, Task> Run,
-            string[]? Aliases = null);
+            string Name, string Args, string Help, Func<Tui, string, Task> Run, string[]? Aliases = null);
 
         private static readonly List<CliCommand> Commands = new()
         {
@@ -121,7 +120,7 @@ public static class ConsoleTui
             new("shortcuts", "", "Show the keyboard shortcuts overlay", (t, _) => t.ShowShortcutsAsync(), new[] { "/keys" }),
             new("health", "", "Ping the server and report latency", (t, _) => t.HealthAsync()),
             new("retry", "", "Resend the last prompt (also Ctrl+Y)", (t, _) => t.RetryAsync()),
-            new("exit", "", "Exit the terminal UI (Ctrl+C twice, Ctrl+D)", (t, _) => t.ExitAsync(), new[] { "/quit" }),
+            new("exit", "", "Exit the terminal UI (Ctrl+Q, Ctrl+C twice, Ctrl+D)", (t, _) => t.ExitAsync(), new[] { "/quit" }),
         };
 
         private static readonly string[] AgentSets = { "default-agent", "web-agent", "search-agent", "research-agent", "word-agent", "spreadsheet-agent", "email-agent", "multi-agent" };
@@ -131,78 +130,7 @@ public static class ConsoleTui
         [DllImport("winmm.dll", SetLastError = true)]
         private static extern bool PlaySound(string pszSound, IntPtr hmod, uint fdwSound);
 
-        // ── Terminal input (keys + mouse) ──
-        // Windows uses the native console API (ReadConsoleInput): precise events for
-        // keys, clicks, wheel and resize — like the Qwen Code TUI. QuickEdit
-        // is disabled, otherwise mouse selection "steals" the clicks.
-        // On Linux/macOS it falls back to Console.ReadKey (keyboard only).
-        private enum UiKind { Key, Mouse, Resize, Quit }
-        private enum MouseAction { None, LeftPress, DoubleClick, WheelUp, WheelDown }
-        private readonly record struct UiEvent(UiKind Kind, ConsoleKeyInfo? Key = null, int X = 0, int Y = 0, MouseAction Action = MouseAction.None);
-
-        private sealed class PickerState
-        {
-            public required string Title;
-            public required List<string> Items;
-            public int Selected;
-        }
-
-        [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode)]
-        private struct InputRecord
-        {
-            [FieldOffset(0)] public ushort EventType;
-            [FieldOffset(4)] public KeyEventRecord KeyEvent;
-            [FieldOffset(4)] public MouseEventRecord MouseEvent;
-        }
-
-        [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode)]
-        private struct KeyEventRecord
-        {
-            [FieldOffset(0)] public int KeyDown;         // BOOL
-            [FieldOffset(4)] public ushort RepeatCount;
-            [FieldOffset(6)] public ushort VirtualKeyCode;
-            [FieldOffset(8)] public ushort VirtualScanCode;
-            [FieldOffset(10)] public char UnicodeChar;
-            [FieldOffset(12)] public uint ControlKeyState;
-        }
-
-        [StructLayout(LayoutKind.Explicit)]
-        private struct MouseEventRecord
-        {
-            [FieldOffset(0)] public short X;
-            [FieldOffset(2)] public short Y;
-            [FieldOffset(4)] public uint ButtonState;
-            [FieldOffset(8)] public uint ControlKeyState;
-            [FieldOffset(12)] public uint EventFlags;
-        }
-
-        private const ushort KeyEventType = 0x0001;
-        private const ushort MouseEventType = 0x0002;
-        private const ushort WindowBufferSizeEventType = 0x0004;
-        private const uint MouseMovedFlag = 0x0001;
-        private const uint DoubleClickFlag = 0x0002;
-        private const uint MouseWheeledFlag = 0x0004;
-        private const uint LeftButtonFlag = 0x0001;
-        private const uint EnableExtendedFlags = 0x0080;
-        private const uint EnableQuickEditMode = 0x0040;
-        private const uint EnableMouseInputMode = 0x0010;
-        private const uint EnableWindowInputMode = 0x0008;
-        private const uint LeftAltFlag = 0x0002;
-        private const uint RightAltFlag = 0x0001;
-        private const uint LeftCtrlFlag = 0x0008;
-        private const uint RightCtrlFlag = 0x0004;
-        private const uint ShiftFlag = 0x0010;
-        private const int StdInputHandle = -10;
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr GetStdHandle(int nStdHandle);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool ReadConsoleInput(IntPtr hConsoleInput, out InputRecord lpBuffer, uint nLength, out uint lpNumberOfEventsRead);
-
+        // ── AGENT logo (ASCII art, one color per line) ──
         private static readonly string[] LogoLines =
         {
             " █████╗  ██████╗ ███████╗███╗   ██╗████████╗",
@@ -213,603 +141,489 @@ public static class ConsoleTui
             "╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝",
         };
 
+        private static readonly TuiAttribute[] LogoAttributes =
+        {
+            new TuiAttribute(Color.BrightMagenta, Color.Black),
+            new TuiAttribute(Color.BrightCyan, Color.Black),
+            new TuiAttribute(Color.BrightBlue, Color.Black),
+            new TuiAttribute(Color.Magenta, Color.Black),
+            new TuiAttribute(Color.Cyan, Color.Black),
+            new TuiAttribute(Color.Blue, Color.Black),
+        };
+
+        private static readonly (string Keys, string What)[] ShortcutTable =
+        {
+            ("Enter", "Send the message / run the selected command"),
+            ("/", "Open the slash-command palette (live, while you type)"),
+            ("@", "Open the file palette (toggle chat attachments)"),
+            ("?", "Show this shortcuts overlay (empty input)"),
+            ("Tab", "Complete the selected command in the palette"),
+            ("Esc", "Close dialog · clear input · twice: exit"),
+            ("Ctrl+C", "Cancel the reply · clear input · twice: exit"),
+            ("Ctrl+D", "Exit (empty input)"),
+            ("Ctrl+Y", "Retry the last prompt"),
+            ("Ctrl+R", "Reverse-search prompt history"),
+            ("Up / Down", "Prompt history (also Ctrl+P / Ctrl+N)"),
+            ("Left / Right", "Move the cursor (with Ctrl: by word)"),
+            ("Ctrl+A / Ctrl+E", "Select all / jump to end of the input"),
+            ("Ctrl+U / Ctrl+K", "Delete to start / to end of the line"),
+            ("Ctrl+W", "Delete the word before the cursor (also Ctrl+Backspace)"),
+            ("PgUp / PgDn", "Scroll the conversation history"),
+            ("F1", "Show the full help page"),
+            ("F10", "Activate the menu bar"),
+        };
+
         public Tui(string serverUrl, string? hostError)
         {
             _serverUrl = serverUrl;
             _hostError = hostError;
+            _http.BaseAddress = new Uri(serverUrl);
+            _app = Application.Create().Init();
+
+            // Modern dark theme for the whole main window (views reference it by name).
+            _baseScheme = new Scheme
+            {
+                Normal = new TuiAttribute(Color.White, Color.Black),
+                Focus = new TuiAttribute(Color.Black, Color.BrightCyan),
+                HotNormal = new TuiAttribute(Color.BrightCyan, Color.Black),
+                HotFocus = new TuiAttribute(Color.Black, Color.BrightMagenta),
+            };
+            SchemeManager.AddScheme("Dark", _baseScheme);
+            SchemeManager.AddScheme("Hint", new Scheme
+            {
+                Normal = new TuiAttribute(Color.Gray, Color.Black),
+                Focus = new TuiAttribute(Color.Gray, Color.Black),
+            });
+            for (int i = 0; i < LogoAttributes.Length; i++)
+                SchemeManager.AddScheme($"Logo{i}", new Scheme { Normal = LogoAttributes[i] });
+
+            BuildUI();
+            _history.Add(new Entry
+            {
+                Role = "system",
+                Text = "Benvenuto in AGENT — parla con gli agenti direttamente da terminale.\n"
+                     + "Scrivi un messaggio e premi Invio · / apre i comandi · @ i file · ? le scorciatoie · F1 l'aiuto · F10 il menu.",
+            });
+            _history.Add(new Entry { Role = "system", Text = $"server: {_serverUrl} — l'API resta attiva in parallelo ({_serverUrl}/v1/chat/completions)" });
+            if (!string.IsNullOrEmpty(_hostError))
+                _history.Add(new Entry { Role = "system", Text = $"local host start failed ({_hostError}) — connecting to an existing instance" });
         }
 
-        public async Task RunAsync()
+        public Task RunAsync()
         {
-            var oldEncoding = Console.OutputEncoding;
-            var oldCtrlC = Console.TreatControlCAsInput;
-            Console.OutputEncoding = Encoding.UTF8;
-            Console.TreatControlCAsInput = true;
-            EnterAltBuffer();
-            StartInput();
-            try
+            if (_mainWindow is { } window)
             {
-                _http.BaseAddress = new Uri(_serverUrl);
-                await SplashAsync();
-                FullRedraw();
-                await KeyLoopAsync();
-            }
-            finally
-            {
-                _chatCts?.Cancel();
-                _events?.Writer.TryComplete();
-                CursorShow();
-                ExitAltBuffer();
-                // Last message before exit (non‑UI)
-                AnsiConsole.Write(new Markup("\n[grey]agent session closed.[/]\n"));
-                Console.TreatControlCAsInput = oldCtrlC;
-                Console.OutputEncoding = oldEncoding;
-            }
-        }
-
-        // ── Input layer: event queue (keys + mouse) ──
-        private void StartInput()
-        {
-            _events = Channel.CreateUnbounded<UiEvent>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
-            if (OperatingSystem.IsWindows())
-            {
-                _hIn = GetStdHandle(StdInputHandle);
-                if (_hIn != IntPtr.Zero && _hIn != new IntPtr(-1) && GetConsoleMode(_hIn, out var mode))
+                // Give the input the focus once the window is up. The framework's initial
+                // focus lands on the first focusable child (the menu bar), so re-assert
+                // the input focus after the first iterations: without it, typing and the
+                // Esc/Ctrl+C/Ctrl+D exit handling never reach the input.
+                window.Initialized += (_, _) => _inputField?.SetFocus();
+                _app.AddTimeout(TimeSpan.FromMilliseconds(60), () =>
                 {
-                    // QuickEdit off: selecting text with the mouse must not steal the clicks.
-                    mode &= ~EnableQuickEditMode;
-                    mode |= EnableExtendedFlags | EnableMouseInputMode | EnableWindowInputMode;
-                    SetConsoleMode(_hIn, mode);
-                    _inputThread = new Thread(WinInputLoop) { IsBackground = true };
-                    _inputThread.Start();
-                    return;
-                }
-            }
-            // Keyboard fallback (Linux/macOS or non-standard console): no mouse.
-            _inputThread = new Thread(KeyInputLoop) { IsBackground = true };
-            _inputThread.Start();
-        }
-
-        private void WinInputLoop()
-        {
-            var rec = default(InputRecord);
-            while (!_exit)
-            {
-                if (!ReadConsoleInput(_hIn, out rec, 1, out _)) break; // console closed
-                switch (rec.EventType)
-                {
-                    case KeyEventType when rec.KeyEvent.KeyDown != 0:
-                        EnqueueKey(rec.KeyEvent);
-                        break;
-                    case MouseEventType:
-                        EnqueueMouse(rec.MouseEvent);
-                        break;
-                    case WindowBufferSizeEventType:
-                        _events.Writer.TryWrite(new UiEvent(UiKind.Resize));
-                        break;
-                }
-            }
-            _events.Writer.TryWrite(new UiEvent(UiKind.Quit)); // wake up the main loop
-        }
-
-        private void EnqueueKey(in KeyEventRecord k)
-        {
-            var state = k.ControlKeyState;
-            var shift = (state & ShiftFlag) != 0;
-            var alt = (state & (LeftAltFlag | RightAltFlag)) != 0;
-            var ctrl = (state & (LeftCtrlFlag | RightCtrlFlag)) != 0;
-            _events.Writer.TryWrite(new UiEvent(UiKind.Key, new ConsoleKeyInfo(k.UnicodeChar, (ConsoleKey)k.VirtualKeyCode, shift, alt, ctrl)));
-        }
-
-        private void EnqueueMouse(in MouseEventRecord m)
-        {
-            var x = m.X + 1; // 1-based coordinates like the layout
-            var y = m.Y + 1;
-            if ((m.EventFlags & MouseWheeledFlag) != 0)
-            {
-                var delta = (short)(m.ButtonState >> 16);
-                _events.Writer.TryWrite(new UiEvent(UiKind.Mouse, null, x, y, delta > 0 ? MouseAction.WheelUp : MouseAction.WheelDown));
-                return;
-            }
-            if ((m.EventFlags & MouseMovedFlag) != 0) return; // movement only: ignore
-            var left = (m.ButtonState & LeftButtonFlag) != 0;
-            if (!left) return;
-            var dbl = (m.EventFlags & DoubleClickFlag) != 0;
-            _events.Writer.TryWrite(new UiEvent(UiKind.Mouse, null, x, y, dbl ? MouseAction.DoubleClick : MouseAction.LeftPress));
-        }
-
-        private void KeyInputLoop()
-        {
-            while (!_exit)
-            {
+                    _inputField?.SetFocus();
+                    return false;   // one-shot
+                });
+                RefreshHistory();
+                _ = Task.Run(RefreshServerStateAsync);
                 try
                 {
-                    if (Console.KeyAvailable)
-                        _events.Writer.TryWrite(new UiEvent(UiKind.Key, Console.ReadKey(true)));
-                    else Thread.Sleep(20);
+                    _app.Run(window);
                 }
-                catch (InvalidOperationException) { break; } // redirected input
-                catch { }
-            }
-            _events.Writer.TryWrite(new UiEvent(UiKind.Quit)); // wake up the main loop
-        }
-
-        private static void EnterAltBuffer()
-        {
-            try { Console.Write("\x1b[?1049h"); } catch { }
-        }
-
-        private static void ExitAltBuffer()
-        {
-            try { Console.Write("\x1b[?1049l"); } catch { }
-        }
-
-        // ── Splash (only at startup, uses MarkupLine because it's temporary) ──
-        private async Task SplashAsync()
-        {
-            CursorHide();
-            AnsiConsole.Clear();
-            WriteLogo(centered: true);
-            AnsiConsole.MarkupLine("\n  [bold]AgentBridge[/] — OpenAI-compatible agent server · terminal UI");
-            AnsiConsole.MarkupLine($"  server: [cyan]{Markup.Escape(_serverUrl)}[/]" +
-                (string.IsNullOrEmpty(_hostError) ? "" : $"   [red]local host start failed ({Markup.Escape(_hostError)}) — connecting to an existing instance[/]"));
-            AnsiConsole.MarkupLine("  connecting…");
-            await RefreshServerStateAsync();
-        }
-
-        // ── Main loop: consumes the event queue (keys + mouse + resize) ──
-        private async Task KeyLoopAsync()
-        {
-            while (!_exit)
-            {
-                UiEvent ev;
-                try { ev = await _events.Reader.ReadAsync(); }
-                catch (ChannelClosedException) { break; }
-
-                if (ev.Kind == UiKind.Quit) { _exit = true; break; }
-                if (ev.Kind == UiKind.Resize) { FullRedraw(); continue; }
-                if (ev.Kind == UiKind.Mouse)
+                finally
                 {
-                    HandleMouse(ev);
-                    if (_mouseConfirm && _palette != null)   // double click on a palette row
-                    {
-                        _mouseConfirm = false;
-                        await RunPaletteSelectionAsync();
-                    }
-                    continue;
-                }
-
-                TrackSize();
-                try { await HandleKeyAsync(ev.Key!.Value); }
-                catch (Exception ex) { AddNote($"internal error: {ex.Message}"); }
-                if (_exit) break;
-                if (_resized) FullRedraw();
-                else RenderBottom(); // every key updates input and palette
-            }
-        }
-
-        // ── Mouse: click on the input, wheel to scroll, palette click/navigation ──
-        private void HandleMouse(in UiEvent ev)
-        {
-            // Click on the input line → position the cursor (like Qwen).
-            if (ev.Y == _inputLine && ev.Action is MouseAction.LeftPress or MouseAction.DoubleClick)
-            {
-                var col = Math.Max(1, ev.X - 2); // removes the "> " prefix
-                _cursor = Math.Clamp(col, 0, _input.Length);
-                RenderBottom();
-                return;
-            }
-            // Palette: wheel/click navigate the selection, double click confirms.
-            if (_palette != null && ev.Y > _inputLine)
-            {
-                var rows = _palette.Type == Palette.Kind.Commands ? _palette.Commands.Count : _palette.Files.Count;
-                if (ev.Action == MouseAction.WheelUp) { _palette.Selected = Math.Max(0, _palette.Selected - 1); }
-                else if (ev.Action == MouseAction.WheelDown) { MoveSelectionDown(); }
-                else if (ev.Action == MouseAction.LeftPress)
-                {
-                    var row = ev.Y - _inputLine - 1;
-                    if (row >= 0 && row < rows) _palette.Selected = row;
-                }
-                else if (ev.Action == MouseAction.DoubleClick)
-                {
-                    var row = ev.Y - _inputLine - 1;
-                    if (row >= 0 && row < rows) { _palette.Selected = row; _mouseConfirm = true; }
-                }
-                RenderBottom();
-                return;
-            }
-            // Wheel over the conversation area → scroll.
-            if (ev.Y < _inputLine)
-            {
-                if (ev.Action == MouseAction.WheelUp) { _scrollFromBottom += 3; RenderHistory(); }
-                else if (ev.Action == MouseAction.WheelDown) { _scrollFromBottom = Math.Max(0, _scrollFromBottom - 3); RenderHistory(); }
-            }
-        }
-
-        // ── In-layout picker (replaces Spectre's SelectionPrompt): clean rendering,
-        //    Esc cancels, ↑↓/wheel/click navigate, Enter/double click confirms. ──
-        private async Task<string?> PickAsync(string title, List<string> items)
-        {
-            if (items.Count == 0) return null;
-            _picker = new PickerState { Title = title, Items = items, Selected = 0 };
-            RenderBottom();
-            while (!_exit)
-            {
-                UiEvent ev;
-                try { ev = await _events.Reader.ReadAsync(); }
-                catch (ChannelClosedException) { break; }
-
-                if (ev.Kind == UiKind.Quit) { _exit = true; break; }
-                if (ev.Kind == UiKind.Resize) { FullRedraw(); continue; }
-                if (ev.Kind == UiKind.Mouse)
-                {
-                    if (ev.Action == MouseAction.WheelUp) { _picker.Selected = Math.Max(0, _picker.Selected - 1); RenderBottom(); continue; }
-                    if (ev.Action == MouseAction.WheelDown) { _picker.Selected = Math.Min(items.Count - 1, _picker.Selected + 1); RenderBottom(); continue; }
-                    if (ev.Y > _inputLine)
-                    {
-                        var row = ev.Y - _inputLine - 1;
-                        if (row >= 0 && row < items.Count) _picker.Selected = row;
-                        if (ev.Action == MouseAction.DoubleClick)
-                        {
-                            var sel = items[_picker.Selected];
-                            _picker = null;
-                            RenderBottom();
-                            return sel;
-                        }
-                        RenderBottom();
-                    }
-                    continue;
-                }
-
-                var k = ev.Key!.Value;
-                if (k.Key == ConsoleKey.Escape) { _picker = null; RenderBottom(); return null; }
-                if (k.Key == ConsoleKey.Enter) { var sel = items[_picker.Selected]; _picker = null; RenderBottom(); return sel; }
-                if (k.Key == ConsoleKey.UpArrow) { _picker.Selected = Math.Max(0, _picker.Selected - 1); }
-                else if (k.Key == ConsoleKey.DownArrow) { _picker.Selected = Math.Min(items.Count - 1, _picker.Selected + 1); }
-                else if (k.Key == ConsoleKey.PageUp) { _picker.Selected = Math.Max(0, _picker.Selected - 5); }
-                else if (k.Key == ConsoleKey.PageDown) { _picker.Selected = Math.Min(items.Count - 1, _picker.Selected + 5); }
-                RenderBottom();
-            }
-            _picker = null;
-            return null;
-        }
-
-        private async Task HandleKeyAsync(ConsoleKeyInfo k)
-        {
-            if (k.Key != ConsoleKey.Escape && k.Key != ConsoleKey.C) _escCount = 0;
-
-            if (_palette != null)
-            {
-                switch (k.Key)
-                {
-                    case ConsoleKey.Escape: _palette = null; return;
-                    case ConsoleKey.UpArrow: _palette.Selected = Math.Max(0, _palette.Selected - 1); RecomputePalette(); return;
-                    case ConsoleKey.DownArrow: MoveSelectionDown(); return;
-                    case ConsoleKey.Tab: CompleteSelected(); return;
-                    case ConsoleKey.Enter:
-                        await RunPaletteSelectionAsync();
-                        return;
+                    CancelChat();
+                    Dispose();
                 }
             }
+            return Task.CompletedTask;
+        }
 
-            var ctrl = (k.Modifiers & ConsoleModifiers.Control) != 0;
-            var alt = (k.Modifiers & ConsoleModifiers.Alt) != 0;
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            CancelChat();
+            try { _app.Dispose(); } catch { }
+            _http.Dispose();
+        }
 
-            switch (k.Key)
+        private void CancelChat()
+        {
+            lock (_stateLock) _chatCts?.Cancel();
+        }
+
+        // ── UI-thread marshalling ──
+        // Terminal.Gui mutates views only on the main loop thread. Every UI touch
+        // goes through Ui(); background tasks (HTTP, streaming) queue their updates
+        // via IApplication.Invoke. Actions posted after dispose are dropped.
+        private void Ui(Action action)
+        {
+            if (_disposed) return;
+            try { _app.Invoke(action); } catch { }
+        }
+
+        // ── Layout ──
+        private void BuildUI()
+        {
+            _mainWindow = new Window
             {
-                case ConsoleKey.Enter:
-                    await SubmitAsync();
-                    break;
+                Title = "AGENT - AI Chat Console",
+                X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(),
+                SchemeName = "Dark",
+            };
 
-                case ConsoleKey.Escape:
-                    if (_input.Length > 0) { _input = ""; _cursor = 0; }
-                    else if (++_escCount >= 2) _exit = true;
-                    else _statusNote = "Press Esc again to exit · or Ctrl+C twice · or Ctrl+D";
-                    break;
+            var menu = new MenuBar(new MenuBarItem[]
+            {
+                new("_File", new MenuItem[]
+                {
+                    new MenuItem("_Nuova Chat", Key.Empty, () => RunCommandByName("new", "")),
+                    new MenuItem("_Esci", Key.Q.WithCtrl, () => RequestExit()),
+                }),
+                new("_Chat", new MenuItem[]
+                {
+                    new MenuItem("_Pulisci cronologia", Key.L.WithCtrl, () => RunCommandByName("clear", "")),
+                    new MenuItem("_Comandi (/...)", Key.Empty, () => ShowCommandMenu("")),
+                    new MenuItem("_Ripeti ultima (/retry)", Key.Y.WithCtrl, () => RunCommandByName("retry", "")),
+                }),
+                new("_Sessione", new MenuItem[]
+                {
+                    new MenuItem("_Modello LLM (/model)", Key.Empty, () => RunCommandByName("model", "")),
+                    new MenuItem("_Agente (/agent)", Key.Empty, () => RunCommandByName("agent", "")),
+                    new MenuItem("_Stato (/status)", Key.Empty, () => RunCommandByName("status", "")),
+                    new MenuItem("_Salute (/health)", Key.Empty, () => RunCommandByName("health", "")),
+                }),
+                new("_Aiuto", new MenuItem[]
+                {
+                    new MenuItem("_Aiuto (/help)", Key.F1, () => RunCommandByName("help", "")),
+                    new MenuItem("_Scorciatoie (/shortcuts)", Key.Empty, () => RunCommandByName("shortcuts", "")),
+                    new MenuItem("_Documentazione (/docs)", Key.Empty, () => RunCommandByName("docs", "")),
+                    new MenuItem("_Informazioni", Key.Empty, () => ShowAbout()),
+                }),
+            });
+            _mainWindow.Add(menu);
 
-                case ConsoleKey.C when ctrl:
-                    if (_chatRunning) { _chatCts?.Cancel(); _statusNote = "cancelling…"; }
-                    else if (_input.Length > 0) { _input = ""; _cursor = 0; }
-                    else if (++_escCount >= 2) _exit = true;
-                    else _statusNote = "Press Ctrl+C again to exit";
-                    break;
+            // Esc never quits the app directly: it is handled by the focused view
+            // (input line, dialogs, menus). Guard the window's default Esc→Quit
+            // binding so an Esc pressed on a non-handling view (e.g. the send
+            // button) cannot close the whole UI accidentally.
+            _mainWindow.KeyDown += (_, key) =>
+            {
+                if (key == Key.Esc) key.Handled = true;
+            };
 
-                case ConsoleKey.D when ctrl:
-                    if (_input.Length == 0) _exit = true;
-                    break;
+            // Content area below the menu bar (the status bar owns the last row).
+            // CanFocus: a plain View defaults to CanFocus=false, which would block
+            // focus for every focusable child below it (the input field).
+            var contentArea = new View
+            {
+                X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 2,
+                CanFocus = true,
+            };
+            _mainWindow.Add(contentArea);
 
-                case ConsoleKey.L when ctrl:
-                    FullRedraw();
-                    break;
-
-                case ConsoleKey.R when ctrl:
-                    await ReverseSearchAsync();
-                    break;
-
-                case ConsoleKey.Y when ctrl:
-                    await RetryAsync();
-                    break;
-
-                case ConsoleKey.LeftArrow when ctrl || alt:
-                    MoveCursorWord(-1);
-                    break;
-                case ConsoleKey.LeftArrow:
-                    _cursor = Math.Max(0, _cursor - 1);
-                    break;
-
-                case ConsoleKey.RightArrow when ctrl || alt:
-                    MoveCursorWord(1);
-                    break;
-                case ConsoleKey.RightArrow:
-                    _cursor = Math.Min(_input.Length, _cursor + 1);
-                    break;
-
-                case ConsoleKey.Home:
-                case ConsoleKey.A when ctrl:
-                    _cursor = 0;
-                    break;
-                case ConsoleKey.End:
-                case ConsoleKey.E when ctrl:
-                    _cursor = _input.Length;
-                    break;
-
-                case ConsoleKey.B when ctrl: _cursor = Math.Max(0, _cursor - 1); break;
-                case ConsoleKey.F when ctrl: _cursor = Math.Min(_input.Length, _cursor + 1); break;
-                case ConsoleKey.P when ctrl: await HistoryPrevAsync(); break;
-                case ConsoleKey.N when ctrl: await HistoryNextAsync(); break;
-
-                case ConsoleKey.U when ctrl:
-                    _input = _input[_cursor..]; _cursor = 0;
-                    break;
-                case ConsoleKey.K when ctrl:
-                    _input = _input[.._cursor];
-                    break;
-                case ConsoleKey.W when ctrl:
-                    DeleteWordLeft();
-                    break;
-                case ConsoleKey.Backspace:
-                    if (_cursor > 0) { _input = _input[..(_cursor - 1)] + _input[_cursor..]; _cursor--; }
-                    break;
-                case ConsoleKey.Delete:
-                    if (_cursor < _input.Length) _input = _input[.._cursor] + _input[(_cursor + 1)..];
-                    break;
-
-                case ConsoleKey.UpArrow: await HistoryPrevAsync(); break;
-                case ConsoleKey.DownArrow: await HistoryNextAsync(); break;
-
-                case ConsoleKey.PageUp:
-                    _scrollFromBottom += Math.Max(1, _historyHeight - 2);
-                    RenderHistory();
-                    break;
-                case ConsoleKey.PageDown:
-                    _scrollFromBottom = Math.Max(0, _scrollFromBottom - Math.Max(1, _historyHeight - 2));
-                    RenderHistory();
-                    break;
-
-                case ConsoleKey.F1:
-                    await ShowHelpAsync();
-                    break;
-
-                default:
-                    // INVARIANT (project rule): input adapts to the user's ACTIVE
-                    // KEYBOARD LAYOUT — ReadConsoleInput delivers the character already
-                    // translated by the configured keyboard, and no specific layout is
-                    // assumed here (Italian, international, ...). The distinction between
-                    // shortcuts and text is based on the character (Ctrl shortcuts
-                    // produce control characters), never on the layout or language.
-                    // International keyboards: AltGr / Alt+letter / dead keys produce
-                    // a PRINTABLE character with a modifier → it's text input, NOT a
-                    // Ctrl shortcut (e.g. AltGr+e = "é" must not jump to end of line).
-                    if (!char.IsControl(k.KeyChar) && (ctrl || alt))
-                    {
-                        InsertChar(k.KeyChar);
-                        break;
-                    }
-                    if (k.KeyChar == '/' && _input.Length == 0 && _palette == null)
-                    {
-                        _input = "/"; _cursor = 1;
-                        _palette = new Palette { Type = Palette.Kind.Commands };
-                        RecomputePalette();
-                    }
-                    else if (k.KeyChar == '@' && _input.Length == 0 && _palette == null)
-                    {
-                        _input = "@"; _cursor = 1;
-                        _palette = new Palette { Type = Palette.Kind.Files };
-                        _ = Task.Run(RefreshFilesAsync);
-                        RecomputePalette();
-                    }
-                    else if (k.KeyChar == '?' && _input.Length == 0 && _palette == null)
-                    {
-                        await ShowShortcutsAsync();
-                    }
-                    else if (!char.IsControl(k.KeyChar))
-                    {
-                        InsertChar(k.KeyChar);
-                    }
-                    break;
+            // Left panel: the AGENT logo.
+            var logoFrame = new FrameView
+            {
+                Title = "AGENT",
+                X = 0, Y = 0, Width = 48, Height = Dim.Fill(),
+            };
+            contentArea.Add(logoFrame);
+            for (int i = 0; i < LogoLines.Length; i++)
+            {
+                logoFrame.Add(new Label
+                {
+                    Text = LogoLines[i],
+                    X = 1, Y = i + 1,
+                    SchemeName = $"Logo{i}",
+                });
             }
 
-            if (_palette != null)
+            // Right panel: chat history + input line.
+            var chatFrame = new FrameView
             {
-                if (_palette.Type == Palette.Kind.Commands)
+                Title = "Chat",
+                X = Pos.Right(logoFrame), Y = 0,
+                Width = Dim.Fill(), Height = Dim.Fill(),
+            };
+            contentArea.Add(chatFrame);
+
+            _chatView = new Editor
+            {
+                X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 1,
+                ReadOnly = true,
+                WordWrap = true,
+                CanFocus = false,
+                SchemeName = "Dark",
+            };
+            chatFrame.Add(_chatView);
+            // Auto-follow the stream only while the user is at the bottom; scrolling
+            // up (wheel or PgUp) stops the yank until they scroll down or send a message.
+            _chatView.MouseEvent += (_, e) =>
+            {
+                if ((e.Flags & MouseFlags.WheeledUp) != 0) _followBottom = false;
+                else if ((e.Flags & MouseFlags.WheeledDown) != 0) _followBottom = true;
+            };
+
+            var inputArea = new View
+            {
+                X = 0, Y = Pos.Bottom(_chatView), Width = Dim.Fill(), Height = 1,
+                CanFocus = true,
+            };
+            chatFrame.Add(inputArea);
+
+            _inputField = new TextField
+            {
+                X = 0, Y = 0, Width = Dim.Fill() - 10, Height = 1,
+            };
+            SetPlaceholder();
+            _inputField.HasFocusChanged += OnInputFocusChanged;
+            _inputField.KeyDown += OnInputKeyDown;
+            _inputField.ValueChanged += OnInputChanged;
+            inputArea.Add(_inputField);
+
+            var sendButton = new Button
+            {
+                Text = " Invia ",
+                X = Pos.Right(_inputField), Y = 0,
+                Width = 10, Height = 1,
+            };
+            sendButton.Accepted += (_, _) => Submit();
+            inputArea.Add(sendButton);
+
+            _statusLabel = new Label
+            {
+                X = 0, Y = Pos.AnchorEnd(1), Width = Dim.Fill(), Height = 1,
+                SchemeName = "Hint",
+                Text = "",
+            };
+            _mainWindow.Add(_statusLabel);
+        }
+
+        // ── Input field ──
+        private void SetPlaceholder()
+        {
+            if (_inputField == null) return;
+            _inputPlaceholderActive = true;
+            _inputField.Text = PlaceholderText;
+            _inputField.SchemeName = "Hint";
+        }
+
+        private void ClearPlaceholder()
+        {
+            if (_inputField == null) return;
+            _inputPlaceholderActive = false;
+            _inputField.Text = "";
+            _inputField.SchemeName = "Dark";
+        }
+
+        private void OnInputFocusChanged(object? sender, HasFocusEventArgs e)
+        {
+            if (e.NewValue)
+            {
+                if (_inputPlaceholderActive) ClearPlaceholder();
+            }
+            else if (string.IsNullOrWhiteSpace(_inputField?.Text))
+            {
+                SetPlaceholder();
+            }
+        }
+
+        private void OnInputChanged(object? sender, ValueChangedEventArgs<string?> e)
+        {
+            if (_suppressCommandMenu || _inputPlaceholderActive) return;
+            var t = _inputField?.Text ?? "";
+            if (t == "/")
+            {
+                _suppressCommandMenu = true;
+                ShowCommandMenu("");
+                _suppressCommandMenu = false;
+                if ((_inputField?.Text ?? "") == "/") _inputField!.Text = "";
+            }
+            else if (t == "@")
+            {
+                _suppressCommandMenu = true;
+                ShowFilesDialog();
+                _suppressCommandMenu = false;
+                if ((_inputField?.Text ?? "") == "@") _inputField!.Text = "";
+            }
+            else if (t == "?")
+            {
+                _suppressCommandMenu = true;
+                _ = ShowShortcutsAsync();
+                _suppressCommandMenu = false;
+                if ((_inputField?.Text ?? "") == "?") _inputField!.Text = "";
+            }
+        }
+
+        private void OnInputKeyDown(object? sender, Key key)
+        {
+            if (_inputPlaceholderActive)
+                ClearPlaceholder();   // the first keystroke dismisses the hint, then falls through
+
+            if (key == Key.Enter)
+            {
+                key.Handled = true;
+                Submit();
+            }
+            else if (key == Key.Esc)
+            {
+                // Keep the window's default "Esc quits" binding from firing: Esc here
+                // clears the input, and twice on an empty input exits the app.
+                key.Handled = true;
+                if ((_inputField?.Text ?? "").Length > 0)
                 {
-                    if (_input.StartsWith('/')) _palette.Filter = _input[1..];
-                    else _palette = null;
+                    _inputField!.Text = "";
+                }
+                else if (++_escCount >= 2)
+                {
+                    RequestExit();
                 }
                 else
                 {
-                    if (_input.StartsWith('@')) _palette.Filter = _input[1..];
-                    else _palette = null;
+                    _statusNote = "Press Esc again to exit · or Ctrl+C twice";
+                    UpdateStatusUi();
                 }
-                if (_palette != null) RecomputePalette();
             }
-        }
-
-        // ── Input manipulation methods ──
-        private void InsertChar(char c)
-        {
-            _input = _input[.._cursor] + c + _input[_cursor..];
-            _cursor++;
-        }
-
-        private void MoveCursorWord(int dir)
-        {
-            if (dir < 0)
+            else if (key == Key.C.WithCtrl)
             {
-                if (_cursor == 0) return;
-                var i = _cursor - 1;
-                while (i > 0 && _input[i - 1] == ' ') i--;
-                while (i > 0 && _input[i - 1] != ' ') i--;
-                _cursor = i;
+                key.Handled = true;
+                if (_chatRunning != 0)
+                {
+                    CancelChat();
+                    _statusNote = "cancelling…";
+                    UpdateStatusUi();
+                }
+                else if ((_inputField?.Text ?? "").Length > 0)
+                {
+                    _inputField!.Text = "";
+                }
+                else if (++_escCount >= 2)
+                {
+                    RequestExit();
+                }
+                else
+                {
+                    _statusNote = "Press Ctrl+C again to exit";
+                    UpdateStatusUi();
+                }
+            }
+            else if (key == Key.D.WithCtrl)
+            {
+                // Exit on an empty input; otherwise the TextField's native
+                // "delete char in front" applies (same guard as the old TUI).
+                if ((_inputField?.Text ?? "").Length == 0)
+                {
+                    key.Handled = true;
+                    RequestExit();
+                }
+            }
+            else if (key == Key.Y.WithCtrl)
+            {
+                key.Handled = true;
+                _ = RetryAsync();
+            }
+            else if (key == Key.R.WithCtrl)
+            {
+                key.Handled = true;
+                ReverseSearch();
+            }
+            else if (key == Key.F1)
+            {
+                key.Handled = true;
+                _ = ShowHelpAsync();
+            }
+            else if (key == Key.CursorUp || key == Key.P.WithCtrl)
+            {
+                key.Handled = true;
+                HistoryPrev();
+            }
+            else if (key == Key.CursorDown || key == Key.N.WithCtrl)
+            {
+                key.Handled = true;
+                HistoryNext();
+            }
+            else if (key == Key.U.WithCtrl)
+            {
+                // Delete from the insertion point to the start of the input.
+                key.Handled = true;
+                if (_inputField is { } field)
+                {
+                    var t = field.Text ?? "";
+                    field.Text = t[Math.Min(field.InsertionPoint, t.Length)..];
+                    field.InsertionPoint = 0;
+                }
+            }
+            else if (key == Key.W.WithCtrl)
+            {
+                key.Handled = true;
+                _inputField?.KillWordBackwards();
+            }
+            else if (key == Key.PageUp)
+            {
+                key.Handled = true;
+                _followBottom = false;
+                _chatView?.ScrollVertical(-(_chatView.Viewport.Height - 1));
+            }
+            else if (key == Key.PageDown)
+            {
+                key.Handled = true;
+                _followBottom = true;
+                _chatView?.ScrollVertical(_chatView.Viewport.Height - 1);
             }
             else
             {
-                if (_cursor >= _input.Length) return;
-                var i = _cursor;
-                while (i < _input.Length && _input[i] != ' ') i++;
-                while (i < _input.Length && _input[i] == ' ') i++;
-                _cursor = i;
+                _escCount = 0;
             }
         }
 
-        private void DeleteWordLeft()
+        private void HistoryPrev()
         {
-            var start = _cursor;
-            if (start == 0) return;
-            var i = start - 1;
-            while (i > 0 && _input[i - 1] == ' ') i--;
-            while (i > 0 && _input[i - 1] != ' ') i--;
-            _input = _input[..i] + _input[start..];
-            _cursor = i;
+            if (_promptHistory.Count == 0) return;
+            if (_histIndex < 0)
+            {
+                _histDraft = _inputField?.Text ?? "";
+                _histIndex = _promptHistory.Count - 1;
+            }
+            else if (_histIndex > 0)
+            {
+                _histIndex--;
+            }
+            if (_inputField != null) _inputField.Text = _promptHistory[_histIndex];
         }
 
-        private Task HistoryPrevAsync()
+        private void HistoryNext()
         {
-            if (_promptHistory.Count == 0) return Task.CompletedTask;
-            if (_histIndex < 0) { _histDraft = _input; _histIndex = _promptHistory.Count - 1; }
-            else if (_histIndex > 0) _histIndex--;
-            _input = _promptHistory[_histIndex];
-            _cursor = _input.Length;
-            return Task.CompletedTask;
-        }
-
-        private Task HistoryNextAsync()
-        {
-            if (_histIndex < 0) return Task.CompletedTask;
+            if (_histIndex < 0) return;
             _histIndex++;
-            if (_histIndex >= _promptHistory.Count) { _histIndex = -1; _input = _histDraft; }
-            else { _input = _promptHistory[_histIndex]; _cursor = _input.Length; }
-            return Task.CompletedTask;
+            if (_inputField == null) return;
+            if (_histIndex >= _promptHistory.Count)
+            {
+                _histIndex = -1;
+                _inputField.Text = _histDraft;
+            }
+            else
+            {
+                _inputField.Text = _promptHistory[_histIndex];
+            }
         }
 
-        private void MoveSelectionDown()
+        private void Submit()
         {
-            var count = _palette!.Type == Palette.Kind.Commands ? _palette.Commands.Count : _palette.Files.Count;
-            _palette.Selected = Math.Min(Math.Max(0, count - 1), _palette.Selected + 1);
-            RecomputePalette(); // refresh if the filter changed? (it doesn't here, but for safety)
-        }
-
-        // ── Submit and commands ──
-        private async Task SubmitAsync()
-        {
-            var text = _input.Trim();
-            _input = ""; _cursor = 0; _histIndex = -1;
-            if (text.Length == 0) return;
+            var text = (_inputField?.Text ?? "").Trim();
+            if (_inputPlaceholderActive || text.Length == 0) return;
+            _inputField!.Text = "";
+            _inputPlaceholderActive = false;
+            _inputField.SchemeName = "Dark";
+            _followBottom = true;
 
             if (text[0] == '/')
             {
-                await RunCommandLineAsync(text);
+                RunCommandLine(text);
                 return;
             }
             _promptHistory.Add(text);
+            if (_promptHistory.Count > 200) _promptHistory.RemoveAt(0);
             StartChat(text);
-        }
-
-        private async Task RunCommandLineAsync(string text)
-        {
-            var rest = text[1..].TrimStart();
-            var sp = rest.IndexOf(' ');
-            var name = sp < 0 ? rest : rest[..sp];
-            var args = sp < 0 ? "" : rest[(sp + 1)..].Trim();
-            var cmd = Commands.FirstOrDefault(c =>
-                string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase) ||
-                (c.Aliases?.Any(a => a.Equals("/" + name, StringComparison.OrdinalIgnoreCase)) ?? false));
-            if (cmd == null)
-            {
-                AddNote($"[red]unknown command /{Markup.Escape(name)}[/] — type [cyan]/[/] to see the command list, or /help");
-                return;
-            }
-            await RunCommandAsync(cmd, args);
-        }
-
-        private async Task RunCommandAsync(CliCommand cmd, string args)
-        {
-            try { await cmd.Run(this, args); }
-            catch (Exception ex) { AddNote($"[red]/{cmd.Name} failed:[/] {Markup.Escape(ex.Message)}"); }
-            await RefreshSessionStateAsync();
-            RenderTop(); // refresh the status after the command
-        }
-
-        private async Task RunPaletteSelectionAsync()
-        {
-            RecomputePalette();
-            var p = _palette!;
-            if (p.Type == Palette.Kind.Files)
-            {
-                if (p.Files.Count > 0)
-                {
-                    var f = p.Files[Math.Min(p.Selected, p.Files.Count - 1)];
-                    ToggleAttach(f);
-                }
-                _palette = null;
-                return;
-            }
-
-            if (p.Commands.Count == 0) { _palette = null; return; }
-            var cmd = p.Commands[Math.Min(p.Selected, p.Commands.Count - 1)];
-
-            var text = _input.TrimStart();
-            string args = "";
-            if (text.StartsWith('/') && text.Length > 1)
-            {
-                var rest = text[1..].TrimStart();
-                var sp = rest.IndexOf(' ');
-                var name = sp < 0 ? rest : rest[..sp];
-                var match = Commands.FirstOrDefault(c =>
-                    string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase) ||
-                    (c.Aliases?.Any(a => a.Equals("/" + name, StringComparison.OrdinalIgnoreCase)) ?? false));
-                if (match != null) { cmd = match; args = sp < 0 ? "" : rest[(sp + 1)..].Trim(); }
-                else if (sp >= 0) args = rest[(sp + 1)..].Trim();
-            }
-            _palette = null;
-            _input = ""; _cursor = 0;
-            await RunCommandAsync(cmd, args);
-        }
-
-        private void CompleteSelected()
-        {
-            var p = _palette!;
-            if (p.Type == Palette.Kind.Commands && p.Commands.Count > 0)
-            {
-                var cmd = p.Commands[Math.Min(p.Selected, p.Commands.Count - 1)];
-                _input = "/" + cmd.Name;
-                _cursor = _input.Length;
-                p.Filter = cmd.Name;
-                RecomputePalette();
-            }
-            else if (p.Type == Palette.Kind.Files && p.Files.Count > 0)
-            {
-                var f = p.Files[Math.Min(p.Selected, p.Files.Count - 1)];
-                ToggleAttach(f);
-                _palette = null;
-            }
-        }
-
-        private void ToggleAttach(FileRef f)
-        {
-            f.Attached = !f.Attached;
-            if (f.Attached) { if (!_attached.Contains(f.Id)) _attached.Add(f.Id); AddNote($"attached [cyan]{Markup.Escape(f.FileName)}[/] to the chat"); }
-            else { _attached.Remove(f.Id); AddNote($"detached [cyan]{Markup.Escape(f.FileName)}[/]"); }
         }
 
         // ── Chat ──
@@ -817,16 +631,23 @@ public static class ConsoleTui
 
         private async Task SendChatAsync(string prompt)
         {
-            if (_chatRunning) { _statusNote = "generating… wait, or Ctrl+C to stop"; return; }
-            _chatRunning = true;
+            if (Interlocked.CompareExchange(ref _chatRunning, 1, 0) != 0)
+            {
+                _statusNote = "generating… wait, or Ctrl+C to stop";
+                UpdateStatusUi();
+                return;
+            }
             _lastPrompt = prompt;
             _lastFailed = false;
-            _chatCts = new CancellationTokenSource();
-            _history.Add(new Entry { Role = "user", Text = prompt });   // the user's message appears immediately (like Qwen)
-            _pending = new Entry { Role = "agent", Text = "" };
+            lock (_stateLock) _chatCts = new CancellationTokenSource();
             var sw = Stopwatch.StartNew();
-            RenderTop();
-            RenderHistory();
+            Ui(() =>
+            {
+                _history.Add(new Entry { Role = "user", Text = prompt });
+                _pending = new Entry { Role = "agent", Text = "" };
+                RefreshHistory();
+                UpdateStatus();
+            });
 
             try
             {
@@ -834,28 +655,28 @@ public static class ConsoleTui
                 if (string.IsNullOrEmpty(_sessionId))
                     throw new InvalidOperationException("no session — server unreachable");
 
+                var attached = SnapshotAttached();
                 var body = JsonSerializer.Serialize(new
                 {
                     model = _agentSet,
                     messages = new[] { new { role = "user", content = prompt } },
                     session_id = _sessionId,
-                    file_ids = _attached.Count > 0 ? _attached : (List<string>?)null,
+                    file_ids = attached.Count > 0 ? attached : (List<string>?)null,
                     stream = true,
                 }, JsonOpts);
 
                 using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/chat/completions")
                 {
-                    Content = new StringContent(body, Encoding.UTF8, "application/json")
+                    Content = new StringContent(body, Encoding.UTF8, "application/json"),
                 };
                 using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, _chatCts.Token);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var err = await ReadErrorAsync(response);
-                    _pending.Error = true;
-                    _pending.Text = err;
+                    FinishChat(new Entry { Role = "agent", Text = err, Error = true });
                     _lastFailed = true;
-                    AddPendingToHistory();
+                    _statusNote = $"HTTP {(int)response.StatusCode}";
                     return;
                 }
 
@@ -875,8 +696,10 @@ public static class ConsoleTui
                         var delta = doc.RootElement.GetProperty("choices")[0].GetProperty("delta");
                         if (delta.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.String)
                         {
-                            _pending.Text += c.GetString();
-                            if (sw.ElapsedMilliseconds > 80) { sw.Restart(); RenderHistory(); }
+                            var chunk = c.GetString();
+                            if (string.IsNullOrEmpty(chunk)) continue;
+                            _pending!.Text += chunk;
+                            if (sw.ElapsedMilliseconds > 80) { sw.Restart(); Ui(RefreshHistory); }
                         }
                     }
                     catch { }
@@ -884,44 +707,45 @@ public static class ConsoleTui
 
                 _connected = true;
                 _statusNote = $"replied in {sw.ElapsedMilliseconds / 1000.0:0.0}s";
-                AddPendingToHistory();
+                FinishChat(_pending);
             }
             catch (OperationCanceledException)
             {
-                _pending.Error = true;
-                _pending.Text = "(cancelled)";
-                AddPendingToHistory();
                 _statusNote = "cancelled";
                 _lastFailed = true;
+                FinishChat(new Entry { Role = "agent", Text = "(cancelled)", Error = true });
             }
             catch (Exception ex)
             {
-                _pending.Error = true;
-                _pending.Text = $"request failed: {ex.Message}";
-                AddPendingToHistory();
                 _statusNote = "error";
                 _lastFailed = true;
                 _connected = false;
+                FinishChat(new Entry { Role = "agent", Text = $"request failed: {ex.Message}", Error = true });
             }
             finally
             {
-                _chatRunning = false;
-                _pending = null;
-                _chatCts.Dispose();
-                _chatCts = null;
-                RenderHistory();
-                RenderTop();
-                _ = Task.Run(async () =>
+                Interlocked.Exchange(ref _chatRunning, 0);
+                lock (_stateLock)
                 {
-                    await RefreshSessionStateAsync();
-                    RenderTop();
-                });
+                    _chatCts?.Dispose();
+                    _chatCts = null;
+                }
+                Ui(() => { RefreshHistory(); UpdateStatus(); });
+                _ = Task.Run(RefreshSessionStateAsync);
             }
         }
 
-        private void AddPendingToHistory()
+        // Captures the completed reply on the background thread and appends it to the
+        // history on the UI thread (the List<Entry> must only be touched on the main loop).
+        private void FinishChat(Entry? done)
         {
-            if (_pending != null) _history.Add(_pending);
+            Ui(() =>
+            {
+                _pending = null;
+                if (done != null) _history.Add(done);
+                RefreshHistory();
+                UpdateStatus();
+            });
         }
 
         private async Task<string> ReadErrorAsync(HttpResponseMessage response)
@@ -938,6 +762,868 @@ public static class ConsoleTui
             catch { return $"HTTP {(int)response.StatusCode}"; }
         }
 
+        // ── History rendering ──
+        private void RefreshHistory()
+        {
+            if (_chatView == null) return;
+            if (_history.Count > MaxHistory) _history.RemoveRange(0, _history.Count - MaxHistory);
+            var sb = new StringBuilder();
+            foreach (var e in _history) AppendEntry(sb, e);
+            var pending = _pending;   // local copy: FinishChat clears it on the same thread
+            if (pending != null) AppendEntry(sb, pending);
+            if (_chatView.Document is { } doc)
+            {
+                doc.Text = sb.ToString();
+            }
+            else
+            {
+                _chatView.Document = new TextDocument(sb.ToString());
+            }
+            // Setting the caret scrolls the viewport so it stays visible (auto-follow),
+            // but only while the user has not scrolled up (see _followBottom).
+            if (_followBottom)
+                _chatView.CaretOffset = Math.Max(0, (_chatView.Document?.TextLength ?? 1) - 1);
+        }
+
+        private static void AppendEntry(StringBuilder sb, Entry e)
+        {
+            sb.Append(e.Role switch
+            {
+                "user" => "❯ you",
+                "agent" => e.Error ? "✗ error" : "◆ agent",
+                _ => "·",
+            }).Append('\n');
+            sb.Append(e.Text.Replace("\r\n", "\n")).Append("\n\n");
+        }
+
+        private void AddNote(string text)
+        {
+            Ui(() =>
+            {
+                _history.Add(new Entry { Role = "system", Text = text });
+                RefreshHistory();
+            });
+        }
+
+        // Thread-safe snapshots of the state collections (mutated by background tasks).
+        private List<string> SnapshotAttached()
+        {
+            lock (_stateLock) return new List<string>(_attached);
+        }
+
+        private string FeaturesSummary()
+        {
+            lock (_stateLock) return string.Join(",", _features.Where(kv => kv.Value).Select(kv => kv.Key));
+        }
+
+        // ── Status bar ──
+        private void UpdateStatus()
+        {
+            if (_statusLabel == null) return;
+            var dot = _connected ? "●" : "○";
+            var sess = _sessionId.Length > 8 ? _sessionId[..8] : (_sessionId.Length == 0 ? "-" : _sessionId);
+            var ctx = _contextWindow > 0 ? $"{_historyTokens:N0}/{_contextWindow:N0}" : "";
+            var feats = FeaturesSummary();
+            var parts = new List<string>
+            {
+                dot, _serverUrl, _provider, _modelName, _agentSet,
+                $"sess:{sess}", ctx,
+                _ttsAvailable ? "tts:✓" : "tts:✗",
+                _voiceAvailable ? "mic:✓" : "mic:✗",
+                feats.Length > 0 ? "f:" + feats : "",
+                _chatRunning != 0 ? "generating…" : "",
+                _statusNote,
+            };
+            var text = string.Join(" · ", parts.Where(p => p.Length > 0));
+            _statusLabel.Text = text.Length > 240 ? text[..240] : text;
+        }
+
+        private void UpdateStatusUi() => Ui(UpdateStatus);
+
+        // ── Commands ──
+        private void RunCommandLine(string text)
+        {
+            var rest = text[1..].TrimStart();
+            var sp = rest.IndexOf(' ');
+            var name = sp < 0 ? rest : rest[..sp];
+            var args = sp < 0 ? "" : rest[(sp + 1)..].Trim();
+            if (name.Length == 0)
+            {
+                ShowCommandMenu("");
+                return;
+            }
+            var cmd = Commands.FirstOrDefault(c =>
+                string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase) ||
+                (c.Aliases?.Any(a => a.Equals("/" + name, StringComparison.OrdinalIgnoreCase)) ?? false));
+            if (cmd == null)
+            {
+                AddNote($"unknown command /{name} — type / to see the list, or /help");
+                return;
+            }
+            RunCommand(cmd, args);
+        }
+
+        private void RunCommand(CliCommand cmd, string args) => _ = RunCommandAsync(cmd, args);
+
+        // Menu items route through the same guarded path as the slash commands, so
+        // every command has identical error handling and state refresh.
+        private void RunCommandByName(string name, string args)
+        {
+            var cmd = Commands.FirstOrDefault(c => c.Name == name);
+            if (cmd != null) _ = RunCommandAsync(cmd, args);
+        }
+
+        private async Task RunCommandAsync(CliCommand cmd, string args)
+        {
+            try
+            {
+                await cmd.Run(this, args);
+            }
+            catch (Exception ex)
+            {
+                AddNote($"/{cmd.Name} failed: {ex.Message}");
+            }
+            await RefreshSessionStateAsync();
+            UpdateStatusUi();
+        }
+
+        private Task ExitAsync()
+        {
+            Ui(RequestExit);
+            return Task.CompletedTask;
+        }
+
+        private void RequestExit() => _app.RequestStop();
+
+        private async Task HealthAsync()
+        {
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                using var resp = await _http.GetAsync("/health").WaitAsync(TimeSpan.FromSeconds(5));
+                sw.Stop();
+                AddNote(resp.IsSuccessStatusCode
+                    ? $"server healthy · {sw.ElapsedMilliseconds} ms"
+                    : $"server returned HTTP {(int)resp.StatusCode}");
+                _connected = resp.IsSuccessStatusCode;
+                UpdateStatusUi();
+            }
+            catch (Exception ex)
+            {
+                AddNote($"server unreachable: {ex.Message}");
+                _connected = false;
+                UpdateStatusUi();
+            }
+        }
+
+        private async Task SwitchModelAsync(string args)
+        {
+            string name = args.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                List<string> providers;
+                try
+                {
+                    using var resp = await _http.GetAsync("/v1/models").WaitAsync(TimeSpan.FromSeconds(8));
+                    if (!resp.IsSuccessStatusCode) { AddNote("could not load providers"); return; }
+                    using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                    providers = doc.RootElement.GetProperty("data").EnumerateArray()
+                        .Where(x => GetStr(x, "owned_by") == "llm-provider")
+                        .Select(x => $"{GetStr(x, "id")} — {GetStr(x, "model_name")} · ctx {GetInt(x, "context_window"):N0}")
+                        .ToList();
+                }
+                catch (Exception ex)
+                {
+                    AddNote($"could not load providers: {ex.Message}");
+                    return;
+                }
+                if (providers.Count == 0) { AddNote("no providers reported by the server"); return; }
+                var pick = await PickOnUiThreadAsync("Switch LLM provider", providers);
+                if (pick == null) return;   // Esc → cancel
+                name = pick[..pick.IndexOf(" —", StringComparison.Ordinal)];
+            }
+
+            if (string.Equals(name, _provider, StringComparison.OrdinalIgnoreCase))
+            {
+                AddNote($"already on {name}");
+                return;
+            }
+
+            AddNote($"switching provider to {name}… (some providers take minutes to warm up)");
+            var body = JsonSerializer.Serialize(new { session_id = _sessionId, llm_provider = name }, JsonOpts);
+            using var resp2 = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
+            if (resp2.IsSuccessStatusCode)
+            {
+                AddNote($"provider is now {name}");
+            }
+            else
+            {
+                AddNote($"switch refused (HTTP {(int)resp2.StatusCode}): {await ReadErrorAsync(resp2)}");
+            }
+        }
+
+        private async Task SwitchAgentAsync(string args)
+        {
+            string name;
+            if (string.IsNullOrWhiteSpace(args.Trim()))
+            {
+                var pick = await PickOnUiThreadAsync("Switch agent set", AgentSets.ToList());
+                if (pick == null) return;
+                name = pick;
+            }
+            else
+            {
+                name = args.Trim().ToLowerInvariant();
+            }
+            if (!AgentSets.Contains(name))
+            {
+                AddNote($"unknown agent set '{name}' — {string.Join(", ", AgentSets)}");
+                return;
+            }
+            _agentSet = name;
+            AddNote($"agent set: {name}");
+        }
+
+        private async Task VoiceAsync(string lang)
+        {
+            if (!_voiceAvailable)
+            {
+                AddNote($"voice unavailable: {(string.IsNullOrEmpty(_voiceDetail) ? "POST /v1/voice/listen is disabled" : _voiceDetail)}");
+                return;
+            }
+            var l = string.IsNullOrWhiteSpace(lang) ? SystemLang.Get() : lang.Trim();
+            AddNote("listening… (server microphone) — speak now");
+            var body = JsonSerializer.Serialize(new { lang = l, timeout_seconds = 15 }, JsonOpts);
+            try
+            {
+                using var resp = await _http.PostAsync("/v1/voice/listen", new StringContent(body, Encoding.UTF8, "application/json"));
+                if (resp.IsSuccessStatusCode)
+                {
+                    using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                    var text = GetStr(doc.RootElement, "text") ?? "";
+                    if (string.IsNullOrWhiteSpace(text)) { AddNote("no speech recognised"); return; }
+                    Ui(() =>
+                    {
+                        if (_inputField == null) return;
+                        _inputField.Text = text;
+                        _inputPlaceholderActive = false;
+                        _inputField.SchemeName = "Dark";
+                    });
+                    AddNote($"dictated {text} — press Enter to send");
+                }
+                else
+                {
+                    var err = await ReadErrorAsync(resp);
+                    AddNote(resp.StatusCode == System.Net.HttpStatusCode.RequestTimeout
+                        ? "listening timed out (no speech detected)"
+                        : $"voice failed (HTTP {(int)resp.StatusCode}): {err}");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddNote($"voice failed: {ex.Message}");
+            }
+        }
+
+        private async Task TtsAsync(string text)
+        {
+            if (!_ttsAvailable)
+            {
+                AddNote($"tts unavailable: {(string.IsNullOrEmpty(_ttsDetail) ? "POST /v1/audio/speech is disabled" : _ttsDetail)}");
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                var last = _history.LastOrDefault(e => e.Role == "agent" && !e.Error)?.Text;
+                if (string.IsNullOrWhiteSpace(last)) { AddNote("nothing to speak — give text: /tts <text>"); return; }
+                text = last;
+            }
+            AddNote("synthesising…");
+            var body = JsonSerializer.Serialize(new { input = text, lang = SystemLang.Get(), speed = 1.0 }, JsonOpts);
+            try
+            {
+                using var resp = await _http.PostAsync("/v1/audio/speech", new StringContent(body, Encoding.UTF8, "application/json"));
+                if (!resp.IsSuccessStatusCode)
+                {
+                    AddNote($"tts failed (HTTP {(int)resp.StatusCode}): {await ReadErrorAsync(resp)}");
+                    return;
+                }
+                var bytes = await resp.Content.ReadAsByteArrayAsync();
+                var path = Path.Combine(Path.GetTempPath(), $"agent_tts_{DateTime.Now:yyyyMMddHHmmss}.wav");
+                await File.WriteAllBytesAsync(path, bytes);
+                AddNote($"saved {path} ({bytes.Length:N0} bytes)");
+                if (OperatingSystem.IsWindows())
+                {
+                    if (!PlaySound(path, IntPtr.Zero, SndAsync | SndFilename))
+                        AddNote($"playback failed — open the file with your media player: {path}");
+                }
+                else
+                {
+                    AddNote("playback is Windows-only here — open the file with your media player");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddNote($"tts failed: {ex.Message}");
+            }
+        }
+
+        private async Task FeaturesAsync(string args)
+        {
+            if (string.IsNullOrWhiteSpace(args))
+            {
+                string current;
+                lock (_stateLock)
+                    current = _features.Count == 0 ? "(none set)" :
+                        string.Join(", ", _features.Select(kv => $"{kv.Key}={(kv.Value ? "on" : "off")}"));
+                AddNote($"session features: {current}");
+                return;
+            }
+            var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var name = parts[0].ToLowerInvariant();
+            bool value;
+            if (parts.Length >= 2 && parts[1].ToLowerInvariant() is "on" or "true") value = true;
+            else if (parts.Length >= 2 && parts[1].ToLowerInvariant() is "off" or "false") value = false;
+            else
+            {
+                lock (_stateLock) value = !(_features.TryGetValue(name, out var cur) && cur);
+            }
+            lock (_stateLock) _features[name] = value;
+            var body = JsonSerializer.Serialize(new { session_id = _sessionId, features = new Dictionary<string, bool> { [name] = value } }, JsonOpts);
+            using var resp = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
+            if (resp.IsSuccessStatusCode) AddNote($"feature {name} = {(value ? "on" : "off")}");
+            else AddNote($"failed (HTTP {(int)resp.StatusCode}): {await ReadErrorAsync(resp)}");
+        }
+
+        private async Task NewSessionAsync()
+        {
+            using var resp = await _http.PostAsync("/v1/control", new StringContent("{\"create\":true}", Encoding.UTF8, "application/json"));
+            if (!resp.IsSuccessStatusCode) { AddNote($"could not create session (HTTP {(int)resp.StatusCode})"); return; }
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            _sessionId = GetStr(doc.RootElement, "session_id") ?? "";
+            var shortId = _sessionId[..Math.Min(8, _sessionId.Length)];
+            Ui(() =>
+            {
+                _history.Clear();
+                lock (_stateLock)
+                {
+                    _attached.Clear();
+                    foreach (var f in _files) f.Attached = false;
+                }
+                _history.Add(new Entry { Role = "system", Text = $"new session {shortId}" });
+                RefreshHistory();
+            });
+            await RefreshSessionStateAsync();
+        }
+
+        private async Task ClearHistoryAsync()
+        {
+            var body = JsonSerializer.Serialize(new { session_id = _sessionId, reset_history = true }, JsonOpts);
+            using var resp = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
+            if (resp.IsSuccessStatusCode)
+            {
+                Ui(() =>
+                {
+                    _history.Clear();
+                    _history.Add(new Entry { Role = "system", Text = "session history cleared" });
+                    RefreshHistory();
+                });
+            }
+            else
+            {
+                AddNote($"failed (HTTP {(int)resp.StatusCode}): {await ReadErrorAsync(resp)}");
+            }
+        }
+
+        private Task ShowStatusAsync()
+        {
+            string feats, attached;
+            lock (_stateLock)
+            {
+                feats = _features.Count == 0 ? "(none)" : string.Join(", ", _features.Select(kv => $"{kv.Key}={kv.Value}"));
+                attached = _attached.Count == 0 ? "(none)" : string.Join(", ", _attached);
+            }
+            var lines = new List<string>
+            {
+                $"Session        {_sessionId}",
+                $"Provider       {_provider}  ({_modelName})",
+                $"Context window {_contextWindow:N0} tokens · history ≈ {_historyTokens:N0}",
+                $"Agent set      {_agentSet}",
+                $"Features       {feats}",
+                $"Attachments    {attached}",
+                "",
+                $"Capabilities   tts {(_ttsAvailable ? "available" : "unavailable")} · voice {(_voiceAvailable ? "available" : "unavailable")}",
+                $"               server: {_serverUrl} {(_connected ? "connected" : "unreachable")}",
+                $"               prompt history: {_promptHistory.Count} entries",
+            };
+            return ShowPageUiAsync("agent status", lines);
+        }
+
+        private async Task FilesAsync(string args)
+        {
+            if (string.IsNullOrWhiteSpace(args) || args == "list")
+            {
+                await RefreshFilesAsync();
+                List<string> lines;
+                lock (_stateLock)
+                {
+                    if (_files.Count == 0) { AddNote("no uploaded files — use /files add <path>"); return; }
+                    lines = _files.Select(f => $"{f.FileName}  {f.Id} · {f.Status}{(f.Attached ? "  attached" : "")}").ToList();
+                }
+                await ShowPageUiAsync("uploaded files", lines);
+                return;
+            }
+            var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var sub = parts[0].ToLowerInvariant();
+            if (sub == "add" && parts.Length == 2)
+            {
+                var path = parts[1].Trim('"');
+                if (!File.Exists(path)) { AddNote($"file not found: {path}"); return; }
+                AddNote($"uploading {Path.GetFileName(path)}…");
+                try
+                {
+                    await using var fs = File.OpenRead(path);
+                    using var form = new MultipartFormDataContent();
+                    form.Add(new StreamContent(fs), "file", Path.GetFileName(path));
+                    form.Add(new StringContent("assistants"), "purpose");
+                    using var resp = await _http.PostAsync("/v1/files", form);
+                    if (!resp.IsSuccessStatusCode)
+                    {
+                        AddNote($"upload failed (HTTP {(int)resp.StatusCode}): {await ReadErrorAsync(resp)}");
+                        return;
+                    }
+                    using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                    var id = GetStr(doc.RootElement, "id") ?? "";
+                    var name = GetStr(doc.RootElement, "filename") ?? Path.GetFileName(path);
+                    lock (_stateLock)
+                    {
+                        _files.RemoveAll(x => x.Id == id);
+                        _files.Add(new FileRef { Id = id, FileName = name, Status = GetStr(doc.RootElement, "status") ?? "", Attached = true });
+                        if (!_attached.Contains(id)) _attached.Add(id);
+                    }
+                    AddNote($"uploaded + attached {name} ({id})");
+                }
+                catch (Exception ex)
+                {
+                    AddNote($"upload failed: {ex.Message}");
+                }
+            }
+            else if (sub == "rm" && parts.Length == 2)
+            {
+                var id = parts[1].Trim();
+                try
+                {
+                    using var resp = await _http.DeleteAsync($"/v1/files/{Uri.EscapeDataString(id)}");
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        lock (_stateLock)
+                        {
+                            _files.RemoveAll(x => x.Id == id);
+                            _attached.Remove(id);
+                        }
+                        AddNote($"deleted {id}");
+                    }
+                    else
+                    {
+                        AddNote($"delete failed (HTTP {(int)resp.StatusCode}): {await ReadErrorAsync(resp)}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddNote($"delete failed: {ex.Message}");
+                }
+            }
+            else
+            {
+                AddNote("usage: /files add <path> | /files rm <id> | /files");
+            }
+        }
+
+        private async Task AttachAsync(string args)
+        {
+            await RefreshFilesAsync();
+            List<FileRef> files;
+            lock (_stateLock) files = _files.ToList();
+            if (string.IsNullOrWhiteSpace(args))
+            {
+                if (files.Count == 0) { AddNote("no uploaded files — use /files add <path>"); return; }
+                var choices = files.Select(f => $"{f.FileName}  ({f.Id}){(f.Attached ? "  [attached]" : "")}").ToList();
+                var pick = await PickOnUiThreadAsync("Toggle file attachment", choices);
+                if (pick == null) return;
+                var name = pick[..pick.IndexOf("  (", StringComparison.Ordinal)];
+                ToggleAttach(files.First(x => x.FileName == name));
+                return;
+            }
+            var byArg = files.FirstOrDefault(x => x.Id == args.Trim() || x.FileName.Equals(args.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (byArg == null) { AddNote($"unknown file '{args.Trim()}' — /files to list"); return; }
+            ToggleAttach(byArg);
+        }
+
+        private async Task RefreshFilesAsync()
+        {
+            try
+            {
+                using var resp = await _http.GetAsync("/v1/files").WaitAsync(TimeSpan.FromSeconds(8));
+                if (!resp.IsSuccessStatusCode) return;
+                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                if (!doc.RootElement.TryGetProperty("data", out var data)) return;
+                lock (_stateLock)
+                {
+                    _files.Clear();
+                    foreach (var f in data.EnumerateArray())
+                    {
+                        var id = GetStr(f, "id") ?? "";
+                        var name = GetStr(f, "filename") ?? id;
+                        _files.Add(new FileRef { Id = id, FileName = name, Status = GetStr(f, "status") ?? "", Attached = _attached.Contains(id) });
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void ToggleAttach(FileRef f)
+        {
+            bool attached;
+            lock (_stateLock)
+            {
+                f.Attached = !f.Attached;
+                attached = f.Attached;
+                if (attached) { if (!_attached.Contains(f.Id)) _attached.Add(f.Id); }
+                else _attached.Remove(f.Id);
+            }
+            AddNote(attached ? $"attached {f.FileName} to the chat" : $"detached {f.FileName}");
+        }
+
+        private Task RetryAsync()
+        {
+            if (string.IsNullOrEmpty(_lastPrompt))
+            {
+                AddNote("nothing to retry yet");
+                return Task.CompletedTask;
+            }
+            if (!_lastFailed && _history.Count > 0) AddNote("the last reply succeeded — still resending");
+            StartChat(_lastPrompt);
+            return Task.CompletedTask;
+        }
+
+        private Task OpenDocsAsync()
+        {
+            const string url = "https://github.com/Graphene-Lab/AgentBridge";
+            try
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                AddNote($"opened {url} in your browser");
+            }
+            catch (Exception ex)
+            {
+                AddNote($"could not open the browser: {ex.Message}");
+            }
+            return Task.CompletedTask;
+        }
+
+        private Task ShowHelpAsync()
+        {
+            var lines = new List<string>
+            {
+                "QUICK START",
+                "  • Scrivi un messaggio e premi Invio per parlare con gli agenti (default/web/search/word/spreadsheet/email/multi).",
+                "  • / apre la palette comandi (filtra mentre scrivi): /model cambia LLM, /files carica documenti, /voice detta, /tts fa parlare.",
+                "  • @ apre i file caricati (attacca/detacca) · ? scorciatoie · F1 questo aiuto · F10 il menu in alto.",
+                "  • La barra in fondo mostra server, provider, modello, sessione e contesto.",
+                "",
+                "COMMANDS  (type / to open the live list)",
+            };
+            foreach (var c in Commands)
+                lines.Add($"  /{c.Name} {c.Args}".TrimEnd().PadRight(28) + c.Help);
+            lines.Add("");
+            lines.Add("KEYBOARD SHORTCUTS  (press ? on an empty input for the overlay)");
+            foreach (var (keys, what) in ShortcutTable)
+                lines.Add($"  {keys.PadRight(24)} {what}");
+            lines.Add("");
+            lines.Add("MOUSE  (Terminal.Gui native, cross-platform)");
+            lines.Add("  wheel        Scroll the conversation and menus");
+            lines.Add("  click input  Position the text cursor");
+            lines.Add("  click row    Select a list/dialog row (double-click runs it)");
+            lines.Add("");
+            lines.Add("API (the same server keeps answering while you chat)");
+            lines.Add("  POST /v1/chat/completions · /v1/control · /v1/audio/speech · /v1/voice/listen");
+            lines.Add("  GET  /v1/models · /v1/files · /v1/control · /v1/audio/voices · /health");
+            lines.Add("  POST /v1/files (upload · attach via @)");
+            lines.Add("");
+            lines.Add("ONLINE HELP");
+            lines.Add("  AgentBridge repo/docs: https://github.com/Graphene-Lab/AgentBridge  (/docs opens it)");
+            lines.Add("  README.md → \"Terminal UI\"");
+            return ShowPageUiAsync("agent help", lines);
+        }
+
+        private Task ShowShortcutsAsync()
+        {
+            var lines = ShortcutTable.Select(s => $"  {s.Keys.PadRight(24)} {s.What}").ToList();
+            lines.Insert(0, "KEYBOARD SHORTCUTS");
+            lines.Add("");
+            lines.Add("Full help: /help · commands: type /");
+            return ShowPageUiAsync("shortcuts", lines);
+        }
+
+        private void ReverseSearch()
+        {
+            var dlg = new Dialog
+            {
+                Title = "reverse prompt history",
+                Width = Dim.Percent(85),
+                Height = Dim.Percent(50),
+                SchemeName = "Dark",
+            };
+            var q = new TextField { X = 0, Y = 0, Width = Dim.Fill() };
+            var list = new ListView { X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 2 };
+            var hint = new Label
+            {
+                Text = "digita per filtrare la cronologia · ↑↓ · Invio seleziona · Esc chiude",
+                X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
+            };
+            var matches = new List<string>();
+            void Recompute()
+            {
+                var f = (q.Text ?? "").Trim();
+                matches = _promptHistory.Where(p => p.Contains(f, StringComparison.OrdinalIgnoreCase)).ToList();
+                list.Source = new ListWrapper<string>(new ObservableCollection<string>(matches));
+                list.SelectedItem = Math.Clamp(list.SelectedItem ?? 0, 0, Math.Max(0, matches.Count - 1));
+            }
+            Recompute();
+            q.ValueChanged += (_, _) => Recompute();
+            string? picked = null;
+            q.KeyDown += (_, key) =>
+            {
+                if (key == Key.Enter)
+                {
+                    key.Handled = true;
+                    if (matches.Count > 0) picked = matches[Math.Max(0, list.SelectedItem ?? 0)];
+                    _app.RequestStop(dlg);
+                }
+            };
+            list.Accepted += (_, e) =>
+            {
+                e.Handled = true;
+                if (matches.Count > 0) picked = matches[Math.Max(0, list.SelectedItem ?? 0)];
+                _app.RequestStop(dlg);
+            };
+            dlg.Add(q, list, hint);
+            dlg.Initialized += (_, _) => q.SetFocus();
+            _app.Run(dlg);
+            dlg.Dispose();
+            if (picked != null && _inputField != null)
+            {
+                _inputField.Text = picked;
+                _inputPlaceholderActive = false;
+                _inputField.SchemeName = "Dark";
+            }
+            _inputField?.SetFocus();
+        }
+
+        // ── Dialogs ──
+        // Runs a modal picker (title + items) on the UI thread; returns the selected
+        // item or null when cancelled with Esc. Must only be called from Ui(...).
+        private string? RunPickerDialog(string title, IReadOnlyList<string> items)
+        {
+            if (items.Count == 0) return null;
+            var dlg = new Dialog
+            {
+                Title = title,
+                Width = Dim.Percent(70),
+                Height = Dim.Percent(60),
+                SchemeName = "Dark",
+            };
+            var list = new ListView
+            {
+                X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 1,
+                Source = new ListWrapper<string>(new ObservableCollection<string>(items)),
+            };
+            var hint = new Label
+            {
+                Text = "↑↓ navigate · Enter select · Esc cancel",
+                X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
+            };
+            string? result = null;
+            list.Accepted += (_, e) =>
+            {
+                e.Handled = true;
+                result = items[Math.Max(0, list.SelectedItem ?? 0)];
+                _app.RequestStop(dlg);
+            };
+            dlg.Add(list, hint);
+            dlg.Initialized += (_, _) => list.SetFocus();
+            _app.Run(dlg);
+            dlg.Dispose();
+            _inputField?.SetFocus();
+            return result;
+        }
+
+        private Task<string?> PickOnUiThreadAsync(string title, IReadOnlyList<string> items)
+        {
+            var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() =>
+            {
+                try { tcs.TrySetResult(RunPickerDialog(title, items)); }
+                catch (Exception ex) { tcs.TrySetException(ex); }
+            });
+            return tcs.Task;
+        }
+
+        // Full-screen page (help/status): a modal dialog, any key or click closes it.
+        private void ShowPage(string title, IReadOnlyList<string> lines)
+        {
+            var dlg = new Dialog
+            {
+                Title = title,
+                Width = Dim.Percent(92),
+                Height = Dim.Percent(92),
+                SchemeName = "Dark",
+            };
+            var tv = new Editor
+            {
+                ReadOnly = true,
+                WordWrap = false,
+                CanFocus = false,
+                X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 2,
+                Document = new TextDocument(string.Join("\n", lines)),
+            };
+            var hint = new Label
+            {
+                Text = "— scorri con ↑↓ / PgUp-PgDn · chiudi con Esc o Invio —",
+                X = 0, Y = Pos.Bottom(tv), Width = Dim.Fill(),
+            };
+            dlg.Add(tv, hint);
+            dlg.AddButton(new Button { Text = "Chiudi" });
+            _app.Run(dlg);
+            dlg.Dispose();
+            _inputField?.SetFocus();
+        }
+
+        private Task ShowPageUiAsync(string title, IReadOnlyList<string> lines)
+        {
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() =>
+            {
+                try { ShowPage(title, lines); tcs.SetResult(); }
+                catch (Exception ex) { tcs.SetException(ex); }
+            });
+            return tcs.Task;
+        }
+
+        // The "/" live palette: filter field + command list (filters as you type),
+        // Enter runs the selected command (or the typed command line), Esc cancels.
+        private void ShowCommandMenu(string initial)
+        {
+            var dlg = new Dialog
+            {
+                Title = "Comandi disponibili",
+                Width = Dim.Percent(80),
+                Height = Dim.Percent(60),
+                SchemeName = "Dark",
+            };
+            var filter = new TextField { Text = initial, X = 0, Y = 0, Width = Dim.Fill() };
+            var list = new ListView { X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 2 };
+            var hint = new Label
+            {
+                Text = "digita per filtrare · ↑↓ · Tab completa · Invio esegue · Esc chiude",
+                X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
+            };
+            var visible = new List<CliCommand>();
+            void Recompute()
+            {
+                var f = (filter.Text ?? "").Trim();
+                visible = Commands.Where(c => MatchCommand(c, f)).ToList();
+                list.Source = new ListWrapper<string>(new ObservableCollection<string>(
+                    visible.Select(c => $"/{c.Name} {c.Args}".TrimEnd() + "  —  " + c.Help)));
+                list.SelectedItem = Math.Clamp(list.SelectedItem ?? 0, 0, Math.Max(0, visible.Count - 1));
+            }
+            Recompute();
+            filter.ValueChanged += (_, _) => Recompute();
+            filter.KeyDown += (_, key) =>
+            {
+                if (key == Key.Enter)
+                {
+                    key.Handled = true;
+                    RunCommandLine(CommandTextFromDialog(filter.Text, visible, list));
+                    _app.RequestStop(dlg);
+                }
+                else if (key == Key.Tab)
+                {
+                    // Complete the selected command name into the filter (like the old TUI).
+                    key.Handled = true;
+                    if (visible.Count > 0)
+                    {
+                        var cmd = visible[Math.Max(0, list.SelectedItem ?? 0)];
+                        filter.Text = "/" + cmd.Name + (cmd.Args.Length > 0 ? " " : "");
+                    }
+                }
+            };
+            list.Accepted += (_, e) =>
+            {
+                e.Handled = true;
+                RunCommandLine(CommandTextFromDialog(filter.Text, visible, list));
+                _app.RequestStop(dlg);
+            };
+            dlg.Add(filter, list, hint);
+            dlg.Initialized += (_, _) => filter.SetFocus();
+            _app.Run(dlg);
+            dlg.Dispose();
+            _inputField?.SetFocus();
+        }
+
+        private static string CommandTextFromDialog(string? filterText, List<CliCommand> visible, ListView list)
+        {
+            var text = (filterText ?? "").Trim();
+            if (text.Length == 0 && visible.Count > 0)
+                text = "/" + visible[Math.Max(0, list.SelectedItem ?? 0)].Name;
+            if (!text.StartsWith('/')) text = "/" + text;
+            return text;
+        }
+
+        private static bool MatchCommand(CliCommand c, string filter)
+        {
+            if (filter.Length == 0) return true;
+            var first = filter.Split(' ')[0];
+            return c.Name.StartsWith(filter, StringComparison.OrdinalIgnoreCase)
+                || (c.Name + " " + c.Args).StartsWith(filter, StringComparison.OrdinalIgnoreCase)
+                || (c.Aliases?.Any(a => a.StartsWith("/" + filter, StringComparison.OrdinalIgnoreCase)) ?? false)
+                || (first.Length > 0 && c.Name.StartsWith(first, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // The "@" live palette: uploaded files, Enter toggles the attachment.
+        private void ShowFilesDialog()
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await RefreshFilesAsync();
+                    Ui(() =>
+                    {
+                        List<FileRef> files;
+                        lock (_stateLock) files = _files.ToList();
+                        if (files.Count == 0) { AddNote("no uploaded files — use /files add <path>"); return; }
+                        var choices = files.Select(f => $"{f.FileName}  ({f.Id}){(f.Attached ? "  [attached]" : "")}").ToList();
+                        var pick = RunPickerDialog("Toggle file attachment", choices);
+                        if (pick != null)
+                        {
+                            var name = pick[..pick.IndexOf("  (", StringComparison.Ordinal)];
+                            ToggleAttach(files.First(x => x.FileName == name));
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    AddNote($"could not load files: {ex.Message}");
+                }
+            });
+        }
+
+        private void ShowAbout()
+        {
+            _ = MessageBox.Query(_app, "AGENT", "AGENT v2 - TUI moderna\nPowered by Terminal.Gui", "OK");
+        }
+
         // ── Server state ──
         private async Task RefreshServerStateAsync()
         {
@@ -945,7 +1631,12 @@ public static class ConsoleTui
             {
                 using var health = await _http.GetAsync("/health").WaitAsync(TimeSpan.FromSeconds(8));
                 _connected = health.IsSuccessStatusCode;
-                if (!_connected) { _statusNote = "server unreachable — starting it headless keeps the API alive"; return; }
+                if (!_connected)
+                {
+                    _statusNote = "server unreachable — starting it headless keeps the API alive";
+                    UpdateStatusUi();
+                    return;
+                }
 
                 if (string.IsNullOrEmpty(_sessionId))
                 {
@@ -964,6 +1655,7 @@ public static class ConsoleTui
             {
                 _connected = false;
                 _statusNote = $"server unreachable: {ex.Message}";
+                UpdateStatusUi();
             }
         }
 
@@ -986,8 +1678,11 @@ public static class ConsoleTui
                 }
                 if (root.TryGetProperty("features", out var feats) && feats.ValueKind == JsonValueKind.Object)
                 {
-                    _features.Clear();
-                    foreach (var p in feats.EnumerateObject()) _features[p.Name] = p.Value.GetBoolean();
+                    lock (_stateLock)
+                    {
+                        _features.Clear();
+                        foreach (var p in feats.EnumerateObject()) _features[p.Name] = p.Value.GetBoolean();
+                    }
                 }
                 if (root.TryGetProperty("capabilities", out var caps))
                 {
@@ -1002,27 +1697,7 @@ public static class ConsoleTui
                         _voiceDetail = GetStr(voice, "detail") ?? "";
                     }
                 }
-            }
-            catch { }
-        }
-
-        private async Task RefreshFilesAsync()
-        {
-            try
-            {
-                using var resp = await _http.GetAsync("/v1/files").WaitAsync(TimeSpan.FromSeconds(8));
-                if (!resp.IsSuccessStatusCode) return;
-                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-                if (!doc.RootElement.TryGetProperty("data", out var data)) return;
-                _files.Clear();
-                foreach (var f in data.EnumerateArray())
-                {
-                    var id = GetStr(f, "id") ?? "";
-                    var name = GetStr(f, "filename") ?? id;
-                    _files.Add(new FileRef { Id = id, FileName = name, Status = GetStr(f, "status") ?? "", Attached = _attached.Contains(id) });
-                }
-                RecomputePalette();
-                RenderBottom();
+                UpdateStatusUi();
             }
             catch { }
         }
@@ -1033,767 +1708,5 @@ public static class ConsoleTui
             e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var i) ? i : 0;
         private static bool GetBool(JsonElement e, string name) =>
             e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
-
-        // ── Commands ──
-        private Task ExitAsync() { _exit = true; return Task.CompletedTask; }
-
-        private async Task HealthAsync()
-        {
-            var sw = Stopwatch.StartNew();
-            try
-            {
-                using var resp = await _http.GetAsync("/health").WaitAsync(TimeSpan.FromSeconds(5));
-                sw.Stop();
-                AddNote(resp.IsSuccessStatusCode
-                    ? $"server [green]healthy[/] · {sw.ElapsedMilliseconds} ms"
-                    : $"server returned [red]HTTP {(int)resp.StatusCode}[/]");
-                _connected = resp.IsSuccessStatusCode;
-            }
-            catch (Exception ex) { AddNote($"[red]server unreachable:[/] {Markup.Escape(ex.Message)}"); _connected = false; }
-        }
-
-        private async Task SwitchModelAsync(string args)
-        {
-            string name;
-            if (string.IsNullOrWhiteSpace(args))
-            {
-                using var resp = await _http.GetAsync("/v1/models").WaitAsync(TimeSpan.FromSeconds(8));
-                if (!resp.IsSuccessStatusCode) { AddNote("[red]could not load providers[/]"); return; }
-                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-                var providers = doc.RootElement.GetProperty("data").EnumerateArray()
-                    .Where(x => GetStr(x, "owned_by") == "llm-provider")
-                    .Select(x => $"{GetStr(x, "id")} — {GetStr(x, "model_name")} · ctx {GetInt(x, "context_window"):N0}")
-                    .ToList();
-                if (providers.Count == 0) { AddNote("[red]no providers reported by the server[/]"); return; }
-                var pick = await PickAsync("Switch LLM provider", providers);
-                if (pick == null) return;   // Esc → cancel, clean screen
-                name = pick[..pick.IndexOf(" —")];
-            }
-            else name = args.Trim();
-
-            if (string.Equals(name, _provider, StringComparison.OrdinalIgnoreCase))
-            { AddNote($"already on [cyan]{Markup.Escape(name)}[/]"); return; }
-
-            AddNote($"switching provider to [cyan]{Markup.Escape(name)}[/]… (some providers take minutes to warm up)");
-            var body = JsonSerializer.Serialize(new { session_id = _sessionId, llm_provider = name }, JsonOpts);
-            using var resp2 = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
-            if (resp2.IsSuccessStatusCode)
-            {
-                AddNote($"provider is now [green]{Markup.Escape(name)}[/]");
-            }
-            else
-            {
-                AddNote($"[red]switch refused (HTTP {(int)resp2.StatusCode}):[/] {Markup.Escape(await ReadErrorAsync(resp2))}");
-            }
-        }
-
-        private async Task SwitchAgentAsync(string args)
-        {
-            string name;
-            if (string.IsNullOrWhiteSpace(args))
-            {
-                var pick = await PickAsync("Switch agent set", AgentSets.ToList());
-                if (pick == null) return;
-                name = pick;
-            }
-            else name = args.Trim().ToLowerInvariant();
-            if (!AgentSets.Contains(name)) { AddNote($"[red]unknown agent set '{Markup.Escape(name)}'[/] — {string.Join(", ", AgentSets)}"); return; }
-            _agentSet = name;
-            AddNote($"agent set: [cyan]{name}[/]");
-        }
-
-        private async Task VoiceAsync(string lang)
-        {
-            if (!_voiceAvailable)
-            {
-                AddNote($"[red]voice unavailable:[/] {Markup.Escape(string.IsNullOrEmpty(_voiceDetail) ? "POST /v1/voice/listen is disabled" : _voiceDetail)}");
-                return;
-            }
-            // INVARIANT (project rule): no hardcoded language — the machine's language
-            // comes from SystemLang.Get() and execution adapts to any computer
-            // settings (dictation in the user's language).
-            var l = string.IsNullOrWhiteSpace(lang) ? SystemLang.Get() : lang.Trim();
-            AddNote("listening… (server microphone) — speak now");
-            var body = JsonSerializer.Serialize(new { lang = l, timeout_seconds = 15 }, JsonOpts);
-            using var resp = await _http.PostAsync("/v1/voice/listen", new StringContent(body, Encoding.UTF8, "application/json"));
-            if (resp.IsSuccessStatusCode)
-            {
-                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-                var text = GetStr(doc.RootElement, "text") ?? "";
-                if (string.IsNullOrWhiteSpace(text)) { AddNote("no speech recognised"); return; }
-                _input = text; _cursor = _input.Length;
-                AddNote($"dictated [cyan]{Markup.Escape(text)}[/] — press Enter to send");
-            }
-            else
-            {
-                var err = await ReadErrorAsync(resp);
-                AddNote(resp.StatusCode == System.Net.HttpStatusCode.RequestTimeout
-                    ? "[yellow]listening timed out[/] (no speech detected)"
-                    : $"[red]voice failed (HTTP {(int)resp.StatusCode}):[/] {Markup.Escape(err)}");
-            }
-        }
-
-        private async Task TtsAsync(string text)
-        {
-            if (!_ttsAvailable)
-            {
-                AddNote($"[red]tts unavailable:[/] {Markup.Escape(string.IsNullOrEmpty(_ttsDetail) ? "POST /v1/audio/speech is disabled" : _ttsDetail)}");
-                return;
-            }
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                var last = _history.LastOrDefault(e => e.Role == "agent" && !e.Error)?.Text;
-                if (string.IsNullOrWhiteSpace(last)) { AddNote("nothing to speak — give text: /tts <text>"); return; }
-                text = last;
-            }
-            AddNote("synthesising…");
-            // INVARIANT (project rule): no fixed voice/language — the server picks by
-            // the machine's language (SystemLang.Get()), so every machine speaks its
-            // own language regardless of its settings.
-            var body = JsonSerializer.Serialize(new { input = text, lang = SystemLang.Get(), speed = 1.0 }, JsonOpts);
-            using var resp = await _http.PostAsync("/v1/audio/speech", new StringContent(body, Encoding.UTF8, "application/json"));
-            if (!resp.IsSuccessStatusCode) { AddNote($"[red]tts failed (HTTP {(int)resp.StatusCode}):[/] {Markup.Escape(await ReadErrorAsync(resp))}"); return; }
-
-            var bytes = await resp.Content.ReadAsByteArrayAsync();
-            var path = Path.Combine(Path.GetTempPath(), $"agent_tts_{DateTime.Now:yyyyMMddHHmmss}.wav");
-            await File.WriteAllBytesAsync(path, bytes);
-            AddNote($"saved [cyan]{Markup.Escape(path)}[/] ({bytes.Length:N0} bytes)");
-            if (OperatingSystem.IsWindows())
-            {
-                if (!PlaySound(path, IntPtr.Zero, SndAsync | SndFilename))
-                    AddNote($"[yellow]playback failed — open the file with your media player:[/] {Markup.Escape(path)}");
-            }
-            else
-            {
-                AddNote("[grey]playback is Windows-only here — open the file with your media player[/]");
-            }
-        }
-
-        private async Task FeaturesAsync(string args)
-        {
-            if (string.IsNullOrWhiteSpace(args))
-            {
-                var current = _features.Count == 0 ? "(none set)" :
-                    string.Join(", ", _features.Select(kv => $"[cyan]{kv.Key}[/]={(kv.Value ? "on" : "off")}"));
-                AddNote($"session features: {current}");
-                return;
-            }
-            var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var name = parts[0].ToLowerInvariant();
-            bool value;
-            if (parts.Length >= 2 && parts[1].ToLowerInvariant() is "on" or "true") value = true;
-            else if (parts.Length >= 2 && parts[1].ToLowerInvariant() is "off" or "false") value = false;
-            else value = !(_features.TryGetValue(name, out var cur) && cur);
-            _features[name] = value;
-            var body = JsonSerializer.Serialize(new { session_id = _sessionId, features = new Dictionary<string, bool> { [name] = value } }, JsonOpts);
-            using var resp = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
-            if (resp.IsSuccessStatusCode) AddNote($"feature [cyan]{name}[/] = {(value ? "on" : "off")}");
-            else AddNote($"[red]failed (HTTP {(int)resp.StatusCode}):[/] {Markup.Escape(await ReadErrorAsync(resp))}");
-        }
-
-        private async Task NewSessionAsync()
-        {
-            using var resp = await _http.PostAsync("/v1/control", new StringContent("{\"create\":true}", Encoding.UTF8, "application/json"));
-            if (!resp.IsSuccessStatusCode) { AddNote($"[red]could not create session (HTTP {(int)resp.StatusCode})[/]"); return; }
-            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-            _sessionId = GetStr(doc.RootElement, "session_id") ?? "";
-            _history.Clear(); _scrollFromBottom = 0; _attached.Clear();
-            foreach (var f in _files) f.Attached = false;
-            AddNote($"new session [cyan]{_sessionId[..Math.Min(8, _sessionId.Length)]}[/]");
-        }
-
-        private async Task ClearHistoryAsync()
-        {
-            var body = JsonSerializer.Serialize(new { session_id = _sessionId, reset_history = true }, JsonOpts);
-            using var resp = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
-            if (resp.IsSuccessStatusCode) { _history.Clear(); _scrollFromBottom = 0; AddNote("session history cleared"); }
-            else AddNote($"[red]failed (HTTP {(int)resp.StatusCode}):[/] {Markup.Escape(await ReadErrorAsync(resp))}");
-        }
-
-        private async Task ShowStatusAsync()
-        {
-            var lines = new List<string>
-            {
-                $"[bold]Session[/]        [cyan]{Markup.Escape(_sessionId)}[/]",
-                $"Provider        [cyan]{Markup.Escape(_provider)}[/]  ({Markup.Escape(_modelName)})",
-                $"Context window  {_contextWindow:N0} tokens · history ≈ {_historyTokens:N0}",
-                $"Agent set       {Markup.Escape(_agentSet)}",
-                $"Features        {( _features.Count == 0 ? "(none)" : string.Join(", ", _features.Select(kv => $"{kv.Key}={kv.Value}")))}",
-                $"Attachments     {(_attached.Count == 0 ? "(none)" : string.Join(", ", _attached))}",
-                "",
-                $"[bold]Capabilities[/]   tts [{( _ttsAvailable ? "green" : "red")}]{( _ttsAvailable ? "available" : "unavailable")}[/] · voice [{( _voiceAvailable ? "green" : "red")}]{( _voiceAvailable ? "available" : "unavailable")}[/]",
-                $"               server: [cyan]{Markup.Escape(_serverUrl)}[/] [{( _connected ? "green" : "red")}]{( _connected ? "connected" : "unreachable")}[/]",
-                $"               prompt history: {_promptHistory.Count} entries · chat sessions in the server: (see /health)",
-            };
-            await ShowPageAsync("[bold]agent status[/]", lines);
-        }
-
-        private async Task FilesAsync(string args)
-        {
-            if (string.IsNullOrWhiteSpace(args) || args == "list")
-            {
-                await RefreshFilesAsync();
-                if (_files.Count == 0) { AddNote("no uploaded files — use [cyan]/files add <path>[/]"); return; }
-                var lines = _files.Select(f =>
-                    $"[cyan]{Markup.Escape(f.FileName)}[/]  [grey]{f.Id} · {f.Status}[/]{(f.Attached ? "  [green]attached[/]" : "")}").ToList();
-                await ShowPageAsync("[bold]uploaded files[/]", lines);
-                return;
-            }
-            var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-            var sub = parts[0].ToLowerInvariant();
-            if (sub == "add" && parts.Length == 2)
-            {
-                var path = parts[1].Trim('"');
-                if (!File.Exists(path)) { AddNote($"[red]file not found:[/] {Markup.Escape(path)}"); return; }
-                AddNote($"uploading [cyan]{Markup.Escape(Path.GetFileName(path))}[/]…");
-                await using var fs = File.OpenRead(path);
-                using var form = new MultipartFormDataContent();
-                var fileContent = new StreamContent(fs);
-                form.Add(fileContent, "file", Path.GetFileName(path));
-                form.Add(new StringContent("assistants"), "purpose");
-                using var resp = await _http.PostAsync("/v1/files", form);
-                if (!resp.IsSuccessStatusCode) { AddNote($"[red]upload failed (HTTP {(int)resp.StatusCode}):[/] {Markup.Escape(await ReadErrorAsync(resp))}"); return; }
-                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-                var id = GetStr(doc.RootElement, "id") ?? "";
-                var name = GetStr(doc.RootElement, "filename") ?? Path.GetFileName(path);
-                _files.RemoveAll(x => x.Id == id);
-                _files.Add(new FileRef { Id = id, FileName = name, Status = GetStr(doc.RootElement, "status") ?? "", Attached = true });
-                if (!_attached.Contains(id)) _attached.Add(id);
-                AddNote($"uploaded + attached [cyan]{Markup.Escape(name)}[/] ({id})");
-            }
-            else if (sub == "rm" && parts.Length == 2)
-            {
-                var id = parts[1].Trim();
-                using var resp = await _http.DeleteAsync($"/v1/files/{Uri.EscapeDataString(id)}");
-                if (resp.IsSuccessStatusCode)
-                {
-                    _files.RemoveAll(x => x.Id == id);
-                    _attached.Remove(id);
-                    AddNote($"deleted [cyan]{id}[/]");
-                }
-                else AddNote($"[red]delete failed (HTTP {(int)resp.StatusCode}):[/] {Markup.Escape(await ReadErrorAsync(resp))}");
-            }
-            else
-            {
-                AddNote("usage: [cyan]/files add <path>[/] | [cyan]/files rm <id>[/] | [cyan]/files[/]");
-            }
-        }
-
-        private async Task AttachAsync(string args)
-        {
-            await RefreshFilesAsync();
-            if (string.IsNullOrWhiteSpace(args))
-            {
-                if (_files.Count == 0) { AddNote("no uploaded files — use [cyan]/files add <path>[/]"); return; }
-                var choices = _files.Select(f => $"{f.FileName}  ({f.Id}){(f.Attached ? "  [attached]" : "")}").ToList();
-                var pick = await PickAsync("Toggle file attachment", choices);
-                if (pick == null) return;
-                var name = pick[..pick.IndexOf("  (")];
-                var f = _files.First(x => x.FileName == name);
-                ToggleAttach(f);
-                return;
-            }
-            var file = _files.FirstOrDefault(x => x.Id == args.Trim() || x.FileName.Equals(args.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (file == null) { AddNote($"[red]unknown file '{Markup.Escape(args.Trim())}'[/] — /files to list"); return; }
-            ToggleAttach(file);
-        }
-
-        private async Task RetryAsync()
-        {
-            if (string.IsNullOrEmpty(_lastPrompt)) { AddNote("nothing to retry yet"); return; }
-            if (!_lastFailed && _history.Count > 0) { AddNote("the last reply succeeded — still resending"); }
-            StartChat(_lastPrompt);
-        }
-
-        private Task OpenDocsAsync()
-        {
-            const string url = "https://github.com/Graphene-Lab/AgentBridge";
-            try
-            {
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-                AddNote($"opened [cyan]{url}[/] in your browser");
-            }
-            catch (Exception ex) { AddNote($"[red]could not open the browser:[/] {Markup.Escape(ex.Message)}"); }
-            return Task.CompletedTask;
-        }
-
-        private async Task ShowHelpAsync()
-        {
-            var lines = new List<string>
-            {
-                "[bold]COMMANDS[/]  (type [cyan]/[/] to see this list live, filtered as you type)",
-            };
-            foreach (var c in Commands)
-                lines.Add($"  [cyan]/{c.Name}[/] {Markup.Escape(c.Args).PadRight(16)} {c.Help}");
-            lines.Add("");
-            lines.Add("[bold]KEYBOARD SHORTCUTS[/]  (press [cyan]?[/] on an empty input for the overlay)");
-            foreach (var (keys, what) in ShortcutTable)
-                lines.Add($"  {keys.PadRight(24)} {what}");
-            lines.Add("");
-            lines.Add("[bold]MOUSE[/]");
-            lines.Add("  wheel        Scroll the conversation · navigate palette/picker");
-            lines.Add("  click input  Position the text cursor");
-            lines.Add("  click row    Select a palette/picker row (double-click runs it)");
-            lines.Add("");
-            lines.Add("[bold]API (the same server keeps answering while you chat)[/]");
-            lines.Add("  POST /v1/chat/completions · /v1/control · /v1/audio/speech · /v1/voice/listen");
-            lines.Add("  GET  /v1/models · /v1/files · /v1/control · /v1/audio/voices · /health");
-            lines.Add("  POST /v1/files (upload · attach via [cyan]@[/])");
-            lines.Add("");
-            lines.Add("[bold]ONLINE HELP[/]");
-            lines.Add($"  AgentBridge repo/docs: https://github.com/Graphene-Lab/AgentBridge  ([cyan]/docs[/] opens it)");
-            lines.Add("  Qwen Code (the TUI this one is inspired by): https://qwenlm.github.io/qwen-code-docs/");
-            lines.Add("  Terminal UI model & improvements: README.md → \"Terminal UI\"");
-            await ShowPageAsync("[bold]agent help[/]", lines);
-        }
-
-        private static readonly (string Keys, string What)[] ShortcutTable =
-        {
-            ("Enter", "Send the message / run the selected command"),
-            ("/", "Open the slash-command palette (contextual help below the input)"),
-            ("@", "Open the file palette (toggle chat attachments)"),
-            ("?", "Show this shortcuts overlay (empty input)"),
-            ("Tab", "Complete the selected command / attach the selected file"),
-            ("Esc", "Close palette · clear input · twice: exit"),
-            ("Ctrl+C", "Cancel the reply · clear input · twice: exit"),
-            ("Ctrl+D", "Exit (empty input)"),
-            ("Ctrl+L", "Clear the screen"),
-            ("Ctrl+R", "Reverse-search prompt history"),
-            ("Ctrl+Y", "Retry the last prompt"),
-            ("Up / Down", "Prompt history (with Ctrl+P / Ctrl+N)"),
-            ("Left / Right", "Move the cursor (with Ctrl: by word)"),
-            ("Ctrl+A / Ctrl+E", "Jump to start / end of the input"),
-            ("Ctrl+U / Ctrl+K", "Delete to start / end of the line"),
-            ("Ctrl+W", "Delete the word before the cursor"),
-            ("PgUp / PgDn", "Scroll the conversation history"),
-            ("F1", "Show the full help page"),
-        };
-
-        private async Task ShowShortcutsAsync()
-        {
-            var lines = ShortcutTable.Select(s => $"  {s.Keys.PadRight(24)} {s.What}").ToList();
-            lines.Insert(0, "[bold]KEYBOARD SHORTCUTS[/]");
-            lines.Add("");
-            lines.Add("[grey]Full help: /help · commands: type /[/]");
-            await ShowPageAsync("[bold]shortcuts[/]", lines);
-        }
-
-        private async Task ReverseSearchAsync()
-        {
-            var q = "";
-            var sel = 0;
-            while (!_exit)
-            {
-                var matches = _promptHistory.Where(p => p.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
-                sel = Math.Clamp(sel, 0, Math.Max(0, matches.Count - 1));
-                lock (_lock)
-                {
-                    CursorHide();
-                    AnsiConsole.Clear();
-                    AnsiConsole.MarkupLine("[bold]reverse prompt history[/]   (Esc close · Enter pick · Up/Down move)");
-                    for (var i = 0; i < Math.Min(matches.Count, _height - 5); i++)
-                        AnsiConsole.MarkupLine((i == sel ? "[reverse] " : "  ") + Markup.Escape(matches[i]));
-                    AnsiConsole.Write(new Rule());
-                    AnsiConsole.MarkupLine("search> " + Markup.Escape(q));
-                }
-                UiEvent ev;
-                try { ev = await _events.Reader.ReadAsync(); }
-                catch (ChannelClosedException) { break; }
-                if (ev.Kind == UiKind.Quit) { _exit = true; break; }
-                if (ev.Kind == UiKind.Mouse)
-                {
-                    if (ev.Action == MouseAction.WheelUp) sel = Math.Max(0, sel - 1);
-                    else if (ev.Action == MouseAction.WheelDown) sel = Math.Min(matches.Count - 1, sel + 1);
-                    else if (ev.Action is (MouseAction.LeftPress or MouseAction.DoubleClick) && matches.Count > 0)
-                    {
-                        var row = ev.Y - 3; // below the title
-                        if (row >= 0 && row < matches.Count) sel = row;
-                        if (ev.Action == MouseAction.DoubleClick) { _input = matches[sel]; _cursor = _input.Length; break; }
-                    }
-                    continue;
-                }
-                var k = ev.Key!.Value;
-                if (k.Key == ConsoleKey.Escape) break;
-                if (k.Key == ConsoleKey.Enter)
-                {
-                    if (matches.Count > 0) { _input = matches[sel]; _cursor = _input.Length; }
-                    break;
-                }
-                if (k.Key == ConsoleKey.UpArrow) sel = Math.Max(0, sel - 1);
-                else if (k.Key == ConsoleKey.DownArrow) sel = Math.Min(matches.Count - 1, sel + 1);
-                else if (k.Key == ConsoleKey.Backspace) { if (q.Length > 0) q = q[..^1]; }
-                else if (!char.IsControl(k.KeyChar)) q += k.KeyChar;
-            }
-            FullRedraw();
-        }
-
-        // Full-screen page (help/status): any key or click closes it and
-        // FullRedraw restores the layout — no residue.
-        private async Task ShowPageAsync(string title, List<string> lines)
-        {
-            lock (_lock)
-            {
-                CursorHide();
-                AnsiConsole.Clear();
-                AnsiConsole.MarkupLine(title);
-                AnsiConsole.Write(new Rule());
-                foreach (var l in lines) AnsiConsole.MarkupLine(l);
-                AnsiConsole.Write(new Rule());
-                AnsiConsole.MarkupLine("[grey]— any key or click to close —[/]");
-            }
-            while (!_exit)
-            {
-                UiEvent ev;
-                try { ev = await _events.Reader.ReadAsync(); }
-                catch (ChannelClosedException) { break; }
-                if (ev.Kind == UiKind.Quit) { _exit = true; break; }
-                if (ev.Kind is UiKind.Key or UiKind.Mouse) break;
-            }
-            FullRedraw();
-        }
-
-        // ── Layout and rendering ──
-        private void TrackSize()
-        {
-            var h = Console.WindowHeight;
-            var w = Console.WindowWidth;
-            if (h != _height || w != _width) _resized = true;
-        }
-
-        private void ComputeLayout()
-        {
-            _height = Math.Max(6, Console.WindowHeight);
-            _width = Math.Max(20, Console.WindowWidth);
-            _compact = _height < 18;
-            _logoLines = _compact ? 1 : 6;
-            _statusLine = 1 + _logoLines;
-            _sepLine = _statusLine + 1;
-            _historyTop = _sepLine + 1;
-            var available = Math.Max(1, _height - _historyTop - 2);
-            _paletteHeight = _picker != null
-                ? Math.Min(_picker.Items.Count + 1, available)     // title + items
-                : (_palette == null ? 0 : Math.Min(PaletteCount(), available));
-            _inputLine = _height - _paletteHeight;
-            _historyHeight = Math.Max(1, _inputLine - _historyTop);
-        }
-
-        private int PaletteCount()
-        {
-            if (_palette == null) return 0;
-            return _palette.Type == Palette.Kind.Commands ? _palette.Commands.Count : _palette.Files.Count;
-        }
-
-        private void FullRedraw()
-        {
-            lock (_lock)
-            {
-                ComputeLayout();
-                CursorHide();
-                AnsiConsole.Clear();
-                RenderTop();
-                RenderHistory();
-                RenderBottom();
-                _resized = false;
-            }
-        }
-
-        private void RenderTop()
-        {
-            // Logo
-            for (int i = 0; i < _logoLines && i < LogoLines.Length; i++)
-            {
-                int line = 1 + i;
-                ClearLineAt(line);
-                AnsiConsole.Cursor.SetPosition(1, line);
-                WriteColoredLogoLine(LogoLines[i]);
-            }
-            // Status line
-            ClearLineAt(_statusLine);
-            AnsiConsole.Cursor.SetPosition(1, _statusLine);
-            AnsiConsole.Write(new Markup(StatusLine()));
-
-            // Separator
-            ClearLineAt(_sepLine);
-            AnsiConsole.Cursor.SetPosition(1, _sepLine);
-            AnsiConsole.Write(new string('─', Math.Max(1, _width)));
-        }
-
-        private void WriteColoredLogoLine(string line)
-        {
-            var len = Math.Max(1, line.Length - 1);
-            for (int col = 0; col < line.Length; col++)
-            {
-                var ch = line[col];
-                if (ch == ' ') { Console.Write(' '); continue; }
-                var (r, g, b) = GradientColor(col / (double)len);
-                Console.Write($"\x1b[38;2;{r};{g};{b}m{ch}\x1b[0m");
-            }
-        }
-
-        private string StatusLine()
-        {
-            var dot = _connected ? "[green]●[/]" : "[red]●[/]";
-            var sess = _sessionId.Length > 8 ? _sessionId[..8] : (_sessionId.Length == 0 ? "-" : _sessionId);
-            var ctx = _contextWindow > 0 ? $"{_historyTokens:N0}/{_contextWindow:N0}" : "";
-            var feats = _features.Where(kv => kv.Value).Select(kv => kv.Key).ToList();
-            var parts = new List<string>
-            {
-                dot,
-                _serverUrl,
-                $"[cyan]{Markup.Escape(_provider)}[/]",
-                Markup.Escape(_modelName),
-                Markup.Escape(_agentSet),
-                $"sess:{sess}",
-                ctx,
-                _ttsAvailable ? "tts:✓" : "tts:✗",
-                _voiceAvailable ? "mic:✓" : "mic:✗",
-                feats.Count > 0 ? "f:" + string.Join(",", feats) : "",
-                _chatRunning ? "[yellow]generating…[/]" : "",
-                _statusNote == "" ? "" : $"[dim]{Markup.Escape(_statusNote)}[/]",
-            };
-            var nonEmpty = parts.Where(p => p.Length > 0).ToList();
-            var text = string.Join(" · ", nonEmpty);
-            if (text.Length > _width - 2)
-            {
-                var kept = new List<string> { dot, _serverUrl };
-                foreach (var p in nonEmpty.Skip(2))
-                {
-                    var candidate = string.Join(" · ", kept.Append(p));
-                    if (candidate.Length > _width - 2) break;
-                    kept.Add(p);
-                }
-                text = string.Join(" · ", kept);
-            }
-            return text;
-        }
-
-        private void RenderHistory()
-        {
-            lock (_lock)
-            {
-                ComputeLayout();
-                var lines = BuildHistoryLines();
-                var total = lines.Count;
-                var start = Math.Max(0, total - _historyHeight - _scrollFromBottom);
-                for (int i = 0; i < _historyHeight; i++)
-                {
-                    int line = _historyTop + i;
-                    ClearLineAt(line);
-                    int idx = start + i;
-                    if (idx < total)
-                    {
-                        AnsiConsole.Cursor.SetPosition(1, line);
-                        AnsiConsole.Write(new Markup(lines[idx]));
-                    }
-                }
-            }
-        }
-
-        private List<string> BuildHistoryLines()
-        {
-            var lines = new List<string>();
-            foreach (var e in _history)
-                AppendEntry(lines, e);
-            if (_pending != null)
-                AppendEntry(lines, _pending);
-            return lines;
-        }
-
-        private void AppendEntry(List<string> lines, Entry e)
-        {
-            var label = e.Role switch
-            {
-                "user" => "[bold cyan]❯ you[/]",
-                "agent" => e.Error ? "[bold red]✗ error[/]" : "[bold green]◆ agent[/]",
-                _ => "[bold grey]·[/]",
-            };
-            var wrapped = WrapText(e.Text, Math.Max(1, _width - 3));
-            lines.Add(label);
-            lines.AddRange(wrapped.Select(w => "   " + Markup.Escape(w)));
-        }
-
-        private void RenderBottom()
-        {
-            lock (_lock)
-            {
-                ComputeLayout();
-
-                // Input line
-                ClearLineAt(_inputLine);
-                AnsiConsole.Cursor.SetPosition(1, _inputLine);
-                var (view, viewStart) = InputView();
-                AnsiConsole.Write(new Markup($"[bold cyan]>[/] {Markup.Escape(view)}"));
-
-                // Palette or picker below the input (dynamic contextual menu)
-                if (_picker != null)
-                {
-                    var start = Math.Max(0, _picker.Selected - (_paletteHeight - 2));
-                    start = Math.Min(start, _picker.Items.Count - (_paletteHeight - 1));
-                    start = Math.Max(0, start);
-                    // Row 1: title + hint
-                    int titleLine = _inputLine + 1;
-                    ClearLineAt(titleLine);
-                    AnsiConsole.Cursor.SetPosition(1, titleLine);
-                    AnsiConsole.Write(new Markup($"[bold cyan]{Markup.Escape(_picker.Title)}[/]  [grey]↑↓/wheel move · Enter ok · Esc cancel[/]"));
-                    // Items (scrollable)
-                    for (int i = 1; i < _paletteHeight; i++)
-                    {
-                        int line = _inputLine + 1 + i;
-                        ClearLineAt(line);
-                        int idx = start + i - 1;
-                        if (idx >= _picker.Items.Count) continue;
-                        AnsiConsole.Cursor.SetPosition(1, line);
-                        var sel = idx == _picker.Selected;
-                        AnsiConsole.Write(new Markup((sel ? "[reverse]" : "  ") + Markup.Escape(_picker.Items[idx]) + (sel ? "[/]" : "")));
-                    }
-                }
-                else if (_palette != null)
-                {
-                    var rows = PaletteRows();
-                    var start = Math.Max(0, _palette.Selected - _paletteHeight + 1);
-                    start = Math.Min(start, Math.Max(0, rows.Count - _paletteHeight));
-                    for (int i = 0; i < _paletteHeight; i++)
-                    {
-                        int line = _inputLine + 1 + i;
-                        ClearLineAt(line);
-                        int idx = start + i;
-                        if (idx >= rows.Count) continue;
-                        AnsiConsole.Cursor.SetPosition(1, line);
-                        var row = rows[idx];
-                        var prefix = (idx == _palette.Selected) ? "[reverse]" : "";
-                        var suffix = (idx == _palette.Selected) ? "[/]" : "";
-                        AnsiConsole.Write(new Markup(prefix + row + suffix));
-                    }
-                }
-
-                // Position the hardware cursor on the input line and MAKE IT VISIBLE
-                // (it was hidden by FullRedraw): the blinking caret is the input
-                // indicator, like in Qwen Code.
-                AnsiConsole.Cursor.SetPosition(2 + (_cursor - viewStart), _inputLine);
-                CursorShow();
-            }
-        }
-
-        private List<string> PaletteRows()
-        {
-            var p = _palette!;
-            if (p.Type == Palette.Kind.Commands)
-                return p.Commands.Select(c =>
-                    $"[cyan]/{c.Name}[/] [dim]{Markup.Escape(c.Args)}[/]  [grey]{c.Help}[/]").ToList();
-            return p.Files.Select(f =>
-                $"[cyan]{Markup.Escape(f.FileName)}[/] [dim]{f.Id}[/]{(f.Attached ? "  [green]✓ attached[/]" : "")}").ToList();
-        }
-
-        private (string View, int ViewStart) InputView()
-        {
-            var maxLen = Math.Max(1, _width - 2);
-            var viewStart = Math.Max(0, _cursor - maxLen + 1);
-            var view = _input.Length > viewStart ? _input[viewStart..] : "";
-            if (view.Length > maxLen) view = view[..maxLen];
-            return (view, viewStart);
-        }
-
-        private void RecomputePalette()
-        {
-            if (_palette == null) return;
-            if (_palette.Type == Palette.Kind.Commands)
-            {
-                var f = _palette.Filter;
-                var first = f.Split(' ')[0];
-                _palette.Commands = Commands.Where(c =>
-                    f.Length == 0 ||
-                    c.Name.StartsWith(f, StringComparison.OrdinalIgnoreCase) ||
-                    (c.Name + " " + c.Args).StartsWith(f, StringComparison.OrdinalIgnoreCase) ||
-                    (c.Aliases?.Any(a => a.StartsWith("/" + f, StringComparison.OrdinalIgnoreCase)) ?? false) ||
-                    (first.Length > 0 && c.Name.StartsWith(first, StringComparison.OrdinalIgnoreCase)))  // "/model zai" keeps /model visible
-                    .ToList();
-            }
-            else
-            {
-                var f = _palette.Filter;
-                _palette.Files = _files.Where(x =>
-                    x.FileName.Contains(f, StringComparison.OrdinalIgnoreCase) ||
-                    x.Id.Contains(f, StringComparison.OrdinalIgnoreCase)).ToList();
-            }
-            _palette.Selected = Math.Clamp(_palette.Selected, 0, Math.Max(0, PaletteCount() - 1));
-        }
-
-        private void AddNote(string markup)
-        {
-            _history.Add(new Entry { Role = "system", Text = markup });
-            RenderHistory();
-        }
-
-        private void ClearLineAt(int line)
-        {
-            if (line < 1 || line > _height) return;
-            AnsiConsole.Cursor.SetPosition(1, line);
-            AnsiConsole.Write(new string(' ', Math.Max(1, _width)));
-            AnsiConsole.Cursor.SetPosition(1, line);
-        }
-
-        private static void CursorHide()
-        {
-            try { AnsiConsole.Cursor.Hide(); } catch { }
-        }
-
-        private static void CursorShow()
-        {
-            try { AnsiConsole.Cursor.Show(); } catch { }
-        }
-
-        private static (byte R, byte G, byte B) GradientColor(double t)
-        {
-            (byte r, byte g, byte b) a = (66, 133, 244), b2 = (139, 92, 246), c = (236, 72, 153);
-            byte L(byte x, byte y, double u) => (byte)(x + (y - x) * u);
-            return t < 0.5
-                ? (L(a.r, b2.r, t * 2), L(a.g, b2.g, t * 2), L(a.b, b2.b, t * 2))
-                : (L(b2.r, c.r, (t - 0.5) * 2), L(b2.g, c.g, (t - 0.5) * 2), L(b2.b, c.b, (t - 0.5) * 2));
-        }
-
-        private void WriteLogo(bool centered)
-        {
-            var width = Math.Max(20, Console.WindowWidth);
-            for (var li = 0; li < LogoLines.Length; li++)
-            {
-                var line = LogoLines[li].TrimEnd();
-                if (centered) Console.Write(new string(' ', Math.Max(0, (width - line.Length) / 2)));
-                var len = Math.Max(1, line.Length - 1);
-                for (var col = 0; col < line.Length; col++)
-                {
-                    var ch = line[col];
-                    if (ch == ' ') { Console.Write(' '); continue; }
-                    var (r, g, b) = GradientColor(col / (double)len);
-                    Console.Write($"\x1b[38;2;{r};{g};{b}m{ch}\x1b[0m");
-                }
-                if (li < LogoLines.Length - 1) Console.WriteLine();
-            }
-        }
-
-        private static List<string> WrapText(string text, int width)
-        {
-            var result = new List<string>();
-            if (width < 1) width = 1;
-            foreach (var para in text.Replace("\r\n", "\n").Split('\n'))
-            {
-                var line = new StringBuilder();
-                foreach (var word in para.Split(' '))
-                {
-                    var sep = line.Length > 0 ? 1 : 0;
-                    if (line.Length + word.Length + sep > width)
-                    {
-                        if (line.Length > 0) { result.Add(line.ToString()); line.Clear(); }
-                        var w = word;
-                        while (w.Length > width) { result.Add(w[..width]); w = w[width..]; }
-                        line.Append(w);
-                        continue;
-                    }
-                    if (sep == 1) line.Append(' ');
-                    line.Append(word);
-                }
-                if (line.Length > 0) result.Add(line.ToString());
-            }
-            return result;
-        }
     }
 }

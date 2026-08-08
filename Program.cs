@@ -35,7 +35,7 @@ using UISupportGeneric;
 //
 //  Sessions: chat requests may carry session_id (extension) to keep the
 //  conversation history across requests; the pilot endpoint switches the LLM
-//  provider on the fly with a context-window check (see README.md).
+//  provider on the fly with a context-window check (see docs/API.md).
 //
 //  File attachments follow the same server-side conversion rule as the Blazor
 //  UI (never client-side): uploaded bytes are stored as FileAttachment and
@@ -132,7 +132,7 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 
 // Configure the LLM provider via appsettings "LLM:Provider" (e.g. DeepSeekBridge).
 // This is the DEFAULT provider; per-request and per-session overrides are handled by
-// the llm_provider field (chat) / POST /v1/control — see README.md "LLM switching".
+// the llm_provider field (chat) / POST /v1/control — see docs/API.md "LLM switching".
 var startupProvider = builder.Configuration["LLM:Provider"] ?? "DeepSeekBridge";
 if (!ProviderConfigs.TryGet(startupProvider, out _))
 {

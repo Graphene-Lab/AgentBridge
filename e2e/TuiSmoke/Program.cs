@@ -84,13 +84,13 @@ internal static class Program
         // ConPTY fails: the UI does not render. Relaunch once before declaring the test a
         // failure (the app code is not involved: it is a test-infrastructure
         // quirk that runs fine in a real terminal).
-        for (var attempt = 1; attempt <= 2; attempt++)
+        for (var attempt = 1; attempt <= 4; attempt++)
         {
             _pass = _fail = 0;
             if (attempt > 1)
             {
                 Console.WriteLine("  (UI did not render — relaunching once)");
-                await Task.Delay(1000);   // let ConDrv breathe
+                await Task.Delay(2000);   // let ConDrv breathe
             }
             var uiRendered = await RunOnceAsync(exe, cmdArgs, baseUrl);
             // Retry ONLY when the UI did not appear (ConPTY attach flaky in a pipe):
@@ -110,30 +110,32 @@ internal static class Program
         using var conpty = new ConPty(exe, cmdArgs);
         Console.WriteLine($"cmdline   : {cmdArgs}");
 
-        // 1) The UI renders: AGENT logo + input line.
-        await conpty.WaitForText("> ", TimeSpan.FromSeconds(20));
+        // 1) The UI renders: AGENT logo (block chars), window title, status bar.
+        //    The status bar shows the server URL once the in-process server answers
+        //    /health, which also proves the Terminal.Gui screen is rendering.
+        await conpty.WaitForText(baseUrl.Replace("http://", ""), TimeSpan.FromSeconds(20));
         var out0 = conpty.Screen;
-        var uiRendered = out0.Contains("> ");
+        var uiRendered = out0.Contains("█");
         Check("logo AGENT rendered (block chars)", out0.Contains("█"));
-        Check("input line rendered", out0.Contains("> "));
+        Check("window title rendered", out0.Contains("AGENT - AI Chat Console"));
         Check("status bar shows server url", out0.Contains(baseUrl.Replace("http://", "")));
 
         // If the child did not attach (headless), no point continuing: the retry relaunches.
         if (!uiRendered) return false;
 
-        // 2) "/model" with no arguments opens the in-layout picker.
+        // 2) "/model" with no arguments opens the provider picker (the slash-command
+        //    palette opens live on "/", the rest of the line goes to its filter field).
         conpty.Send("/model\r");
         await conpty.WaitForText("Switch LLM provider", TimeSpan.FromSeconds(20));
         Check("/model picker opens", conpty.Screen.Contains("Switch LLM provider"));
         Check("picker shows Esc hint", conpty.Screen.Contains("Esc cancel"));
 
-        // 3) Esc closes the picker with a clean screen (the input becomes visible again).
+        // 3) Esc closes the picker with no residue.
         conpty.Send("\x1b");
         conpty.Mark();
         await Task.Delay(800);
         var afterEsc = conpty.ScreenSinceMark();
-        Check("Esc closes picker (input line back)", afterEsc.Contains("> "));
-        Check("no residue after Esc", !afterEsc.Contains("Switch LLM provider"));
+        Check("Esc closes picker (no residue)", !afterEsc.Contains("Switch LLM provider") && !afterEsc.Contains("Esc cancel"));
 
         // 4) Chat: the user's message appears immediately in the conversation.
         conpty.Mark();

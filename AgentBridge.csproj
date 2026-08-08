@@ -11,7 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Spectre.Console" Version="0.57.2" />
+    <PackageReference Include="Terminal.Gui" Version="2.4.17" />
+    <PackageReference Include="Terminal.Gui.Editor" Version="2.5.7" />
     <ProjectReference Include="..\AIOrchestrator\AIOrchestrator.csproj" />
     <!-- Kokoro neural TTS (same engine/voices as AIOffice.VoiceAgent.Win). The package ships
          voices/ + espeak/ as content (copied to the output directory); only kokoro.onnx
