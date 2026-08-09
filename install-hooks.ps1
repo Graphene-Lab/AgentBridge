@@ -1,7 +1,9 @@
 ﻿# install-hooks.ps1 — copies the tracked pre-push hook template into .git/hooks.
 # Run once after cloning (or after a fresh checkout): powershell -File install-hooks.ps1
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$gitDir = git -C $root rev-parse --git-dir
+# --absolute-git-dir: the .git dir may be a junction outside the repo (OneDrive layout),
+# and relative paths would resolve against the caller's CWD — always use the absolute path.
+$gitDir = git -C $root rev-parse --absolute-git-dir
 $hooksDir = Join-Path $gitDir 'hooks'
 if (-not (Test-Path $hooksDir)) { New-Item -ItemType Directory $hooksDir | Out-Null }
 Copy-Item (Join-Path $root 'hooks\pre-push') (Join-Path $hooksDir 'pre-push') -Force
