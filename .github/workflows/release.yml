@@ -31,8 +31,37 @@ jobs:
             rid: osx-arm64
             ext: ''
     steps:
-      - name: Checkout
+      # AgentBridge references sibling projects (..\AIOrchestrator\ etc.), so the
+      # CI must check out the whole dependency tree in the same relative layout.
+      - name: Checkout AgentBridge
         uses: actions/checkout@v4
+        with:
+          path: AgentBridge
+      - name: Checkout AIOrchestrator
+        uses: actions/checkout@v4
+        with:
+          repository: Graphene-Lab/AIOrchestrator
+          path: AIOrchestrator
+      - name: Checkout AllToMarkdown
+        uses: actions/checkout@v4
+        with:
+          repository: Andrea-Bruno/AllToMarkdown
+          path: AllToMarkdown
+      - name: Checkout MermaidRendering
+        uses: actions/checkout@v4
+        with:
+          repository: Graphene-Lab/MermaidRendering
+          path: MermaidRendering
+      - name: Checkout ReverseMarkdown
+        uses: actions/checkout@v4
+        with:
+          repository: Graphene-Lab/ReverseMarkdown
+          path: ReverseMarkdown
+      - name: Checkout UISupportGeneric
+        uses: actions/checkout@v4
+        with:
+          repository: Graphene-Lab/UISupportGeneric
+          path: UISupportGeneric
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -42,7 +71,7 @@ jobs:
       - name: Publish
         shell: bash
         run: |
-          dotnet publish AgentBridge.csproj -c Release -r ${{ matrix.rid }} \
+          dotnet publish AgentBridge/AgentBridge.csproj -c Release -r ${{ matrix.rid }} \
             --self-contained true \
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
@@ -52,9 +81,12 @@ jobs:
       # The archive deliberately ships kokoro.onnx (325 MB) plus the KokoroSharp
       # voices/ and espeak-ng-data/ content: single-file publish bundles managed
       # code only, and the TTS endpoints need those assets next to the exe.
+      # chmod: on Linux/macOS the espeak-ng binaries must stay executable inside
+      # the tarball (NuGet extraction does not preserve exec bits).
       - name: Package
         shell: bash
         run: |
+          chmod +x publish/espeak/espeak-ng-*.dll
           cd publish
           tar -czf ../agentbridge-${{ matrix.rid }}.tar.gz .
           cd ..

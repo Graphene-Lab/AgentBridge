@@ -46,6 +46,19 @@
     <Message Text="kokoro.onnx ready at $(OutputPath)" Importance="high" />
   </Target>
 
+  <!-- The KokoroSharp content (voices/ + espeak/) and kokoro.onnx land in $(OutputPath), but
+       `dotnet publish -o <dir>` does not carry them over: the publish dir must contain them or
+       the TTS endpoints stay broken. Copy them explicitly (CI release archives rely on this). -->
+  <Target Name="CopyTtsAssetsToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_TtsVoiceFiles Include="$(OutputPath)voices\**\*" />
+      <_TtsEspeakFiles Include="$(OutputPath)espeak\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_TtsVoiceFiles)" DestinationFiles="@(_TtsVoiceFiles->'$(PublishDir)voices\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_TtsEspeakFiles)" DestinationFiles="@(_TtsEspeakFiles->'$(PublishDir)espeak\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(OutputPath)kokoro.onnx" DestinationFolder="$(PublishDir)" Condition="Exists('$(OutputPath)kokoro.onnx')" />
+  </Target>
+
   <!-- Optional Windows voice bridge: when the sibling AIOffice.VoiceAgent.Win build output
        exists, copy its whole output (exe + voices/ + espeak/ + kokoro.onnx + runtime deps) next
        to this server so POST /v1/voice/listen can spawn it. Without it the voice endpoint
