@@ -43,8 +43,10 @@ public static class ConsoleTui
 
         private Window? _mainWindow;
         private Editor? _chatView;
-        private TextField? _inputField;
+        private Editor? _inputField;
+        private View? _inputArea;
         private Label? _statusLabel;
+        private int _inputLines = 1;
         private Scheme _baseScheme = new();
         private bool _inputPlaceholderActive = true;
         private bool _suppressCommandMenu;
@@ -84,6 +86,7 @@ public static class ConsoleTui
 
         private const string PlaceholderText = "Type a message or / for commands...";
         private const int MaxHistory = 1000;
+        private const int MaxInputLines = 4;
 
         private sealed class Entry
         {
@@ -141,19 +144,20 @@ public static class ConsoleTui
             "╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝",
         };
 
+        // Qwen Code CLI brand gradient (#4796E4 → #847ACE → #C3677F), top → bottom.
         private static readonly TuiAttribute[] LogoAttributes =
         {
-            new TuiAttribute(Color.BrightMagenta, Color.Black),
-            new TuiAttribute(Color.BrightCyan, Color.Black),
             new TuiAttribute(Color.BrightBlue, Color.Black),
-            new TuiAttribute(Color.Magenta, Color.Black),
-            new TuiAttribute(Color.Cyan, Color.Black),
-            new TuiAttribute(Color.Blue, Color.Black),
+            new TuiAttribute(Color.BrightBlue, Color.Black),
+            new TuiAttribute(Color.BrightMagenta, Color.Black),
+            new TuiAttribute(Color.BrightMagenta, Color.Black),
+            new TuiAttribute(Color.BrightRed, Color.Black),
+            new TuiAttribute(Color.BrightRed, Color.Black),
         };
 
         private static readonly (string Keys, string What)[] ShortcutTable =
         {
-            ("Enter", "Send the message / run the selected command"),
+            ("Enter", "Send the message (Shift+Enter: new line) / run the selected command"),
             ("/", "Open the slash-command palette (live, while you type)"),
             ("@", "Open the file palette (toggle chat attachments)"),
             ("?", "Show this shortcuts overlay (empty input)"),
@@ -163,7 +167,7 @@ public static class ConsoleTui
             ("Ctrl+D", "Exit (empty input)"),
             ("Ctrl+Y", "Retry the last prompt"),
             ("Ctrl+R", "Reverse-search prompt history"),
-            ("Up / Down", "Prompt history (also Ctrl+P / Ctrl+N)"),
+            ("Up / Down", "Prompt history at the first/last line (also Ctrl+P / Ctrl+N); otherwise move the caret"),
             ("Left / Right", "Move the cursor (with Ctrl: by word)"),
             ("Ctrl+A / Ctrl+E", "Select all / jump to end of the input"),
             ("Ctrl+U / Ctrl+K", "Delete to start / to end of the line"),
@@ -221,6 +225,7 @@ public static class ConsoleTui
                 _app.AddTimeout(TimeSpan.FromMilliseconds(60), () =>
                 {
                     _inputField?.SetFocus();
+                    UpdateInputLayout();
                     return false;   // one-shot
                 });
                 RefreshHistory();
@@ -370,25 +375,38 @@ public static class ConsoleTui
                 CanFocus = true,
             };
             chatFrame.Add(inputArea);
+            _inputArea = inputArea;
 
-            _inputField = new TextField
+            // Multi-line prompt box: soft-wraps and grows up to MaxInputLines rows (see
+            // UpdateInputLayout); full width, so it reaches the right margin of the frame.
+            _inputField = new Editor
             {
-                X = 0, Y = 0, Width = Dim.Fill() - 10, Height = 1,
+                X = 0, Y = 0, Width = Dim.Fill(), Height = 1,
+                WordWrap = true,
+                Multiline = true,
+                GutterOptions = GutterOptions.None,
             };
             SetPlaceholder();
             _inputField.HasFocusChanged += OnInputFocusChanged;
             _inputField.KeyDown += OnInputKeyDown;
-            _inputField.ValueChanged += OnInputChanged;
+            _inputField.ContentChanged += (_, _) => { OnInputChanged(); UpdateInputLayout(); };
+            _inputField.ViewportChanged += (_, _) => UpdateInputLayout();
             inputArea.Add(_inputField);
 
-            var sendButton = new Button
+            // The Editor consumes the movement keys natively; at a text boundary the key
+            // is left unhandled and would bubble up to the Application-level arrow-key
+            // focus navigation, moving the focus out of the prompt. Swallow the movement
+            // keys at the input's parent so the prompt can never lose focus to an arrow.
+            inputArea.KeyDownNotHandled += (_, key) =>
             {
-                Text = " Send ",
-                X = Pos.Right(_inputField), Y = 0,
-                Width = 10, Height = 1,
+                if (key == Key.CursorLeft || key == Key.CursorRight
+                    || key == Key.CursorUp || key == Key.CursorDown
+                    || key == Key.CursorLeft.WithCtrl || key == Key.CursorRight.WithCtrl
+                    || key == Key.CursorUp.WithCtrl || key == Key.CursorDown.WithCtrl
+                    || key == Key.Home || key == Key.End
+                    || key == Key.PageUp || key == Key.PageDown)
+                    key.Handled = true;
             };
-            sendButton.Accepted += (_, _) => Submit();
-            inputArea.Add(sendButton);
 
             _statusLabel = new Label
             {
@@ -428,7 +446,7 @@ public static class ConsoleTui
             }
         }
 
-        private void OnInputChanged(object? sender, ValueChangedEventArgs<string?> e)
+        private void OnInputChanged()
         {
             if (_suppressCommandMenu || _inputPlaceholderActive) return;
             var t = _inputField?.Text ?? "";
@@ -460,10 +478,21 @@ public static class ConsoleTui
             if (_inputPlaceholderActive)
                 ClearPlaceholder();   // the first keystroke dismisses the hint, then falls through
 
-            if (key == Key.Enter)
+            if (key == Key.Enter && !key.IsShift)
             {
                 key.Handled = true;
                 Submit();
+            }
+            else if (key == Key.Enter.WithShift)
+            {
+                // Shift+Enter inserts a newline (the Editor binds only plain Enter to NewLine).
+                key.Handled = true;
+                if (_inputField is { Document: { } doc })
+                {
+                    var at = _inputField.CaretOffset;
+                    doc.Insert(at, "\n");
+                    _inputField.CaretOffset = at + 1;
+                }
             }
             else if (key == Key.Esc)
             {
@@ -509,7 +538,7 @@ public static class ConsoleTui
             }
             else if (key == Key.D.WithCtrl)
             {
-                // Exit on an empty input; otherwise the TextField's native
+                // Exit on an empty input; otherwise the Editor's native
                 // "delete char in front" applies (same guard as the old TUI).
                 if ((_inputField?.Text ?? "").Length == 0)
                 {
@@ -532,31 +561,51 @@ public static class ConsoleTui
                 key.Handled = true;
                 _ = ShowHelpAsync();
             }
-            else if (key == Key.CursorUp || key == Key.P.WithCtrl)
+            else if (key == Key.P.WithCtrl || (key == Key.CursorUp && CaretOnFirstLine()))
             {
                 key.Handled = true;
                 HistoryPrev();
             }
-            else if (key == Key.CursorDown || key == Key.N.WithCtrl)
+            else if (key == Key.N.WithCtrl || (key == Key.CursorDown && CaretOnLastLine()))
             {
                 key.Handled = true;
                 HistoryNext();
             }
             else if (key == Key.U.WithCtrl)
             {
-                // Delete from the insertion point to the start of the input.
+                // Delete from the start of the current line to the insertion point.
                 key.Handled = true;
-                if (_inputField is { } field)
+                if (_inputField is { Document: { } doc })
                 {
-                    var t = field.Text ?? "";
-                    field.Text = t[Math.Min(field.InsertionPoint, t.Length)..];
-                    field.InsertionPoint = 0;
+                    var caret = _inputField.CaretOffset;
+                    var line = doc.GetLineByOffset(caret);
+                    doc.Remove(line.Offset, caret - line.Offset);
+                }
+            }
+            else if (key == Key.K.WithCtrl)
+            {
+                // Delete from the insertion point to the end of the current line.
+                key.Handled = true;
+                if (_inputField is { Document: { } doc })
+                {
+                    var caret = _inputField.CaretOffset;
+                    var line = doc.GetLineByOffset(caret);
+                    doc.Remove(caret, line.Offset + line.Length - caret);
                 }
             }
             else if (key == Key.W.WithCtrl)
             {
+                // Delete the word before the insertion point.
                 key.Handled = true;
-                _inputField?.KillWordBackwards();
+                if (_inputField is { Document: { } doc })
+                {
+                    var caret = _inputField.CaretOffset;
+                    var t = doc.Text;
+                    var start = caret;
+                    while (start > 0 && char.IsWhiteSpace(t[start - 1])) start--;
+                    while (start > 0 && !char.IsWhiteSpace(t[start - 1])) start--;
+                    if (start < caret) doc.Remove(start, caret - start);
+                }
             }
             else if (key == Key.PageUp)
             {
@@ -576,6 +625,46 @@ public static class ConsoleTui
             }
         }
 
+        // ── Multi-line input layout ──
+        // The prompt box height tracks its wrapped content (max MaxInputLines rows) and
+        // the chat panel shrinks accordingly. Re-runs on content changes and viewport
+        // resizes (the wrap column is the editor's viewport width).
+        private void UpdateInputLayout()
+        {
+            if (_inputField is not { } ed || _inputArea is not { } area || _chatView is not { } chat) return;
+            if (ed.Viewport.Width <= 0) return;   // not laid out yet
+            var rows = Math.Clamp(EstimateWrapRows(ed.Text ?? "", ed.Viewport.Width), 1, MaxInputLines);
+            if (rows == _inputLines) return;
+            _inputLines = rows;
+            ed.Height = rows;
+            area.Height = rows;
+            chat.Height = Dim.Fill() - rows;
+        }
+
+        // Approximate the soft-wrapped visual rows (the Editor wraps at the viewport width).
+        private static int EstimateWrapRows(string text, int width)
+        {
+            if (text.Length == 0) return 1;
+            var rows = 0;
+            foreach (var line in text.Replace("\r\n", "\n").Split('\n'))
+                rows += Math.Max(1, (line.Length + width - 1) / width);
+            return rows;
+        }
+
+        private bool CaretOnFirstLine()
+        {
+            if (_inputField is not { Document: { } doc }) return true;
+            var line = doc.GetLineByOffset(_inputField.CaretOffset);
+            return line.Offset == 0;
+        }
+
+        private bool CaretOnLastLine()
+        {
+            if (_inputField is not { Document: { } doc }) return true;
+            var line = doc.GetLineByOffset(_inputField.CaretOffset);
+            return line.Offset + line.Length >= doc.TextLength;
+        }
+
         private void HistoryPrev()
         {
             if (_promptHistory.Count == 0) return;
@@ -588,7 +677,11 @@ public static class ConsoleTui
             {
                 _histIndex--;
             }
-            if (_inputField != null) _inputField.Text = _promptHistory[_histIndex];
+            if (_inputField != null)
+            {
+                _inputField.Text = _promptHistory[_histIndex];
+                _inputField.CaretOffset = _inputField.Document?.TextLength ?? 0;
+            }
         }
 
         private void HistoryNext()
@@ -605,6 +698,7 @@ public static class ConsoleTui
             {
                 _inputField.Text = _promptHistory[_histIndex];
             }
+            _inputField.CaretOffset = _inputField.Document?.TextLength ?? 0;
         }
 
         private void Submit()
@@ -1008,6 +1102,7 @@ public static class ConsoleTui
                         _inputField.Text = text;
                         _inputPlaceholderActive = false;
                         _inputField.SchemeName = "Dark";
+                        _inputField.CaretOffset = _inputField.Document?.TextLength ?? 0;
                     });
                     AddNote($"dictated {text} — press Enter to send");
                 }
@@ -1416,6 +1511,7 @@ public static class ConsoleTui
                 _inputField.Text = picked;
                 _inputPlaceholderActive = false;
                 _inputField.SchemeName = "Dark";
+                _inputField.CaretOffset = _inputField.Document?.TextLength ?? 0;
             }
             _inputField?.SetFocus();
         }

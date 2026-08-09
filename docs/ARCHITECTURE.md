@@ -130,7 +130,6 @@ systemd) so only the HTTP API is exposed.
 | `AgentBridge.csproj` | Web SDK, `AssemblyName=agent`, references AIOrchestrator + Terminal.Gui + KokoroSharp, asset targets |
 | `AGRNT_ascii_art.txt` | Source of the colored `AGENT` wordmark shown in the TUI |
 | `appsettings.json` | Port, LLM provider, voice path |
-| `start.bat` / `start.sh` | Launchers (terminal UI by default) |
 | `e2e/` | PowerShell regression harness (33+ tests, requires DeepSeekBridge) |
 | `e2e/TuiSmoke/` | ConPTY harness that launches the real TUI, injects keystrokes and asserts the UI (logo, `/model` picker + Esc, chat) |
 

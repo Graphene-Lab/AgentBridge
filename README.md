@@ -51,7 +51,7 @@ Any OpenAI SDK, script or standalone client — such as
 
 ## Quick start
 
-**Windows** — double-click `start.bat`; **Linux / macOS** — `./start.sh`. Or:
+Run the executable directly — `agent.exe` on Windows, `agent` on Linux/macOS — or, in development:
 
 ```bash
 cd AgentBridge
@@ -66,8 +66,6 @@ the plain server console (scripts, CI, services).
 ```bash
 curl http://localhost:5290/health   # {"status":"healthy","timestamp":"..."}
 ```
-
-The published executable is named `agent` (`agent.exe` on Windows).
 
 ## Terminal UI
 

@@ -9,7 +9,31 @@ permissions:
   contents: write
 
 jobs:
+  # Release gate: when IsPrerelease=false in AgentBridge.csproj the version carries a
+  # "-prerelease" suffix and no GitHub release is created. See AGENTS.md.
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.ver.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: AgentBridge
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Detect prerelease version
+        id: ver
+        shell: bash
+        run: |
+          VER=$(dotnet msbuild AgentBridge/AgentBridge.csproj -getProperty:Version -nologo | sed -n 's/.*"Version"[^"]*"\([^"]*\)".*/\1/p')
+          echo "version=$VER"
+          case "$VER" in *-prerelease*) echo "prerelease=true" ;; *) echo "prerelease=false" ;; esac
+          echo "prerelease=$(case "$VER" in *-prerelease*) echo true ;; *) echo false ;; esac)" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: check-version
+    if: needs.check-version.outputs.prerelease == 'false'
     name: Build ${{ matrix.rid }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -31,43 +55,18 @@ jobs:
             rid: osx-arm64
             ext: ''
     steps:
-      # AgentBridge references sibling projects (..\AIOrchestrator\ etc.), so the
-      # CI must check out the whole dependency tree in the same relative layout.
-      - name: Checkout AgentBridge
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           path: AgentBridge
-      - name: Checkout AIOrchestrator
-        uses: actions/checkout@v4
-        with:
-          repository: Graphene-Lab/AIOrchestrator
-          path: AIOrchestrator
-      - name: Checkout AllToMarkdown
-        uses: actions/checkout@v4
-        with:
-          repository: Andrea-Bruno/AllToMarkdown
-          path: AllToMarkdown
-      - name: Checkout MermaidRendering
-        uses: actions/checkout@v4
-        with:
-          repository: Graphene-Lab/MermaidRendering
-          path: MermaidRendering
-      - name: Checkout ReverseMarkdown
-        uses: actions/checkout@v4
-        with:
-          repository: Graphene-Lab/ReverseMarkdown
-          path: ReverseMarkdown
-      - name: Checkout UISupportGeneric
-        uses: actions/checkout@v4
-        with:
-          repository: Graphene-Lab/UISupportGeneric
-          path: UISupportGeneric
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
+      # Builds against the published NuGet packages (Graphene.AIOrchestrator 1.* and its
+      # dependencies) — the sibling repos are private and never checked out here.
       - name: Publish
         shell: bash
         run: |
