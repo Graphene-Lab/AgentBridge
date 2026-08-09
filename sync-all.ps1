@@ -8,6 +8,10 @@ param(
     [string]$Branch = ""
 )
 
+# Guard: when sync-all is invoked by the pre-push hook, mark the process so the nested
+# git pushes it performs (which re-trigger the hook) skip the sync — avoids recursion.
+$env:SYNC_ALL_ACTIVE = '1'
+
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $visited = New-Object 'System.Collections.Generic.HashSet[string]'

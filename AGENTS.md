@@ -19,6 +19,11 @@ while iterating. Do not change the version scheme — it is date-based like UISu
 pushes all repos (sync-all), waits for the dependency packages on nuget.org, creates +
 pushes the tag, and triggers release.yml. Everything else is automatic.
 
+**Zero commands (git push):** a `pre-push` hook (installed via `install-hooks.ps1`, template in
+`hooks/pre-push`) runs `sync-all.ps1` automatically whenever AgentBridge master is pushed to
+origin — so a plain `git push` also updates the dependency NuGet packages. The hook is
+skipped for tags, other branches/remotes, and re-entrant pushes (guard: `SYNC_ALL_ACTIVE`).
+
 **Manually (equivalent steps):**
 1. `powershell -File sync-all.ps1 -Message "<commit message>"` — commits and pushes
    AgentBridge plus every repo it depends on (recursively via ProjectReference; new

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# pre-push hook — before pushing AgentBridge master to origin, sync every repo in the
+# dependency tree (sync-all.ps1); each dependency repo's publish.yml then updates its
+# NuGet package automatically. Skipped when the sync is already in progress
+# (SYNC_ALL_ACTIVE), or when pushing tags / other remotes / other branches.
+if [ -n "$SYNC_ALL_ACTIVE" ]; then exit 0; fi
+if [ -n "$1" ] && [ "$1" != "origin" ]; then exit 0; fi
+
+master=0
+while read -r _ _ remote_ref _; do
+  case "$remote_ref" in refs/heads/master) master=1 ;; esac
+done
+
+if [ "$master" != "1" ]; then exit 0; fi
+
+repo_root=$(git rev-parse --show-toplevel)
+echo "pre-push: syncing dependency repos (their NuGet packages will update automatically)..."
+powershell -NoProfile -ExecutionPolicy Bypass -File "$repo_root/sync-all.ps1" -Message "pre-push sync"
