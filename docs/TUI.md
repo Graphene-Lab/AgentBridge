@@ -42,7 +42,7 @@ project and get a persistent TUI where:
 | File completion via `@` | `@` palette of **uploaded** files (server-side `/v1/files`), `/files add <path>` uploads and attaches; attachments ride along as `file_ids` |
 | Status shows context | status bar also shows **history tokens / context window**, agent set, TTS/mic availability, features |
 | `/docs` opens docs site | `/docs` opens **this project's** online README; `/help` lists commands, shortcuts, API endpoints and links |
-| — | `/agent` switches the agent tool set, `/features` toggles session feature flags, `/health` pings the server, `/retry` (Ctrl+Y) resends the last prompt |
+| — | `/agent` switches the agent tool set, `/features` toggles feature flags, `/health` pings the server, `/retry` resends the last prompt, `/web` opens the auto-connected web client |
 
 ## Commands (type `/` for the live list)
 
@@ -50,6 +50,8 @@ project and get a persistent TUI where:
 |---|---|
 | `/help` · `/?` | Full help: commands, shortcuts, API endpoints, online docs |
 | `/docs` | Open the online documentation in the browser |
+| `/web` | Install (first run) and launch the Giraffe AI web client, auto-connected to this server |
+| `/modelsetup` | Configure LLM models & providers (add/edit/remove, active model, API keys) |
 | `/model [name]` | Switch the LLM provider (menu when no name given; context-window checked) |
 | `/agent [name]` | Switch the agent set (default/web/search/research/word/spreadsheet/email/multi) |
 | `/voice [lang]` | Dictate from the server microphone into the input |
@@ -64,6 +66,46 @@ project and get a persistent TUI where:
 | `/health` | Ping the server, report latency |
 | `/retry` | Resend the last prompt (also Ctrl+Y) |
 | `/exit` · `/quit` | Exit (also Ctrl+C twice, or Ctrl+D) |
+
+## Web GUI
+
+`/web` (or the menu **Web → GUI**) opens the agents in your browser. On first use it
+downloads the [Giraffe AI](https://github.com/Graphene-Lab/GiraffeAI) client — a single
+static `index.html` plus its own launcher — and extracts it into a `GiraffeAIWebClient`
+folder next to the working directory. Then it runs the platform launcher
+(`start.bat` / `start.sh`), which serves the client on `http://localhost:8000` and opens the
+browser.
+
+The launch passes `--provider` with this server's endpoint, so the client **registers the
+AgentBridge provider (if not already present) and selects it immediately** — no manual
+configuration, just start typing. A client installed before `--provider` support existed is
+detected and re-downloaded automatically.
+
+- The first download needs an internet connection (GitHub); afterwards the client is fully local.
+- The client runs in its own launcher window/process and keeps serving after the TUI exits.
+- The browser talks straight to this server (`POST /v1/chat/completions`), so CORS is enabled
+  and no API key is needed for local use.
+
+## Models & Providers setup
+
+`/modelsetup` (or menu **File → Models & Providers**) opens a tabbed window that mirrors the
+AIOffice settings panel:
+
+| Tab | What you can edit |
+|---|---|
+| **LLM & Providers** | Active provider (dropdown, switches via the same path as `/model`), DeepSeek / Z.ai / Gemini API keys, and a provider list with **Add… / Edit… / Remove** — the CRUD operations apply immediately and persist to `providers.json` (see below) |
+| **Email (SMTP)** | SMTP server, port, user, password and the recipient email |
+| **Mail (IMAP)** | IMAP server, port, user and password |
+| **General** | Step logging on/off (`logs/` folder) and the documents path (re-indexed on change) |
+
+- Field edits (keys, email, general) apply when you press **Save**; **Close** discards them.
+- Adding a provider opens a small form (name, protocol OpenAI/Gemini/Anthropic, model, base
+  address, endpoint path, context window, timeout). Editing replaces the config in place;
+  removing refuses to delete the last remaining provider. No API-key field: keys are wired
+  to the three known names via `Setup.ApiKey`, so a dynamically added cloud provider cannot
+  use one yet.
+- The provider list also stays in sync with `GET /v1/models`, so an added provider can be
+  switched to right away.
 
 ## Keyboard shortcuts
 

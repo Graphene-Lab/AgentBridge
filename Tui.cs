@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using AIOrchestrator;
 using Terminal.Gui;
 using Terminal.Gui.App;
 using Terminal.Gui.Configuration;
@@ -88,6 +90,14 @@ public static class ConsoleTui
         private const int MaxHistory = 1000;
         private const int MaxInputLines = 4;
 
+        // Web GUI (Giraffe AI): a static chat client served by its own launcher. First run
+        // downloads the repo zip from GitHub and extracts it into a GiraffeAIWebClient folder.
+        private const string WebClientZipUrl = "https://github.com/Graphene-Lab/GiraffeAI/archive/refs/heads/main.zip";
+        private const string WebClientDirName = "GiraffeAIWebClient";
+        // Marker the installed index.html must contain: clients installed before --provider
+        // auto-config (urlParams.get('provider')) cannot auto-connect and are re-downloaded.
+        private const string WebClientMarker = "urlParams.get('provider')";
+
         private sealed class Entry
         {
             public required string Role;
@@ -110,6 +120,8 @@ public static class ConsoleTui
         {
             new("help", "", "Show help: commands, shortcuts, API endpoints, online docs", (t, _) => t.ShowHelpAsync(), new[] { "/?" }),
             new("docs", "", "Open the online documentation in your browser", (t, _) => t.OpenDocsAsync()),
+            new("web", "", "Install (first run) and launch the Giraffe AI web client in the browser", (t, _) => t.LaunchWebClientAsync()),
+            new("modelsetup", "", "Configure LLM models & providers (add/edit/remove, active model, API keys)", (t, _) => t.ShowModelSetupAsync()),
             new("model", "[name]", "Switch the LLM provider (menu when no name given)", (t, a) => t.SwitchModelAsync(a)),
             new("agent", "[name]", "Switch the agent set (default/web/search/word/spreadsheet/email/multi)", (t, a) => t.SwitchAgentAsync(a)),
             new("voice", "[lang]", "Dictate from the server microphone into the input (default = system language)", (t, a) => t.VoiceAsync(a)),
@@ -282,6 +294,7 @@ public static class ConsoleTui
                 new("_File", new MenuItem[]
                 {
                     new MenuItem("_New Chat", Key.Empty, () => RunCommandByName("new", "")),
+                    new MenuItem("_Models & Providers (/modelsetup)", Key.Empty, () => RunCommandByName("modelsetup", "")),
                     new MenuItem("_Exit", Key.Q.WithCtrl, () => RequestExit()),
                 }),
                 new("_Chat", new MenuItem[]
@@ -296,6 +309,10 @@ public static class ConsoleTui
                     new MenuItem("_Agent (/agent)", Key.Empty, () => RunCommandByName("agent", "")),
                     new MenuItem("_Status (/status)", Key.Empty, () => RunCommandByName("status", "")),
                     new MenuItem("_Health (/health)", Key.Empty, () => RunCommandByName("health", "")),
+                }),
+                new("_Web", new MenuItem[]
+                {
+                    new MenuItem("_GUI (/web)", Key.Empty, () => RunCommandByName("web", "")),
                 }),
                 new("_Help", new MenuItem[]
                 {
@@ -1416,6 +1433,129 @@ public static class ConsoleTui
             return Task.CompletedTask;
         }
 
+        // ── Web client (Giraffe AI) ──
+        // The web GUI is a tiny static app (single index.html + its own launcher) hosted on
+        // GitHub. First use downloads the repo zip into a GiraffeAIWebClient folder next to
+        // the working directory, then the platform launcher (start.bat / start.sh) serves it
+        // on http://localhost:8000 and opens the browser. Connectivity failures surface as
+        // friendly notes instead of crashing the UI.
+        private async Task LaunchWebClientAsync()
+        {
+            var dir = Path.Combine(Environment.CurrentDirectory, WebClientDirName);
+            try
+            {
+                if (!IsWebClientCurrent(dir))
+                {
+                    AddNote($"web client missing or outdated at {dir} — downloading {WebClientZipUrl}…");
+                    await InstallWebClientAsync(dir);
+                }
+                AddNote($"launching web client from {dir}…");
+                LaunchWebClientProcess(dir);
+            }
+            catch (Exception ex)
+            {
+                AddNote($"web client failed: {ex.Message}");
+            }
+        }
+
+        // A valid install has an index.html carrying the --provider auto-config marker.
+        private static bool IsWebClientCurrent(string dir)
+        {
+            try
+            {
+                var index = Path.Combine(dir, "index.html");
+                return File.Exists(index) && File.ReadAllText(index).Contains(WebClientMarker);
+            }
+            catch { return false; }
+        }
+
+        private async Task InstallWebClientAsync(string dir)
+        {
+            if (Directory.Exists(dir) && !IsWebClientCurrent(dir))
+                Directory.Delete(dir, true);   // stale/partial install from a previous run
+
+            var tmpZip = Path.Combine(Path.GetTempPath(), $"giraffe_{Guid.NewGuid():N}.zip");
+            var tmpDir = Path.Combine(Path.GetTempPath(), $"giraffe_{Guid.NewGuid():N}");
+            try
+            {
+                try
+                {
+                    using var resp = await _http.GetAsync(WebClientZipUrl, HttpCompletionOption.ResponseHeadersRead)
+                        .WaitAsync(TimeSpan.FromSeconds(60));
+                    if (!resp.IsSuccessStatusCode)
+                        throw new InvalidOperationException($"download failed (HTTP {(int)resp.StatusCode})");
+                    await using (var fs = File.Create(tmpZip))
+                        await resp.Content.CopyToAsync(fs);
+                }
+                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+                {
+                    throw new InvalidOperationException(
+                        $"no internet connection or GitHub unreachable ({ex.Message})");
+                }
+
+                Directory.CreateDirectory(tmpDir);
+                ZipFile.ExtractToDirectory(tmpZip, tmpDir);
+
+                // The GitHub archive wraps everything in a GiraffeAI-main/ root folder:
+                // hoist its contents into the target directory.
+                var root = Directory.GetDirectories(tmpDir).FirstOrDefault() ?? tmpDir;
+                Directory.CreateDirectory(dir);
+                foreach (var item in Directory.GetFileSystemEntries(root))
+                {
+                    var target = Path.Combine(dir, Path.GetFileName(item));
+                    if (Directory.Exists(item)) Directory.Move(item, target);
+                    else File.Move(item, target);
+                }
+                if (!File.Exists(Path.Combine(dir, "index.html")))
+                    throw new InvalidOperationException("the downloaded archive did not contain index.html");
+            }
+            finally
+            {
+                try { if (File.Exists(tmpZip)) File.Delete(tmpZip); } catch { }
+                try { if (Directory.Exists(tmpDir)) Directory.Delete(tmpDir, true); } catch { }
+            }
+        }
+
+        private void LaunchWebClientProcess(string dir)
+        {
+            // Auto-connect the web client to this server: the launcher appends the JSON to
+            // the opened URL (?provider=...) and index.html registers+selects the provider.
+            var provider = JsonSerializer.Serialize(new
+            {
+                name = "AgentBridge",
+                format = "openai",
+                model = _agentSet,
+                endpoint = $"{_serverUrl.TrimEnd('/')}/v1/chat/completions",
+            }, JsonOpts);
+
+            if (OperatingSystem.IsWindows())
+            {
+                var bat = Path.Combine(dir, "start.bat");
+                if (!File.Exists(bat)) throw new InvalidOperationException($"missing {bat}");
+                // cmd start: detached window, returns immediately without blocking the TUI.
+                // The JSON travels base64url-encoded (no padding): embedded quotes or '='
+                // would be mangled by the cmd.exe command line (start.bat decodes it
+                // before building the browser URL).
+                var b64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(provider))
+                    .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+                Process.Start(new ProcessStartInfo("cmd.exe", $"/c start \"\" \"{bat}\" --provider {b64}")
+                {
+                    UseShellExecute = false,
+                    WorkingDirectory = dir,
+                });
+            }
+            else
+            {
+                var sh = Path.Combine(dir, "start.sh");
+                if (!File.Exists(sh)) throw new InvalidOperationException($"missing {sh}");
+                Process.Start(new ProcessStartInfo("bash", new[] { sh, "--provider", provider })
+                {
+                    UseShellExecute = false,
+                    WorkingDirectory = dir,
+                });
+            }
+        }
+
         private Task ShowHelpAsync()
         {
             var lines = new List<string>
@@ -1718,6 +1858,275 @@ public static class ConsoleTui
         private void ShowAbout()
         {
             _ = MessageBox.Query(_app, "AGENT", "AGENT v2 - Modern TUI\nPowered by Terminal.Gui", "OK");
+        }
+
+        // ── Models & providers setup ──
+        // A tabbed modal window (models/providers, email SMTP, IMAP, general) mirroring the
+        // AIOrchestrator settings. Field edits are applied on Save; provider list operations
+        // (Add/Edit/Remove) apply immediately and persist to providers.json.
+        private Task ShowModelSetupAsync()
+        {
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() =>
+            {
+                try { ShowModelSetupDialog(); tcs.SetResult(); }
+                catch (Exception ex) { tcs.SetException(ex); }
+            });
+            return tcs.Task;
+        }
+
+        private void ShowModelSetupDialog()
+        {
+            var dlg = new Dialog
+            {
+                Title = "Models & Providers setup",
+                Width = Dim.Percent(80),
+                Height = Dim.Percent(70),
+                SchemeName = "Dark",
+            };
+
+            var tabs = new Tabs
+            {
+                X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(),
+            };
+
+            // ── LLM / Providers tab ──
+            var providerDropdown = new DropDownList { ReadOnly = true };
+            var providersList = new ListView();
+            TextField deepSeekKey = null!, zaiKey = null!, geminiKey = null!;
+            var llmTab = new View { Title = "LLM & Providers", CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+            {
+                providerDropdown.X = 17; providerDropdown.Y = 0; providerDropdown.Width = 46;
+                llmTab.Add(new Label { Text = "Active provider", X = 1, Y = 0, Width = 15 }, providerDropdown);
+
+                int y = 2;
+                deepSeekKey = AddField(llmTab, "DeepSeek API key", AIOrchestrator.Setup.DeepSeekApiKey, y++);
+                zaiKey = AddField(llmTab, "Z.ai API key", AIOrchestrator.Setup.ZaiApiKey, y++);
+                geminiKey = AddField(llmTab, "Gemini API key", AIOrchestrator.Setup.GeminiApiKey, y++);
+
+                llmTab.Add(new Label { Text = "Configured providers (Add/Edit/Remove apply immediately):", X = 1, Y = ++y, Width = Dim.Fill() });
+                y++;
+                providersList.X = 1; providersList.Y = y; providersList.Width = 62; providersList.Height = 6;
+                llmTab.Add(providersList);
+                y += 7;
+                var addBtn = new Button { Text = "Add…", X = 1, Y = y };
+                var editBtn = new Button { Text = "Edit…", X = 9, Y = y };
+                var removeBtn = new Button { Text = "Remove", X = 17, Y = y };
+                llmTab.Add(addBtn, editBtn, removeBtn);
+
+                // The dropdown re-marks the active provider in the list below it.
+                providerDropdown.ValueChanged += (_, _) => RefreshProviderList();
+                void RefreshProviderList()
+                {
+                    providersList.Source = new ListWrapper<string>(new ObservableCollection<string>(
+                        ProviderConfigs.All.Select(p => p.ProviderName == providerDropdown.Text
+                            ? $"{p.ProviderName}  ← active" : p.ProviderName)));
+                }
+                // Full refresh after a provider was added/edited/removed (dropdown included).
+                void RefreshProviders()
+                {
+                    var names = ProviderConfigs.All.Select(p => p.ProviderName).ToList();
+                    providerDropdown.Source = new ListWrapper<string>(new ObservableCollection<string>(names));
+                    if (!names.Contains(providerDropdown.Text))
+                        providerDropdown.Text = ProviderConfigs.Default.ProviderName;
+                    RefreshProviderList();
+                }
+                RefreshProviderList();
+
+                string? SelectedProviderName()
+                {
+                    var i = providersList.SelectedItem;
+                    return i is >= 0 && i < ProviderConfigs.All.Count ? ProviderConfigs.All[i.Value].ProviderName : null;
+                }
+
+                addBtn.Accepted += (_, _) =>
+                {
+                    var cfg = ShowProviderDialog(null);
+                    if (cfg == null) return;
+                    if (ProviderConfigs.Add(cfg, persist: true))
+                        AddNote($"provider {cfg.ProviderName} added");
+                    else
+                        AddNote($"provider {cfg.ProviderName} already exists");
+                    RefreshProviders();
+                };
+                editBtn.Accepted += (_, _) =>
+                {
+                    var name = SelectedProviderName();
+                    if (name == null) { AddNote("select a provider to edit"); return; }
+                    var cfg = ShowProviderDialog(ProviderConfigs.Get(name));
+                    if (cfg == null) return;
+                    ProviderConfigs.Upsert(cfg, persist: true);
+                    AddNote($"provider {cfg.ProviderName} updated");
+                    RefreshProviders();
+                };
+                removeBtn.Accepted += (_, _) =>
+                {
+                    var name = SelectedProviderName();
+                    if (name == null) { AddNote("select a provider to remove"); return; }
+                    if (MessageBox.Query(_app, "Remove provider", $"Remove '{name}' from the configuration?", "Cancel", "Remove") != 1)
+                        return;
+                    if (!ProviderConfigs.Remove(name, persist: true))
+                    {
+                        AddNote($"cannot remove '{name}' — not configured or it is the last provider");
+                        return;
+                    }
+                    AddNote($"provider {name} removed");
+                    if (providerDropdown.Text == name)
+                    {
+                        providerDropdown.Text = ProviderConfigs.Default.ProviderName;
+                        _ = SwitchModelAsync(ProviderConfigs.Default.ProviderName);
+                    }
+                    RefreshProviders();
+                };
+            }
+
+            // ── Email (SMTP) tab ──
+            var emailTab = new View { Title = "Email (SMTP)", CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+            var smtpServer = AddField(emailTab, "SMTP server", AIOrchestrator.Setup.SmtpServer, 0);
+            var smtpPort = AddField(emailTab, "SMTP port", AIOrchestrator.Setup.SmtpPort.ToString(), 1);
+            var smtpUser = AddField(emailTab, "SMTP user", AIOrchestrator.Setup.SmtpUser, 2);
+            var smtpPswd = AddField(emailTab, "SMTP password", AIOrchestrator.Setup.SmtpPassword, 3);
+            var recipientEmail = AddField(emailTab, "Recipient email", AIOrchestrator.Setup.Email, 4);
+
+            // ── Mail reading (IMAP) tab ──
+            var imapTab = new View { Title = "Mail (IMAP)", CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+            var imapServer = AddField(imapTab, "IMAP server", AIOrchestrator.Setup.ImapServer, 0);
+            var imapPort = AddField(imapTab, "IMAP port", AIOrchestrator.Setup.ImapPort.ToString(), 1);
+            var imapUser = AddField(imapTab, "IMAP user", AIOrchestrator.Setup.ImapUser, 2);
+            var imapPswd = AddField(imapTab, "IMAP password", AIOrchestrator.Setup.ImapPassword, 3);
+
+            // ── General tab ──
+            var generalTab = new View { Title = "General", CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+            var logEnabled = new CheckBox
+            {
+                Text = "Enable step logging (logs/ folder)",
+                Value = AIOrchestrator.Log.IsEnabled ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = 0,
+            };
+            generalTab.Add(logEnabled);
+            var docsPath = AddField(generalTab, "Documents path", AIOrchestrator.Setup.DocumentsPath, 2);
+
+            var save = new Button { Text = "Save", IsDefault = true };
+            save.Accepted += (_, _) =>
+            {
+                AIOrchestrator.Setup.DeepSeekApiKey = (deepSeekKey.Text ?? "").Trim();
+                AIOrchestrator.Setup.ZaiApiKey = (zaiKey.Text ?? "").Trim();
+                AIOrchestrator.Setup.GeminiApiKey = (geminiKey.Text ?? "").Trim();
+
+                AIOrchestrator.Setup.SmtpServer = (smtpServer.Text ?? "").Trim();
+                if (int.TryParse((smtpPort.Text ?? "").Trim(), out var sp)) AIOrchestrator.Setup.SmtpPort = sp;
+                AIOrchestrator.Setup.SmtpUser = (smtpUser.Text ?? "").Trim();
+                AIOrchestrator.Setup.SmtpPassword = (smtpPswd.Text ?? "").Trim();
+                AIOrchestrator.Setup.Email = (recipientEmail.Text ?? "").Trim();
+
+                AIOrchestrator.Setup.ImapServer = (imapServer.Text ?? "").Trim();
+                if (int.TryParse((imapPort.Text ?? "").Trim(), out var ip)) AIOrchestrator.Setup.ImapPort = ip;
+                AIOrchestrator.Setup.ImapUser = (imapUser.Text ?? "").Trim();
+                AIOrchestrator.Setup.ImapPassword = (imapPswd.Text ?? "").Trim();
+
+                AIOrchestrator.Log.IsEnabled = logEnabled.Value == CheckState.Checked;
+                AIOrchestrator.Setup.DocumentsPath = (docsPath.Text ?? "").Trim();
+
+                var chosen = (providerDropdown.Text ?? "").Trim();
+                if (chosen.Length > 0 && !string.Equals(chosen, _provider, StringComparison.OrdinalIgnoreCase))
+                    _ = SwitchModelAsync(chosen);   // same path as /model (HTTP /v1/control)
+
+                AddNote("model setup saved");
+                _app.RequestStop(dlg);
+            };
+            var close = new Button { Text = "Close" };
+            close.Accepted += (_, _) => _app.RequestStop(dlg);
+            dlg.AddButton(save);
+            dlg.AddButton(close);
+
+            tabs.Add(llmTab, emailTab, imapTab, generalTab);
+            dlg.Add(tabs);
+            dlg.Initialized += (_, _) => providerDropdown.SetFocus();
+            _app.Run(dlg);
+            dlg.Dispose();
+            _inputField?.SetFocus();
+        }
+
+        // Modal form to add a new provider or edit an existing one (returns the edited
+        // config on OK, null on cancel). No API-key field: keys live in Setup.ApiKey's
+        // hardcoded per-name switch, so a dynamically named cloud provider cannot use one.
+        private ProviderConfig? ShowProviderDialog(ProviderConfig? existing)
+        {
+            var dlg = new Dialog
+            {
+                Title = existing == null ? "Add provider" : $"Edit provider: {existing.ProviderName}",
+                Width = 66,
+                Height = 13,
+                SchemeName = "Dark",
+            };
+            int y = 0;
+            var nameField = AddField(dlg, "Name", existing?.ProviderName, y++);
+            var protocol = new DropDownList
+            {
+                ReadOnly = true,
+                X = 20, Y = y, Width = 32,
+                Source = new ListWrapper<string>(new ObservableCollection<string>(Enum.GetNames<ProviderProtocol>())),
+                Text = (existing?.Protocol ?? ProviderProtocol.OpenAI).ToString(),
+            };
+            dlg.Add(new Label { Text = "Protocol", X = 1, Y = y, Width = 18 }, protocol);
+            y++;
+            var modelField = AddField(dlg, "Model", existing?.ModelName, y++);
+            var baseField = AddField(dlg, "Base address", existing?.BaseAddress.ToString(), y++);
+            var endPointField = AddField(dlg, "Endpoint path", existing?.EndPoint, y++);
+            var ctxField = AddField(dlg, "Context window", (existing?.ContextWindow ?? 32768).ToString(), y++);
+            var timeoutField = AddField(dlg, "Timeout (sec)", ((int)(existing?.Timeout.TotalSeconds ?? 30)).ToString(), y++);
+
+            ProviderConfig? result = null;
+            var ok = new Button { Text = "OK", IsDefault = true };
+            ok.Accepted += (_, _) =>
+            {
+                var providerName = (nameField.Text ?? "").Trim();
+                if (providerName.Length == 0)
+                {
+                    _ = MessageBox.Query(_app, "Add provider", "Name is required", "OK");
+                    return;
+                }
+                if (!Uri.TryCreate((baseField.Text ?? "").Trim(), UriKind.Absolute, out var uri))
+                {
+                    _ = MessageBox.Query(_app, "Add provider", "Base address must be an absolute URL (http://…)", "OK");
+                    return;
+                }
+                if (!int.TryParse((ctxField.Text ?? "").Trim(), out var ctx) || ctx <= 0)
+                {
+                    _ = MessageBox.Query(_app, "Add provider", "Context window must be a positive number", "OK");
+                    return;
+                }
+                if (!int.TryParse((timeoutField.Text ?? "").Trim(), out var secs) || secs <= 0) secs = 30;
+                if (!Enum.TryParse<ProviderProtocol>((protocol.Text ?? "").Trim(), out var proto)) proto = ProviderProtocol.OpenAI;
+                result = new ProviderConfig
+                {
+                    ProviderName = providerName,
+                    Protocol = proto,
+                    ModelName = (modelField.Text ?? "").Trim(),
+                    BaseAddress = uri,
+                    EndPoint = (endPointField.Text ?? "").Trim(),
+                    ContextWindow = ctx,
+                    Timeout = TimeSpan.FromSeconds(secs),
+                };
+                _app.RequestStop(dlg);
+            };
+            var cancel = new Button { Text = "Cancel" };
+            cancel.Accepted += (_, _) => _app.RequestStop(dlg);
+            dlg.AddButton(ok);
+            dlg.AddButton(cancel);
+            dlg.Initialized += (_, _) => nameField.SetFocus();
+            _app.Run(dlg);
+            dlg.Dispose();
+            return result;
+        }
+
+        // Adds a labelled single-line field to a form and returns the field.
+        private static TextField AddField(View parent, string label, string? value, int y, int labelWidth = 18, int fieldWidth = 44)
+        {
+            parent.Add(new Label { Text = label, X = 1, Y = y, Width = labelWidth });
+            var field = new TextField { Text = value ?? "", X = labelWidth + 2, Y = y, Width = fieldWidth };
+            parent.Add(field);
+            return field;
         }
 
         // ── Server state ──

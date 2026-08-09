@@ -17,11 +17,16 @@ Built on the [AIOffice](https://github.com/Graphene-Lab/AIOffice) agent orchestr
 
 - **Chat with AI agents from the terminal** — streaming replies, `@` file attachments,
   prompt history, sessions, all in a full-screen UI with a command palette.
+- **Open the web GUI in one keystroke** — `/web` (menu **Web → GUI**) downloads on first run
+  and launches the Giraffe AI web client in the browser, already connected to this server.
 - **Expose the agents as a local OpenAI server** — point any OpenAI client at
   `http://localhost:5290/v1` and it drives the agents without modification (see the
   [manual](docs/MANUAL.md#connecting-a-client-to-localhost)).
 - **Switch the LLM on the fly** — DeepSeek, Z.ai, Gemini, Ollama, ExLlamaV2 and more, with
   a context-window guard that refuses an overflow and explains why.
+- **Configure models & providers from the UI** — `/modelsetup` (menu **File → Models &
+  Providers**) adds, edits or removes providers, picks the active model, sets the API keys,
+  SMTP/IMAP and documents path — no JSON editing required.
 - **Voice in the terminal** — dictate from the server microphone (Windows) and hear the
   replies spoken by Kokoro neural TTS, in the UI and over the API.
 - **Upload-and-attach files** — documents and images converted to Markdown server-side,

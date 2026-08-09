@@ -197,6 +197,8 @@ see [section 6](#6-connect-a-client-to-localhost)):
 | `/health` | **Server health + latency** | ping the server |
 | `/retry` | **Resend the last prompt** | also `Ctrl+Y` |
 | `/docs` | **Open the online docs** | in the browser |
+| `/web` | **Launch the web GUI (Giraffe AI)** | installs the client on first run and auto-connects it to this server (see [section 6](#6-connect-a-client-to-localhost)) |
+| `/modelsetup` | **Configure models & providers** | add/edit/remove providers, active model, API keys, email (SMTP), mail reading (IMAP), logging, documents path |
 | `/exit` · `/quit` | **Exit** | also `Ctrl+C` twice, or `Ctrl+D` |
 
 > Platform-dependent features are honest: if the platform or the assets are missing, the
@@ -228,6 +230,16 @@ curl -N http://localhost:5290/v1/chat/completions \
 
 **In an OpenAI SDK:** set `base_url` / `BaseAddress` to `http://localhost:5290/v1` and use
 the SDK's normal chat methods.
+
+### The built-in web client (Giraffe AI)
+
+The quickest client is the one bundled with the TUI: **`/web`** (menu **Web → GUI**)
+downloads the [Giraffe AI](https://github.com/Graphene-Lab/GiraffeAI) web client on first
+use, extracts it into a `GiraffeAIWebClient` folder next to the working directory and opens
+it in the browser at `http://localhost:8000`. The launch passes `--provider` with this
+server's endpoint, so the client comes up with the **AgentBridge provider already registered
+and selected** — just start typing. A client installed before this auto-connect feature
+existed is re-downloaded automatically; the first download needs internet access.
 
 ### Endpoint summary
 
