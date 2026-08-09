@@ -15,4 +15,6 @@ if [ "$master" != "1" ]; then exit 0; fi
 
 repo_root=$(git rev-parse --show-toplevel)
 echo "pre-push: syncing dependency repos (their NuGet packages will update automatically)..."
-powershell -NoProfile -ExecutionPolicy Bypass -File "$repo_root/sync-all.ps1" -Message "pre-push sync"
+# -SkipSelf: sync only the dependency repos — AgentBridge itself is pushed by this git push
+# (pushing it here too would make the original push fail with a stale-ref lock error).
+powershell -NoProfile -ExecutionPolicy Bypass -File "$repo_root/sync-all.ps1" -Message "pre-push sync" -SkipSelf

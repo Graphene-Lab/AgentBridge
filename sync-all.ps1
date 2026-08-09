@@ -5,7 +5,8 @@
 # Usage: powershell -File sync-all.ps1 [-Message "release prep"] [-Branch master]
 param(
     [string]$Message = "sync",
-    [string]$Branch = ""
+    [string]$Branch = "",
+    [switch]$SkipSelf
 )
 
 # Guard: when sync-all is invoked by the pre-push hook, mark the process so the nested
@@ -61,7 +62,7 @@ foreach ($p in (Get-ChildProjects $agent)) {
     if ($visited.Add($dir)) { $order += $dir }
 }
 [array]::Reverse($order)
-$order += $root
+if (-not $SkipSelf) { $order += $root }
 
 Write-Host "Repos to sync ($($order.Count)):"
 foreach ($d in $order) { Write-Host "  - $d" }
