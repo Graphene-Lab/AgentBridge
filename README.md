@@ -51,6 +51,12 @@ Any OpenAI SDK, script or standalone client — such as
 
 ## Quick start
 
+**Prebuilt executables** — download the archive for your platform from the
+[Releases page](https://github.com/Graphene-Lab/AgentBridge/releases) (Windows `win-x64`,
+Linux `linux-x64`, macOS `osx-x64` / `osx-arm64`): extract and run `agent.exe` / `agent`,
+no .NET installation required. Each archive includes the Kokoro TTS voices and model, so
+text-to-speech works out of the box.
+
 Run the executable directly — `agent.exe` on Windows, `agent` on Linux/macOS — or, in development:
 
 ```bash
@@ -114,6 +120,7 @@ separate files:
 | [docs/TUI.md](docs/TUI.md) | Terminal UI guide: every command, keyboard shortcut and mouse action |
 | [docs/API.md](docs/API.md) | HTTP API reference: endpoints, sessions, LLM switching, TTS, voice, files |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture, configuration, launch modes, build & publish, project layout, testing |
+| [docs/RELEASING.md](docs/RELEASING.md) | *(developers)* how releases, NuGet packages and the automatic update system work |
 
 ---
 

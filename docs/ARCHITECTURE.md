@@ -88,6 +88,11 @@ voice endpoint self-reports as unavailable — copy the exe manually or set `Voi
 
 ## Build & publish
 
+> The **automated** release pipeline (NuGet dependency packages, version scheme,
+> `IsPrerelease` gate, sync-all/pre-push hook, wait-for-packages, release.yml) is
+> documented in **[RELEASING.md](RELEASING.md)**. The commands below are the manual,
+> development-oriented way to build and publish locally.
+
 The executable is named **`agent`** (`agent.exe` on Windows, `agent` on Linux/macOS) — like
 `qwen` in Qwen Code. Development:
 

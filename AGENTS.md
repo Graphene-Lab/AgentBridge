@@ -1,5 +1,8 @@
 # AgentBridge — notes for coding agents
 
+> The full release/NuGet mechanism (diagrams, pitfalls, integration checklist) is in
+> **[docs/RELEASING.md](docs/RELEASING.md)** — read it before touching the release pipeline.
+
 ## Release gate: IsPrerelease flag
 
 `AgentBridge.csproj` carries `<IsPrerelease>` (default `true`). It decides whether a GitHub
@@ -60,3 +63,26 @@ over on its own, and the release archives ship them so TTS works out of the box.
 No linux-arm64 release: KokoroSharp 0.6.7 ships no `espeak-ng-linux-arm64` binary, so TTS
 would be broken on ARM64 Linux. If that changes (new KokoroSharp or a bundled ARM64
 espeak-ng), re-add the `linux-arm64` matrix cell in release.yml.
+
+## Adding a new dependency project (quick checklist)
+
+When AgentBridge (or a dependency) gains a new project dependency, make it part of the
+automatic update + release system (full details in docs/RELEASING.md):
+
+1. csproj: date-based `<Version>`, package metadata (`PackageId`, `Description`,
+   `PackageReadmeFile`, `PackageLicenseFile`, `PackageRequireLicenseAcceptance`,
+   `Copyright`, `RepositoryUrl`), packed `LICENSE.md` + `README.md`, and the pack targets
+   (`SetPackageVersion`, `CleanOldNuGetPackages`, `PublishPackageToNuGet`).
+2. Repo on GitHub + `.github/workflows/publish.yml` (push to master → pack + push,
+   `-p:SkipNuGetPush=true` in the pack step).
+3. Consumer uses the dual-reference pattern (`ProjectReference` with
+   `Condition="Exists(...)"` + `PackageReference Version="1.*"`).
+4. Check the package id on nuget.org first; use a `Graphene.*` id if taken.
+5. Add the lowercase package id to the "Wait for dependency packages on NuGet" list in
+   `release.yml`.
+6. If it depends on `Graphene.AIOrchestrator`/`Naiad`, add
+   `<Papyrine_SponsorshipLicenseIgnored>true</...>` to its consumers (SC021).
+7. Release with `powershell -File release.ps1`.
+
+`sync-all.ps1` discovers the new repo automatically via the ProjectReference scan — no
+script edits needed.
