@@ -15,6 +15,11 @@ while iterating. Do not change the version scheme — it is date-based like UISu
 
 ## Release pipeline
 
+**One command (recommended):** `powershell -File release.ps1 -Message "<commit message>"` —
+pushes all repos (sync-all), waits for the dependency packages on nuget.org, creates +
+pushes the tag, and triggers release.yml. Everything else is automatic.
+
+**Manually (equivalent steps):**
 1. `powershell -File sync-all.ps1 -Message "<commit message>"` — commits and pushes
    AgentBridge plus every repo it depends on (recursively via ProjectReference; new
    dependency repos are discovered automatically).
