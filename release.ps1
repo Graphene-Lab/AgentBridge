@@ -11,6 +11,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# PowerShell 7.3+ turns native-command stderr into terminating errors when
+# $ErrorActionPreference=Stop, but git writes to stderr for benign cases (push
+# progress, "remote: warning: Deleting a non-existent ref.", "Updated tag ...").
+# $LASTEXITCODE is the source of truth for git failures — not stderr.
+$PSNativeCommandUseErrorActionPreference = $false
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $packages = 'graphene.aiorchestrator','alltomarkdown','mermaidrendering','graphene.reversemarkdown','uisupportgeneric'
 
@@ -52,7 +57,12 @@ foreach ($pkg in $packages) {
 Write-Host "=== 3/4 tag v$VER + push ==="
 Push-Location $root
 try {
-    git push origin ":refs/tags/v$VER" 2>$null | Out-Null
+    # Delete the remote tag first only when it already exists: deleting a
+    # non-existent ref writes a warning to stderr and is never needed.
+    $existing = git ls-remote --tags origin "refs/tags/v$VER" 2>$null
+    if ($LASTEXITCODE -eq 0 -and $existing) {
+        git push origin ":refs/tags/v$VER" 2>$null | Out-Null
+    }
     git tag -f "v$VER"
     git push origin "v$VER"
     if ($LASTEXITCODE -ne 0) { throw "tag push failed" }
