@@ -22,6 +22,9 @@ while iterating. Do not change the version scheme — it is date-based like UISu
    pushes its NuGet package (`1.*` floating version, `--skip-duplicate` — idempotent).
 3. When the version is release-ready, tag: `git tag v1.yy.MM.dd` + push the tag →
    release.yml builds the 4 platform archives and attaches them to the GitHub release.
+   The workflow first waits until today's version of every dependency package is visible on
+   nuget.org (propagation is not instant): tag only after `sync-all.ps1` pushed the repos,
+   otherwise the release fails with a clear message instead of building against stale deps.
 
 ## Dependencies: dual-reference pattern
 

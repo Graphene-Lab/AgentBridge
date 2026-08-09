@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       prerelease: ${{ steps.ver.outputs.prerelease }}
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,6 +31,7 @@ jobs:
           echo "version=$VER"
           case "$VER" in *-prerelease*) echo "prerelease=true" ;; *) echo "prerelease=false" ;; esac
           echo "prerelease=$(case "$VER" in *-prerelease*) echo true ;; *) echo false ;; esac)" >> "$GITHUB_OUTPUT"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
 
   build:
     needs: check-version
@@ -64,6 +66,33 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      # The dependency NuGet packages are date-versioned (1.yy.MM.dd) and published by each
+      # repo's publish.yml when sync-all.ps1 pushed them; nuget.org propagation is not
+      # instant, so wait until today's version of every dependency is visible before
+      # building — otherwise the floating 1.* restore would silently resolve to an older
+      # version (stale release) or fail. Fails with a clear message if a package is still
+      # missing after 5 minutes (usually: sync-all.ps1 was not run before tagging).
+      - name: Wait for dependency packages on NuGet
+        shell: bash
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          NVER=$(printf '%s' "$VERSION" | awk -F. '{for(i=1;i<=NF;i++){gsub(/^0+/,"",$i); if($i=="")$i=0; printf "%s%s",(i>1?".":""),$i} print ""}')
+          echo "Waiting for dependency packages at version $NVER ..."
+          for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric; do
+            ok=""
+            for i in $(seq 1 20); do
+              if curl -fsS "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" | grep -q "\"$NVER\""; then
+                echo "$pkg $NVER available (attempt $i)"; ok=1; break
+              fi
+              sleep 15
+            done
+            if [ -z "$ok" ]; then
+              echo "::error::dependency package $pkg $NVER not found on nuget.org after 5 min — run sync-all.ps1 and wait for the publish workflows before tagging."
+              exit 1
+            fi
+          done
 
       # Builds against the published NuGet packages (Graphene.AIOrchestrator 1.* and its
       # dependencies) — the sibling repos are private and never checked out here.
