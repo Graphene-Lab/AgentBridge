@@ -42,7 +42,7 @@
     <MakeDir Directories="$(OutputPath)" />
     <Copy Condition="Exists('..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\kokoro.onnx')" SourceFiles="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\kokoro.onnx" DestinationFiles="$(OutputPath)kokoro.onnx" />
     <Copy Condition="!Exists('$(OutputPath)kokoro.onnx') and Exists('kokoro.onnx')" SourceFiles="kokoro.onnx" DestinationFiles="$(OutputPath)kokoro.onnx" />
-    <Exec Condition="!Exists('$(OutputPath)kokoro.onnx')" Command="curl.exe -L --fail -o &quot;$(OutputPath)kokoro.onnx&quot; &quot;https://github.com/Lyrcaxis/KokoroSharpBinaries/releases/download/v2.0.0/kokoro.onnx&quot;" />
+    <Exec Condition="!Exists('$(OutputPath)kokoro.onnx')" Command="curl -L --fail -o &quot;$(OutputPath)kokoro.onnx&quot; &quot;https://github.com/Lyrcaxis/KokoroSharpBinaries/releases/download/v2.0.0/kokoro.onnx&quot;" />
     <Message Text="kokoro.onnx ready at $(OutputPath)" Importance="high" />
   </Target>
 
