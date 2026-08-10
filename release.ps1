@@ -30,7 +30,7 @@ $VER = (dotnet msbuild (Join-Path $root 'AgentBridge.csproj') -getProperty:Versi
     Where-Object { $_ -match '^[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?$' } | Select-Object -First 1).Trim()
 if (-not $VER) { throw "could not read Version from AgentBridge.csproj" }
 if ($VER -like '*-prerelease') {
-    Write-Warning "IsPrerelease=false in AgentBridge.csproj → version is $VER; the release CI will SKIP (no GitHub release). Set IsPrerelease=true when the version is proven to work."
+    Write-Warning "IsPrerelease=true in AgentBridge.csproj → version is $VER; the release CI will SKIP (no GitHub release). Set IsPrerelease=false when the version is proven to work."
 }
 $NVER = ((($VER -split '-')[0]) -split '\.' | ForEach-Object { [int]$_ }) -join '.'
 Write-Host "version: $VER (normalized for nuget.org: $NVER)"

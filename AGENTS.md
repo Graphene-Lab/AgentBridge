@@ -8,12 +8,12 @@
 `AgentBridge.csproj` carries `<IsPrerelease>` (default `true`). It decides whether a GitHub
 release is produced:
 
-- `true` → version is the date-based `1.yy.MM.dd` (e.g. `1.26.08.09`); the tag
+- `false` → version is the date-based `1.yy.MM.dd` (e.g. `1.26.08.09`); the tag
   `v1.yy.MM.dd` triggers the full release build (release.yml).
-- `false` → the version gets a `-prerelease` suffix and the release workflow skips
+- `true` → the version gets a `-prerelease` suffix and the release workflow skips
   (`check-version` job guards the build matrix).
 
-Set the flag to `true` only when the test cycles proved the version works; keep it `false`
+Set the flag to `false` only when the test cycles proved the version works; keep it `true`
 while iterating. Do not change the version scheme — it is date-based like UISupportBlazor.
 
 ## Release pipeline

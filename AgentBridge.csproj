@@ -8,16 +8,16 @@
     <!-- The executable is named `agent` (agent.exe on Windows, agent on Linux/macOS),
          like `qwen` in Qwen Code. -->
     <AssemblyName>agent</AssemblyName>
-    <!-- Release gate (see AGENTS.md): set IsPrerelease=false while iterating → the version
-         gets "-prerelease" and the GitHub release workflow skips. Keep true once the test
-         cycles proved the version works. Date-based auto version, same scheme as
-         UISupportBlazor/UISupportGeneric (1.yy.MM.dd, e.g. 1.26.08.09). -->
+    <!-- Release gate (see AGENTS.md): IsPrerelease=true while iterating → the version gets
+         "-prerelease" and the GitHub release workflow skips. Set IsPrerelease=false only when
+         the test cycles proved the version works → real release. Date-based auto version,
+         same scheme as UISupportBlazor/UISupportGeneric (1.yy.MM.dd, e.g. 1.26.08.09). -->
     <IsPrerelease>false</IsPrerelease>
     <!-- Naiad (transitive dep of Graphene.AIOrchestrator) SponsorCheck: the property is
          required when building Release; set in every project consuming the package. -->
     <Papyrine_SponsorshipLicenseIgnored>true</Papyrine_SponsorshipLicenseIgnored>
-    <Version Condition="'$(IsPrerelease)' == 'true'">$([System.DateTime]::Now.ToString("1.yy.MM.dd"))</Version>
-    <Version Condition="'$(IsPrerelease)' != 'true'">$([System.DateTime]::Now.ToString("1.yy.MM.dd"))-prerelease</Version>
+    <Version Condition="'$(IsPrerelease)' == 'true'">$([System.DateTime]::Now.ToString("1.yy.MM.dd"))-prerelease</Version>
+    <Version Condition="'$(IsPrerelease)' != 'true'">$([System.DateTime]::Now.ToString("1.yy.MM.dd"))</Version>
   </PropertyGroup>
 
   <ItemGroup>

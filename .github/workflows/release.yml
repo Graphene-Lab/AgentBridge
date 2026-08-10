@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  # Release gate: when IsPrerelease=false in AgentBridge.csproj the version carries a
+  # Release gate: when IsPrerelease=true in AgentBridge.csproj the version carries a
   # "-prerelease" suffix and no GitHub release is created. See AGENTS.md.
   check-version:
     runs-on: ubuntu-latest

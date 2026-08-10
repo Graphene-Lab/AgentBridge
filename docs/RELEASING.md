@@ -37,12 +37,12 @@ wait step use the normalized form).
 
 **Release gate — `IsPrerelease`** in `AgentBridge.csproj` (default `true`):
 
-- `true` → version `1.yy.MM.dd`; the tag `v1.yy.MM.dd` triggers a full release.
-- `false` → version `1.yy.MM.dd-prerelease`; the `check-version` job detects the suffix and
+- `false` → version `1.yy.MM.dd`; the tag `v1.yy.MM.dd` triggers a full release.
+- `true` → version `1.yy.MM.dd-prerelease`; the `check-version` job detects the suffix and
   **skips the build** (no assets, no GitHub release).
 
-Set `IsPrerelease=false` while iterating and back to `true` only when the test cycles proved
-the version works. `release.ps1` warns when the gate is off.
+Set `IsPrerelease=true` while iterating and to `false` only when the test cycles proved
+the version works. `release.ps1` warns when the gate is on.
 
 ## Dependency model: dual reference
 
