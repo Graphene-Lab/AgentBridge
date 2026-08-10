@@ -64,6 +64,13 @@ wait step use the normalized form).
 Set `IsPrerelease=true` while iterating and to `false` only when the test cycles proved
 the version works. `release.ps1` warns when the gate is on.
 
+**A prerelease push publishes nothing.** With `IsPrerelease=true`, pushing `master` produces
+no GitHub release (`release.yml` only triggers on tags `v*`, and the gate skips the build
+even on a tag) and no NuGet update: the dependency repos' `publish.yml` still runs on the
+push and attempts the push, but `--skip-duplicate` skips the already-published date version
+(same-day freeze), ending with "Package ... already exists at feed". Real publishes only
+come from the next date's push with the gate off.
+
 ## Dependency model: dual reference
 
 AgentBridge and AIOrchestrator reference their dependencies with the **dual-reference
