@@ -71,11 +71,11 @@ jobs:
 
       # The dependency NuGet packages are date-versioned (1.yy.MM.dd) and published by each
       # repo's publish.yml when sync-all.ps1 pushed them; nuget.org propagation is not
-      # instant (official figures: up to 30 minutes), so wait until today's version of every
-      # dependency is visible before building. After 30 minutes a still-missing package means
-      # that repo simply had no publish today (only changed repos publish) — proceed with a
-      # warning: the floating 1.* restore picks the latest available version, which for an
-      # unchanged repo is identical to what today's version would contain.
+      # instant (official figures: up to 30 minutes). A GLOBAL 30-minute window from the start
+      # of the wait: each cycle checks ALL packages and ends as soon as every one is visible;
+      # after the window, packages still missing (only changed repos publish today) are
+      # reported with a warning and the build proceeds — the floating 1.* restore picks the
+      # latest available version, which for an unchanged repo is identical to today's version.
       - name: Wait for dependency packages on NuGet
         shell: bash
         env:
@@ -83,18 +83,21 @@ jobs:
         run: |
           NVER=$(printf '%s' "$VERSION" | awk -F. '{for(i=1;i<=NF;i++){gsub(/^0+/,"",$i); if($i=="")$i=0; printf "%s%s",(i>1?".":""),$i} print ""}')
           echo "Waiting for dependency packages at version $NVER ..."
-          for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric; do
-            ok=""
-            for i in $(seq 1 60); do
+          for i in $(seq 1 60); do
+            missing=""
+            for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric; do
               if curl -fsS "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" | grep -q "\"$NVER\""; then
-                echo "$pkg $NVER available (attempt $i)"; ok=1; break
+                echo "$pkg $NVER available (attempt $i)"
+              else
+                missing="$missing $pkg"
               fi
-              sleep 30
             done
-            if [ -z "$ok" ]; then
-              echo "::warning::$pkg $NVER not visible on nuget.org after 30 min — proceeding with the latest available version (no publish for this repo today)."
-            fi
+            if [ -z "$missing" ]; then break; fi
+            sleep 30
           done
+          if [ -n "$missing" ]; then
+            echo "::warning::after 30 min these packages are not yet at $NVER; proceeding with the latest available version (no publish for these repos today):$missing"
+          fi
 
       # Builds against the published NuGet packages (Graphene.AIOrchestrator 1.* and its
       # dependencies) — the sibling repos are private and never checked out here.

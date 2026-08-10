@@ -35,22 +35,30 @@ if ($VER -like '*-prerelease') {
 $NVER = ((($VER -split '-')[0]) -split '\.' | ForEach-Object { [int]$_ }) -join '.'
 Write-Host "version: $VER (normalized for nuget.org: $NVER)"
 
-foreach ($pkg in $packages) {
-    $ok = $false
-    for ($i = 1; $i -le 120; $i++) {   # up to ~30 minutes (nuget.org official propagation time)
+# Global 30-minute window from the start of the wait: each cycle checks ALL packages; the
+# loop ends as soon as every one is visible, or after the window — at which point the missing
+# packages are reported with a warning and the release proceeds with the latest available
+# versions (only changed repos publish today's version; for an unchanged repo the latest
+# available is identical to what today's version would contain).
+$missing = @()
+for ($i = 1; $i -le 120; $i++) {   # up to ~30 minutes total (nuget.org official propagation)
+    $pending = @()
+    foreach ($pkg in $packages) {
         try {
             $idx = (Invoke-WebRequest -Uri "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" -UseBasicParsing -TimeoutSec 20).Content
             if ($idx -match ('"' + [regex]::Escape($NVER) + '"')) {
                 Write-Host "$pkg $NVER available (attempt $i)"
-                $ok = $true
-                break
+                continue
             }
         } catch { }
-        Start-Sleep -Seconds 15
+        $pending += $pkg
     }
-    if (-not $ok) {
-        Write-Warning "$pkg $NVER not visible after ~30 min — the release CI proceeds with the latest available version; check the publish workflow of Graphene-Lab/$($pkg -replace '^graphene\.','') if you expected a publish today."
-    }
+    if (-not $pending) { $missing = @(); break }
+    $missing = $pending
+    Start-Sleep -Seconds 15
+}
+if ($missing.Count) {
+    Write-Warning "after ~30 min these packages are not yet at $NVER; the release CI proceeds with the latest available version: $($missing -join ', ')"
 }
 
 # 3) Create + push the tag (force-refresh for same-day re-releases).
