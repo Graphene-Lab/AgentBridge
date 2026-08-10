@@ -12,7 +12,7 @@
          "-prerelease" and the GitHub release workflow skips. Set IsPrerelease=false only when
          the test cycles proved the version works → real release. Date-based auto version,
          same scheme as UISupportBlazor/UISupportGeneric (1.yy.MM.dd, e.g. 1.26.08.09). -->
-    <IsPrerelease>false</IsPrerelease>
+    <IsPrerelease>true</IsPrerelease>
     <!-- Naiad (transitive dep of Graphene.AIOrchestrator) SponsorCheck: the property is
          required when building Release; set in every project consuming the package. -->
     <Papyrine_SponsorshipLicenseIgnored>true</Papyrine_SponsorshipLicenseIgnored>
