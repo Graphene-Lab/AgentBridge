@@ -16,6 +16,14 @@ release is produced:
 Set the flag to `false` only when the test cycles proved the version works; keep it `true`
 while iterating. Do not change the version scheme — it is date-based like UISupportBlazor.
 
+**Release wait — no monitoring needed.** After tagging `v1.yy.MM.dd`, the workflow waits for
+today's dependency packages on nuget.org within a **global 30-minute window** (nuget.org's
+official propagation time), then builds anyway with a warning for any package not published
+today (that repo simply had no push — only changed repos publish; for an unchanged repo the
+latest available version is identical to today's). There is nothing to check during the wait:
+either the build starts immediately or it starts after at most 30 minutes. See
+docs/RELEASING.md "How the release wait works".
+
 ## Release pipeline
 
 **One command (recommended):** `powershell -File release.ps1 -Message "<commit message>"` —

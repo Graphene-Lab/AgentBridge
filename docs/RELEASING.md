@@ -18,10 +18,30 @@ git commit + git push origin master (AgentBridge)
 release:  powershell -File release.ps1        (or manually: sync-all → git tag v1.yy.MM.dd → push)
    └─ release.yml on tag v*:
         1. check-version: reads the version + the IsPrerelease gate from the csproj
-        2. wait for every dependency package (today's version) to be visible on nuget.org
+        2. wait for today's dependency packages on nuget.org (GLOBAL 30-min window, see below)
         3. build 4 single-file archives (win-x64, linux-x64, osx-x64, osx-arm64)
            with the Kokoro TTS assets → attach to the GitHub release
 ```
+
+## How the release wait works (why you can just wait)
+
+Only the dependency repos that were actually **pushed** publish today's version: `sync-all.ps1`
+commits a repo only when it has changes, so an unchanged repo keeps its previous day's package
+(the content is identical — a date-versioned re-publish would not differ).
+
+The wait step in `release.yml` (mirrored by `release.ps1`) therefore uses a **global 30-minute
+window** (nuget.org's official propagation time), not a per-package timeout:
+
+- every cycle (30 s in the workflow) it checks **all** packages at today's version;
+- it stops as soon as every one is visible — usually a few minutes, often less;
+- after the 30-minute window, any package still missing means *that repo had no publish
+  today*: it is reported with a `::warning::` and the build **proceeds** with the latest
+  available version (the floating `1.*` restore picks it; for an unchanged repo it is
+  identical to today's version).
+
+Consequence: after tagging `v1.yy.MM.dd` there is **nothing to monitor** — either all
+packages are visible and the build starts immediately, or it waits at most 30 minutes and
+then builds anyway. The release cannot fail on missing packages anymore.
 
 ## Version scheme and the prerelease flag
 
@@ -61,8 +81,9 @@ pattern** (the same used by UISupportBlazor):
 Consequences:
 
 - CI never checks out the private sibling repos: it builds against the published packages.
-- A release always ships with the newest dependency versions published before it ran (the
-  wait step enforces visibility, so a release can never silently use yesterday's deps).
+- A release ships with today's version of every dependency that CHANGED today (the wait step
+  enforces visibility within its 30-min window); unchanged repos keep their latest available
+  version, which is identical to what today's version would contain.
 - The `Naiad` package (transitive dependency of `Graphene.AIOrchestrator`) requires
   `<Papyrine_SponsorshipLicenseIgnored>true</Papyrine_SponsorshipLicenseIgnored>` in every
   project consuming the package — SC021 blocks Release builds otherwise.
@@ -114,8 +135,10 @@ the new repo is pushed by the pre-push hook without any script edit.
 
 ## Common pitfalls
 
-- **Stale release**: tagging without running sync-all (or before the packages propagated) →
-  the wait step fails with a clear message; run `sync-all.ps1` (or `release.ps1`) first.
+- **Missing packages at release time**: not an error anymore — the wait step gives a 30-min
+  window and then proceeds with a `::warning::` for the packages that were not published today
+  (their repo had no push). Only investigate if a package you EXPECTED to publish is reported
+  missing (check that repo's publish.yml run).
 - **SC021 (Naiad)**: add the SponsorCheck property to the consumer (see above).
 - **Package-id collision**: verify availability before the first publish.
 - **TTS missing in the archives**: `CopyTtsAssetsToPublish` copies `kokoro.onnx`,
