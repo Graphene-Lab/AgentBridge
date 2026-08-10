@@ -2009,6 +2009,27 @@ public static class ConsoleTui
             var save = new Button { Text = "Save", IsDefault = true };
             save.Accepted += (_, _) =>
             {
+                // Validate BEFORE committing anything: on error the dialog stays open and the
+                // user sees why — "model setup saved" is only shown when everything applied.
+                if (!string.IsNullOrWhiteSpace(smtpPort.Text) && !int.TryParse((smtpPort.Text ?? "").Trim(), out _))
+                {
+                    MessageBox.ErrorQuery(_app, "Invalid SMTP port",
+                        "The SMTP port must be a number (e.g. 587 or 465). Fix it and press Save again.", "OK");
+                    return;
+                }
+                if (!string.IsNullOrWhiteSpace(imapPort.Text) && !int.TryParse((imapPort.Text ?? "").Trim(), out _))
+                {
+                    MessageBox.ErrorQuery(_app, "Invalid IMAP port",
+                        "The IMAP port must be a number (e.g. 993). Fix it and press Save again.", "OK");
+                    return;
+                }
+                if (!AIOrchestrator.Setup.TrySetDocumentsPath(docsPath.Text ?? "", out var pathNote))
+                {
+                    MessageBox.ErrorQuery(_app, "Invalid documents path",
+                        $"{pathNote}\n\nThe previous documents area is still active — nothing was changed.", "OK");
+                    return;
+                }
+
                 AIOrchestrator.Setup.DeepSeekApiKey = (deepSeekKey.Text ?? "").Trim();
                 AIOrchestrator.Setup.ZaiApiKey = (zaiKey.Text ?? "").Trim();
                 AIOrchestrator.Setup.GeminiApiKey = (geminiKey.Text ?? "").Trim();
@@ -2025,13 +2046,12 @@ public static class ConsoleTui
                 AIOrchestrator.Setup.ImapPassword = (imapPswd.Text ?? "").Trim();
 
                 AIOrchestrator.Log.IsEnabled = logEnabled.Value == CheckState.Checked;
-                AIOrchestrator.Setup.DocumentsPath = (docsPath.Text ?? "").Trim();
 
                 var chosen = (providerDropdown.Text ?? "").Trim();
                 if (chosen.Length > 0 && !string.Equals(chosen, _provider, StringComparison.OrdinalIgnoreCase))
                     _ = SwitchModelAsync(chosen);   // same path as /model (HTTP /v1/control)
 
-                AddNote("model setup saved");
+                AddNote(pathNote == null ? "model setup saved" : $"model setup saved — {pathNote}");
                 _app.RequestStop(dlg);
             };
             var close = new Button { Text = "Close" };

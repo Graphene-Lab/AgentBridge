@@ -13,6 +13,34 @@ Built on the [AIOffice](https://github.com/Graphene-Lab/AIOffice) agent orchestr
 - **Any OpenAI-compatible client** — SDKs, bots and scripts talk plain
   `POST /v1/chat/completions` to the same agents. No plugin, no custom SDK, no lock-in.
 
+## Agent Bridge: Your AI Assistant for Office Work
+
+Agent Bridge is a tool that allows you to connect to your preferred AI, transforming it into your personal assistant: a tireless worker capable of handling office tasks such as drafting complex documents, working with spreadsheets, interacting with email, and performing internet-based activities—all while having full awareness of your company's knowledge base: clients, documents, products, and everything stored in your archive.
+
+Agent Bridge positions itself as a cloud platform for businesses or private individuals seeking AI solutions. Everything uploaded to the cloud area becomes part of the AI's knowledge, enabling it, with full understanding of your documents and data, to work as a tireless employee and carry out office work. The product fits within the enterprise segment, capable of storing and managing even several terabytes of data, and can generate PDF documents with a level of detail and precision that is unmatched.
+
+## Your documents area: the company's brain and memory
+
+Think of the documents area as your company's brain. It is a simple folder on disk — nothing special, just a place where your files already live. Whatever you put in it, the AI can read, remember and use: contracts, invoices, client files, product sheets, emails, spreadsheets, technical drawings... everything. It does not matter how much data you have or how big the files are: the more you store, the smarter your AI becomes, because it answers using *your* real documents, not guesses. You never upload anything into the chat — you just keep working with your normal folders, and the AI reaches into them directly.
+
+### How to configure the documents area
+
+1. Open AgentBridge and type `/modelsetup` (menu **File → Models & Providers**).
+2. In the **General** tab, set **Documents path** to the folder that holds your documents. The default is your personal Documents folder — you can change it at any time.
+3. Press **Save**. AgentBridge starts reading that area in the background: the first indexing of a large archive takes a few minutes, but you can keep working while it runs.
+4. From now on, ask the AI anything about your documents — it searches the whole area and answers from your data. If you move to a different folder, just change the path again: AgentBridge automatically re-indexes the new area.
+
+## Comparison with Main Alternative Products
+
+| Product | Target Audience | Key Strength | Main Integrations |
+| :--- | :--- | :--- | :--- |
+| **Agent Bridge** | Businesses and individuals | Cloud platform for "all-in-one" AI assistant | Preferred AI, company archives |
+| **Claude for Small Business** | Small businesses | Ready-to-use workflows for operational tasks | QuickBooks, PayPal, HubSpot, Canva, DocuSign |
+| **Microsoft Scout** | Microsoft 365 companies | Autonomous, proactive AI agent always active | Outlook, Teams, SharePoint, OneDrive |
+| **Nono CoWork** | Power users and developers | Proactive agent always active on VPS | Email, synced folders, Telegram |
+| **171305 Cowork** | Power users and developers | Local AI workspace, privacy-first | Gmail, Calendar, Drive, Sheets, Ollama |
+| **Templafy** | Large enterprises | Platform for compliant, branded documents | Office, CRM, Claude, Copilot, ChatGPT |
+
 ## What you can do with it
 
 - **Chat with AI agents from the terminal** — streaming replies, `@` file attachments,
