@@ -74,7 +74,11 @@ public static class SessionStore
     public static ActiveSession Create(string provider, bool anonymize)
     {
         var id = $"sess-{Guid.NewGuid():N}";
-        var session = new ActiveSession(id, new AgentOrchestrator(provider, anonymize));
+        // Responsive delivery of long-running tool results (see AgentOrchestrator.AsyncTaskDeliveryEnabled):
+        // a session conversation survives across requests, so a background task started by the agent can
+        // deliver its completion event on the next chat request. Stateless (session-less) requests keep the
+        // default synchronous behavior — their orchestrator dies with the request.
+        var session = new ActiveSession(id, new AgentOrchestrator(provider, anonymize) { AsyncTaskDeliveryEnabled = true });
         Sessions[id] = session;
         return session;
     }
