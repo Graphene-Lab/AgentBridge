@@ -71,10 +71,11 @@ jobs:
 
       # The dependency NuGet packages are date-versioned (1.yy.MM.dd) and published by each
       # repo's publish.yml when sync-all.ps1 pushed them; nuget.org propagation is not
-      # instant, so wait until today's version of every dependency is visible before
-      # building — otherwise the floating 1.* restore would silently resolve to an older
-      # version (stale release) or fail. Fails with a clear message if a package is still
-      # missing after 5 minutes (usually: sync-all.ps1 was not run before tagging).
+      # instant (official figures: up to 30 minutes), so wait until today's version of every
+      # dependency is visible before building. After 30 minutes a still-missing package means
+      # that repo simply had no publish today (only changed repos publish) — proceed with a
+      # warning: the floating 1.* restore picks the latest available version, which for an
+      # unchanged repo is identical to what today's version would contain.
       - name: Wait for dependency packages on NuGet
         shell: bash
         env:
@@ -84,15 +85,14 @@ jobs:
           echo "Waiting for dependency packages at version $NVER ..."
           for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric; do
             ok=""
-            for i in $(seq 1 20); do
+            for i in $(seq 1 60); do
               if curl -fsS "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" | grep -q "\"$NVER\""; then
                 echo "$pkg $NVER available (attempt $i)"; ok=1; break
               fi
-              sleep 15
+              sleep 30
             done
             if [ -z "$ok" ]; then
-              echo "::error::dependency package $pkg $NVER not found on nuget.org after 5 min — run sync-all.ps1 and wait for the publish workflows before tagging."
-              exit 1
+              echo "::warning::$pkg $NVER not visible on nuget.org after 30 min — proceeding with the latest available version (no publish for this repo today)."
             fi
           done
 

@@ -37,7 +37,7 @@ Write-Host "version: $VER (normalized for nuget.org: $NVER)"
 
 foreach ($pkg in $packages) {
     $ok = $false
-    for ($i = 1; $i -le 40; $i++) {   # up to ~10 minutes
+    for ($i = 1; $i -le 120; $i++) {   # up to ~30 minutes (nuget.org official propagation time)
         try {
             $idx = (Invoke-WebRequest -Uri "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" -UseBasicParsing -TimeoutSec 20).Content
             if ($idx -match ('"' + [regex]::Escape($NVER) + '"')) {
@@ -49,7 +49,7 @@ foreach ($pkg in $packages) {
         Start-Sleep -Seconds 15
     }
     if (-not $ok) {
-        Write-Warning "$pkg $NVER not visible after ~10 min — the release CI will fail; check the publish workflow of Graphene-Lab/$($pkg -replace '^graphene\.','') ."
+        Write-Warning "$pkg $NVER not visible after ~30 min — the release CI proceeds with the latest available version; check the publish workflow of Graphene-Lab/$($pkg -replace '^graphene\.','') if you expected a publish today."
     }
 }
 
