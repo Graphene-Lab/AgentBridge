@@ -53,6 +53,31 @@ internal static class Program
         System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties()
             .GetActiveTcpListeners().Any(e => e.Port == port);
 
+    // Dumps the full clean screen to %TEMP%\tui_dump.txt — used to inspect a crash
+    // or a failed interaction (the console output is truncated otherwise).
+    private static void DumpScreen(ConPty conpty, string label)
+    {
+        try
+        {
+            var dump = Path.Combine(Path.GetTempPath(), "tui_dump.txt");
+            File.WriteAllText(dump, label + "\n\n" + conpty.Screen);
+            Console.WriteLine($"[diag] full screen dumped to {dump}");
+        }
+        catch { }
+    }
+
+    // Checks a liveness assertion and reports the exit code when the process died.
+    private static void CheckAlive(ConPty conpty, string name)
+    {
+        var alive = !conpty.Exited;
+        if (alive) { Check(name, true); }
+        else
+        {
+            Check(name, false);
+            try { Console.WriteLine($"[diag] {name} — process EXITED with code {conpty.ExitCode}"); } catch { }
+        }
+    }
+
     private static async Task<int> Main(string[] args)
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..")); // → AgentBridge/
@@ -117,44 +142,173 @@ internal static class Program
         var out0 = conpty.Screen;
         var uiRendered = out0.Contains("█");
         Check("logo AGENT rendered (block chars)", out0.Contains("█"));
-        Check("window title rendered", out0.Contains("AGENT - AI Chat Console"));
+        Check("window title rendered", out0.Contains("AGENT - AI Chat Console") || out0.Contains("Console chat IA"));
         Check("status bar shows server url", out0.Contains(baseUrl.Replace("http://", "")));
 
         // If the child did not attach (headless), no point continuing: the retry relaunches.
         if (!uiRendered) return false;
 
-        // 2) "/model" with no arguments opens the provider picker (the slash-command
-        //    palette opens live on "/", the rest of the line goes to its filter field).
-        conpty.Send("/model\r");
-        await conpty.WaitForText("Switch LLM provider", TimeSpan.FromSeconds(20));
-        Check("/model picker opens", conpty.Screen.Contains("Switch LLM provider"));
-        Check("picker shows Esc hint", conpty.Screen.Contains("Esc cancel"));
+        // Locale-independent marker of the provider picker: it lists the providers
+        // fetched from /v1/models as "id — name · ctx N". The dialog title (and every
+        // other UI string) is localized, so the tests never assert localized text.
+        const string pickerMarker = "ctx ";
+        // The slash palette lists command names ("/agent ...") which are NOT translated.
+        const string paletteMarker = "/agent ";
 
-        // 3) Esc closes the picker with no residue.
-        conpty.Send("\x1b");
+        // 2) "/model" opens the provider picker (the slash-command palette opens live
+        //    on "/", the rest of the line goes to its filter field).
+        conpty.Send("/model\r");
+        await conpty.WaitForNewTextAsync(pickerMarker, TimeSpan.FromSeconds(20));
+        Check("/model via palette opens picker", conpty.Screen.Contains(pickerMarker));
+        CheckAlive(conpty, "process alive after /model");
+
+        // 2b) USER REQUEST: the picker must also accept typed text — type a provider
+        //     name into its filter field and press Enter (nobody remembers the ids).
+        //     The switch must succeed (no "refused"/"rifiutato" note). The FIRST
+        //     /v1/control call lazily loads the TTS engine (kokoro.onnx, seconds), so
+        //     the startup session creation completes only when the status bar shows it
+        //     ("sess:sess-…") — wait for that before typing, else the switch POST
+        //     races the create and 400s with "session_id is required".
+        await conpty.WaitForNewTextAsync("sess:sess-", TimeSpan.FromSeconds(25));
         conpty.Mark();
+        conpty.Send("Zai\r");
+        await Task.Delay(1800);
+        var afterTyped = conpty.ScreenSinceMark();
+        Check("typed provider name selects and switches (Zai)", afterTyped.Contains("Zai") && !afterTyped.Contains("refused") && !afterTyped.Contains("rifiutato") && !afterTyped.Contains("required"));
+        CheckAlive(conpty, "process alive after typed provider name");
+
+        // 2c) Esc closes the picker with no residue.
+        conpty.Send("/model\r");
+        await conpty.WaitForNewTextAsync(pickerMarker, TimeSpan.FromSeconds(20));
+        conpty.Mark();
+        conpty.Send("\x1b");
         await Task.Delay(800);
         var afterEsc = conpty.ScreenSinceMark();
-        Check("Esc closes picker (no residue)", !afterEsc.Contains("Switch LLM provider") && !afterEsc.Contains("Esc cancel"));
+        Check("Esc closes picker (no residue)", !afterEsc.Contains(pickerMarker));
 
-        // 4) Chat: the user's message appears immediately in the conversation.
+        // 2d) List selection: Enter on the list picks the highlighted provider. The
+        //     first llm-provider on this machine is ExllamaV2_Llama3b — after the
+        //     picker closes the switch note/status shows that name (2b switched to
+        //     Zai first, so this is a real switch, not "already on").
+        conpty.Send("/model\r");
+        await conpty.WaitForNewTextAsync(pickerMarker, TimeSpan.FromSeconds(20));
+        conpty.Send("\x1b[B\r");   // Down (already at first item) then Enter
+        await conpty.WaitForNewTextAsync("ExllamaV2_Llama3b", TimeSpan.FromSeconds(20));
+        var afterPick = conpty.ScreenSinceMark();
+        Check("Enter on provider list selects and switches", afterPick.Contains("ExllamaV2_Llama3b") && !afterPick.Contains("refused") && !afterPick.Contains("rifiutato"));
+        CheckAlive(conpty, "process alive after list selection");
+
+        // 3) USER BUG REPORT (crash): typing "/m", selecting /model with the cursor
+        //    arrows and pressing Enter (or Tab to complete first) must open the
+        //    picker — it used to kill the whole TUI with "Cannot change document
+        //    within another document change" (unhandled CLR exception).
+        conpty.Send("/m\x1b[B\r");
+        await conpty.WaitForNewTextAsync(pickerMarker, TimeSpan.FromSeconds(20));
+        Check("/m + arrows + Enter opens picker (no crash)", conpty.Screen.Contains(pickerMarker));
+        CheckAlive(conpty, "process alive after /m + arrows + Enter");
+        conpty.Send("\x1b");
+        await Task.Delay(500);
+
+        // 3b) Tab-complete then Enter: the palette filter is filled with "/model "
+        //     (leading slash). The completed command must STAY visible in the LIST
+        //     ("/model [name]" — a list row, not just the filter text) and Enter
+        //     must run it without closing the app.
+        conpty.Send("/m\x1b[B\t");
+        await Task.Delay(600);
+        var afterTab = conpty.Screen;
+        Check("Tab completion keeps the command visible", afterTab.Contains("/model [name]"));
+        conpty.Send("\r");
+        await conpty.WaitForNewTextAsync(pickerMarker, TimeSpan.FromSeconds(20));
+        Check("/m + arrows + Tab + Enter opens picker (no crash)", conpty.Screen.Contains(pickerMarker));
+        CheckAlive(conpty, "process alive after Tab completion");
+        conpty.Send("\x1b");
+        await Task.Delay(500);
+
+        // 3c) "@" and "?" opened the same DocumentChanged code path — they must not
+        //     crash either (no files uploaded → a note appears; Esc then closes the
+        //     page the "?" opens).
+        conpty.Send("@");
+        await Task.Delay(1200);
+        CheckAlive(conpty, "process alive after @ (files dialog/note)");
+        conpty.Send("\x1b");
+        await Task.Delay(500);
+        conpty.Send("?");
+        await Task.Delay(1200);
+        CheckAlive(conpty, "process alive after ? (shortcuts page)");
+        conpty.Send("\x1b");
+        await Task.Delay(500);
+
+        // 4) The palette lists the commands in ALPHABETICAL order (user request).
+        conpty.Send("/");
+        await Task.Delay(800);
+        var palette = conpty.Screen;
+        Check("palette opens and lists commands", palette.Contains(paletteMarker));
+        var idx = new List<int>
+        {
+            palette.IndexOf("/agent "),
+            palette.IndexOf("/attach "),
+            palette.IndexOf("/clear "),
+            palette.IndexOf("/docs "),
+            palette.IndexOf("/exit "),
+            palette.IndexOf("/features "),
+        };
+        Check("commands sorted alphabetically in palette", idx.All(i => i >= 0) && idx.SequenceEqual(idx.OrderBy(i => i)));
+        conpty.Send("\x1b");
+        await Task.Delay(500);
+
+        // 5) Command sweep: every command launched from the palette must not kill the
+        //    TUI (the palette-close crash hit every command, not just /model). Commands
+        //    with external side effects (docs/web/tts/voice) are excluded. Dialogs that
+        //    a command opens are closed with one Esc; a stray Esc is harmless because
+        //    the next "/" resets the app's double-Esc-exit counter.
+        foreach (var (cmd, closeKey) in new[]
+        {
+            ("help", "\x1b"), ("shortcuts", "\x1b"), ("status", "\x1b"),
+            ("features", ""), ("clear", ""), ("new", ""), ("retry", ""), ("health", ""),
+            ("files", "\x1b"), ("attach", "\x1b"), ("agent", "\x1b"),
+            ("model", "\x1b"), ("modelsetup", "\x1b"),
+        })
+        {
+            conpty.Send("/" + cmd + "\r");
+            await Task.Delay(1500);
+            var alive1 = !conpty.Exited;
+            if (closeKey.Length > 0) { conpty.Send(closeKey); await Task.Delay(700); }
+            Check($"/{cmd} runs from palette (no crash)", alive1 && !conpty.Exited);
+            if (conpty.Exited) break;   // the rest would only produce noise
+        }
+
+        // 5b) The "/" palette still opens after the sweep (modelsetup's dialog closed).
+        conpty.Send("/");
+        await Task.Delay(800);
+        Check("palette still opens after sweep", conpty.Screen.Contains(paletteMarker));
+        conpty.Send("\x1b");
+        await Task.Delay(400);
+
+        // 6) Chat: the user's message appears immediately in the conversation.
         conpty.Mark();
         conpty.Send("ciao\r");
         await Task.Delay(1500);
         var afterChat = conpty.ScreenSinceMark();
         Check("user message shown in conversation", afterChat.Contains("ciao") && (afterChat.Contains("you") || afterChat.Contains("❯")));
 
-        // 5) Process still alive (no crash).
-        Check("process still alive after the interactions", !conpty.Exited);
+        // 7) Process still alive (no crash).
+        CheckAlive(conpty, "process still alive after the interactions");
+
+        // 8) /exit shuts the app down cleanly (it must exit, not hang).
+        conpty.Send("/exit\r");
+        var exitSw = Stopwatch.StartNew();
+        while (!conpty.Exited && exitSw.Elapsed < TimeSpan.FromSeconds(5)) await Task.Delay(100);
+        Check("/exit shuts the app down cleanly", conpty.Exited);
 
         // Diagnostics only on failure (dump output for debugging).
         if (_fail > 0)
         {
+            DumpScreen(conpty, $"FAILED ROUND (passed={_pass}, failed={_fail})");
             var dbg = conpty.Output;
             Console.WriteLine();
             Console.WriteLine($"[diag] captured bytes: {dbg.Length}");
             if (dbg.Length > 0)
-                Console.WriteLine("[diag] tail (clean): " + (conpty.Screen.Length > 400 ? conpty.Screen[^400..] : conpty.Screen).Replace("\r", "\\r").Replace("\n", "\\n"));
+                Console.WriteLine("[diag] tail (clean): " + (conpty.Screen.Length > 8000 ? conpty.Screen[^8000..] : conpty.Screen).Replace("\r", "\\r").Replace("\n", "\\n"));
             if (conpty.Exited)
             {
                 try { Console.WriteLine($"[diag] exit code: {conpty.ExitCode}"); } catch { }
@@ -270,6 +424,21 @@ internal sealed class ConPty : IDisposable
         while (sw.Elapsed < timeout)
         {
             if (Screen.Contains(text)) return;
+            await Task.Delay(100);
+        }
+    }
+
+    /// <summary>Waits for <paramref name="text"/> to appear in output produced AFTER the
+    /// call. The raw ConPTY capture accumulates every frame ever rendered, so a plain
+    /// screen.Contains() can match stale rows from a previous dialog — this marks first
+    /// and only inspects the fresh output.</summary>
+    public async Task WaitForNewTextAsync(string text, TimeSpan timeout)
+    {
+        Mark();
+        var sw = Stopwatch.StartNew();
+        while (sw.Elapsed < timeout)
+        {
+            if (ScreenSinceMark().Contains(text)) return;
             await Task.Delay(100);
         }
     }

@@ -6,8 +6,8 @@ using KokoroSharp.Utilities;
 // ═══════════════════════════════════════════════════════════════════════
 //  TtsEngine — in-process Kokoro neural TTS for POST /v1/audio/speech
 //
-//  Cross-platform (ONNX runtime): needs kokoro.onnx + voices/ + espeak/ next to
-//  the executable. The csproj brings voices/ + espeak/ from the KokoroSharp
+//  Cross-platform (ONNX runtime): needs kokoro.onnx + voices/ next to
+//  the executable. The csproj brings voices/ + voices-zh/ from the KokoroSharp
 //  package content and provides kokoro.onnx (copy from the sibling VoiceAgent
 //  build output, else curl download) — the endpoint reports itself unavailable
 //  (501) until the assets are present, so clients only activate TTS when the

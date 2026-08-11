@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using AIOrchestrator;
+using AgentBridge.Resources;
 using Terminal.Gui;
 using Terminal.Gui.App;
 using Terminal.Gui.Configuration;
@@ -86,9 +87,12 @@ public static class ConsoleTui
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
 
-        private const string PlaceholderText = "Type a message or / for commands...";
         private const int MaxHistory = 1000;
         private const int MaxInputLines = 4;
+
+        // UI strings come from the localized dictionary (system language, English fallback) —
+        // see Resources/Dictionary.*.resx. Command names (/help, /model...) are NOT translated.
+        private static string PlaceholderText => Dictionary.InputPlaceholder;
 
         // Web GUI (Giraffe AI): a static chat client served by its own launcher. First run
         // downloads the repo zip from GitHub and extracts it into a GiraffeAIWebClient folder.
@@ -118,24 +122,24 @@ public static class ConsoleTui
 
         private static readonly List<CliCommand> Commands = new()
         {
-            new("help", "", "Show help: commands, shortcuts, API endpoints, online docs", (t, _) => t.ShowHelpAsync(), new[] { "/?" }),
-            new("docs", "", "Open the online documentation in your browser", (t, _) => t.OpenDocsAsync()),
-            new("web", "", "Install (first run) and launch the Giraffe AI web client in the browser", (t, _) => t.LaunchWebClientAsync()),
-            new("modelsetup", "", "Configure LLM models & providers (add/edit/remove, active model, API keys)", (t, _) => t.ShowModelSetupAsync()),
-            new("model", "[name]", "Switch the LLM provider (menu when no name given)", (t, a) => t.SwitchModelAsync(a)),
-            new("agent", "[name]", "Switch the agent set (default/web/search/word/spreadsheet/email/multi)", (t, a) => t.SwitchAgentAsync(a)),
-            new("voice", "[lang]", "Dictate from the server microphone into the input (default = system language)", (t, a) => t.VoiceAsync(a)),
-            new("tts", "[text]", "Speak the last agent reply (or the given text) via Kokoro TTS", (t, a) => t.TtsAsync(a)),
-            new("features", "[name] [on|off]", "Show or toggle session feature flags (voice, tts, ...)", (t, a) => t.FeaturesAsync(a)),
-            new("new", "", "Start a new session (fresh conversation, new id)", (t, _) => t.NewSessionAsync(), new[] { "/reset" }),
-            new("clear", "", "Reset the current session history (keeps the session)", (t, _) => t.ClearHistoryAsync()),
-            new("status", "", "Show session state and platform capabilities", (t, _) => t.ShowStatusAsync()),
-            new("files", "add <path>|rm <id>|list", "Upload+attach a file, delete one, or list uploads", (t, a) => t.FilesAsync(a)),
-            new("attach", "[id]", "Toggle a file attachment for the chat (menu when no id)", (t, a) => t.AttachAsync(a)),
-            new("shortcuts", "", "Show the keyboard shortcuts overlay", (t, _) => t.ShowShortcutsAsync(), new[] { "/keys" }),
-            new("health", "", "Ping the server and report latency", (t, _) => t.HealthAsync()),
-            new("retry", "", "Resend the last prompt (also Ctrl+Y)", (t, _) => t.RetryAsync()),
-            new("exit", "", "Exit the terminal UI (Ctrl+Q, Ctrl+C twice, Ctrl+D)", (t, _) => t.ExitAsync(), new[] { "/quit" }),
+            new("help", "", Dictionary.CmdHelp, (t, _) => t.ShowHelpAsync(), new[] { "/?" }),
+            new("docs", "", Dictionary.CmdDocs, (t, _) => t.OpenDocsAsync()),
+            new("web", "", Dictionary.CmdWeb, (t, _) => t.LaunchWebClientAsync()),
+            new("modelsetup", "", Dictionary.CmdModelSetup, (t, _) => t.ShowModelSetupAsync()),
+            new("model", "[name]", Dictionary.CmdModel, (t, a) => t.SwitchModelAsync(a)),
+            new("agent", "[name]", Dictionary.CmdAgent, (t, a) => t.SwitchAgentAsync(a)),
+            new("voice", "[lang]", Dictionary.CmdVoice, (t, a) => t.VoiceAsync(a)),
+            new("tts", "[text]", Dictionary.CmdTts, (t, a) => t.TtsAsync(a)),
+            new("features", "[name] [on|off]", Dictionary.CmdFeatures, (t, a) => t.FeaturesAsync(a)),
+            new("new", "", Dictionary.CmdNew, (t, _) => t.NewSessionAsync(), new[] { "/reset" }),
+            new("clear", "", Dictionary.CmdClear, (t, _) => t.ClearHistoryAsync()),
+            new("status", "", Dictionary.CmdStatus, (t, _) => t.ShowStatusAsync()),
+            new("files", "add <path>|rm <id>|list", Dictionary.CmdFiles, (t, a) => t.FilesAsync(a)),
+            new("attach", "[id]", Dictionary.CmdAttach, (t, a) => t.AttachAsync(a)),
+            new("shortcuts", "", Dictionary.CmdShortcuts, (t, _) => t.ShowShortcutsAsync(), new[] { "/keys" }),
+            new("health", "", Dictionary.CmdHealth, (t, _) => t.HealthAsync()),
+            new("retry", "", Dictionary.CmdRetry, (t, _) => t.RetryAsync()),
+            new("exit", "", Dictionary.CmdExit, (t, _) => t.ExitAsync(), new[] { "/quit" }),
         };
 
         private static readonly string[] AgentSets = { "default-agent", "web-agent", "search-agent", "research-agent", "word-agent", "spreadsheet-agent", "email-agent", "multi-agent" };
@@ -169,24 +173,24 @@ public static class ConsoleTui
 
         private static readonly (string Keys, string What)[] ShortcutTable =
         {
-            ("Enter", "Send the message (Shift+Enter: new line) / run the selected command"),
-            ("/", "Open the slash-command palette (live, while you type)"),
-            ("@", "Open the file palette (toggle chat attachments)"),
-            ("?", "Show this shortcuts overlay (empty input)"),
-            ("Tab", "Complete the selected command in the palette"),
-            ("Esc", "Close dialog · clear input · twice: exit"),
-            ("Ctrl+C", "Cancel the reply · clear input · twice: exit"),
-            ("Ctrl+D", "Exit (empty input)"),
-            ("Ctrl+Y", "Retry the last prompt"),
-            ("Ctrl+R", "Reverse-search prompt history"),
-            ("Up / Down", "Prompt history at the first/last line (also Ctrl+P / Ctrl+N); otherwise move the caret"),
-            ("Left / Right", "Move the cursor (with Ctrl: by word)"),
-            ("Ctrl+A / Ctrl+E", "Select all / jump to end of the input"),
-            ("Ctrl+U / Ctrl+K", "Delete to start / to end of the line"),
-            ("Ctrl+W", "Delete the word before the cursor (also Ctrl+Backspace)"),
-            ("PgUp / PgDn", "Scroll the conversation history"),
-            ("F1", "Show the full help page"),
-            ("F10", "Activate the menu bar"),
+            ("Enter", Dictionary.ShortEnter),
+            ("/", Dictionary.ShortSlash),
+            ("@", Dictionary.ShortAt),
+            ("?", Dictionary.ShortQuestion),
+            ("Tab", Dictionary.ShortTab),
+            ("Esc", Dictionary.ShortEsc),
+            ("Ctrl+C", Dictionary.ShortCtrlC),
+            ("Ctrl+D", Dictionary.ShortCtrlD),
+            ("Ctrl+Y", Dictionary.ShortCtrlY),
+            ("Ctrl+R", Dictionary.ShortCtrlR),
+            ("Up / Down", Dictionary.ShortUpDown),
+            ("Left / Right", Dictionary.ShortLeftRight),
+            ("Ctrl+A / Ctrl+E", Dictionary.ShortCtrlAE),
+            ("Ctrl+U / Ctrl+K", Dictionary.ShortCtrlUK),
+            ("Ctrl+W", Dictionary.ShortCtrlW),
+            ("PgUp / PgDn", Dictionary.ShortPgUpDn),
+            ("F1", Dictionary.ShortF1),
+            ("F10", Dictionary.ShortF10),
         };
 
         public Tui(string serverUrl, string? hostError)
@@ -195,6 +199,8 @@ public static class ConsoleTui
             _hostError = hostError;
             _http.BaseAddress = new Uri(serverUrl);
             _app = Application.Create().Init();
+            // Surface auto-update progress in the status bar (fires from background tasks).
+            AutoUpdate.OnStatus += OnUpdateStatus;
 
             // Modern dark theme for the whole main window (views reference it by name).
             _baseScheme = new Scheme
@@ -217,12 +223,11 @@ public static class ConsoleTui
             _history.Add(new Entry
             {
                 Role = "system",
-                Text = "Welcome to AGENT — talk to the agents straight from the terminal.\n"
-                     + "Type a message and press Enter · / opens commands · @ files · ? shortcuts · F1 help · F10 the menu.",
+                Text = Dictionary.WelcomeMessage,
             });
-            _history.Add(new Entry { Role = "system", Text = $"server: {_serverUrl} — the API keeps answering in parallel ({_serverUrl}/v1/chat/completions)" });
+            _history.Add(new Entry { Role = "system", Text = string.Format(Dictionary.ServerNote, _serverUrl) });
             if (!string.IsNullOrEmpty(_hostError))
-                _history.Add(new Entry { Role = "system", Text = $"local host start failed ({_hostError}) — connecting to an existing instance" });
+                _history.Add(new Entry { Role = "system", Text = string.Format(Dictionary.HostErrorNote, _hostError) });
         }
 
         public Task RunAsync()
@@ -259,6 +264,7 @@ public static class ConsoleTui
         {
             if (_disposed) return;
             _disposed = true;
+            AutoUpdate.OnStatus -= OnUpdateStatus;
             CancelChat();
             try { _app.Dispose(); } catch { }
             _http.Dispose();
@@ -284,42 +290,51 @@ public static class ConsoleTui
         {
             _mainWindow = new Window
             {
-                Title = "AGENT - AI Chat Console",
+                Title = Dictionary.WindowTitle,
                 X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(),
                 SchemeName = "Dark",
             };
 
+            // Terminal.Gui v2 has no checkmark on menu items — the state is shown in the title.
+            MenuItem autoUpdateItem = null!;
+            autoUpdateItem = new MenuItem(string.Format(Dictionary.MenuAutoUpdate, AutoUpdate.Enabled ? Dictionary.On : Dictionary.Off), Key.Empty, () =>
+            {
+                AutoUpdate.Toggle();
+                autoUpdateItem.Title = string.Format(Dictionary.MenuAutoUpdate, AutoUpdate.Enabled ? Dictionary.On : Dictionary.Off);
+            });
+
             var menu = new MenuBar(new MenuBarItem[]
             {
-                new("_File", new MenuItem[]
+                new(Dictionary.MenuFile, new MenuItem[]
                 {
-                    new MenuItem("_New Chat", Key.Empty, () => RunCommandByName("new", "")),
-                    new MenuItem("_Models & Providers (/modelsetup)", Key.Empty, () => RunCommandByName("modelsetup", "")),
-                    new MenuItem("_Exit", Key.Q.WithCtrl, () => RequestExit()),
+                    new MenuItem(Dictionary.MenuNewChat, Key.Empty, () => RunCommandByName("new", "")),
+                    new MenuItem(Dictionary.MenuModelsProviders, Key.Empty, () => RunCommandByName("modelsetup", "")),
+                    autoUpdateItem,
+                    new MenuItem(Dictionary.MenuExit, Key.Q.WithCtrl, () => RequestExit()),
                 }),
-                new("_Chat", new MenuItem[]
+                new(Dictionary.MenuChat, new MenuItem[]
                 {
-                    new MenuItem("_Clear History", Key.L.WithCtrl, () => RunCommandByName("clear", "")),
-                    new MenuItem("_Commands (/...)", Key.Empty, () => ShowCommandMenu("")),
-                    new MenuItem("_Retry Last (/retry)", Key.Y.WithCtrl, () => RunCommandByName("retry", "")),
+                    new MenuItem(Dictionary.MenuClearHistory, Key.L.WithCtrl, () => RunCommandByName("clear", "")),
+                    new MenuItem(Dictionary.MenuCommands, Key.Empty, () => ShowCommandMenu("")),
+                    new MenuItem(Dictionary.MenuRetryLast, Key.Y.WithCtrl, () => RunCommandByName("retry", "")),
                 }),
-                new("_Session", new MenuItem[]
+                new(Dictionary.MenuSession, new MenuItem[]
                 {
-                    new MenuItem("_LLM Model (/model)", Key.Empty, () => RunCommandByName("model", "")),
-                    new MenuItem("_Agent (/agent)", Key.Empty, () => RunCommandByName("agent", "")),
-                    new MenuItem("_Status (/status)", Key.Empty, () => RunCommandByName("status", "")),
-                    new MenuItem("_Health (/health)", Key.Empty, () => RunCommandByName("health", "")),
+                    new MenuItem(Dictionary.MenuLlmModel, Key.Empty, () => RunCommandByName("model", "")),
+                    new MenuItem(Dictionary.MenuAgent, Key.Empty, () => RunCommandByName("agent", "")),
+                    new MenuItem(Dictionary.MenuStatus, Key.Empty, () => RunCommandByName("status", "")),
+                    new MenuItem(Dictionary.MenuHealth, Key.Empty, () => RunCommandByName("health", "")),
                 }),
-                new("_Web", new MenuItem[]
+                new(Dictionary.MenuWeb, new MenuItem[]
                 {
-                    new MenuItem("_GUI (/web)", Key.Empty, () => RunCommandByName("web", "")),
+                    new MenuItem(Dictionary.MenuGui, Key.Empty, () => RunCommandByName("web", "")),
                 }),
-                new("_Help", new MenuItem[]
+                new(Dictionary.MenuHelp, new MenuItem[]
                 {
-                    new MenuItem("_Help (/help)", Key.F1, () => RunCommandByName("help", "")),
-                    new MenuItem("_Shortcuts (/shortcuts)", Key.Empty, () => RunCommandByName("shortcuts", "")),
-                    new MenuItem("_Documentation (/docs)", Key.Empty, () => RunCommandByName("docs", "")),
-                    new MenuItem("_About", Key.Empty, () => ShowAbout()),
+                    new MenuItem(Dictionary.MenuHelpItem, Key.F1, () => RunCommandByName("help", "")),
+                    new MenuItem(Dictionary.MenuShortcuts, Key.Empty, () => RunCommandByName("shortcuts", "")),
+                    new MenuItem(Dictionary.MenuDocumentation, Key.Empty, () => RunCommandByName("docs", "")),
+                    new MenuItem(Dictionary.MenuAbout, Key.Empty, () => ShowAbout()),
                 }),
             });
             _mainWindow.Add(menu);
@@ -363,7 +378,7 @@ public static class ConsoleTui
             // Right panel: chat history + input line.
             var chatFrame = new FrameView
             {
-                Title = "Chat",
+                Title = Dictionary.ChatFrameTitle,
                 X = Pos.Right(logoFrame), Y = 0,
                 Width = Dim.Fill(), Height = Dim.Fill(),
             };
@@ -472,28 +487,77 @@ public static class ConsoleTui
                 _suppressCommandMenu = true;
                 ShowCommandMenu("");
                 _suppressCommandMenu = false;
-                if ((_inputField?.Text ?? "") == "/") _inputField!.Text = "";
+                ClearInputWhen("/");
             }
             else if (t == "@")
             {
                 _suppressCommandMenu = true;
                 ShowFilesDialog();
                 _suppressCommandMenu = false;
-                if ((_inputField?.Text ?? "") == "@") _inputField!.Text = "";
+                ClearInputWhen("@");
             }
             else if (t == "?")
             {
                 _suppressCommandMenu = true;
                 _ = ShowShortcutsAsync();
                 _suppressCommandMenu = false;
-                if ((_inputField?.Text ?? "") == "?") _inputField!.Text = "";
+                ClearInputWhen("?");
             }
+        }
+
+        // Fallback for when a trigger character (/, @, ?) reaches the input by paste
+        // (typing is intercepted in OnInputKeyDown before insertion). This handler runs
+        // inside the Editor's DocumentChanged callback, so mutating the document here
+        // throws "Cannot change document within another document change"; Application.Invoke
+        // executes synchronously on the main thread, so the clear must go through a
+        // main-loop timeout, which fires only after the change completes.
+        private void ClearInputWhen(string expected)
+        {
+            _app.AddTimeout(TimeSpan.Zero, () =>
+            {
+                if (_inputField != null && _inputField.Text == expected) _inputField.Text = "";
+                return false;   // one-shot
+            });
         }
 
         private void OnInputKeyDown(object? sender, Key key)
         {
             if (_inputPlaceholderActive)
                 ClearPlaceholder();   // the first keystroke dismisses the hint, then falls through
+
+            // "/" "@" "?" only act as the first character. Intercepting them here
+            // (before the Editor inserts the char) keeps the trigger character out of
+            // the document: when the palette runs inside the Editor's DocumentChanged
+            // handler, clearing it back throws "Cannot change document within another
+            // document change" (Application.Invoke executes synchronously on the main
+            // thread, so even a deferred clear failed). Consuming the key avoids the
+            // insert entirely — no crash, no lingering "/".
+            if (!_suppressCommandMenu && (_inputField?.Text ?? "").Length == 0)
+            {
+                // Opening a palette/dialog is a fresh start: reset the double-Esc exit
+                // counter (these keys are consumed and no longer reach the reset below).
+                if (key == (Key)'/')
+                {
+                    key.Handled = true;
+                    _escCount = 0;
+                    ShowCommandMenu("");
+                    return;
+                }
+                if (key == (Key)'@')
+                {
+                    key.Handled = true;
+                    _escCount = 0;
+                    ShowFilesDialog();
+                    return;
+                }
+                if (key == (Key)'?')
+                {
+                    key.Handled = true;
+                    _escCount = 0;
+                    _ = ShowShortcutsAsync();
+                    return;
+                }
+            }
 
             if (key == Key.Enter && !key.IsShift)
             {
@@ -526,7 +590,7 @@ public static class ConsoleTui
                 }
                 else
                 {
-                    _statusNote = "Press Esc again to exit · or Ctrl+C twice";
+                    _statusNote = Dictionary.StatusEscAgain;
                     UpdateStatusUi();
                 }
             }
@@ -536,7 +600,7 @@ public static class ConsoleTui
                 if (_chatRunning != 0)
                 {
                     CancelChat();
-                    _statusNote = "cancelling…";
+                    _statusNote = Dictionary.StatusCancelling;
                     UpdateStatusUi();
                 }
                 else if ((_inputField?.Text ?? "").Length > 0)
@@ -549,7 +613,7 @@ public static class ConsoleTui
                 }
                 else
                 {
-                    _statusNote = "Press Ctrl+C again to exit";
+                    _statusNote = Dictionary.StatusCtrlCAgain;
                     UpdateStatusUi();
                 }
             }
@@ -744,7 +808,7 @@ public static class ConsoleTui
         {
             if (Interlocked.CompareExchange(ref _chatRunning, 1, 0) != 0)
             {
-                _statusNote = "generating… wait, or Ctrl+C to stop";
+                _statusNote = Dictionary.StatusGenerating;
                 UpdateStatusUi();
                 return;
             }
@@ -817,21 +881,21 @@ public static class ConsoleTui
                 }
 
                 _connected = true;
-                _statusNote = $"replied in {sw.ElapsedMilliseconds / 1000.0:0.0}s";
+                _statusNote = string.Format(Dictionary.StatusReplied, sw.ElapsedMilliseconds / 1000.0);
                 FinishChat(_pending);
             }
             catch (OperationCanceledException)
             {
-                _statusNote = "cancelled";
+                _statusNote = Dictionary.StatusCancelled;
                 _lastFailed = true;
-                FinishChat(new Entry { Role = "agent", Text = "(cancelled)", Error = true });
+                FinishChat(new Entry { Role = "agent", Text = Dictionary.StatusCancelledEntry, Error = true });
             }
             catch (Exception ex)
             {
-                _statusNote = "error";
+                _statusNote = Dictionary.StatusError;
                 _lastFailed = true;
                 _connected = false;
-                FinishChat(new Entry { Role = "agent", Text = $"request failed: {ex.Message}", Error = true });
+                FinishChat(new Entry { Role = "agent", Text = string.Format(Dictionary.StatusRequestFailed, ex.Message), Error = true });
             }
             finally
             {
@@ -900,8 +964,8 @@ public static class ConsoleTui
         {
             sb.Append(e.Role switch
             {
-                "user" => "❯ you",
-                "agent" => e.Error ? "✗ error" : "◆ agent",
+                "user" => Dictionary.HistoryYou,
+                "agent" => e.Error ? Dictionary.HistoryError : Dictionary.HistoryAgent,
                 _ => "·",
             }).Append('\n');
             sb.Append(e.Text.Replace("\r\n", "\n")).Append("\n\n");
@@ -938,16 +1002,18 @@ public static class ConsoleTui
             var parts = new List<string>
             {
                 dot, _serverUrl, _provider, _modelName, _agentSet,
-                $"sess:{sess}", ctx,
+                string.Format(Dictionary.StatusSess, sess), ctx,
                 _ttsAvailable ? "tts:✓" : "tts:✗",
                 _voiceAvailable ? "mic:✓" : "mic:✗",
                 feats.Length > 0 ? "f:" + feats : "",
-                _chatRunning != 0 ? "generating…" : "",
+                _chatRunning != 0 ? Dictionary.StatusGeneratingShort : "",
                 _statusNote,
             };
             var text = string.Join(" · ", parts.Where(p => p.Length > 0));
             _statusLabel.Text = text.Length > 240 ? text[..240] : text;
         }
+
+        private void OnUpdateStatus(string message) => Ui(() => { _statusNote = message; UpdateStatusUi(); });
 
         private void UpdateStatusUi() => Ui(UpdateStatus);
 
@@ -968,7 +1034,7 @@ public static class ConsoleTui
                 (c.Aliases?.Any(a => a.Equals("/" + name, StringComparison.OrdinalIgnoreCase)) ?? false));
             if (cmd == null)
             {
-                AddNote($"unknown command /{name} — type / to see the list, or /help");
+                AddNote(string.Format(Dictionary.NoteUnknownCommand, name));
                 return;
             }
             RunCommand(cmd, args);
@@ -992,7 +1058,7 @@ public static class ConsoleTui
             }
             catch (Exception ex)
             {
-                AddNote($"/{cmd.Name} failed: {ex.Message}");
+                AddNote(string.Format(Dictionary.NoteCommandFailed, cmd.Name, ex.Message));
             }
             await RefreshSessionStateAsync();
             UpdateStatusUi();
@@ -1004,7 +1070,7 @@ public static class ConsoleTui
             return Task.CompletedTask;
         }
 
-        private void RequestExit() => _app.RequestStop();
+        private void RequestExit() => _app.RequestStop(_mainWindow);
 
         private async Task HealthAsync()
         {
@@ -1014,14 +1080,14 @@ public static class ConsoleTui
                 using var resp = await _http.GetAsync("/health").WaitAsync(TimeSpan.FromSeconds(5));
                 sw.Stop();
                 AddNote(resp.IsSuccessStatusCode
-                    ? $"server healthy · {sw.ElapsedMilliseconds} ms"
-                    : $"server returned HTTP {(int)resp.StatusCode}");
+                    ? string.Format(Dictionary.StatusServerHealthy, sw.ElapsedMilliseconds)
+                    : string.Format(Dictionary.StatusServerHttp, (int)resp.StatusCode));
                 _connected = resp.IsSuccessStatusCode;
                 UpdateStatusUi();
             }
             catch (Exception ex)
             {
-                AddNote($"server unreachable: {ex.Message}");
+                AddNote(string.Format(Dictionary.StatusServerUnreachable, ex.Message));
                 _connected = false;
                 UpdateStatusUi();
             }
@@ -1032,44 +1098,45 @@ public static class ConsoleTui
             string name = args.Trim();
             if (string.IsNullOrWhiteSpace(name))
             {
-                List<string> providers;
+                List<(string Id, string Display)> providers;
                 try
                 {
                     using var resp = await _http.GetAsync("/v1/models").WaitAsync(TimeSpan.FromSeconds(8));
-                    if (!resp.IsSuccessStatusCode) { AddNote("could not load providers"); return; }
+                    if (!resp.IsSuccessStatusCode) { AddNote(Dictionary.NoteCouldNotLoadProviders); return; }
                     using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
                     providers = doc.RootElement.GetProperty("data").EnumerateArray()
                         .Where(x => GetStr(x, "owned_by") == "llm-provider")
-                        .Select(x => $"{GetStr(x, "id")} — {GetStr(x, "model_name")} · ctx {GetInt(x, "context_window"):N0}")
+                        .Select(x => (Id: GetStr(x, "id") ?? "",
+                                      Display: $"{GetStr(x, "id")} — {GetStr(x, "model_name")} · ctx {GetInt(x, "context_window"):N0}"))
                         .ToList();
                 }
                 catch (Exception ex)
                 {
-                    AddNote($"could not load providers: {ex.Message}");
+                    AddNote(string.Format(Dictionary.NoteCouldNotLoadProvidersEx, ex.Message));
                     return;
                 }
-                if (providers.Count == 0) { AddNote("no providers reported by the server"); return; }
-                var pick = await PickOnUiThreadAsync("Switch LLM provider", providers);
+                if (providers.Count == 0) { AddNote(Dictionary.NoteNoProviders); return; }
+                var pick = await PickProviderOnUiThreadAsync(Dictionary.PickSwitchProvider, providers);
                 if (pick == null) return;   // Esc → cancel
-                name = pick[..pick.IndexOf(" —", StringComparison.Ordinal)];
+                name = pick.Trim();
             }
 
             if (string.Equals(name, _provider, StringComparison.OrdinalIgnoreCase))
             {
-                AddNote($"already on {name}");
+                AddNote(string.Format(Dictionary.NoteAlreadyOn, name));
                 return;
             }
 
-            AddNote($"switching provider to {name}… (some providers take minutes to warm up)");
+            AddNote(string.Format(Dictionary.NoteSwitchingProvider, name));
             var body = JsonSerializer.Serialize(new { session_id = _sessionId, llm_provider = name }, JsonOpts);
             using var resp2 = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
             if (resp2.IsSuccessStatusCode)
             {
-                AddNote($"provider is now {name}");
+                AddNote(string.Format(Dictionary.NoteProviderNow, name));
             }
             else
             {
-                AddNote($"switch refused (HTTP {(int)resp2.StatusCode}): {await ReadErrorAsync(resp2)}");
+                AddNote(string.Format(Dictionary.NoteSwitchRefused, (int)resp2.StatusCode, await ReadErrorAsync(resp2)));
             }
         }
 
@@ -1078,7 +1145,7 @@ public static class ConsoleTui
             string name;
             if (string.IsNullOrWhiteSpace(args.Trim()))
             {
-                var pick = await PickOnUiThreadAsync("Switch agent set", AgentSets.ToList());
+                var pick = await PickOnUiThreadAsync(Dictionary.PickSwitchAgent, AgentSets.ToList());
                 if (pick == null) return;
                 name = pick;
             }
@@ -1088,22 +1155,22 @@ public static class ConsoleTui
             }
             if (!AgentSets.Contains(name))
             {
-                AddNote($"unknown agent set '{name}' — {string.Join(", ", AgentSets)}");
+                AddNote(string.Format(Dictionary.NoteUnknownAgentSet, name, string.Join(", ", AgentSets)));
                 return;
             }
             _agentSet = name;
-            AddNote($"agent set: {name}");
+            AddNote(string.Format(Dictionary.NoteAgentSet, name));
         }
 
         private async Task VoiceAsync(string lang)
         {
             if (!_voiceAvailable)
             {
-                AddNote($"voice unavailable: {(string.IsNullOrEmpty(_voiceDetail) ? "POST /v1/voice/listen is disabled" : _voiceDetail)}");
+                AddNote(string.Format(Dictionary.NoteVoiceUnavailable, string.IsNullOrEmpty(_voiceDetail) ? Dictionary.NoteVoiceDisabled : _voiceDetail));
                 return;
             }
             var l = string.IsNullOrWhiteSpace(lang) ? SystemLang.Get() : lang.Trim();
-            AddNote("listening… (server microphone) — speak now");
+            AddNote(Dictionary.NoteListening);
             var body = JsonSerializer.Serialize(new { lang = l, timeout_seconds = 15 }, JsonOpts);
             try
             {
@@ -1112,7 +1179,7 @@ public static class ConsoleTui
                 {
                     using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
                     var text = GetStr(doc.RootElement, "text") ?? "";
-                    if (string.IsNullOrWhiteSpace(text)) { AddNote("no speech recognised"); return; }
+                    if (string.IsNullOrWhiteSpace(text)) { AddNote(Dictionary.NoteNoSpeech); return; }
                     Ui(() =>
                     {
                         if (_inputField == null) return;
@@ -1121,19 +1188,19 @@ public static class ConsoleTui
                         _inputField.SchemeName = "Dark";
                         _inputField.CaretOffset = _inputField.Document?.TextLength ?? 0;
                     });
-                    AddNote($"dictated {text} — press Enter to send");
+                    AddNote(string.Format(Dictionary.NoteDictated, text));
                 }
                 else
                 {
                     var err = await ReadErrorAsync(resp);
                     AddNote(resp.StatusCode == System.Net.HttpStatusCode.RequestTimeout
-                        ? "listening timed out (no speech detected)"
-                        : $"voice failed (HTTP {(int)resp.StatusCode}): {err}");
+                        ? Dictionary.NoteListeningTimeout
+                        : string.Format(Dictionary.NoteVoiceFailedHttp, (int)resp.StatusCode, err));
                 }
             }
             catch (Exception ex)
             {
-                AddNote($"voice failed: {ex.Message}");
+                AddNote(string.Format(Dictionary.NoteVoiceFailed, ex.Message));
             }
         }
 
@@ -1141,42 +1208,42 @@ public static class ConsoleTui
         {
             if (!_ttsAvailable)
             {
-                AddNote($"tts unavailable: {(string.IsNullOrEmpty(_ttsDetail) ? "POST /v1/audio/speech is disabled" : _ttsDetail)}");
+                AddNote(string.Format(Dictionary.NoteTtsUnavailable, string.IsNullOrEmpty(_ttsDetail) ? Dictionary.NoteTtsDisabled : _ttsDetail));
                 return;
             }
             if (string.IsNullOrWhiteSpace(text))
             {
                 var last = _history.LastOrDefault(e => e.Role == "agent" && !e.Error)?.Text;
-                if (string.IsNullOrWhiteSpace(last)) { AddNote("nothing to speak — give text: /tts <text>"); return; }
+                if (string.IsNullOrWhiteSpace(last)) { AddNote(Dictionary.NoteNothingToSpeak); return; }
                 text = last;
             }
-            AddNote("synthesising…");
+            AddNote(Dictionary.NoteSynthesising);
             var body = JsonSerializer.Serialize(new { input = text, lang = SystemLang.Get(), speed = 1.0 }, JsonOpts);
             try
             {
                 using var resp = await _http.PostAsync("/v1/audio/speech", new StringContent(body, Encoding.UTF8, "application/json"));
                 if (!resp.IsSuccessStatusCode)
                 {
-                    AddNote($"tts failed (HTTP {(int)resp.StatusCode}): {await ReadErrorAsync(resp)}");
+                    AddNote(string.Format(Dictionary.NoteTtsFailedHttp, (int)resp.StatusCode, await ReadErrorAsync(resp)));
                     return;
                 }
                 var bytes = await resp.Content.ReadAsByteArrayAsync();
                 var path = Path.Combine(Path.GetTempPath(), $"agent_tts_{DateTime.Now:yyyyMMddHHmmss}.wav");
                 await File.WriteAllBytesAsync(path, bytes);
-                AddNote($"saved {path} ({bytes.Length:N0} bytes)");
+                AddNote(string.Format(Dictionary.NoteSaved, path, bytes.Length));
                 if (OperatingSystem.IsWindows())
                 {
                     if (!PlaySound(path, IntPtr.Zero, SndAsync | SndFilename))
-                        AddNote($"playback failed — open the file with your media player: {path}");
+                        AddNote(string.Format(Dictionary.NotePlaybackFailed, path));
                 }
                 else
                 {
-                    AddNote("playback is Windows-only here — open the file with your media player");
+                    AddNote(Dictionary.NotePlaybackWindowsOnly);
                 }
             }
             catch (Exception ex)
             {
-                AddNote($"tts failed: {ex.Message}");
+                AddNote(string.Format(Dictionary.NoteTtsFailed, ex.Message));
             }
         }
 
@@ -1186,9 +1253,9 @@ public static class ConsoleTui
             {
                 string current;
                 lock (_stateLock)
-                    current = _features.Count == 0 ? "(none set)" :
+                    current = _features.Count == 0 ? Dictionary.NoneSet :
                         string.Join(", ", _features.Select(kv => $"{kv.Key}={(kv.Value ? "on" : "off")}"));
-                AddNote($"session features: {current}");
+                AddNote(string.Format(Dictionary.NoteSessionFeatures, current));
                 return;
             }
             var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -1203,14 +1270,14 @@ public static class ConsoleTui
             lock (_stateLock) _features[name] = value;
             var body = JsonSerializer.Serialize(new { session_id = _sessionId, features = new Dictionary<string, bool> { [name] = value } }, JsonOpts);
             using var resp = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
-            if (resp.IsSuccessStatusCode) AddNote($"feature {name} = {(value ? "on" : "off")}");
-            else AddNote($"failed (HTTP {(int)resp.StatusCode}): {await ReadErrorAsync(resp)}");
+            if (resp.IsSuccessStatusCode) AddNote(string.Format(Dictionary.NoteFeatureSet, name, value ? "on" : "off"));
+            else AddNote(string.Format(Dictionary.NoteFailedHttp, (int)resp.StatusCode, await ReadErrorAsync(resp)));
         }
 
         private async Task NewSessionAsync()
         {
             using var resp = await _http.PostAsync("/v1/control", new StringContent("{\"create\":true}", Encoding.UTF8, "application/json"));
-            if (!resp.IsSuccessStatusCode) { AddNote($"could not create session (HTTP {(int)resp.StatusCode})"); return; }
+            if (!resp.IsSuccessStatusCode) { AddNote(string.Format(Dictionary.NoteCreateSessionFailed, (int)resp.StatusCode)); return; }
             using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
             _sessionId = GetStr(doc.RootElement, "session_id") ?? "";
             var shortId = _sessionId[..Math.Min(8, _sessionId.Length)];
@@ -1222,7 +1289,7 @@ public static class ConsoleTui
                     _attached.Clear();
                     foreach (var f in _files) f.Attached = false;
                 }
-                _history.Add(new Entry { Role = "system", Text = $"new session {shortId}" });
+                _history.Add(new Entry { Role = "system", Text = string.Format(Dictionary.NoteNewSession, shortId) });
                 RefreshHistory();
             });
             await RefreshSessionStateAsync();
@@ -1237,13 +1304,13 @@ public static class ConsoleTui
                 Ui(() =>
                 {
                     _history.Clear();
-                    _history.Add(new Entry { Role = "system", Text = "session history cleared" });
+                    _history.Add(new Entry { Role = "system", Text = Dictionary.NoteHistoryCleared });
                     RefreshHistory();
                 });
             }
             else
             {
-                AddNote($"failed (HTTP {(int)resp.StatusCode}): {await ReadErrorAsync(resp)}");
+                AddNote(string.Format(Dictionary.NoteFailedHttp, (int)resp.StatusCode, await ReadErrorAsync(resp)));
             }
         }
 
@@ -1252,23 +1319,23 @@ public static class ConsoleTui
             string feats, attached;
             lock (_stateLock)
             {
-                feats = _features.Count == 0 ? "(none)" : string.Join(", ", _features.Select(kv => $"{kv.Key}={kv.Value}"));
-                attached = _attached.Count == 0 ? "(none)" : string.Join(", ", _attached);
+                feats = _features.Count == 0 ? Dictionary.None : string.Join(", ", _features.Select(kv => $"{kv.Key}={kv.Value}"));
+                attached = _attached.Count == 0 ? Dictionary.None : string.Join(", ", _attached);
             }
             var lines = new List<string>
             {
-                $"Session        {_sessionId}",
-                $"Provider       {_provider}  ({_modelName})",
-                $"Context window {_contextWindow:N0} tokens · history ≈ {_historyTokens:N0}",
-                $"Agent set      {_agentSet}",
-                $"Features       {feats}",
-                $"Attachments    {attached}",
+                $"{Dictionary.StatusSession.PadRight(18)}{_sessionId}",
+                $"{Dictionary.StatusProvider.PadRight(18)}{_provider}  ({_modelName})",
+                string.Format(Dictionary.StatusContextWindow, _contextWindow, _historyTokens),
+                $"{Dictionary.StatusAgentSet.PadRight(18)}{_agentSet}",
+                $"{Dictionary.StatusFeatures.PadRight(18)}{feats}",
+                $"{Dictionary.StatusAttachments.PadRight(18)}{attached}",
                 "",
-                $"Capabilities   tts {(_ttsAvailable ? "available" : "unavailable")} · voice {(_voiceAvailable ? "available" : "unavailable")}",
-                $"               server: {_serverUrl} {(_connected ? "connected" : "unreachable")}",
-                $"               prompt history: {_promptHistory.Count} entries",
+                $"{Dictionary.StatusCapabilities.PadRight(18)}tts {(_ttsAvailable ? Dictionary.Available : Dictionary.Unavailable)} · voice {(_voiceAvailable ? Dictionary.Available : Dictionary.Unavailable)}",
+                $"{"".PadRight(18)}server: {_serverUrl} {(_connected ? Dictionary.Connected : Dictionary.Unreachable)}",
+                string.Format(Dictionary.StatusPromptHistory.PadRight(18) + "{0}", _promptHistory.Count),
             };
-            return ShowPageUiAsync("agent status", lines);
+            return ShowPageUiAsync(Dictionary.PageAgentStatus, lines);
         }
 
         private async Task FilesAsync(string args)
@@ -1279,10 +1346,10 @@ public static class ConsoleTui
                 List<string> lines;
                 lock (_stateLock)
                 {
-                    if (_files.Count == 0) { AddNote("no uploaded files — use /files add <path>"); return; }
-                    lines = _files.Select(f => $"{f.FileName}  {f.Id} · {f.Status}{(f.Attached ? "  attached" : "")}").ToList();
+                    if (_files.Count == 0) { AddNote(Dictionary.NoteNoFiles); return; }
+                    lines = _files.Select(f => $"{f.FileName}  {f.Id} · {f.Status}{(f.Attached ? "  " + Dictionary.NoteAttachedSuffix : "")}").ToList();
                 }
-                await ShowPageUiAsync("uploaded files", lines);
+                await ShowPageUiAsync(Dictionary.PageUploadedFiles, lines);
                 return;
             }
             var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
@@ -1290,8 +1357,8 @@ public static class ConsoleTui
             if (sub == "add" && parts.Length == 2)
             {
                 var path = parts[1].Trim('"');
-                if (!File.Exists(path)) { AddNote($"file not found: {path}"); return; }
-                AddNote($"uploading {Path.GetFileName(path)}…");
+                if (!File.Exists(path)) { AddNote(string.Format(Dictionary.NoteFileNotFound, path)); return; }
+                AddNote(string.Format(Dictionary.NoteUploading, Path.GetFileName(path)));
                 try
                 {
                     await using var fs = File.OpenRead(path);
@@ -1301,7 +1368,7 @@ public static class ConsoleTui
                     using var resp = await _http.PostAsync("/v1/files", form);
                     if (!resp.IsSuccessStatusCode)
                     {
-                        AddNote($"upload failed (HTTP {(int)resp.StatusCode}): {await ReadErrorAsync(resp)}");
+                        AddNote(string.Format(Dictionary.NoteUploadFailedHttp, (int)resp.StatusCode, await ReadErrorAsync(resp)));
                         return;
                     }
                     using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
@@ -1313,11 +1380,11 @@ public static class ConsoleTui
                         _files.Add(new FileRef { Id = id, FileName = name, Status = GetStr(doc.RootElement, "status") ?? "", Attached = true });
                         if (!_attached.Contains(id)) _attached.Add(id);
                     }
-                    AddNote($"uploaded + attached {name} ({id})");
+                    AddNote(string.Format(Dictionary.NoteUploaded, name, id));
                 }
                 catch (Exception ex)
                 {
-                    AddNote($"upload failed: {ex.Message}");
+                    AddNote(string.Format(Dictionary.NoteUploadFailed, ex.Message));
                 }
             }
             else if (sub == "rm" && parts.Length == 2)
@@ -1333,21 +1400,21 @@ public static class ConsoleTui
                             _files.RemoveAll(x => x.Id == id);
                             _attached.Remove(id);
                         }
-                        AddNote($"deleted {id}");
+                        AddNote(string.Format(Dictionary.NoteDeleted, id));
                     }
                     else
                     {
-                        AddNote($"delete failed (HTTP {(int)resp.StatusCode}): {await ReadErrorAsync(resp)}");
+                        AddNote(string.Format(Dictionary.NoteDeleteFailedHttp, (int)resp.StatusCode, await ReadErrorAsync(resp)));
                     }
                 }
                 catch (Exception ex)
                 {
-                    AddNote($"delete failed: {ex.Message}");
+                    AddNote(string.Format(Dictionary.NoteDeleteFailed, ex.Message));
                 }
             }
             else
             {
-                AddNote("usage: /files add <path> | /files rm <id> | /files");
+                AddNote(Dictionary.NoteFilesUsage);
             }
         }
 
@@ -1358,16 +1425,16 @@ public static class ConsoleTui
             lock (_stateLock) files = _files.ToList();
             if (string.IsNullOrWhiteSpace(args))
             {
-                if (files.Count == 0) { AddNote("no uploaded files — use /files add <path>"); return; }
-                var choices = files.Select(f => $"{f.FileName}  ({f.Id}){(f.Attached ? "  [attached]" : "")}").ToList();
-                var pick = await PickOnUiThreadAsync("Toggle file attachment", choices);
+                if (files.Count == 0) { AddNote(Dictionary.NoteNoFiles); return; }
+                var choices = files.Select(f => $"{f.FileName}  ({f.Id}){(f.Attached ? "  " + Dictionary.AttachMarker : "")}").ToList();
+                var pick = await PickOnUiThreadAsync(Dictionary.DlgToggleAttach, choices);
                 if (pick == null) return;
                 var name = pick[..pick.IndexOf("  (", StringComparison.Ordinal)];
                 ToggleAttach(files.First(x => x.FileName == name));
                 return;
             }
             var byArg = files.FirstOrDefault(x => x.Id == args.Trim() || x.FileName.Equals(args.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (byArg == null) { AddNote($"unknown file '{args.Trim()}' — /files to list"); return; }
+            if (byArg == null) { AddNote(string.Format(Dictionary.NoteUnknownFile, args.Trim())); return; }
             ToggleAttach(byArg);
         }
 
@@ -1403,17 +1470,19 @@ public static class ConsoleTui
                 if (attached) { if (!_attached.Contains(f.Id)) _attached.Add(f.Id); }
                 else _attached.Remove(f.Id);
             }
-            AddNote(attached ? $"attached {f.FileName} to the chat" : $"detached {f.FileName}");
+            AddNote(attached
+                ? string.Format(Dictionary.NoteAttached, f.FileName)
+                : string.Format(Dictionary.NoteDetached, f.FileName));
         }
 
         private Task RetryAsync()
         {
             if (string.IsNullOrEmpty(_lastPrompt))
             {
-                AddNote("nothing to retry yet");
+                AddNote(Dictionary.NoteNothingToRetry);
                 return Task.CompletedTask;
             }
-            if (!_lastFailed && _history.Count > 0) AddNote("the last reply succeeded — still resending");
+            if (!_lastFailed && _history.Count > 0) AddNote(Dictionary.NoteLastReplyOk);
             StartChat(_lastPrompt);
             return Task.CompletedTask;
         }
@@ -1424,11 +1493,11 @@ public static class ConsoleTui
             try
             {
                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-                AddNote($"opened {url} in your browser");
+                AddNote(string.Format(Dictionary.NoteOpenedUrl, url));
             }
             catch (Exception ex)
             {
-                AddNote($"could not open the browser: {ex.Message}");
+                AddNote(string.Format(Dictionary.NoteOpenBrowserFailed, ex.Message));
             }
             return Task.CompletedTask;
         }
@@ -1446,15 +1515,15 @@ public static class ConsoleTui
             {
                 if (!IsWebClientCurrent(dir))
                 {
-                    AddNote($"web client missing or outdated at {dir} — downloading {WebClientZipUrl}…");
+                    AddNote(string.Format(Dictionary.NoteWebClientOutdated, dir, WebClientZipUrl));
                     await InstallWebClientAsync(dir);
                 }
-                AddNote($"launching web client from {dir}…");
+                AddNote(string.Format(Dictionary.NoteLaunchingWebClient, dir));
                 LaunchWebClientProcess(dir);
             }
             catch (Exception ex)
             {
-                AddNote($"web client failed: {ex.Message}");
+                AddNote(string.Format(Dictionary.NoteWebClientFailed, ex.Message));
             }
         }
 
@@ -1560,51 +1629,51 @@ public static class ConsoleTui
         {
             var lines = new List<string>
             {
-                "QUICK START",
-                "  • Type a message and press Enter to talk to the agents (default/web/search/word/spreadsheet/email/multi).",
-                "  • / opens the command palette (filters as you type): /model switches LLM, /files uploads documents, /voice dictates, /tts speaks.",
-                "  • @ opens the uploaded files (attach/detach) · ? shortcuts · F1 this help · F10 the top menu.",
-                "  • The bottom bar shows server, provider, model, session and context.",
+                Dictionary.HelpQuickStart,
+                Dictionary.HelpQuickStart1,
+                Dictionary.HelpQuickStart2,
+                Dictionary.HelpQuickStart3,
+                Dictionary.HelpQuickStart4,
                 "",
-                "COMMANDS  (type / to open the live list)",
+                Dictionary.HelpCommands,
             };
             foreach (var c in Commands)
                 lines.Add($"  /{c.Name} {c.Args}".TrimEnd().PadRight(28) + c.Help);
             lines.Add("");
-            lines.Add("KEYBOARD SHORTCUTS  (press ? on an empty input for the overlay)");
+            lines.Add(Dictionary.HelpShortcuts);
             foreach (var (keys, what) in ShortcutTable)
                 lines.Add($"  {keys.PadRight(24)} {what}");
             lines.Add("");
-            lines.Add("MOUSE  (Terminal.Gui native, cross-platform)");
-            lines.Add("  wheel        Scroll the conversation and menus");
-            lines.Add("  click input  Position the text cursor");
-            lines.Add("  click row    Select a list/dialog row (double-click runs it)");
+            lines.Add(Dictionary.HelpMouse);
+            lines.Add(Dictionary.HelpMouseWheel);
+            lines.Add(Dictionary.HelpMouseClickInput);
+            lines.Add(Dictionary.HelpMouseClickRow);
             lines.Add("");
-            lines.Add("API (the same server keeps answering while you chat)");
-            lines.Add("  POST /v1/chat/completions · /v1/control · /v1/audio/speech · /v1/voice/listen");
-            lines.Add("  GET  /v1/models · /v1/files · /v1/control · /v1/audio/voices · /health");
-            lines.Add("  POST /v1/files (upload · attach via @)");
+            lines.Add(Dictionary.HelpApi);
+            lines.Add(Dictionary.HelpApi1);
+            lines.Add(Dictionary.HelpApi2);
+            lines.Add(Dictionary.HelpApi3);
             lines.Add("");
-            lines.Add("ONLINE HELP");
-            lines.Add("  AgentBridge repo/docs: https://github.com/Graphene-Lab/AgentBridge  (/docs opens it)");
-            lines.Add("  README.md → \"Terminal UI\"");
-            return ShowPageUiAsync("agent help", lines);
+            lines.Add(Dictionary.HelpOnline);
+            lines.Add(Dictionary.HelpOnlineRepo);
+            lines.Add(Dictionary.HelpOnlineReadme);
+            return ShowPageUiAsync(Dictionary.PageAgentHelp, lines);
         }
 
         private Task ShowShortcutsAsync()
         {
             var lines = ShortcutTable.Select(s => $"  {s.Keys.PadRight(24)} {s.What}").ToList();
-            lines.Insert(0, "KEYBOARD SHORTCUTS");
+            lines.Insert(0, Dictionary.HelpShortcutsTitle);
             lines.Add("");
-            lines.Add("Full help: /help · commands: type /");
-            return ShowPageUiAsync("shortcuts", lines);
+            lines.Add(Dictionary.HelpShortcutsFooter);
+            return ShowPageUiAsync(Dictionary.PageShortcuts, lines);
         }
 
         private void ReverseSearch()
         {
             var dlg = new Dialog
             {
-                Title = "reverse prompt history",
+                Title = Dictionary.DlgReverseSearch,
                 Width = Dim.Percent(85),
                 Height = Dim.Percent(50),
                 SchemeName = "Dark",
@@ -1613,7 +1682,7 @@ public static class ConsoleTui
             var list = new ListView { X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 2 };
             var hint = new Label
             {
-                Text = "type to filter the history · ↑↓ · Enter selects · Esc closes",
+                Text = Dictionary.DlgReverseHint,
                 X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
             };
             var matches = new List<string>();
@@ -1676,7 +1745,7 @@ public static class ConsoleTui
             };
             var hint = new Label
             {
-                Text = "↑↓ navigate · Enter select · Esc cancel",
+                Text = Dictionary.DlgPickerHint,
                 X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
             };
             string? result = null;
@@ -1705,6 +1774,91 @@ public static class ConsoleTui
             return tcs.Task;
         }
 
+        // The "/model" provider picker: a live filter field above the provider list
+        // (same palette pattern). Enter on the list selects that provider; Enter on
+        // the filter field uses the typed text as the provider name — nobody remembers
+        // the configured ids, so typing a name is as valid as picking from the list.
+        // Returns the provider name, or null when cancelled with Esc.
+        private string? RunProviderPickerDialog(string title, IReadOnlyList<(string Id, string Display)> items)
+        {
+            if (items.Count == 0) return null;
+            var dlg = new Dialog
+            {
+                Title = title,
+                Width = Dim.Percent(80),
+                Height = Dim.Percent(60),
+                SchemeName = "Dark",
+            };
+            var filter = new TextField { X = 0, Y = 0, Width = Dim.Fill() };
+            var list = new ListView { X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 2 };
+            var hint = new Label
+            {
+                Text = Dictionary.DlgProviderPickerHint,
+                X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
+            };
+            var visible = new List<(string Id, string Display)>();
+            void Recompute()
+            {
+                var f = (filter.Text ?? "").Trim();
+                visible = items.Where(p =>
+                        p.Id.StartsWith(f, StringComparison.OrdinalIgnoreCase)
+                        || (f.Length > 0 && p.Display.Contains(f, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+                list.Source = new ListWrapper<string>(new ObservableCollection<string>(visible.Select(p => p.Display)));
+                list.SelectedItem = Math.Clamp(list.SelectedItem ?? 0, 0, Math.Max(0, visible.Count - 1));
+            }
+            string? result = null;
+            Recompute();
+            filter.ValueChanged += (_, _) => Recompute();
+            filter.KeyDown += (_, key) =>
+            {
+                if (key == Key.Enter)
+                {
+                    key.Handled = true;
+                    var text = (filter.Text ?? "").Trim();
+                    if (text.Length == 0 && visible.Count > 0)
+                        result = visible[Math.Max(0, list.SelectedItem ?? 0)].Id;
+                    else if (visible.FirstOrDefault(p => string.Equals(p.Id, text, StringComparison.OrdinalIgnoreCase)).Id is { } id)
+                        result = id;
+                    else
+                        result = text;   // typed provider name, matched against the list when possible
+                    _app.RequestStop(dlg);
+                }
+                else if (key == Key.Tab)
+                {
+                    key.Handled = true;
+                    if (visible.Count > 0)
+                    {
+                        var p = visible[Math.Max(0, list.SelectedItem ?? 0)];
+                        filter.Text = p.Id;
+                    }
+                }
+            };
+            list.Accepted += (_, e) =>
+            {
+                e.Handled = true;
+                if (visible.Count > 0) result = visible[Math.Max(0, list.SelectedItem ?? 0)].Id;
+                _app.RequestStop(dlg);
+            };
+            dlg.Add(filter, list, hint);
+            dlg.Initialized += (_, _) => filter.SetFocus();
+            _app.Run(dlg);
+            dlg.Dispose();
+            _inputField?.SetFocus();
+            return result;
+        }
+
+        private Task<string?> PickProviderOnUiThreadAsync(string title, IReadOnlyList<(string Id, string Display)> items)
+        {
+            var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() =>
+            {
+                try { tcs.TrySetResult(RunProviderPickerDialog(title, items)); }
+                catch (Exception ex) { tcs.TrySetException(ex); }
+            });
+            return tcs.Task;
+        }
+
         // Full-screen page (help/status): a modal dialog, any key or click closes it.
         private void ShowPage(string title, IReadOnlyList<string> lines)
         {
@@ -1725,11 +1879,11 @@ public static class ConsoleTui
             };
             var hint = new Label
             {
-                Text = "— scroll with ↑↓ / PgUp-PgDn · close with Esc or Enter —",
+                Text = Dictionary.DlgPageHint,
                 X = 0, Y = Pos.Bottom(tv), Width = Dim.Fill(),
             };
             dlg.Add(tv, hint);
-            dlg.AddButton(new Button { Text = "Close" });
+            dlg.AddButton(new Button { Text = Dictionary.Close });
             _app.Run(dlg);
             dlg.Dispose();
             _inputField?.SetFocus();
@@ -1752,7 +1906,7 @@ public static class ConsoleTui
         {
             var dlg = new Dialog
             {
-                Title = "Available commands",
+                Title = Dictionary.DlgCommandsTitle,
                 Width = Dim.Percent(80),
                 Height = Dim.Percent(60),
                 SchemeName = "Dark",
@@ -1761,14 +1915,19 @@ public static class ConsoleTui
             var list = new ListView { X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 2 };
             var hint = new Label
             {
-                Text = "type to filter · ↑↓ · Tab completes · Enter runs · Esc closes",
+                Text = Dictionary.DlgCommandsHint,
                 X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
             };
             var visible = new List<CliCommand>();
             void Recompute()
             {
-                var f = (filter.Text ?? "").Trim();
-                visible = Commands.Where(c => MatchCommand(c, f)).ToList();
+                // Tab completion fills the filter with "/command " — strip the leading
+                // slash (MatchCommand compares against the command name only) so the
+                // completed command stays visible in the list instead of clearing it.
+                var f = (filter.Text ?? "").Trim().TrimStart('/');
+                visible = Commands.Where(c => MatchCommand(c, f))
+                                  .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                                  .ToList();
                 list.Source = new ListWrapper<string>(new ObservableCollection<string>(
                     visible.Select(c => $"/{c.Name} {c.Args}".TrimEnd() + "  —  " + c.Help)));
                 list.SelectedItem = Math.Clamp(list.SelectedItem ?? 0, 0, Math.Max(0, visible.Count - 1));
@@ -1810,8 +1969,18 @@ public static class ConsoleTui
         private static string CommandTextFromDialog(string? filterText, List<CliCommand> visible, ListView list)
         {
             var text = (filterText ?? "").Trim();
-            if (text.Length == 0 && visible.Count > 0)
-                text = "/" + visible[Math.Max(0, list.SelectedItem ?? 0)].Name;
+            var selected = visible.Count > 0 ? visible[Math.Max(0, list.SelectedItem ?? 0)] : null;
+            if (selected != null)
+            {
+                // A typed prefix plus a list selection ("m" → /model) runs what the user
+                // highlighted — otherwise Enter would submit an unknown "/m". Exact names
+                // (with or without args) still run as typed.
+                var first = text.Split(' ')[0];
+                if (text.Length == 0
+                    || (first.Length > 0 && selected.Name.StartsWith(first, StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(first, selected.Name, StringComparison.OrdinalIgnoreCase)))
+                    return "/" + selected.Name;
+            }
             if (!text.StartsWith('/')) text = "/" + text;
             return text;
         }
@@ -1838,9 +2007,9 @@ public static class ConsoleTui
                     {
                         List<FileRef> files;
                         lock (_stateLock) files = _files.ToList();
-                        if (files.Count == 0) { AddNote("no uploaded files — use /files add <path>"); return; }
-                        var choices = files.Select(f => $"{f.FileName}  ({f.Id}){(f.Attached ? "  [attached]" : "")}").ToList();
-                        var pick = RunPickerDialog("Toggle file attachment", choices);
+                        if (files.Count == 0) { AddNote(Dictionary.NoteNoFiles); return; }
+                        var choices = files.Select(f => $"{f.FileName}  ({f.Id}){(f.Attached ? "  " + Dictionary.AttachMarker : "")}").ToList();
+                        var pick = RunPickerDialog(Dictionary.DlgToggleAttach, choices);
                         if (pick != null)
                         {
                             var name = pick[..pick.IndexOf("  (", StringComparison.Ordinal)];
@@ -1850,14 +2019,14 @@ public static class ConsoleTui
                 }
                 catch (Exception ex)
                 {
-                    AddNote($"could not load files: {ex.Message}");
+                    AddNote(string.Format(Dictionary.NoteLoadFilesFailed, ex.Message));
                 }
             });
         }
 
         private void ShowAbout()
         {
-            _ = MessageBox.Query(_app, "AGENT", "AGENT v2 - Modern TUI\nPowered by Terminal.Gui", "OK");
+            _ = MessageBox.Query(_app, Dictionary.AboutTitle, Dictionary.AboutText, Dictionary.Ok);
         }
 
         // ── Models & providers setup ──
@@ -1879,7 +2048,7 @@ public static class ConsoleTui
         {
             var dlg = new Dialog
             {
-                Title = "Models & Providers setup",
+                Title = Dictionary.SetupTitle,
                 Width = Dim.Percent(80),
                 Height = Dim.Percent(70),
                 SchemeName = "Dark",
@@ -1894,24 +2063,24 @@ public static class ConsoleTui
             var providerDropdown = new DropDownList { ReadOnly = true };
             var providersList = new ListView();
             TextField deepSeekKey = null!, zaiKey = null!, geminiKey = null!;
-            var llmTab = new View { Title = "LLM & Providers", CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+            var llmTab = new View { Title = Dictionary.SetupLlmTab, CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
             {
                 providerDropdown.X = 17; providerDropdown.Y = 0; providerDropdown.Width = 46;
-                llmTab.Add(new Label { Text = "Active provider", X = 1, Y = 0, Width = 15 }, providerDropdown);
+                llmTab.Add(new Label { Text = Dictionary.SetupActiveProvider, X = 1, Y = 0, Width = 15 }, providerDropdown);
 
                 int y = 2;
-                deepSeekKey = AddField(llmTab, "DeepSeek API key", AIOrchestrator.Setup.DeepSeekApiKey, y++);
-                zaiKey = AddField(llmTab, "Z.ai API key", AIOrchestrator.Setup.ZaiApiKey, y++);
-                geminiKey = AddField(llmTab, "Gemini API key", AIOrchestrator.Setup.GeminiApiKey, y++);
+                deepSeekKey = AddField(llmTab, Dictionary.SetupDeepSeekKey, AIOrchestrator.Setup.DeepSeekApiKey, y++);
+                zaiKey = AddField(llmTab, Dictionary.SetupZaiKey, AIOrchestrator.Setup.ZaiApiKey, y++);
+                geminiKey = AddField(llmTab, Dictionary.SetupGeminiKey, AIOrchestrator.Setup.GeminiApiKey, y++);
 
-                llmTab.Add(new Label { Text = "Configured providers (Add/Edit/Remove apply immediately):", X = 1, Y = ++y, Width = Dim.Fill() });
+                llmTab.Add(new Label { Text = Dictionary.SetupConfiguredProviders, X = 1, Y = ++y, Width = Dim.Fill() });
                 y++;
                 providersList.X = 1; providersList.Y = y; providersList.Width = 62; providersList.Height = 6;
                 llmTab.Add(providersList);
                 y += 7;
-                var addBtn = new Button { Text = "Add…", X = 1, Y = y };
-                var editBtn = new Button { Text = "Edit…", X = 9, Y = y };
-                var removeBtn = new Button { Text = "Remove", X = 17, Y = y };
+                var addBtn = new Button { Text = Dictionary.SetupAdd, X = 1, Y = y };
+                var editBtn = new Button { Text = Dictionary.SetupEdit, X = 9, Y = y };
+                var removeBtn = new Button { Text = Dictionary.SetupRemove, X = 17, Y = y };
                 llmTab.Add(addBtn, editBtn, removeBtn);
 
                 // The dropdown re-marks the active provider in the list below it.
@@ -1920,7 +2089,7 @@ public static class ConsoleTui
                 {
                     providersList.Source = new ListWrapper<string>(new ObservableCollection<string>(
                         ProviderConfigs.All.Select(p => p.ProviderName == providerDropdown.Text
-                            ? $"{p.ProviderName}  ← active" : p.ProviderName)));
+                            ? $"{p.ProviderName}  {Dictionary.SetupActiveMarker}" : p.ProviderName)));
                 }
                 // Full refresh after a provider was added/edited/removed (dropdown included).
                 void RefreshProviders()
@@ -1944,33 +2113,34 @@ public static class ConsoleTui
                     var cfg = ShowProviderDialog(null);
                     if (cfg == null) return;
                     if (ProviderConfigs.Add(cfg, persist: true))
-                        AddNote($"provider {cfg.ProviderName} added");
+                        AddNote(string.Format(Dictionary.SetupProviderAdded, cfg.ProviderName));
                     else
-                        AddNote($"provider {cfg.ProviderName} already exists");
+                        AddNote(string.Format(Dictionary.SetupProviderExists, cfg.ProviderName));
                     RefreshProviders();
                 };
                 editBtn.Accepted += (_, _) =>
                 {
                     var name = SelectedProviderName();
-                    if (name == null) { AddNote("select a provider to edit"); return; }
+                    if (name == null) { AddNote(Dictionary.SetupSelectToEdit); return; }
                     var cfg = ShowProviderDialog(ProviderConfigs.Get(name));
                     if (cfg == null) return;
                     ProviderConfigs.Upsert(cfg, persist: true);
-                    AddNote($"provider {cfg.ProviderName} updated");
+                    AddNote(string.Format(Dictionary.SetupProviderUpdated, cfg.ProviderName));
                     RefreshProviders();
                 };
                 removeBtn.Accepted += (_, _) =>
                 {
                     var name = SelectedProviderName();
-                    if (name == null) { AddNote("select a provider to remove"); return; }
-                    if (MessageBox.Query(_app, "Remove provider", $"Remove '{name}' from the configuration?", "Cancel", "Remove") != 1)
+                    if (name == null) { AddNote(Dictionary.SetupSelectToRemove); return; }
+                    if (MessageBox.Query(_app, Dictionary.SetupRemoveProviderTitle,
+                            string.Format(Dictionary.SetupRemoveProviderText, name), Dictionary.Cancel, Dictionary.SetupRemove) != 1)
                         return;
                     if (!ProviderConfigs.Remove(name, persist: true))
                     {
-                        AddNote($"cannot remove '{name}' — not configured or it is the last provider");
+                        AddNote(string.Format(Dictionary.SetupCannotRemove, name));
                         return;
                     }
-                    AddNote($"provider {name} removed");
+                    AddNote(string.Format(Dictionary.SetupProviderRemoved, name));
                     if (providerDropdown.Text == name)
                     {
                         providerDropdown.Text = ProviderConfigs.Default.ProviderName;
@@ -1981,52 +2151,52 @@ public static class ConsoleTui
             }
 
             // ── Email (SMTP) tab ──
-            var emailTab = new View { Title = "Email (SMTP)", CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
-            var smtpServer = AddField(emailTab, "SMTP server", AIOrchestrator.Setup.SmtpServer, 0);
-            var smtpPort = AddField(emailTab, "SMTP port", AIOrchestrator.Setup.SmtpPort.ToString(), 1);
-            var smtpUser = AddField(emailTab, "SMTP user", AIOrchestrator.Setup.SmtpUser, 2);
-            var smtpPswd = AddField(emailTab, "SMTP password", AIOrchestrator.Setup.SmtpPassword, 3);
-            var recipientEmail = AddField(emailTab, "Recipient email", AIOrchestrator.Setup.Email, 4);
+            var emailTab = new View { Title = Dictionary.SetupEmailTab, CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+            var smtpServer = AddField(emailTab, Dictionary.SetupSmtpServer, AIOrchestrator.Setup.SmtpServer, 0);
+            var smtpPort = AddField(emailTab, Dictionary.SetupSmtpPort, AIOrchestrator.Setup.SmtpPort.ToString(), 1);
+            var smtpUser = AddField(emailTab, Dictionary.SetupSmtpUser, AIOrchestrator.Setup.SmtpUser, 2);
+            var smtpPswd = AddField(emailTab, Dictionary.SetupSmtpPassword, AIOrchestrator.Setup.SmtpPassword, 3);
+            var recipientEmail = AddField(emailTab, Dictionary.SetupRecipientEmail, AIOrchestrator.Setup.Email, 4);
 
             // ── Mail reading (IMAP) tab ──
-            var imapTab = new View { Title = "Mail (IMAP)", CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
-            var imapServer = AddField(imapTab, "IMAP server", AIOrchestrator.Setup.ImapServer, 0);
-            var imapPort = AddField(imapTab, "IMAP port", AIOrchestrator.Setup.ImapPort.ToString(), 1);
-            var imapUser = AddField(imapTab, "IMAP user", AIOrchestrator.Setup.ImapUser, 2);
-            var imapPswd = AddField(imapTab, "IMAP password", AIOrchestrator.Setup.ImapPassword, 3);
+            var imapTab = new View { Title = Dictionary.SetupImapTab, CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+            var imapServer = AddField(imapTab, Dictionary.SetupImapServer, AIOrchestrator.Setup.ImapServer, 0);
+            var imapPort = AddField(imapTab, Dictionary.SetupImapPort, AIOrchestrator.Setup.ImapPort.ToString(), 1);
+            var imapUser = AddField(imapTab, Dictionary.SetupImapUser, AIOrchestrator.Setup.ImapUser, 2);
+            var imapPswd = AddField(imapTab, Dictionary.SetupImapPassword, AIOrchestrator.Setup.ImapPassword, 3);
 
             // ── General tab ──
-            var generalTab = new View { Title = "General", CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+            var generalTab = new View { Title = Dictionary.SetupGeneralTab, CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
             var logEnabled = new CheckBox
             {
-                Text = "Enable step logging (logs/ folder)",
+                Text = Dictionary.SetupStepLogging,
                 Value = AIOrchestrator.Log.IsEnabled ? CheckState.Checked : CheckState.UnChecked,
                 X = 1, Y = 0,
             };
             generalTab.Add(logEnabled);
-            var docsPath = AddField(generalTab, "Documents path", AIOrchestrator.Setup.DocumentsPath, 2);
+            var docsPath = AddField(generalTab, Dictionary.SetupDocumentsPath, AIOrchestrator.Setup.DocumentsPath, 2);
 
-            var save = new Button { Text = "Save", IsDefault = true };
+            var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
             save.Accepted += (_, _) =>
             {
                 // Validate BEFORE committing anything: on error the dialog stays open and the
                 // user sees why — "model setup saved" is only shown when everything applied.
                 if (!string.IsNullOrWhiteSpace(smtpPort.Text) && !int.TryParse((smtpPort.Text ?? "").Trim(), out _))
                 {
-                    MessageBox.ErrorQuery(_app, "Invalid SMTP port",
-                        "The SMTP port must be a number (e.g. 587 or 465). Fix it and press Save again.", "OK");
+                    MessageBox.ErrorQuery(_app, Dictionary.SetupInvalidSmtpPortTitle,
+                        Dictionary.SetupInvalidSmtpPortText, Dictionary.Ok);
                     return;
                 }
                 if (!string.IsNullOrWhiteSpace(imapPort.Text) && !int.TryParse((imapPort.Text ?? "").Trim(), out _))
                 {
-                    MessageBox.ErrorQuery(_app, "Invalid IMAP port",
-                        "The IMAP port must be a number (e.g. 993). Fix it and press Save again.", "OK");
+                    MessageBox.ErrorQuery(_app, Dictionary.SetupInvalidImapPortTitle,
+                        Dictionary.SetupInvalidImapPortText, Dictionary.Ok);
                     return;
                 }
                 if (!AIOrchestrator.Setup.TrySetDocumentsPath(docsPath.Text ?? "", out var pathNote))
                 {
-                    MessageBox.ErrorQuery(_app, "Invalid documents path",
-                        $"{pathNote}\n\nThe previous documents area is still active — nothing was changed.", "OK");
+                    MessageBox.ErrorQuery(_app, Dictionary.SetupInvalidDocsPathTitle,
+                        string.Format(Dictionary.SetupInvalidDocsPathText, pathNote), Dictionary.Ok);
                     return;
                 }
 
@@ -2051,10 +2221,10 @@ public static class ConsoleTui
                 if (chosen.Length > 0 && !string.Equals(chosen, _provider, StringComparison.OrdinalIgnoreCase))
                     _ = SwitchModelAsync(chosen);   // same path as /model (HTTP /v1/control)
 
-                AddNote(pathNote == null ? "model setup saved" : $"model setup saved — {pathNote}");
+                AddNote(pathNote == null ? Dictionary.SetupSaved : string.Format(Dictionary.SetupSavedWithNote, pathNote));
                 _app.RequestStop(dlg);
             };
-            var close = new Button { Text = "Close" };
+            var close = new Button { Text = Dictionary.Close };
             close.Accepted += (_, _) => _app.RequestStop(dlg);
             dlg.AddButton(save);
             dlg.AddButton(close);
@@ -2074,13 +2244,13 @@ public static class ConsoleTui
         {
             var dlg = new Dialog
             {
-                Title = existing == null ? "Add provider" : $"Edit provider: {existing.ProviderName}",
+                Title = existing == null ? Dictionary.ProviderAddTitle : string.Format(Dictionary.ProviderEditTitle, existing.ProviderName),
                 Width = 66,
                 Height = 13,
                 SchemeName = "Dark",
             };
             int y = 0;
-            var nameField = AddField(dlg, "Name", existing?.ProviderName, y++);
+            var nameField = AddField(dlg, Dictionary.ProviderName, existing?.ProviderName, y++);
             var protocol = new DropDownList
             {
                 ReadOnly = true,
@@ -2088,32 +2258,32 @@ public static class ConsoleTui
                 Source = new ListWrapper<string>(new ObservableCollection<string>(Enum.GetNames<ProviderProtocol>())),
                 Text = (existing?.Protocol ?? ProviderProtocol.OpenAI).ToString(),
             };
-            dlg.Add(new Label { Text = "Protocol", X = 1, Y = y, Width = 18 }, protocol);
+            dlg.Add(new Label { Text = Dictionary.ProviderProtocol, X = 1, Y = y, Width = 18 }, protocol);
             y++;
-            var modelField = AddField(dlg, "Model", existing?.ModelName, y++);
-            var baseField = AddField(dlg, "Base address", existing?.BaseAddress.ToString(), y++);
-            var endPointField = AddField(dlg, "Endpoint path", existing?.EndPoint, y++);
-            var ctxField = AddField(dlg, "Context window", (existing?.ContextWindow ?? 32768).ToString(), y++);
-            var timeoutField = AddField(dlg, "Timeout (sec)", ((int)(existing?.Timeout.TotalSeconds ?? 30)).ToString(), y++);
+            var modelField = AddField(dlg, Dictionary.ProviderModel, existing?.ModelName, y++);
+            var baseField = AddField(dlg, Dictionary.ProviderBaseAddress, existing?.BaseAddress.ToString(), y++);
+            var endPointField = AddField(dlg, Dictionary.ProviderEndpoint, existing?.EndPoint, y++);
+            var ctxField = AddField(dlg, Dictionary.ProviderContextWindow, (existing?.ContextWindow ?? 32768).ToString(), y++);
+            var timeoutField = AddField(dlg, Dictionary.ProviderTimeout, ((int)(existing?.Timeout.TotalSeconds ?? 30)).ToString(), y++);
 
             ProviderConfig? result = null;
-            var ok = new Button { Text = "OK", IsDefault = true };
+            var ok = new Button { Text = Dictionary.Ok, IsDefault = true };
             ok.Accepted += (_, _) =>
             {
                 var providerName = (nameField.Text ?? "").Trim();
                 if (providerName.Length == 0)
                 {
-                    _ = MessageBox.Query(_app, "Add provider", "Name is required", "OK");
+                    _ = MessageBox.Query(_app, Dictionary.ProviderAddTitle, Dictionary.ProviderNameRequired, Dictionary.Ok);
                     return;
                 }
                 if (!Uri.TryCreate((baseField.Text ?? "").Trim(), UriKind.Absolute, out var uri))
                 {
-                    _ = MessageBox.Query(_app, "Add provider", "Base address must be an absolute URL (http://…)", "OK");
+                    _ = MessageBox.Query(_app, Dictionary.ProviderAddTitle, Dictionary.ProviderBaseAddressInvalid, Dictionary.Ok);
                     return;
                 }
                 if (!int.TryParse((ctxField.Text ?? "").Trim(), out var ctx) || ctx <= 0)
                 {
-                    _ = MessageBox.Query(_app, "Add provider", "Context window must be a positive number", "OK");
+                    _ = MessageBox.Query(_app, Dictionary.ProviderAddTitle, Dictionary.ProviderContextInvalid, Dictionary.Ok);
                     return;
                 }
                 if (!int.TryParse((timeoutField.Text ?? "").Trim(), out var secs) || secs <= 0) secs = 30;
@@ -2130,7 +2300,7 @@ public static class ConsoleTui
                 };
                 _app.RequestStop(dlg);
             };
-            var cancel = new Button { Text = "Cancel" };
+            var cancel = new Button { Text = Dictionary.Cancel };
             cancel.Accepted += (_, _) => _app.RequestStop(dlg);
             dlg.AddButton(ok);
             dlg.AddButton(cancel);
@@ -2158,7 +2328,7 @@ public static class ConsoleTui
                 _connected = health.IsSuccessStatusCode;
                 if (!_connected)
                 {
-                    _statusNote = "server unreachable — starting it headless keeps the API alive";
+                    _statusNote = Dictionary.StatusServerUnreachableHeadless;
                     UpdateStatusUi();
                     return;
                 }
@@ -2179,7 +2349,7 @@ public static class ConsoleTui
             catch (Exception ex)
             {
                 _connected = false;
-                _statusNote = $"server unreachable: {ex.Message}";
+                _statusNote = string.Format(Dictionary.StatusServerUnreachable, ex.Message);
                 UpdateStatusUi();
             }
         }

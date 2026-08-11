@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <!-- German (de) — command names (/help, /model...) are intentionally NOT translated. -->
+  <data name="Ok" xml:space="preserve"><value>OK</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Abbrechen</value></data>
+  <data name="Close" xml:space="preserve"><value>Schließen</value></data>
+  <data name="On" xml:space="preserve"><value>Ein</value></data>
+  <data name="Off" xml:space="preserve"><value>Aus</value></data>
+  <data name="None" xml:space="preserve"><value>(keine)</value></data>
+  <data name="NoneSet" xml:space="preserve"><value>(keine festgelegt)</value></data>
+  <data name="Available" xml:space="preserve"><value>verfügbar</value></data>
+  <data name="Unavailable" xml:space="preserve"><value>nicht verfügbar</value></data>
+  <data name="Connected" xml:space="preserve"><value>verbunden</value></data>
+  <data name="Unreachable" xml:space="preserve"><value>nicht erreichbar</value></data>
+  <data name="InputPlaceholder" xml:space="preserve"><value>Nachricht eingeben oder / für Befehle...</value></data>
+  <data name="WelcomeMessage" xml:space="preserve"><value>Willkommen bei AGENT — sprechen Sie direkt vom Terminal aus mit den Agenten.
+Nachricht eingeben und Eingabetaste drücken · / öffnet Befehle · @ Dateien · ? Tastenkürzel · F1 Hilfe · F10 das Menü.</value></data>
+  <data name="ServerNote" xml:space="preserve"><value>Server: {0} — die API antwortet weiterhin parallel ({0}/v1/chat/completions)</value></data>
+  <data name="HostErrorNote" xml:space="preserve"><value>Start des lokalen Hosts fehlgeschlagen ({0}) — Verbindung zu einer vorhandenen Instanz</value></data>
+  <data name="WindowTitle" xml:space="preserve"><value>AGENT - KI-Chat-Konsole</value></data>
+  <data name="ChatFrameTitle" xml:space="preserve"><value>Chat</value></data>
+  <data name="MenuFile" xml:space="preserve"><value>_Datei</value></data>
+  <data name="MenuNewChat" xml:space="preserve"><value>_Neuer Chat</value></data>
+  <data name="MenuModelsProviders" xml:space="preserve"><value>_Modelle und Anbieter (/modelsetup)</value></data>
+  <data name="MenuAutoUpdate" xml:space="preserve"><value>_Automatische Aktualisierung: {0}</value></data>
+  <data name="MenuExit" xml:space="preserve"><value>_Beenden</value></data>
+  <data name="MenuChat" xml:space="preserve"><value>_Chat</value></data>
+  <data name="MenuClearHistory" xml:space="preserve"><value>_Verlauf löschen</value></data>
+  <data name="MenuCommands" xml:space="preserve"><value>_Befehle (/...)</value></data>
+  <data name="MenuRetryLast" xml:space="preserve"><value>_Letzten erneut senden (/retry)</value></data>
+  <data name="MenuSession" xml:space="preserve"><value>_Sitzung</value></data>
+  <data name="MenuLlmModel" xml:space="preserve"><value>_LLM-Modell (/model)</value></data>
+  <data name="MenuAgent" xml:space="preserve"><value>_Agent (/agent)</value></data>
+  <data name="MenuStatus" xml:space="preserve"><value>_Status (/status)</value></data>
+  <data name="MenuHealth" xml:space="preserve"><value>_Status prüfen (/health)</value></data>
+  <data name="MenuWeb" xml:space="preserve"><value>_Web</value></data>
+  <data name="MenuGui" xml:space="preserve"><value>_GUI (/web)</value></data>
+  <data name="MenuHelp" xml:space="preserve"><value>_Hilfe</value></data>
+  <data name="MenuHelpItem" xml:space="preserve"><value>_Hilfe (/help)</value></data>
+  <data name="MenuShortcuts" xml:space="preserve"><value>_Tastenkürzel (/shortcuts)</value></data>
+  <data name="MenuDocumentation" xml:space="preserve"><value>_Dokumentation (/docs)</value></data>
+  <data name="MenuAbout" xml:space="preserve"><value>_Info</value></data>
+  <data name="CmdHelp" xml:space="preserve"><value>Hilfe anzeigen: Befehle, Tastenkürzel, API-Endpunkte, Online-Dokumentation</value></data>
+  <data name="CmdDocs" xml:space="preserve"><value>Öffnet die Online-Dokumentation im Browser</value></data>
+  <data name="CmdWeb" xml:space="preserve"><value>Installiert (erster Start) und startet den Giraffe-AI-Webclient im Browser</value></data>
+  <data name="CmdModelSetup" xml:space="preserve"><value>LLM-Modelle und -Anbieter konfigurieren (hinzufügen/bearbeiten/entfernen, aktives Modell, API-Schlüssel)</value></data>
+  <data name="CmdModel" xml:space="preserve"><value>Wechselt den LLM-Anbieter (Menü, wenn kein Name angegeben)</value></data>
+  <data name="CmdAgent" xml:space="preserve"><value>Wechselt den Agentensatz (default/web/search/word/spreadsheet/email/multi)</value></data>
+  <data name="CmdVoice" xml:space="preserve"><value>Diktiert vom Server-Mikrofon in die Eingabe (Standard = Systemsprache)</value></data>
+  <data name="CmdTts" xml:space="preserve"><value>Spricht die letzte Agentenantwort (oder den angegebenen Text) per Kokoro TTS</value></data>
+  <data name="CmdFeatures" xml:space="preserve"><value>Zeigt Sitzungs-Feature-Flags oder schaltet sie um (voice, tts, ...)</value></data>
+  <data name="CmdNew" xml:space="preserve"><value>Startet eine neue Sitzung (neue Unterhaltung, neue ID)</value></data>
+  <data name="CmdClear" xml:space="preserve"><value>Setzt den Verlauf der aktuellen Sitzung zurück (Sitzung bleibt erhalten)</value></data>
+  <data name="CmdStatus" xml:space="preserve"><value>Zeigt Sitzungsstatus und Plattformfunktionen</value></data>
+  <data name="CmdFiles" xml:space="preserve"><value>Datei hochladen+anhängen, eine löschen oder Uploads auflisten</value></data>
+  <data name="CmdAttach" xml:space="preserve"><value>Schaltet einen Dateianhang für den Chat um (Menü, wenn keine ID angegeben)</value></data>
+  <data name="CmdShortcuts" xml:space="preserve"><value>Zeigt die Tastenkürzel-Überlagerung</value></data>
+  <data name="CmdHealth" xml:space="preserve"><value>Pingt den Server und meldet die Latenz</value></data>
+  <data name="CmdRetry" xml:space="preserve"><value>Sendet die letzte Eingabe erneut (auch Strg+Y)</value></data>
+  <data name="CmdExit" xml:space="preserve"><value>Beendet die Terminal-UI (Strg+Q, Strg+C zweimal, Strg+D)</value></data>
+  <data name="ShortEnter" xml:space="preserve"><value>Nachricht senden (Umschalt+Enter: neue Zeile) / ausgewählten Befehl ausführen</value></data>
+  <data name="ShortSlash" xml:space="preserve"><value>Öffnet die Slash-Befehls-Palette (live, während der Eingabe)</value></data>
+  <data name="ShortAt" xml:space="preserve"><value>Öffnet die Datei-Palette (Anhänge umschalten)</value></data>
+  <data name="ShortQuestion" xml:space="preserve"><value>Zeigt diese Tastenkürzel-Überlagerung (leere Eingabe)</value></data>
+  <data name="ShortTab" xml:space="preserve"><value>Vervollständigt den ausgewählten Befehl in der Palette</value></data>
+  <data name="ShortEsc" xml:space="preserve"><value>Dialog schließen · Eingabe löschen · zweimal: beenden</value></data>
+  <data name="ShortCtrlC" xml:space="preserve"><value>Antwort abbrechen · Eingabe löschen · zweimal: beenden</value></data>
+  <data name="ShortCtrlD" xml:space="preserve"><value>Beenden (leere Eingabe)</value></data>
+  <data name="ShortCtrlY" xml:space="preserve"><value>Letzte Eingabe erneut senden</value></data>
+  <data name="ShortCtrlR" xml:space="preserve"><value>Rückwärtssuche im Eingabeverlauf</value></data>
+  <data name="ShortUpDown" xml:space="preserve"><value>Eingabeverlauf in der ersten/letzten Zeile (auch Strg+P / Strg+N); sonst Cursor bewegen</value></data>
+  <data name="ShortLeftRight" xml:space="preserve"><value>Cursor bewegen (mit Strg: wortweise)</value></data>
+  <data name="ShortCtrlAE" xml:space="preserve"><value>Alles auswählen / ans Ende der Eingabe springen</value></data>
+  <data name="ShortCtrlUK" xml:space="preserve"><value>Bis zum Zeilenanfang / -ende löschen</value></data>
+  <data name="ShortCtrlW" xml:space="preserve"><value>Wort vor dem Cursor löschen (auch Strg+Rücktaste)</value></data>
+  <data name="ShortPgUpDn" xml:space="preserve"><value>Unterhaltungsverlauf scrollen</value></data>
+  <data name="ShortF1" xml:space="preserve"><value>Zeigt die vollständige Hilfeseite</value></data>
+  <data name="ShortF10" xml:space="preserve"><value>Aktiviert die Menüleiste</value></data>
+  <data name="StatusEscAgain" xml:space="preserve"><value>Erneut Esc drücken zum Beenden · oder Strg+C zweimal</value></data>
+  <data name="StatusCtrlCAgain" xml:space="preserve"><value>Erneut Strg+C drücken zum Beenden</value></data>
+  <data name="StatusCancelling" xml:space="preserve"><value>wird abgebrochen…</value></data>
+  <data name="StatusGenerating" xml:space="preserve"><value>wird generiert… warten, oder Strg+C zum Stoppen</value></data>
+  <data name="StatusGeneratingShort" xml:space="preserve"><value>wird generiert…</value></data>
+  <data name="StatusReplied" xml:space="preserve"><value>geantwortet in {0:0.0}s</value></data>
+  <data name="StatusCancelled" xml:space="preserve"><value>abgebrochen</value></data>
+  <data name="StatusError" xml:space="preserve"><value>Fehler</value></data>
+  <data name="StatusCancelledEntry" xml:space="preserve"><value>(abgebrochen)</value></data>
+  <data name="StatusRequestFailed" xml:space="preserve"><value>Anfrage fehlgeschlagen: {0}</value></data>
+  <data name="StatusSess" xml:space="preserve"><value>sess:{0}</value></data>
+  <data name="StatusServerUnreachableHeadless" xml:space="preserve"><value>Server nicht erreichbar — beim Headless-Start bleibt die API aktiv</value></data>
+  <data name="StatusServerUnreachable" xml:space="preserve"><value>Server nicht erreichbar: {0}</value></data>
+  <data name="StatusServerHealthy" xml:space="preserve"><value>Server in Ordnung · {0} ms</value></data>
+  <data name="StatusServerHttp" xml:space="preserve"><value>Server hat HTTP {0} zurückgegeben</value></data>
+  <data name="HistoryYou" xml:space="preserve"><value>❯ Sie</value></data>
+  <data name="HistoryError" xml:space="preserve"><value>✗ Fehler</value></data>
+  <data name="HistoryAgent" xml:space="preserve"><value>◆ Agent</value></data>
+  <data name="NoteUnknownCommand" xml:space="preserve"><value>unbekannter Befehl /{0} — / für die Liste eingeben oder /help</value></data>
+  <data name="NoteCommandFailed" xml:space="preserve"><value>/{0} fehlgeschlagen: {1}</value></data>
+  <data name="NoteCouldNotLoadProviders" xml:space="preserve"><value>Anbieter konnten nicht geladen werden</value></data>
+  <data name="NoteCouldNotLoadProvidersEx" xml:space="preserve"><value>Anbieter konnten nicht geladen werden: {0}</value></data>
+  <data name="NoteNoProviders" xml:space="preserve"><value>keine Anbieter vom Server gemeldet</value></data>
+  <data name="PickSwitchProvider" xml:space="preserve"><value>LLM-Anbieter wechseln</value></data>
+  <data name="NoteAlreadyOn" xml:space="preserve"><value>bereits auf {0}</value></data>
+  <data name="NoteSwitchingProvider" xml:space="preserve"><value>Wechsel zu Anbieter {0}… (manche Anbieter brauchen Minuten zum Aufwärmen)</value></data>
+  <data name="NoteProviderNow" xml:space="preserve"><value>Anbieter ist jetzt {0}</value></data>
+  <data name="NoteSwitchRefused" xml:space="preserve"><value>Wechsel abgelehnt (HTTP {0}): {1}</value></data>
+  <data name="PickSwitchAgent" xml:space="preserve"><value>Agentensatz wechseln</value></data>
+  <data name="NoteUnknownAgentSet" xml:space="preserve"><value>unbekannter Agentensatz '{0}' — {1}</value></data>
+  <data name="NoteAgentSet" xml:space="preserve"><value>Agentensatz: {0}</value></data>
+  <data name="NoteVoiceUnavailable" xml:space="preserve"><value>Sprache nicht verfügbar: {0}</value></data>
+  <data name="NoteVoiceDisabled" xml:space="preserve"><value>POST /v1/voice/listen ist deaktiviert</value></data>
+  <data name="NoteListening" xml:space="preserve"><value>höre zu… (Server-Mikrofon) — sprechen Sie jetzt</value></data>
+  <data name="NoteNoSpeech" xml:space="preserve"><value>keine Sprache erkannt</value></data>
+  <data name="NoteDictated" xml:space="preserve"><value>diktiert: {0} — Enter zum Senden drücken</value></data>
+  <data name="NoteListeningTimeout" xml:space="preserve"><value>Hörzeit überschritten (keine Sprache erkannt)</value></data>
+  <data name="NoteVoiceFailedHttp" xml:space="preserve"><value>Sprache fehlgeschlagen (HTTP {0}): {1}</value></data>
+  <data name="NoteVoiceFailed" xml:space="preserve"><value>Sprache fehlgeschlagen: {0}</value></data>
+  <data name="NoteTtsUnavailable" xml:space="preserve"><value>tts nicht verfügbar: {0}</value></data>
+  <data name="NoteTtsDisabled" xml:space="preserve"><value>POST /v1/audio/speech ist deaktiviert</value></data>
+  <data name="NoteNothingToSpeak" xml:space="preserve"><value>nichts zu sprechen — Text angeben: /tts &lt;Text&gt;</value></data>
+  <data name="NoteSynthesising" xml:space="preserve"><value>wird synthetisiert…</value></data>
+  <data name="NoteTtsFailedHttp" xml:space="preserve"><value>tts fehlgeschlagen (HTTP {0}): {1}</value></data>
+  <data name="NoteSaved" xml:space="preserve"><value>gespeichert {0} ({1:N0} Bytes)</value></data>
+  <data name="NotePlaybackFailed" xml:space="preserve"><value>Wiedergabe fehlgeschlagen — Datei mit Ihrem Mediaplayer öffnen: {0}</value></data>
+  <data name="NotePlaybackWindowsOnly" xml:space="preserve"><value>Wiedergabe hier nur unter Windows — Datei mit Ihrem Mediaplayer öffnen</value></data>
+  <data name="NoteTtsFailed" xml:space="preserve"><value>tts fehlgeschlagen: {0}</value></data>
+  <data name="NoteSessionFeatures" xml:space="preserve"><value>Sitzungsfunktionen: {0}</value></data>
+  <data name="NoteFeatureSet" xml:space="preserve"><value>Funktion {0} = {1}</value></data>
+  <data name="NoteFailedHttp" xml:space="preserve"><value>fehlgeschlagen (HTTP {0}): {1}</value></data>
+  <data name="NoteCreateSessionFailed" xml:space="preserve"><value>Sitzung konnte nicht erstellt werden (HTTP {0})</value></data>
+  <data name="NoteNewSession" xml:space="preserve"><value>neue Sitzung {0}</value></data>
+  <data name="NoteHistoryCleared" xml:space="preserve"><value>Sitzungsverlauf gelöscht</value></data>
+  <data name="NoteNoFiles" xml:space="preserve"><value>keine hochgeladenen Dateien — /files add &lt;Pfad&gt; verwenden</value></data>
+  <data name="NoteAttached" xml:space="preserve"><value>{0} am Chat angehängt</value></data>
+  <data name="NoteAttachedSuffix" xml:space="preserve"><value>  angehängt</value></data>
+  <data name="AttachMarker" xml:space="preserve"><value>[angehängt]</value></data>
+  <data name="NoteDetached" xml:space="preserve"><value>{0} gelöst</value></data>
+  <data name="NoteUploading" xml:space="preserve"><value>{0} wird hochgeladen…</value></data>
+  <data name="NoteUploaded" xml:space="preserve"><value>{0} hochgeladen + angehängt ({1})</value></data>
+  <data name="NoteUploadFailedHttp" xml:space="preserve"><value>Upload fehlgeschlagen (HTTP {0}): {1}</value></data>
+  <data name="NoteUploadFailed" xml:space="preserve"><value>Upload fehlgeschlagen: {0}</value></data>
+  <data name="NoteDeleted" xml:space="preserve"><value>{0} gelöscht</value></data>
+  <data name="NoteDeleteFailedHttp" xml:space="preserve"><value>Löschen fehlgeschlagen (HTTP {0}): {1}</value></data>
+  <data name="NoteDeleteFailed" xml:space="preserve"><value>Löschen fehlgeschlagen: {0}</value></data>
+  <data name="NoteFilesUsage" xml:space="preserve"><value>Verwendung: /files add &lt;Pfad&gt; | /files rm &lt;ID&gt; | /files</value></data>
+  <data name="NoteUnknownFile" xml:space="preserve"><value>unbekannte Datei '{0}' — /files für die Liste</value></data>
+  <data name="NoteFileNotFound" xml:space="preserve"><value>Datei nicht gefunden: {0}</value></data>
+  <data name="NoteNothingToRetry" xml:space="preserve"><value>noch nichts zum erneuten Senden</value></data>
+  <data name="NoteLastReplyOk" xml:space="preserve"><value>die letzte Antwort war erfolgreich — sende trotzdem erneut</value></data>
+  <data name="NoteOpenedUrl" xml:space="preserve"><value>{0} im Browser geöffnet</value></data>
+  <data name="NoteOpenBrowserFailed" xml:space="preserve"><value>Browser konnte nicht geöffnet werden: {0}</value></data>
+  <data name="NoteWebClientOutdated" xml:space="preserve"><value>Webclient fehlt oder ist veraltet in {0} — lade {1} herunter…</value></data>
+  <data name="NoteLaunchingWebClient" xml:space="preserve"><value>Webclient wird aus {0} gestartet…</value></data>
+  <data name="NoteWebClientFailed" xml:space="preserve"><value>Webclient fehlgeschlagen: {0}</value></data>
+  <data name="NoteLoadFilesFailed" xml:space="preserve"><value>Dateien konnten nicht geladen werden: {0}</value></data>
+  <data name="HelpQuickStart" xml:space="preserve"><value>SCHNELLSTART</value></data>
+  <data name="HelpQuickStart1" xml:space="preserve"><value>  • Nachricht eingeben und Enter drücken, um mit den Agenten zu sprechen (default/web/search/word/spreadsheet/email/multi).</value></data>
+  <data name="HelpQuickStart2" xml:space="preserve"><value>  • / öffnet die Befehls-Palette (filtert während der Eingabe): /model wechselt das LLM, /files lädt Dokumente hoch, /voice diktiert, /tts spricht.</value></data>
+  <data name="HelpQuickStart3" xml:space="preserve"><value>  • @ öffnet die hochgeladenen Dateien (anhängen/lösen) · ? Tastenkürzel · F1 diese Hilfe · F10 das obere Menü.</value></data>
+  <data name="HelpQuickStart4" xml:space="preserve"><value>  • Die untere Leiste zeigt Server, Anbieter, Modell, Sitzung und Kontext.</value></data>
+  <data name="HelpCommands" xml:space="preserve"><value>BEFEHLE  (/ für die Live-Liste eingeben)</value></data>
+  <data name="HelpShortcuts" xml:space="preserve"><value>TASTENKÜRZEL  (? bei leerer Eingabe für die Überlagerung drücken)</value></data>
+  <data name="HelpShortcutsTitle" xml:space="preserve"><value>TASTENKÜRZEL</value></data>
+  <data name="HelpShortcutsFooter" xml:space="preserve"><value>Vollständige Hilfe: /help · Befehle: / eingeben</value></data>
+  <data name="HelpMouse" xml:space="preserve"><value>MAUS  (Terminal.Gui nativ, plattformübergreifend)</value></data>
+  <data name="HelpMouseWheel" xml:space="preserve"><value>  Mausrad      Unterhaltung und Menüs scrollen</value></data>
+  <data name="HelpMouseClickInput" xml:space="preserve"><value>  Eingabe klick Textcursor positionieren</value></data>
+  <data name="HelpMouseClickRow" xml:space="preserve"><value>  Zeile klick  Listenzeile auswählen (Doppelklick führt aus)</value></data>
+  <data name="HelpApi" xml:space="preserve"><value>API (derselbe Server antwortet weiter, während Sie chatten)</value></data>
+  <data name="HelpApi1" xml:space="preserve"><value>  POST /v1/chat/completions · /v1/control · /v1/audio/speech · /v1/voice/listen</value></data>
+  <data name="HelpApi2" xml:space="preserve"><value>  GET  /v1/models · /v1/files · /v1/control · /v1/audio/voices · /health</value></data>
+  <data name="HelpApi3" xml:space="preserve"><value>  POST /v1/files (Upload · mit @ anhängen)</value></data>
+  <data name="HelpOnline" xml:space="preserve"><value>ONLINE-HILFE</value></data>
+  <data name="HelpOnlineRepo" xml:space="preserve"><value>  AgentBridge-Repo/Docs: https://github.com/Graphene-Lab/AgentBridge  (/docs öffnet sie)</value></data>
+  <data name="HelpOnlineReadme" xml:space="preserve"><value>  README.md → "Terminal UI"</value></data>
+  <data name="PageAgentHelp" xml:space="preserve"><value>Agent-Hilfe</value></data>
+  <data name="PageShortcuts" xml:space="preserve"><value>Tastenkürzel</value></data>
+  <data name="DlgReverseSearch" xml:space="preserve"><value>Rückwärtssuche Eingabeverlauf</value></data>
+  <data name="DlgReverseHint" xml:space="preserve"><value>eingeben, um den Verlauf zu filtern · ↑↓ · Enter wählt · Esc schließt</value></data>
+  <data name="DlgPickerHint" xml:space="preserve"><value>↑↓ navigieren · Enter auswählen · Esc abbrechen</value></data>
+  <data name="DlgCommandsTitle" xml:space="preserve"><value>Verfügbare Befehle</value></data>
+  <data name="DlgCommandsHint" xml:space="preserve"><value>eingeben, um zu filtern · ↑↓ · Tab vervollständigt · Enter führt aus · Esc schließt</value></data>
+  <data name="DlgProviderPickerHint" xml:space="preserve"><value>tippen zum Filtern oder Anbieternamen eingeben · ↑↓ · Eingabetaste · Esc abbrechen</value></data>
+  <data name="DlgToggleAttach" xml:space="preserve"><value>Dateianhang umschalten</value></data>
+  <data name="DlgPageHint" xml:space="preserve"><value>— mit ↑↓ / BildAuf-BildAb scrollen · mit Esc oder Enter schließen —</value></data>
+  <data name="PageAgentStatus" xml:space="preserve"><value>Agent-Status</value></data>
+  <data name="PageUploadedFiles" xml:space="preserve"><value>hochgeladene Dateien</value></data>
+  <data name="AboutTitle" xml:space="preserve"><value>AGENT</value></data>
+  <data name="AboutText" xml:space="preserve"><value>AGENT v2 - Moderne TUI
+Powered by Terminal.Gui</value></data>
+  <data name="StatusSession" xml:space="preserve"><value>Sitzung</value></data>
+  <data name="StatusProvider" xml:space="preserve"><value>Anbieter</value></data>
+  <data name="StatusContextWindow" xml:space="preserve"><value>Kontextfenster {0:N0} Token · Verlauf ≈ {1:N0}</value></data>
+  <data name="StatusAgentSet" xml:space="preserve"><value>Agentensatz</value></data>
+  <data name="StatusFeatures" xml:space="preserve"><value>Funktionen</value></data>
+  <data name="StatusAttachments" xml:space="preserve"><value>Anhänge</value></data>
+  <data name="StatusCapabilities" xml:space="preserve"><value>Fähigkeiten</value></data>
+  <data name="StatusPromptHistory" xml:space="preserve"><value>Eingabeverlauf: {0} Einträge</value></data>
+  <data name="SetupTitle" xml:space="preserve"><value>Modelle und Anbieter einrichten</value></data>
+  <data name="SetupLlmTab" xml:space="preserve"><value>LLM und Anbieter</value></data>
+  <data name="SetupActiveProvider" xml:space="preserve"><value>Aktiver Anbieter</value></data>
+  <data name="SetupActiveMarker" xml:space="preserve"><value>← aktiv</value></data>
+  <data name="SetupDeepSeekKey" xml:space="preserve"><value>DeepSeek-API-Schlüssel</value></data>
+  <data name="SetupZaiKey" xml:space="preserve"><value>Z.ai-API-Schlüssel</value></data>
+  <data name="SetupGeminiKey" xml:space="preserve"><value>Gemini-API-Schlüssel</value></data>
+  <data name="SetupConfiguredProviders" xml:space="preserve"><value>Konfigurierte Anbieter (Hinzufügen/Bearbeiten/Entfernen wirken sofort):</value></data>
+  <data name="SetupAdd" xml:space="preserve"><value>Hinzufügen…</value></data>
+  <data name="SetupEdit" xml:space="preserve"><value>Bearbeiten…</value></data>
+  <data name="SetupRemove" xml:space="preserve"><value>Entfernen</value></data>
+  <data name="SetupEmailTab" xml:space="preserve"><value>E-Mail (SMTP)</value></data>
+  <data name="SetupSmtpServer" xml:space="preserve"><value>SMTP-Server</value></data>
+  <data name="SetupSmtpPort" xml:space="preserve"><value>SMTP-Port</value></data>
+  <data name="SetupSmtpUser" xml:space="preserve"><value>SMTP-Benutzer</value></data>
+  <data name="SetupSmtpPassword" xml:space="preserve"><value>SMTP-Passwort</value></data>
+  <data name="SetupRecipientEmail" xml:space="preserve"><value>Empfänger-E-Mail</value></data>
+  <data name="SetupImapTab" xml:space="preserve"><value>Post (IMAP)</value></data>
+  <data name="SetupImapServer" xml:space="preserve"><value>IMAP-Server</value></data>
+  <data name="SetupImapPort" xml:space="preserve"><value>IMAP-Port</value></data>
+  <data name="SetupImapUser" xml:space="preserve"><value>IMAP-Benutzer</value></data>
+  <data name="SetupImapPassword" xml:space="preserve"><value>IMAP-Passwort</value></data>
+  <data name="SetupGeneralTab" xml:space="preserve"><value>Allgemein</value></data>
+  <data name="SetupStepLogging" xml:space="preserve"><value>Schrittprotokollierung aktivieren (Ordner logs/)</value></data>
+  <data name="SetupDocumentsPath" xml:space="preserve"><value>Dokumentpfad</value></data>
+  <data name="SetupSave" xml:space="preserve"><value>Speichern</value></data>
+  <data name="SetupInvalidSmtpPortTitle" xml:space="preserve"><value>Ungültiger SMTP-Port</value></data>
+  <data name="SetupInvalidSmtpPortText" xml:space="preserve"><value>Der SMTP-Port muss eine Zahl sein (z. B. 587 oder 465). Korrigieren Sie ihn und drücken Sie erneut Speichern.</value></data>
+  <data name="SetupInvalidImapPortTitle" xml:space="preserve"><value>Ungültiger IMAP-Port</value></data>
+  <data name="SetupInvalidImapPortText" xml:space="preserve"><value>Der IMAP-Port muss eine Zahl sein (z. B. 993). Korrigieren Sie ihn und drücken Sie erneut Speichern.</value></data>
+  <data name="SetupInvalidDocsPathTitle" xml:space="preserve"><value>Ungültiger Dokumentpfad</value></data>
+  <data name="SetupInvalidDocsPathText" xml:space="preserve"><value>{0}
+
+Der vorherige Dokumentbereich ist weiterhin aktiv — es wurde nichts geändert.</value></data>
+  <data name="SetupSaved" xml:space="preserve"><value>Modelleinrichtung gespeichert</value></data>
+  <data name="SetupSavedWithNote" xml:space="preserve"><value>Modelleinrichtung gespeichert — {0}</value></data>
+  <data name="SetupProviderAdded" xml:space="preserve"><value>Anbieter {0} hinzugefügt</value></data>
+  <data name="SetupProviderExists" xml:space="preserve"><value>Anbieter {0} existiert bereits</value></data>
+  <data name="SetupSelectToEdit" xml:space="preserve"><value>wählen Sie einen Anbieter zum Bearbeiten</value></data>
+  <data name="SetupProviderUpdated" xml:space="preserve"><value>Anbieter {0} aktualisiert</value></data>
+  <data name="SetupSelectToRemove" xml:space="preserve"><value>wählen Sie einen Anbieter zum Entfernen</value></data>
+  <data name="SetupRemoveProviderTitle" xml:space="preserve"><value>Anbieter entfernen</value></data>
+  <data name="SetupRemoveProviderText" xml:space="preserve"><value>'{0}' aus der Konfiguration entfernen?</value></data>
+  <data name="SetupCannotRemove" xml:space="preserve"><value>'{0}' kann nicht entfernt werden — nicht konfiguriert oder es ist der letzte Anbieter</value></data>
+  <data name="SetupProviderRemoved" xml:space="preserve"><value>Anbieter {0} entfernt</value></data>
+  <data name="ProviderAddTitle" xml:space="preserve"><value>Anbieter hinzufügen</value></data>
+  <data name="ProviderEditTitle" xml:space="preserve"><value>Anbieter bearbeiten: {0}</value></data>
+  <data name="ProviderName" xml:space="preserve"><value>Name</value></data>
+  <data name="ProviderProtocol" xml:space="preserve"><value>Protokoll</value></data>
+  <data name="ProviderModel" xml:space="preserve"><value>Modell</value></data>
+  <data name="ProviderBaseAddress" xml:space="preserve"><value>Basisadresse</value></data>
+  <data name="ProviderEndpoint" xml:space="preserve"><value>Endpunktpfad</value></data>
+  <data name="ProviderContextWindow" xml:space="preserve"><value>Kontextfenster</value></data>
+  <data name="ProviderTimeout" xml:space="preserve"><value>Timeout (Sek.)</value></data>
+  <data name="ProviderNameRequired" xml:space="preserve"><value>Name ist erforderlich</value></data>
+  <data name="ProviderBaseAddressInvalid" xml:space="preserve"><value>Die Basisadresse muss eine absolute URL sein (http://…)</value></data>
+  <data name="ProviderContextInvalid" xml:space="preserve"><value>Das Kontextfenster muss eine positive Zahl sein</value></data>
+  <data name="MaxIterationsReached" xml:space="preserve"><value>Maximale Iterationen ({0}) erreicht</value></data>
+  <data name="NoLlmResponse" xml:space="preserve"><value>Das LLM hat keine Antwort geliefert</value></data>
+  <data name="Done" xml:space="preserve"><value>Fertig</value></data>
+  <data name="NoOutputGenerated" xml:space="preserve"><value>Keine Ausgabe erzeugt</value></data>
+</root>

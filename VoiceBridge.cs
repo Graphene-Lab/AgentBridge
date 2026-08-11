@@ -45,7 +45,7 @@ public static class VoiceBridge
                 return "Voice speech recognition runs only on Windows (AIOffice.VoiceAgent.Win).";
             var exe = ResolveExe();
             if (exe == null || !File.Exists(exe))
-                return $"AIOffice.VoiceAgent.Win.exe not found in '{exe ?? AppDomain.CurrentDomain.BaseDirectory}'. Copy the VoiceAgent output next to the server (the csproj does it automatically when the sibling VoiceAgent build exists) or set Voice:ExePath.";
+                return $"AIOffice.VoiceAgent.Win.exe not found in '{Path.GetDirectoryName(exe) ?? AppDomain.CurrentDomain.BaseDirectory}'. Copy the VoiceAgent output into the voiceagent/ subfolder next to the server (the csproj does it automatically when the sibling VoiceAgent build exists) or set Voice:ExePath.";
             return "";
         }
     }
@@ -123,7 +123,10 @@ public static class VoiceBridge
     {
         if (!string.IsNullOrWhiteSpace(ExePath))
             return Path.IsPathRooted(ExePath) ? ExePath : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ExePath);
-        return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AIOffice.VoiceAgent.Win.exe");
+        // The csproj copies the VoiceAgent output into the voiceagent/ subfolder — NOT
+        // flat next to the server: VoiceAgent.Win pins an older KokoroSharp (0.6.7) that
+        // would shadow this server's 0.8.4 one and break the in-process TTS.
+        return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "voiceagent", "AIOffice.VoiceAgent.Win.exe");
     }
 
     private static async Task WriteCommandAsync(StreamWriter input, object command)

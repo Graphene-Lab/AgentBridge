@@ -19,9 +19,42 @@ release:  powershell -File release.ps1        (or manually: sync-all → git tag
    └─ release.yml on tag v*:
         1. check-version: reads the version + the IsPrerelease gate from the csproj
         2. wait for today's dependency packages on nuget.org (GLOBAL 30-min window, see below)
-        3. build 4 single-file archives (win-x64, linux-x64, osx-x64, osx-arm64)
+        3. build 5 single-file archives (win-x64, linux-x64, linux-arm64, osx-x64, osx-arm64)
            with the Kokoro TTS assets → attach to the GitHub release
 ```
+
+## What an update must never touch — the file storage tiers
+
+AgentBridge and the AIOrchestrator library split persisted files into **three storage
+tiers**. Every update mechanism (today: the release archives + manual replace; tomorrow:
+an auto-updater) must respect them:
+
+| Tier | Location | Purpose | Update rule |
+|---|---|---|---|
+| **User-editable configuration** | `<app folder>\PersistentData\` | JSON settings a user can edit by hand that must survive updates — currently `rag_settings.json` (the persisted DocumentsPath) | **Never delete or overwrite**. The legacy `rag_settings.json` next to the executable is migrated into `PersistentData` automatically on the first run after an upgrade |
+| **Application data & secrets** | OS app-data folder, `<AppData>\<AppName>\` (Windows `%LocalAppData%\<AppName>`, Linux `~/.local/share/<AppName>`, macOS `~/Library/Application Support/<AppName>`) | App-owned state and credentials — currently `setup.json` (API keys, DPAPI-encrypted on Windows, SMTP/IMAP, provider name) | **Never touch** — outside the app folder by construction |
+| **Distribution content** | `<app folder>\` (everything the archive ships) | The runtime: `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `.playwright/`, `agent.staticwebassets.endpoints.json`, the default `appsettings.json`, … | **Replace on every update**, with TWO exceptions below |
+
+The folder name of the app-data tier is the **entry-assembly name of the running
+executable** (`agent` for AgentBridge → `%LocalAppData%\agent\setup.json`), not the
+product name: each host executable gets its own folder so several apps using the
+AIOrchestrator library never share credentials.
+
+**The two exceptions in the distribution tier are `appsettings.json` and
+`providers.json`** — the server config (port, default LLM, voice path) and the LLM
+provider definitions, both editable by the user. An updater must preserve them.
+Every OTHER `.json` in the archive (`.playwright/package/*.json`,
+`agent.staticwebassets.endpoints.json`, …) is generated or shipped content that **must**
+be overwritten: a "don't touch `.json` files" rule would break the update, not protect the
+user. Protect by **whitelist** (`appsettings.json` + `providers.json` + `PersistentData\`),
+never by file extension.
+
+Both storage conventions (`PersistentData`, app-data folder) are implemented in
+AIOrchestrator `Setup.cs` (`PersistentDataDir`/`SettingsFile` and `SetupFilePath`);
+AgentBridge adds its own `appsettings.json` and `providers.json` to the protected set.
+The split is deliberate: user-editable JSON stays next to the executable so a portable
+install keeps its configuration when the folder moves, while credentials are per-user
+OS state. The automatic updater enforces these rules — see [autoupdate.md](autoupdate.md).
 
 ## How the release wait works (why you can just wait)
 
@@ -149,8 +182,11 @@ the new repo is pushed by the pre-push hook without any script edit.
 - **SC021 (Naiad)**: add the SponsorCheck property to the consumer (see above).
 - **Package-id collision**: verify availability before the first publish.
 - **TTS missing in the archives**: `CopyTtsAssetsToPublish` copies `kokoro.onnx`,
-  `voices/`, `espeak/` into the publish directory; any other runtime content must stay next
-  to the executable (single-file bundles only the managed code).
-- **linux-arm64**: intentionally not released — KokoroSharp 0.6.7 ships no
-  `espeak-ng-linux-arm64` binary (TTS would be broken). Re-add the matrix cell only when
-  that changes (new KokoroSharp or a bundled ARM64 espeak-ng).
+  `voices/`, `voices-zh/` into the publish directory; the native onnxruntime engine comes
+  from the `Microsoft.ML.OnnxRuntime` package reference (KokoroSharp itself only pulls the
+  managed wrapper — without that reference the archives ship TTS that fails at inference).
+  Any other runtime content must stay next to the executable (single-file bundles only the
+  managed code).
+- **linux-arm64**: released since KokoroSharp 0.8.4 — the phonemizer is the pure-managed
+  MisakiSharp (no `espeak-ng-linux-arm64` binary needed) and `Microsoft.ML.OnnxRuntime`
+  ships `libonnxruntime.so` for linux-arm64.

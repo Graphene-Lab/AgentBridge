@@ -5,6 +5,10 @@ using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Mvc;
 using AIOrchestrator;
 using UISupportGeneric;
+using AgentBridge.Resources;
+
+AppDomain.CurrentDomain.UnhandledException += AIOrchestrator.Utility.UnhandledException; //it catches application errors in order to prepare a log of the events that cause the crash
+
 
 // ═══════════════════════════════════════════════════════════════════════
 //  AgentBridge — OpenAI-compatible HTTP server for AgentOrchestrator
@@ -70,8 +74,10 @@ if (args.Contains("-h") || args.Contains("--help") || args.Contains("/?"))
                                   Skip the DocumentsPath index build/refresh + file watcher
                                   at startup (true|false) — use during debug/dev when no
                                   document searches are needed (large folders index for minutes)
+          --no-update              Disable the automatic update check at startup (default on;
+                                  use for services/CI that manage the binary themselves)
           --Voice:ExePath <path>  Path to AIOffice.VoiceAgent.Win.exe for POST /v1/voice/listen
-                                  (default: <server dir>\AIOffice.VoiceAgent.Win.exe)
+                                  (default: <server dir>\voiceagent\AIOffice.VoiceAgent.Win.exe)
           --Urls <address>        Kestrel listening address, e.g. http://localhost:5290
           --environment <name>    ASP.NET environment: Development | Production
 
@@ -92,8 +98,20 @@ if (args.Contains("-h") || args.Contains("--help") || args.Contains("/?"))
           dotnet run --project AgentBridge.csproj -- --SkipIndexingOnStartup true
           agent --headless         (server only, e.g. as a systemd service)
         """);
-    return;
+    return 0;
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Auto-update updater mode: the temp extract of a newer release runs as its own
+// process; it waits for this process to exit, swaps the files (the executable last,
+// .old as rollback) and restarts with the original command line. Must run before
+// the server is built — see AutoUpdate.cs / docs/autoupdate.md.
+// ─────────────────────────────────────────────────────────────────────
+if (args.Contains("--apply-update"))
+    return AutoUpdate.RunUpdater(args);
+
+// Remove leftovers of a previous update (rollback .old, stale temp area).
+AutoUpdate.CleanupOnStartup();
 
 // Content root = the executable's folder (not the CWD): the standalone exe must find
 // appsettings.json even when launched from another directory (double click, services, tests).
@@ -181,6 +199,13 @@ Setup.Load();
 VoiceBridge.ExePath = builder.Configuration["Voice:ExePath"];
 
 var app = builder.Build();
+
+// Auto-update toggle: CLI --no-update > persisted state (TUI File → Auto-Update)
+// > appsettings default. The persisted file lives in the OS app-data folder, so
+// updates never touch it (see RELEASING.md, storage tiers).
+if (!AutoUpdate.LoadState(args.Contains("--no-update")))
+    AutoUpdate.Enabled = app.Configuration.GetValue<bool>("AutoUpdate:Enabled", true);
+
 app.UseCors();
 
 var jsonOptions = new JsonSerializerOptions
@@ -266,7 +291,10 @@ app.MapPost("/v1/chat/completions", async (
             var orchestrator = session?.Orchestrator ?? owned!;
             var result = orchestrator.ExecuteAction(prompt, agentTypes, maxIterations: maxIterations, attachments: attachments);
 
-            var content = result.Message ?? result.Error ?? "No output generated";
+            // Locale-neutral result codes (AgentResultCode) are rendered through the localized
+            // dictionary in the current system language; LLM text (Message/Error) passes through
+            // as-is. "No output generated" is also localized (Dictionary.NoOutputGenerated).
+            var content = result.Message ?? ResultText(result) ?? Dictionary.NoOutputGenerated;
             var finishReason = result.Success ? "stop" : "error";
             var sessionId = session?.Id;
 
@@ -710,6 +738,15 @@ app.MapPost("/v1/control", (ControlRequest request) =>
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 // ─────────────────────────────────────────────────────────────────────
+// Auto-update: at startup, check the latest GitHub release and apply it when newer
+// (download → swap → restart). Background and best-effort: any failure leaves the
+// current version running; disable with --no-update or the TUI File → Auto-Update
+// menu (docs/autoupdate.md).
+// ─────────────────────────────────────────────────────────────────────
+if (AutoUpdate.Enabled)
+    _ = Task.Run(async () => { try { await AutoUpdate.CheckAndApplyAsync(); } catch (Exception ex) { Log.LogStep($"AutoUpdate: {ex.Message}"); } });
+
+// ─────────────────────────────────────────────────────────────────────
 // Launch mode: terminal UI (default, interactive console) or plain server.
 // The TUI runs the HTTP server in the same process: the API keeps answering
 // while you chat — that is the "CLI + API simultaneously" requirement.
@@ -743,14 +780,26 @@ if (useTui)
     {
         try { await app.StopAsync(); } catch { }
     }
-    return;
+    return 0;
 }
 
 app.Run();
+return 0;
 
 // ─────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────
+
+// Renders a locale-neutral AgentResultCode through the localized dictionary for the
+// current system language. Returns null when the result carries real LLM text
+// (Message/Error) or completed normally — the caller falls through to those first.
+static string? ResultText(AgentResult result) => result.Code switch
+{
+    AgentResultCode.MaxIterationsReached => string.Format(Dictionary.MaxIterationsReached, result.Iterations),
+    AgentResultCode.NoLlmResponse => Dictionary.NoLlmResponse,
+    AgentResultCode.NoMessage => Dictionary.Done,
+    _ => null,
+};
 
 // Extracts plain text from an OpenAI message content field: a plain string, or the
 // structured content array (text / image_url parts) some clients send. image_url parts

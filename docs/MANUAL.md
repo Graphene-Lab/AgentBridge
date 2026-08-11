@@ -22,12 +22,13 @@ the terminal UI, and connect a client to the local server.
 |---|---|---|
 | Windows 64-bit | `agentbridge-win-x64.tar.gz` | `agent.exe` |
 | Linux 64-bit | `agentbridge-linux-x64.tar.gz` | `agent` |
+| Linux ARM64 (Raspberry Pi, etc.) | `agentbridge-linux-arm64.tar.gz` | `agent` |
 | macOS Intel | `agentbridge-osx-x64.tar.gz` | `agent` |
 | macOS Apple Silicon | `agentbridge-osx-arm64.tar.gz` | `agent` |
 
 Extract the archive into a folder of your choice. No .NET installation is required
 (self-contained single file), and the archive already includes the Kokoro TTS voices and
-model (`voices/`, `espeak/`, `kokoro.onnx`) — text-to-speech works out of the box.
+model (`voices/`, `kokoro.onnx`) — text-to-speech works out of the box.
 
 On Linux/macOS, make the executable runnable:
 
@@ -270,7 +271,7 @@ The full request/response details are in [docs/API.md](API.md).
 | `agent` / `agent.exe` | The server (self-contained single file) |
 | `appsettings.json` | Server configuration (port, default LLM, voice path) |
 | `providers.json` | LLM provider definitions |
-| `kokoro.onnx` + `voices/` + `espeak/` | Kokoro TTS model, voices and espeak-ng data/binary |
+| `kokoro.onnx` + `voices/` | Kokoro TTS model and voices |
 | `AIOffice.VoiceAgent.Win.exe` (Windows) | Voice dictation backend |
 
 ---

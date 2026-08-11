@@ -107,6 +107,14 @@ AIOffice settings panel:
 - The provider list also stays in sync with `GET /v1/models`, so an added provider can be
   switched to right away.
 
+## Auto-update
+
+Menu **File → Auto-Update** toggles the automatic update check performed at startup
+(checked = enabled, the default). The choice persists to the OS app-data folder
+(`<AppData>\agent\autoupdate.json`), so it survives updates. When a newer release is
+found, the app downloads it, swaps the files and restarts itself — see
+[autoupdate.md](autoupdate.md) for the architecture and `--no-update` for services.
+
 ## Keyboard shortcuts
 
 | Shortcut | Action |
@@ -150,6 +158,44 @@ rendered inside the layout and **Esc always cancels them** cleanly (`/model`,
 | Double-click a list row | Run it |
 
 The terminal switches to the alternate screen buffer and restores it on exit.
+
+## Localisation
+
+The TUI is fully localised for **EN, IT, FR, ES, DE, RU** using the standard .NET
+resource-file approach (`Resources/Dictionary.resx` + per-language satellites). The app
+runs in the **system language when supported, otherwise English** — the correct file is
+selected automatically via `CultureInfo.CurrentUICulture` (a French system picks `fr`, a
+German one `de`, any other culture falls back to the neutral English resource).
+
+| File | Language |
+|---|---|
+| `Resources/Dictionary.resx` | English (neutral default) |
+| `Resources/Dictionary.it.resx` | Italian |
+| `Resources/Dictionary.fr.resx` | French |
+| `Resources/Dictionary.es.resx` | Spanish |
+| `Resources/Dictionary.de.resx` | German |
+| `Resources/Dictionary.ru.resx` | Russian |
+
+Rules and conventions:
+
+- **Command names are never translated** — `/help`, `/model`, `/agent`, `/voice`, `/tts`,
+  `/files`, … keep their English names in every language (they are also the API contract).
+  Only the command *descriptions* shown in the palette/help are localised.
+- All UI strings (menus, help pages, dialogs, status notes, picker hints) come from
+  `Dictionary.*` (the strongly typed Designer generated from the resx). New UI strings go
+  into the resx files, never hardcoded in `Tui.cs`.
+- **System-generated agent results are localised too.** AIOrchestrator no longer returns
+  hardcoded English messages ("Max iterations reached", "LLM returned no response", the
+  "Done" fallback): it returns a locale-neutral `AgentResultCode` enum and AgentBridge maps
+  each code to the phrase in the dictionary for the current language (see
+  `AgentResult.cs` / `Program.cs` → `ResultText`). The agent's own LLM text passes through
+  untouched, since the model is instructed to reply in the language of the request.
+- Voice/TTS languages (`/voice`, `/tts`) keep following `SystemLang` (machine `CurrentUICulture`
+  via `SystemLang.Get()`), independently of the UI dictionary.
+
+To add a new language: copy `Resources/Dictionary.resx` to `Dictionary.XX.resx`
+(XX = ISO 639-1 code), translate the values, and rebuild — the SDK picks the new satellite
+up automatically.
 
 ## Launch modes
 

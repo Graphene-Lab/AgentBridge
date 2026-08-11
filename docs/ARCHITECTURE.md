@@ -65,6 +65,7 @@ that instance instead of failing (useful to attach a UI to a running service).
 | `LLM:Provider` | `Ollama_Granite3b`, `DeepSeek`, `DeepSeekBridge`, `Zai`, `Gemini`, `ExllamaV2_Llama3b`, ... | **Default** LLM provider for the `AgentOrchestrator`. The provider in use can be switched per-request / per-session — see [LLM switching](API.md#llm-switching-the-pilot-endpoint). |
 | `LLM:Anonymize` | `true` / `false` | NameOrKey anonymization (see AIOrchestrator docs). |
 | `SkipIndexingOnStartup` | `true` / `false` | Skip the DocumentsPath index build/refresh + file watcher at startup (debug/dev). |
+| `AutoUpdate:Enabled` | `true` / `false` | Automatic update check at startup (default `true`). Overridden by the CLI `--no-update` flag and the TUI **File → Auto-Update** menu — see [autoupdate.md](autoupdate.md). |
 | `Voice:ExePath` | path | Path to `AIOffice.VoiceAgent.Win.exe` for `POST /v1/voice/listen`. Empty (default) = look next to the server executable. |
 | `Urls` | e.g. `http://localhost:5290` | Kestrel listening address. |
 
@@ -74,12 +75,41 @@ Every key is overridable from the command line (`--LLM:Provider Zai`, `--SkipInd
 > folders). When the feature under test does **not** need document searches, start with
 > `--SkipIndexingOnStartup true`.
 
+## Where files live (storage tiers)
+
+Persisted files are split into **three tiers**; every update mechanism (release archives,
+future auto-updater) may only replace the distribution tier. The full rule table is in
+[RELEASING.md](RELEASING.md#what-an-update-must-never-touch--the-file-storage-tiers);
+summary:
+
+- **User-editable configuration** — `<app folder>\PersistentData\` (currently
+  `rag_settings.json`, the persisted DocumentsPath). Never overwritten by updates;
+  legacy `rag_settings.json` next to the executable is migrated there on first run.
+- **Application data & secrets** — the OS app-data folder in a subfolder named after the
+  running executable: `%LocalAppData%\agent\setup.json` on Windows (`~/.local/share/agent`
+  on Linux, `~/Library/Application Support/agent` on macOS). API keys and SMTP/IMAP
+  credentials, DPAPI-encrypted on Windows. Outside the app folder, so updates never touch
+  it.
+- **Distribution content** — everything else next to the executable (what the archive
+  ships): `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `.playwright/`,
+  `agent.staticwebassets.endpoints.json`, the default `appsettings.json`. Replaced on
+  every update, **except `appsettings.json` and `providers.json`** (user-editable server
+  config and LLM providers — preserved by whitelist). All other `.json` files in the
+  archive are distribution content and must be overwritten. The automatic updater
+  implements these rules — see [autoupdate.md](autoupdate.md).
+
+Ephemeral runtime files (TTS WAVs, the Giraffe web GUI download) go to the OS temp folder
+(`%TEMP%`) and are never part of an update.
+
 ## Build / assets
 
-The project references `KokoroSharp` (ships `voices/` + `espeak/` to the output) and needs
+The project references `KokoroSharp` (ships `voices/` + `voices-zh/` to the output; the
+phonemizer is the pure-managed MisakiSharp since 0.8.4 — no espeak-ng binaries) and needs
 `kokoro.onnx` (~325 MB, not tracked in git). The build target `DownloadKokoroModel` provides
 it automatically: copy from the sibling `AIOffice.VoiceAgent.Win` build output if present,
-else `curl` from GitHub. TTS returns 501 until the model is present.
+else `curl` from GitHub. TTS returns 501 until the model is present. The native ONNX Runtime
+engine (per-RID) comes from the explicit `Microsoft.ML.OnnxRuntime` reference — KokoroSharp
+only pulls the managed wrapper.
 
 On Windows, if the sibling `AIOffice.VoiceAgent.Win` build output exists, the target
 `CopyVoiceAgentOutput` copies the whole VoiceAgent (exe + voices + espeak + model + runtime
@@ -116,7 +146,7 @@ answering API calls** — run it on a server with `--headless` (optionally under
 systemd) so only the HTTP API is exposed.
 
 > **Assets stay next to the executable.** Single-file bundles the managed code; the
-> Kokoro TTS voices (`voices/`, `espeak/`, `kokoro.onnx` ~325 MB) and, on Windows, the
+> Kokoro TTS voices (`voices/`, `kokoro.onnx` ~325 MB) and, on Windows, the
 > `AIOffice.VoiceAgent.Win.exe` voice bridge are **published alongside** (never embedded —
 > that would bloat the exe by hundreds of MB). Keep the whole publish folder together and
 > run `agent` from it. On Windows the publish copies the sibling VoiceAgent output

@@ -62,15 +62,17 @@ master push.
 
 ## TTS assets in publish output
 
-`CopyTtsAssetsToPublish` (csproj) copies `kokoro.onnx` + `voices/` + `espeak/` from
+`CopyTtsAssetsToPublish` (csproj) copies `kokoro.onnx` + `voices/` + `voices-zh/` from
 `$(OutputPath)` into the publish directory: `dotnet publish -o <dir>` does not carry them
-over on its own, and the release archives ship them so TTS works out of the box.
+over on its own, and the release archives ship them so TTS works out of the box. The native
+ONNX Runtime engine is included per-RID by the `Microsoft.ML.OnnxRuntime` package reference
+(KokoroSharp only pulls the managed wrapper, which has no native library).
 
-## Known platform constraint
+## Platform support
 
-No linux-arm64 release: KokoroSharp 0.6.7 ships no `espeak-ng-linux-arm64` binary, so TTS
-would be broken on ARM64 Linux. If that changes (new KokoroSharp or a bundled ARM64
-espeak-ng), re-add the `linux-arm64` matrix cell in release.yml.
+Released RIDs: win-x64, linux-x64, **linux-arm64**, osx-x64, osx-arm64. linux-arm64 became
+possible with KokoroSharp 0.8.4 (phonemizer is the pure-managed MisakiSharp — no espeak-ng
+binary needed) plus the linux-arm64 `libonnxruntime.so` from `Microsoft.ML.OnnxRuntime`.
 
 ## Adding a new dependency project (quick checklist)
 
