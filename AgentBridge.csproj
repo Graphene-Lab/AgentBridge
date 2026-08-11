@@ -5,6 +5,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <!-- Resource manifest base name for Resources/Dictionary (neutral + it/fr/es/de/ru
+         satellites). Explicit so Dictionary.Designer.cs never depends on the default. -->
+    <RootNamespace>AgentBridge</RootNamespace>
     <!-- The executable is named `agent` (agent.exe on Windows, agent on Linux/macOS),
          like `qwen` in Qwen Code. -->
     <AssemblyName>agent</AssemblyName>
@@ -12,7 +15,7 @@
          "-prerelease" and the GitHub release workflow skips. Set IsPrerelease=false only when
          the test cycles proved the version works → real release. Date-based auto version,
          same scheme as UISupportBlazor/UISupportGeneric (1.yy.MM.dd, e.g. 1.26.08.09). -->
-    <IsPrerelease>true</IsPrerelease>
+    <IsPrerelease>false</IsPrerelease>
     <!-- Naiad (transitive dep of Graphene.AIOrchestrator) SponsorCheck: the property is
          required when building Release; set in every project consuming the package. -->
     <Papyrine_SponsorshipLicenseIgnored>true</Papyrine_SponsorshipLicenseIgnored>
@@ -29,10 +32,21 @@
     <ProjectReference Include="..\AIOrchestrator\AIOrchestrator.csproj" Condition="Exists('..\AIOrchestrator\AIOrchestrator.csproj')" />
     <PackageReference Include="Graphene.AIOrchestrator" Version="1.*" />
     <!-- Kokoro neural TTS (same engine/voices as AIOffice.VoiceAgent.Win). The package ships
-         voices/ + espeak/ as content (copied to the output directory); only kokoro.onnx
-         (~325 MB, not tracked in git) is handled by the DownloadKokoroModel target below.
-         TTS endpoints return 501 until the model file is present. -->
-    <PackageReference Include="KokoroSharp" Version="0.6.7" />
+         voices/ + voices-zh/ as content (copied to the output directory); since 0.8.4 the
+         phonemizer is MisakiSharp (pure managed — no espeak-ng binaries are shipped or needed).
+         Only kokoro.onnx (~325 MB, not tracked in git) is handled by the DownloadKokoroModel
+         target below. TTS endpoints return 501 until the model file is present. -->
+    <PackageReference Include="KokoroSharp" Version="0.8.4" />
+    <!-- Native ONNX Runtime engine (per-OS/arch, selected by the build RID): KokoroSharp only
+         references the managed wrapper (Microsoft.ML.OnnxRuntime.Managed), which contains no
+         native library — without this the released archives ship TTS that fails at inference
+         (works on this dev machine only because Windows 11 24H2+ provides onnxruntime.dll in
+         System32). Version must match the .Managed package pulled by KokoroSharp.
+         ExcludeAssets="build": the package's props unconditionally copy the win-x64
+         onnxruntime.dll to the output for AnyCPU projects, which would drop 13 MB of Windows
+         binaries into every Linux/macOS archive; the correct per-RID native lib is still
+         bundled into the single file via IncludeNativeLibrariesForSelfExtract. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.0" ExcludeAssets="build" />
   </ItemGroup>
 
   <!-- e2e/ hosts standalone tooling (TuiSmoke, run_e2e.ps1) — never part of this
@@ -44,6 +58,23 @@
     <Content Remove="e2e\**" />
     <None Remove="e2e\**" />
     <EmbeddedResource Remove="e2e\**" />
+  </ItemGroup>
+
+  <!-- Localized UI strings (EN neutral + it/fr/es/de/ru satellites) — see Resources/Dictionary.*.resx.
+       The satellite files are picked up automatically by the SDK; the neutral file drives the
+       generated Designer used from Tui.cs / Program.cs. -->
+  <ItemGroup>
+    <Compile Update="Resources\Dictionary.Designer.cs">
+      <DependentUpon>Dictionary.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\Dictionary.resx">
+      <LastGenOutput>Dictionary.Designer.cs</LastGenOutput>
+      <Generator>PublicResXFileCodeGenerator</Generator>
+    </EmbeddedResource>
   </ItemGroup>
 
   <!-- Provide kokoro.onnx in the output directory (the 325 MB model binary is not tracked in
@@ -58,31 +89,35 @@
     <Message Text="kokoro.onnx ready at $(OutputPath)" Importance="high" />
   </Target>
 
-  <!-- The KokoroSharp content (voices/ + espeak/) and kokoro.onnx land in $(OutputPath), but
+  <!-- The KokoroSharp content (voices/ + voices-zh/) and kokoro.onnx land in $(OutputPath), but
        `dotnet publish -o <dir>` does not carry them over: the publish dir must contain them or
-       the TTS endpoints stay broken. Copy them explicitly (CI release archives rely on this). -->
+       the TTS endpoints stay broken. Copy them explicitly (CI release archives rely on this).
+       Since KokoroSharp 0.8.4 there is no espeak/ content anymore (MisakiSharp phonemizer). -->
   <Target Name="CopyTtsAssetsToPublish" AfterTargets="Publish">
     <ItemGroup>
       <_TtsVoiceFiles Include="$(OutputPath)voices\**\*" />
-      <_TtsEspeakFiles Include="$(OutputPath)espeak\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(_TtsVoiceFiles)" DestinationFiles="@(_TtsVoiceFiles->'$(PublishDir)voices\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(_TtsEspeakFiles)" DestinationFiles="@(_TtsEspeakFiles->'$(PublishDir)espeak\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="$(OutputPath)kokoro.onnx" DestinationFolder="$(PublishDir)" Condition="Exists('$(OutputPath)kokoro.onnx')" />
+    <!-- The Microsoft.ML.OnnxRuntime package also carries C++ import libraries
+         (runtimes/win-x64/native/*.lib) — build-time only, junk in the archive. -->
+    <Delete Files="$(PublishDir)onnxruntime.lib;$(PublishDir)onnxruntime_providers_shared.lib" Condition="Exists('$(PublishDir)onnxruntime.lib')" />
   </Target>
 
   <!-- Optional Windows voice bridge: when the sibling AIOffice.VoiceAgent.Win build output
-       exists, copy its whole output (exe + voices/ + espeak/ + kokoro.onnx + runtime deps) next
-       to this server so POST /v1/voice/listen can spawn it. Without it the voice endpoint
-       reports itself unavailable (501) — the TTS endpoints keep working from the in-process
-       KokoroSharp assets above. Runs on Publish too so the single-file production exe has
-       the voice bridge alongside (single-file bundles the managed code, not these assets). -->
+       exists, copy its whole output (exe + voices/ + espeak/ + kokoro.onnx + runtime deps)
+       into a voiceagent/ subfolder so POST /v1/voice/listen can spawn it. The subfolder is
+       deliberate: VoiceAgent.Win pins its own KokoroSharp (0.6.7), and copying it flat next
+       to the server would shadow this project's 0.8.4 KokoroSharp.dll — TtsEngine then dies
+       with "Could not load type KokoroSharp.KokoroWavSynthesizer" and EVERY /v1/control call
+       fails, leaving the TUI without a session. Runs on Publish too so the single-file
+       production exe has the voice bridge alongside. -->
   <Target Name="CopyVoiceAgentOutput" AfterTargets="Build;Publish" Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\AIOffice.VoiceAgent.Win.exe')">
     <ItemGroup>
       <_VoiceAgentFiles Include="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\**\*" Exclude="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\logs\**\*" />
     </ItemGroup>
-    <Copy SourceFiles="@(_VoiceAgentFiles)" DestinationFiles="@(_VoiceAgentFiles->'$(OutputPath)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-    <Message Text="VoiceAgent.Win output copied to $(OutputPath)" Importance="high" />
+    <Copy SourceFiles="@(_VoiceAgentFiles)" DestinationFiles="@(_VoiceAgentFiles->'$(OutputPath)voiceagent\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Message Text="VoiceAgent.Win output copied to $(OutputPath)voiceagent\" Importance="high" />
   </Target>
 
 </Project>
