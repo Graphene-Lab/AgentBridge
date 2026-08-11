@@ -1,10 +1,26 @@
-﻿# release.ps1 — one command to publish an AgentBridge release:
-#   1) sync-all.ps1 pushes every repo in the dependency tree (their publish.yml then
-#      publishes the date-versioned NuGet packages);
-#   2) waits until today's version of every dependency package is visible on nuget.org;
-#   3) creates + pushes the tag v1.yy.MM.dd (release gate), which triggers release.yml.
+﻿# release.ps1 — one command to publish an AgentBridge release (GitHub Release + NuGet deps).
 #
-# Usage: powershell -File release.ps1 [-Message "release 1.26.08.09"]
+# What it does:
+#   1) sync-all.ps1 commits + pushes every repo in the dependency tree; each dependency
+#      repo's publish.yml then publishes the date-versioned NuGet package (1.yy.MM.dd);
+#   2) waits (up to ~30 min) until today's version of every dependency package is visible
+#      on nuget.org (propagation is not instant; missing ones are warned, not fatal);
+#   3) creates + pushes the tag v1.yy.MM.dd (the release gate), which triggers release.yml:
+#      it builds the 5 platform archives and attaches them to the GitHub release.
+#
+# When to use it:
+#   - ONLY when the version is release-ready: AgentBridge.csproj must have
+#     <IsPrerelease>false</IsPrerelease>. With IsPrerelease=true the version gets a
+#     "-prerelease" suffix and release.yml SKIPS the GitHub release (the script prints
+#     a warning; the tag is still pushed but nothing is released).
+#   - For plain dependency sync without a release (still iterating), a normal
+#     "git push" of AgentBridge master is enough: the pre-push hook runs sync-all
+#     automatically (see hooks/pre-push and AGENTS.md).
+#
+# Usage:  powershell -File release.ps1 [-Message "release 1.26.08.09"]
+#   -Message: commit message used by sync-all for the dependency repos (default "sync").
+#
+# Full mechanism and pitfalls: docs/RELEASING.md.
 
 param(
     [string]$Message = "sync"
