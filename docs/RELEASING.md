@@ -190,3 +190,8 @@ the new repo is pushed by the pre-push hook without any script edit.
 - **linux-arm64**: released since KokoroSharp 0.8.4 — the phonemizer is the pure-managed
   MisakiSharp (no `espeak-ng-linux-arm64` binary needed) and `Microsoft.ML.OnnxRuntime`
   ships `libonnxruntime.so` for linux-arm64.
+- **SIP STT missing on Linux/macOS**: `CopySttAgentOutput` (the `voiceagent-stt/` folder with
+  the whisper-based `AIOffice.VoiceAgent`) runs only when the sibling repo exists on the build
+  machine — the CI archives never contain it. Deploy it manually next to the binary
+  (see [sip.md](sip.md) → "Deploying the speech-to-text executable"); without it the SIP
+  signalling and PIN gate keep working, only the speech recognition is unavailable.

@@ -56,6 +56,22 @@ that instance instead of failing (useful to attach a UI to a running service).
   },
   "Voice": {
     "ExePath": ""
+  },
+  "Sip": {
+    "Enabled": false,
+    "ListenPort": 5060,
+    "Registrar": "",
+    "Username": "",
+    "Password": "",
+    "AnswerMode": "pin",
+    "Pin": "12345",
+    "MaxPinAttempts": 3,
+    "LockoutHours": 24,
+    "AllowedCallers": [],
+    "Agent": "default-agent",
+    "Lang": "",
+    "SttExePath": "",
+    "RtpPortRange": ""
   }
 }
 ```
@@ -67,9 +83,10 @@ that instance instead of failing (useful to attach a UI to a running service).
 | `SkipIndexingOnStartup` | `true` / `false` | Skip the DocumentsPath index build/refresh + file watcher at startup (debug/dev). |
 | `AutoUpdate:Enabled` | `true` / `false` | Automatic update check at startup (default `true`). Overridden by the CLI `--no-update` flag and the TUI **File → Auto-Update** menu — see [autoupdate.md](autoupdate.md). |
 | `Voice:ExePath` | path | Path to `AIOffice.VoiceAgent.Win.exe` for `POST /v1/voice/listen`. Empty (default) = look next to the server executable. |
+| `Sip:*` | see [sip.md](sip.md) | SIP telephony: auto-answer + PIN gate, outgoing calls, voice conversation over RTP (whisper STT + Kokoro TTS). |
 | `Urls` | e.g. `http://localhost:5290` | Kestrel listening address. |
 
-Every key is overridable from the command line (`--LLM:Provider Zai`, `--SkipIndexingOnStartup true`, `--Voice:ExePath ...`); run `--help` for the list.
+Every key is overridable from the command line (`--LLM:Provider Zai`, `--SkipIndexingOnStartup true`, `--Voice:ExePath ...`, `--Sip:Enabled true`); run `--help` for the list.
 
 > **⚠️ Startup indexing**: the server indexes `DocumentsPath` at startup (minutes on large
 > folders). When the feature under test does **not** need document searches, start with

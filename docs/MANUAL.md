@@ -87,6 +87,22 @@ Two JSON files control the server. Both live next to the executable.
   },
   "Voice": {
     "ExePath": ""
+  },
+  "Sip": {
+    "Enabled": false,
+    "ListenPort": 5060,
+    "Registrar": "",
+    "Username": "",
+    "Password": "",
+    "AnswerMode": "pin",
+    "Pin": "12345",
+    "MaxPinAttempts": 3,
+    "LockoutHours": 24,
+    "AllowedCallers": [],
+    "Agent": "default-agent",
+    "Lang": "",
+    "SttExePath": "",
+    "RtpPortRange": ""
   }
 }
 ```
@@ -98,11 +114,12 @@ Two JSON files control the server. Both live next to the executable.
 | `LLM:Provider` | `Ollama_Granite3b`, `DeepSeek`, `DeepSeekBridge`, `Zai`, `Gemini`, `ExllamaV2_Llama3b`, ... | **Default** LLM provider for the orchestrator; you can still switch it per session/request |
 | `LLM:Anonymize` | `true` / `false` | Name/key anonymization |
 | `Voice:ExePath` | path | Path to `AIOffice.VoiceAgent.Win.exe` for `POST /v1/voice/listen`. Empty = look next to the executable |
+| `Sip:Enabled` | `true` / `false` | **SIP telephony master switch** — see [SIP telephony](#9-sip-telephony) |
 
 Every key is overridable from the command line, e.g.:
 
 ```bash
-agent --LLM:Provider Zai --SkipIndexingOnStartup true
+agent --LLM:Provider Zai --SkipIndexingOnStartup true --Sip:Enabled true
 ```
 
 Run `agent --help` for the full list of overrides.
@@ -189,6 +206,7 @@ see [section 6](#6-connect-a-client-to-localhost)):
 | `/agent [name]` | **Switch the agent set** | `default` / `web` / `search` / `research` / `word` / `spreadsheet` / `email` / `multi` — different tool sets |
 | `/voice [lang]` | **Voice dictation** | dictates from the server microphone into the input (Windows) |
 | `/tts [text]` | **Text-to-speech** | speaks the last agent reply (or the given text) with Kokoro TTS; WAV playback |
+| `/sip status\|call\|answer\|hangup` | **SIP telephony** | phone-gate the agent: status, outgoing call, auto-answer on/off, hangup (see [section 7](#7-sip-telephony)) |
 | `/features [name] [on\|off]` | **Toggle session feature flags** | e.g. `voice`, `tts` — enable/disable per session |
 | `/files add <path>` · `/files rm <id>` · `/files` | **File upload/management** | upload+attach a file, delete one, list uploads |
 | `/attach [id]` | **Attach a file to the chat** | menu when no id |
@@ -254,6 +272,7 @@ existed is re-downloaded automatically; the first download needs internet access
 | `GET /v1/control` | Session state + platform capabilities |
 | `POST /v1/voice/listen` | One-shot speech recognition from the server microphone (Windows) |
 | `GET /v1/audio/voices` | TTS voices available on this platform |
+| `GET /v1/sip/status` · `POST /v1/sip/call` · `POST /v1/sip/hangup` · `POST /v1/sip/answer` | SIP telephony control (see [section 7](#7-sip-telephony)) |
 | `GET /health` | Liveness probe |
 
 The full request/response details are in [docs/API.md](API.md).
@@ -264,7 +283,41 @@ The full request/response details are in [docs/API.md](API.md).
 
 ---
 
-## 7. Where everything lives
+## 7. SIP telephony
+
+The server can act as a **phone endpoint**: a caller dials in, proves their identity with
+a DTMF PIN (or a trusted caller list), and talks to the agents by voice — the speech is
+recognized (whisper), sent through the same `AgentOrchestrator` path as the HTTP API, and
+the replies are spoken back with the in-process Kokoro TTS over the RTP audio.
+
+Full reference (architecture, security, NAT/firewall, deployment): **[docs/sip.md](sip.md)**.
+
+### Quick configuration
+
+```json
+"Sip": {
+  "Enabled": true,
+  "ListenPort": 5060,
+  "Pin": "12345",
+  "MaxPinAttempts": 3,
+  "LockoutHours": 24,
+  "Lang": "it"
+}
+```
+
+- **Incoming calls** are auto-answered; the caller is asked for the 5-digit PIN. After 3
+  wrong attempts the server hangs up and refuses further calls for 24 hours (persisted
+  across restarts).
+- **Outgoing calls**: `/sip call sip:user@host` (or a bare number when a `Registrar` is
+  configured). `/sip status` shows the live call state; `/sip answer off` rejects new calls.
+- **Speech → agent**: needs the `AIOffice.VoiceAgent` executable (whisper) in the
+  `voiceagent-stt/` folder next to the server (on Windows the build copies it when the
+  sibling repo is present; on Linux/macOS copy it manually — the whisper model downloads
+  on first use). `POST /v1/sip/status` reports `stt_available` / `tts_available`.
+
+---
+
+## 8. Where everything lives
 
 | File/folder | Contents |
 |---|---|
@@ -273,6 +326,7 @@ The full request/response details are in [docs/API.md](API.md).
 | `providers.json` | LLM provider definitions |
 | `kokoro.onnx` + `voices/` | Kokoro TTS model and voices |
 | `AIOffice.VoiceAgent.Win.exe` (Windows) | Voice dictation backend |
+| `voiceagent-stt/` | `AIOffice.VoiceAgent` executable (whisper) — SIP call speech-to-text |
 
 ---
 
