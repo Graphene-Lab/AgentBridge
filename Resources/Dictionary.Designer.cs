@@ -533,7 +533,16 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("CmdShortcuts", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'CmdSip'.
+        /// </summary>
+        public static string CmdSip {
+            get {
+                return ResourceManager.GetString("CmdSip", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to 'CmdHealth'.
         /// </summary>
@@ -1379,7 +1388,115 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("NoteOpenBrowserFailed", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteSipUsage'.
+        /// </summary>
+        public static string NoteSipUsage {
+            get {
+                return ResourceManager.GetString("NoteSipUsage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteSipUnavailable'.
+        /// </summary>
+        public static string NoteSipUnavailable {
+            get {
+                return ResourceManager.GetString("NoteSipUnavailable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteSipUnavailableCall'.
+        /// </summary>
+        public static string NoteSipUnavailableCall {
+            get {
+                return ResourceManager.GetString("NoteSipUnavailableCall", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteSipCalling'.
+        /// </summary>
+        public static string NoteSipCalling {
+            get {
+                return ResourceManager.GetString("NoteSipCalling", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteSipCallOk'.
+        /// </summary>
+        public static string NoteSipCallOk {
+            get {
+                return ResourceManager.GetString("NoteSipCallOk", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteSipCallFailed'.
+        /// </summary>
+        public static string NoteSipCallFailed {
+            get {
+                return ResourceManager.GetString("NoteSipCallFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteSipHangup'.
+        /// </summary>
+        public static string NoteSipHangup {
+            get {
+                return ResourceManager.GetString("NoteSipHangup", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteSipAnswerChanged'.
+        /// </summary>
+        public static string NoteSipAnswerChanged {
+            get {
+                return ResourceManager.GetString("NoteSipAnswerChanged", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SipPhaseRinging'.
+        /// </summary>
+        public static string SipPhaseRinging {
+            get {
+                return ResourceManager.GetString("SipPhaseRinging", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SipPhasePin'.
+        /// </summary>
+        public static string SipPhasePin {
+            get {
+                return ResourceManager.GetString("SipPhasePin", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SipPhaseConversation'.
+        /// </summary>
+        public static string SipPhaseConversation {
+            get {
+                return ResourceManager.GetString("SipPhaseConversation", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SipPhaseEnded'.
+        /// </summary>
+        public static string SipPhaseEnded {
+            get {
+                return ResourceManager.GetString("SipPhaseEnded", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to 'NoteWebClientOutdated'.
         /// </summary>
@@ -1694,6 +1811,15 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("PageAgentStatus", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'PageSipStatus'.
+        /// </summary>
+        public static string PageSipStatus {
+            get {
+                return ResourceManager.GetString("PageSipStatus", resourceCulture);
+            }
+        }
         
         /// <summary>
         ///   Looks up a localized string similar to 'PageUploadedFiles'.
@@ -1782,6 +1908,78 @@ namespace AgentBridge.Resources {
         public static string StatusCapabilities {
             get {
                 return ResourceManager.GetString("StatusCapabilities", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'StatusSip'.
+        /// </summary>
+        public static string StatusSip {
+            get {
+                return ResourceManager.GetString("StatusSip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'StatusSipListen'.
+        /// </summary>
+        public static string StatusSipListen {
+            get {
+                return ResourceManager.GetString("StatusSipListen", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'StatusSipAnswer'.
+        /// </summary>
+        public static string StatusSipAnswer {
+            get {
+                return ResourceManager.GetString("StatusSipAnswer", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'StatusSipRegistered'.
+        /// </summary>
+        public static string StatusSipRegistered {
+            get {
+                return ResourceManager.GetString("StatusSipRegistered", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'StatusSipCall'.
+        /// </summary>
+        public static string StatusSipCall {
+            get {
+                return ResourceManager.GetString("StatusSipCall", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'StatusSipPin'.
+        /// </summary>
+        public static string StatusSipPin {
+            get {
+                return ResourceManager.GetString("StatusSipPin", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'StatusSipLocked'.
+        /// </summary>
+        public static string StatusSipLocked {
+            get {
+                return ResourceManager.GetString("StatusSipLocked", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'StatusSipStt'.
+        /// </summary>
+        public static string StatusSipStt {
+            get {
+                return ResourceManager.GetString("StatusSipStt", resourceCulture);
             }
         }
         

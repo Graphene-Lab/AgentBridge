@@ -9,6 +9,12 @@ using AgentBridge.Resources;
 
 AppDomain.CurrentDomain.UnhandledException += AIOrchestrator.Utility.UnhandledException; //it catches application errors in order to prepare a log of the events that cause the crash
 
+// Logging toggle for headless runs: the TUI settings panel switches AIOrchestrator.Log on
+// interactively, but a headless service (or a test harness) needs the same switch on the
+// command line — the log file lands in logs/<pid>.txt next to the executable.
+if (args.Contains("--enable-log"))
+    AIOrchestrator.Log.IsEnabled = true;
+
 
 // ═══════════════════════════════════════════════════════════════════════
 //  AgentBridge — OpenAI-compatible HTTP server for AgentOrchestrator
@@ -76,6 +82,8 @@ if (args.Contains("-h") || args.Contains("--help") || args.Contains("/?"))
                                   document searches are needed (large folders index for minutes)
           --no-update              Disable the automatic update check at startup (default on;
                                   use for services/CI that manage the binary themselves)
+          --enable-log             Enable AIOrchestrator file logging (logs/&lt;pid&gt;.txt) — the TUI
+                                  settings toggle works only interactively; headless runs need this
           --Voice:ExePath <path>  Path to AIOffice.VoiceAgent.Win.exe for POST /v1/voice/listen
                                   (default: <server dir>\voiceagent\AIOffice.VoiceAgent.Win.exe)
           --Urls <address>        Kestrel listening address, e.g. http://localhost:5290
@@ -199,6 +207,11 @@ Setup.Load();
 VoiceBridge.ExePath = builder.Configuration["Voice:ExePath"];
 
 var app = builder.Build();
+
+// SIP telephony (auto-answer + PIN, outgoing calls — see docs/sip.md): initialized from the
+// "Sip" appsettings section; the server itself starts right before the launch mode below so a
+// bind failure (port in use) cannot kill the HTTP API — it is reported and logged only.
+SipBridge.Init(app.Configuration, startupProvider, anonymize);
 
 // Auto-update toggle: CLI --no-update > persisted state (TUI File → Auto-Update)
 // > appsettings default. The persisted file lives in the OS app-data folder, so
@@ -738,6 +751,36 @@ app.MapPost("/v1/control", (ControlRequest request) =>
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 // ─────────────────────────────────────────────────────────────────────
+// SIP telephony endpoints (proprietary, see docs/sip.md) — drive the SipBridge
+// from the TUI / client: status, outgoing calls, hangup, answer gate.
+// ─────────────────────────────────────────────────────────────────────
+app.MapGet("/v1/sip/status", () => Results.Ok(new { sip = SipBridge.Status }));
+
+app.MapPost("/v1/sip/call", async (SipCallRequest request) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Uri))
+        return Results.BadRequest(new { error = "uri is required (e.g. sip:user@host or a number routed via the registrar)" });
+    if (!SipBridge.IsEnabled)
+        return Results.Json(new { error = "sip_disabled", detail = "Set Sip:Enabled true in appsettings.json" }, statusCode: 501);
+    var error = await SipBridge.CallAsync(request.Uri);
+    return error == null
+        ? Results.Ok(new { ok = true, message = $"calling {request.Uri}" })
+        : Results.BadRequest(new { ok = false, error });
+});
+
+app.MapPost("/v1/sip/hangup", () =>
+{
+    SipBridge.Hangup();
+    return Results.Ok(new { ok = true });
+});
+
+app.MapPost("/v1/sip/answer", (SipAnswerRequest request) =>
+{
+    SipBridge.SetAnswerEnabled(request.On ?? true);
+    return Results.Ok(new { ok = true, answer_enabled = request.On ?? true });
+});
+
+// ─────────────────────────────────────────────────────────────────────
 // Auto-update: at startup, check the latest GitHub release and apply it when newer
 // (download → swap → restart). Background and best-effort: any failure leaves the
 // current version running; disable with --no-update or the TUI File → Auto-Update
@@ -751,6 +794,13 @@ if (AutoUpdate.Enabled)
 // The TUI runs the HTTP server in the same process: the API keeps answering
 // while you chat — that is the "CLI + API simultaneously" requirement.
 // ─────────────────────────────────────────────────────────────────────
+if (SipBridge.IsEnabled)
+{
+    var sipError = await SipBridge.StartAsync();
+    if (sipError != null)
+        Console.WriteLine($"SIP server not started: {sipError}");
+}
+
 if (useTui)
 {
     string? hostError = null;
@@ -778,6 +828,7 @@ if (useTui)
     }
     finally
     {
+        SipBridge.Stop();
         try { await app.StopAsync(); } catch { }
     }
     return 0;
@@ -835,27 +886,9 @@ static string ExtractTextContent(object? content)
 // Maps the OpenAI "model" name to the real agent tool types in AIOrchestrator
 // (see AIOrchestrator/ARCHITECTURE.md — "Agent Architecture"): each "model" id exposed
 // by /v1/models corresponds to a concrete set of IAgentTool implementations that
-// AgentOrchestrator.ExecuteAction will instantiate as tools.
-static Type[] ResolveAgentTypes(string? model)
-{
-    return model?.ToLower() switch
-    {
-        "web-agent" => new[] { typeof(AIOrchestrator.API.FileTool), typeof(AIOrchestrator.API.WebTool) },
-        "word-agent" => new[] { typeof(AIOrchestrator.API.WordTool) },
-        "spreadsheet-agent" => new[] { typeof(AIOrchestrator.API.SpreadsheetTool) },
-        "search-agent" or "research-agent" => new[] { typeof(AIOrchestrator.API.FileTool) },
-        "email-agent" => new[] { typeof(AIOrchestrator.API.EMailTool) },
-        "multi-agent" => new[]
-        {
-            typeof(AIOrchestrator.API.FileTool),
-            typeof(AIOrchestrator.API.WebTool),
-            typeof(AIOrchestrator.API.WordTool),
-            typeof(AIOrchestrator.API.SpreadsheetTool),
-            typeof(AIOrchestrator.API.EMailTool)
-        },
-        _ => new[] { typeof(AIOrchestrator.API.FileTool), typeof(AIOrchestrator.API.WebTool) }
-    };
-}
+// AgentOrchestrator.ExecuteAction will instantiate as tools. Shared with the SIP
+// telephony loop (AgentTools) so the two paths resolve the same agent sets.
+static Type[] ResolveAgentTypes(string? model) => AgentTools.Resolve(model);
 
 // Resolves the effective LLM provider for a request: the explicit llm_provider field
 // (extension) or the appsettings default. Returns null + error message for unknown names.
@@ -953,6 +986,12 @@ object BuildCapabilities()
             available = VoiceBridge.IsAvailable,
             engine = "voiceagent-win",
             detail = VoiceBridge.IsAvailable ? "" : VoiceBridge.UnavailableReason
+        },
+        sip = new
+        {
+            available = SipBridge.IsEnabled,
+            listening = SipBridge.IsListening,
+            status = SipBridge.Status
         },
         sessions = SessionStore.Count
     };
@@ -1075,6 +1114,22 @@ public record VoiceListenRequest
     /// <summary>Seconds to wait for speech (1–60, default 15).</summary>
     [JsonPropertyName("timeout_seconds")]
     public int? TimeoutSeconds { get; init; }
+}
+
+/// <summary>Request body for POST /v1/sip/call (proprietary).</summary>
+public record SipCallRequest
+{
+    /// <summary>SIP destination: a full URI ("sip:user@host") or a bare number routed via the configured registrar.</summary>
+    [JsonPropertyName("uri")]
+    public string? Uri { get; init; }
+}
+
+/// <summary>Request body for POST /v1/sip/answer (proprietary).</summary>
+public record SipAnswerRequest
+{
+    /// <summary>When true the SIP server auto-answers incoming calls (PIN/allow-list gate).</summary>
+    [JsonPropertyName("on")]
+    public bool? On { get; init; }
 }
 
 /// <summary>Request body for POST /v1/control — the pilot/steering endpoint.</summary>

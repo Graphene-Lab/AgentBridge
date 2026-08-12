@@ -80,6 +80,9 @@ public static class ConsoleTui
         private bool _ttsAvailable, _voiceAvailable;
         private string _ttsDetail = "", _voiceDetail = "";
         private string _statusNote = "";
+        // SIP telephony state (from GET /v1/sip/status; polled while the server reports it available).
+        private bool _sipAvailable;
+        private string _sipState = "";
 
         private static readonly JsonSerializerOptions JsonOpts = new()
         {
@@ -134,6 +137,7 @@ public static class ConsoleTui
             new("new", "", Dictionary.CmdNew, (t, _) => t.NewSessionAsync(), new[] { "/reset" }),
             new("clear", "", Dictionary.CmdClear, (t, _) => t.ClearHistoryAsync()),
             new("status", "", Dictionary.CmdStatus, (t, _) => t.ShowStatusAsync()),
+            new("sip", "status|call <sip-uri>|answer on|off|hangup", Dictionary.CmdSip, (t, a) => t.SipAsync(a)),
             new("files", "add <path>|rm <id>|list", Dictionary.CmdFiles, (t, a) => t.FilesAsync(a)),
             new("attach", "[id]", Dictionary.CmdAttach, (t, a) => t.AttachAsync(a)),
             new("shortcuts", "", Dictionary.CmdShortcuts, (t, _) => t.ShowShortcutsAsync(), new[] { "/keys" }),
@@ -247,6 +251,7 @@ public static class ConsoleTui
                 });
                 RefreshHistory();
                 _ = Task.Run(RefreshServerStateAsync);
+                StartSipPolling();
                 try
                 {
                     _app.Run(window);
@@ -1005,6 +1010,7 @@ public static class ConsoleTui
                 string.Format(Dictionary.StatusSess, sess), ctx,
                 _ttsAvailable ? "tts:✓" : "tts:✗",
                 _voiceAvailable ? "mic:✓" : "mic:✗",
+                _sipAvailable ? "sip:" + (_sipState.Length > 0 ? _sipState : "✓") : "",
                 feats.Length > 0 ? "f:" + feats : "",
                 _chatRunning != 0 ? Dictionary.StatusGeneratingShort : "",
                 _statusNote,
@@ -1091,6 +1097,71 @@ public static class ConsoleTui
                 _connected = false;
                 UpdateStatusUi();
             }
+        }
+
+        private async Task SipAsync(string args)
+        {
+            var parts = args.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var sub = parts.Length == 0 ? "status" : parts[0].ToLowerInvariant();
+            var arg = parts.Length > 1 ? parts[1].Trim() : "";
+
+            switch (sub)
+            {
+                case "call":
+                {
+                    if (string.IsNullOrEmpty(arg)) { AddNote(Dictionary.NoteSipUsage); return; }
+                    AddNote(string.Format(Dictionary.NoteSipCalling, arg));
+                    var body = JsonSerializer.Serialize(new { uri = arg }, JsonOpts);
+                    using var resp = await _http.PostAsync("/v1/sip/call", new StringContent(body, Encoding.UTF8, "application/json"));
+                    var text = await ReadErrorAsync(resp);
+                    if (resp.StatusCode == System.Net.HttpStatusCode.OK)
+                        AddNote(string.Format(Dictionary.NoteSipCallOk, arg));
+                    else if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+                        AddNote(Dictionary.NoteSipUnavailableCall);
+                    else
+                        AddNote(string.Format(Dictionary.NoteSipCallFailed, arg, text));
+                    break;
+                }
+                case "hangup":
+                {
+                    using var resp = await _http.PostAsync("/v1/sip/hangup", new StringContent("{}", Encoding.UTF8, "application/json"));
+                    if (resp.IsSuccessStatusCode) AddNote(Dictionary.NoteSipHangup);
+                    else AddNote(string.Format(Dictionary.NoteSipCallFailed, "hangup", await ReadErrorAsync(resp)));
+                    break;
+                }
+                case "answer":
+                {
+                    var on = !arg.Equals("off", StringComparison.OrdinalIgnoreCase);
+                    var body = JsonSerializer.Serialize(new { on }, JsonOpts);
+                    using var resp = await _http.PostAsync("/v1/sip/answer", new StringContent(body, Encoding.UTF8, "application/json"));
+                    if (resp.IsSuccessStatusCode)
+                        AddNote(string.Format(Dictionary.NoteSipAnswerChanged, on ? Dictionary.On : Dictionary.Off));
+                    else
+                        AddNote(string.Format(Dictionary.NoteSipCallFailed, "answer", await ReadErrorAsync(resp)));
+                    break;
+                }
+                default:   // status
+                {
+                    using var resp = await _http.GetAsync("/v1/sip/status").WaitAsync(TimeSpan.FromSeconds(5));
+                    if (!resp.IsSuccessStatusCode) { AddNote(string.Format(Dictionary.NoteSipUnavailable, (int)resp.StatusCode)); return; }
+                    using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                    var sip = doc.RootElement.GetProperty("sip");
+                    var lines = new List<string>
+                    {
+                        $"{Dictionary.StatusSip.PadRight(18)}{(GetBool(sip, "enabled") ? Dictionary.On : Dictionary.Off)}",
+                        $"{Dictionary.StatusSipListen.PadRight(18)}{(GetBool(sip, "listening") ? Dictionary.Available : Dictionary.Unavailable)}",
+                        $"{Dictionary.StatusSipAnswer.PadRight(18)}{(GetBool(sip, "answer_enabled") ? Dictionary.On : Dictionary.Off)} · mode: {GetStr(sip, "answer_mode") ?? ""}",
+                        $"{Dictionary.StatusSipRegistered.PadRight(18)}{(GetBool(sip, "registered") ? Dictionary.On : Dictionary.Off)}",
+                        $"{Dictionary.StatusSipCall.PadRight(18)}{PhaseLabel(GetStr(sip, "phase") ?? "idle")}{(GetStr(sip, "remote") is { } r && r.Length > 0 ? "  " + r : "")}",
+                        $"{Dictionary.StatusSipPin.PadRight(18)}{GetInt(sip, "pin_remaining")}",
+                        $"{Dictionary.StatusSipLocked.PadRight(18)}{GetStr(sip, "locked_until") ?? Dictionary.None}",
+                        $"{Dictionary.StatusSipStt.PadRight(18)}{(GetBool(sip, "stt_available") ? Dictionary.Available : Dictionary.Unavailable)} · tts {(GetBool(sip, "tts_available") ? Dictionary.Available : Dictionary.Unavailable)}",
+                    };
+                    await ShowPageUiAsync(Dictionary.PageSipStatus, lines);
+                    break;
+                }
+            }
+            await RefreshSipStatusAsync();
         }
 
         private async Task SwitchModelAsync(string args)
@@ -2391,11 +2462,51 @@ public static class ConsoleTui
                         _voiceAvailable = GetBool(voice, "available");
                         _voiceDetail = GetStr(voice, "detail") ?? "";
                     }
+                    if (caps.TryGetProperty("sip", out var sip))
+                    {
+                        _sipAvailable = GetBool(sip, "available");
+                        if (sip.TryGetProperty("status", out var s))
+                            _sipState = PhaseLabel(GetStr(s, "phase") ?? "");
+                    }
                 }
                 UpdateStatusUi();
             }
             catch { }
         }
+
+        // While the SIP server is available its state changes on its own (incoming calls),
+        // so the status bar polls /v1/sip/status every few seconds.
+        private void StartSipPolling()
+        {
+            _app.AddTimeout(TimeSpan.FromSeconds(3), () =>
+            {
+                if (_sipAvailable) _ = RefreshSipStatusAsync();
+                return true;   // recurring
+            });
+        }
+
+        private async Task RefreshSipStatusAsync()
+        {
+            try
+            {
+                using var resp = await _http.GetAsync("/v1/sip/status").WaitAsync(TimeSpan.FromSeconds(5));
+                if (!resp.IsSuccessStatusCode) return;
+                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                if (!doc.RootElement.TryGetProperty("sip", out var sip)) return;
+                _sipState = PhaseLabel(GetStr(sip, "phase") ?? "");
+                UpdateStatusUi();
+            }
+            catch { }
+        }
+
+        private static string PhaseLabel(string phase) => phase switch
+        {
+            "ringing" => Dictionary.SipPhaseRinging,
+            "pin" => Dictionary.SipPhasePin,
+            "conversation" => Dictionary.SipPhaseConversation,
+            "ended" => Dictionary.SipPhaseEnded,
+            _ => "",
+        };
 
         private static string? GetStr(JsonElement e, string name) =>
             e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;

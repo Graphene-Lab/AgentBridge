@@ -67,6 +67,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="CmdFiles" xml:space="preserve"><value>Carica+allega un file, elimina uno, o elenca i caricamenti</value></data>
   <data name="CmdAttach" xml:space="preserve"><value>Attiva/disattiva un allegato per la chat (menu se non viene dato un id)</value></data>
   <data name="CmdShortcuts" xml:space="preserve"><value>Mostra l'overlay delle scorciatoie da tastiera</value></data>
+  <data name="CmdSip" xml:space="preserve"><value>Telefonia SIP: status, call &lt;sip-uri&gt;, answer on|off, hangup</value></data>
   <data name="CmdHealth" xml:space="preserve"><value>Esegue un ping al server e riporta la latenza</value></data>
   <data name="CmdRetry" xml:space="preserve"><value>Reinvia l'ultimo prompt (anche Ctrl+Y)</value></data>
   <data name="CmdExit" xml:space="preserve"><value>Esci dall'interfaccia a terminale (Ctrl+Q, Ctrl+C due volte, Ctrl+D)</value></data>
@@ -161,6 +162,18 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="NoteLastReplyOk" xml:space="preserve"><value>l'ultima risposta è riuscita — reinvio comunque</value></data>
   <data name="NoteOpenedUrl" xml:space="preserve"><value>aperto {0} nel browser</value></data>
   <data name="NoteOpenBrowserFailed" xml:space="preserve"><value>impossibile aprire il browser: {0}</value></data>
+  <data name="NoteSipUsage" xml:space="preserve"><value>uso: /sip status | call &lt;sip-uri&gt; | answer on|off | hangup</value></data>
+  <data name="NoteSipUnavailable" xml:space="preserve"><value>SIP non disponibile (HTTP {0})</value></data>
+  <data name="NoteSipUnavailableCall" xml:space="preserve"><value>SIP non abilitato — imposta Sip:Enabled true in appsettings.json</value></data>
+  <data name="NoteSipCalling" xml:space="preserve"><value>chiamata a {0} in corso…</value></data>
+  <data name="NoteSipCallOk" xml:space="preserve"><value>chiamata a {0} risposta</value></data>
+  <data name="NoteSipCallFailed" xml:space="preserve"><value>chiamata a {0} non riuscita: {1}</value></data>
+  <data name="NoteSipHangup" xml:space="preserve"><value>chiamata terminata</value></data>
+  <data name="NoteSipAnswerChanged" xml:space="preserve"><value>auto-risposta {0}</value></data>
+  <data name="SipPhaseRinging" xml:space="preserve"><value>squilla</value></data>
+  <data name="SipPhasePin" xml:space="preserve"><value>pin</value></data>
+  <data name="SipPhaseConversation" xml:space="preserve"><value>chiamata</value></data>
+  <data name="SipPhaseEnded" xml:space="preserve"><value>fine</value></data>
   <data name="NoteWebClientOutdated" xml:space="preserve"><value>client web mancante o obsoleto in {0} — download di {1}…</value></data>
   <data name="NoteLaunchingWebClient" xml:space="preserve"><value>avvio del client web da {0}…</value></data>
   <data name="NoteWebClientFailed" xml:space="preserve"><value>client web non riuscito: {0}</value></data>
@@ -196,6 +209,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="DlgToggleAttach" xml:space="preserve"><value>Attiva/disattiva allegato</value></data>
   <data name="DlgPageHint" xml:space="preserve"><value>— scorri con ↑↓ / PgUp-PgDn · chiudi con Esc o Invio —</value></data>
   <data name="PageAgentStatus" xml:space="preserve"><value>stato agente</value></data>
+  <data name="PageSipStatus" xml:space="preserve"><value>stato SIP</value></data>
   <data name="PageUploadedFiles" xml:space="preserve"><value>file caricati</value></data>
   <data name="AboutTitle" xml:space="preserve"><value>AGENT</value></data>
   <data name="AboutText" xml:space="preserve"><value>AGENT v2 - TUI moderna
@@ -207,6 +221,14 @@ Powered by Terminal.Gui</value></data>
   <data name="StatusFeatures" xml:space="preserve"><value>Funzionalità</value></data>
   <data name="StatusAttachments" xml:space="preserve"><value>Allegati</value></data>
   <data name="StatusCapabilities" xml:space="preserve"><value>Capacità</value></data>
+  <data name="StatusSip" xml:space="preserve"><value>SIP abilitato</value></data>
+  <data name="StatusSipListen" xml:space="preserve"><value>In ascolto</value></data>
+  <data name="StatusSipAnswer" xml:space="preserve"><value>Auto-risposta</value></data>
+  <data name="StatusSipRegistered" xml:space="preserve"><value>Registrato</value></data>
+  <data name="StatusSipCall" xml:space="preserve"><value>Chiamata</value></data>
+  <data name="StatusSipPin" xml:space="preserve"><value>Tentativi PIN rimasti</value></data>
+  <data name="StatusSipLocked" xml:space="preserve"><value>Bloccato fino al</value></data>
+  <data name="StatusSipStt" xml:space="preserve"><value>STT · TTS</value></data>
   <data name="StatusPromptHistory" xml:space="preserve"><value>cronologia prompt: {0} voci</value></data>
   <data name="SetupTitle" xml:space="preserve"><value>Configurazione modelli e provider</value></data>
   <data name="SetupLlmTab" xml:space="preserve"><value>LLM e provider</value></data>

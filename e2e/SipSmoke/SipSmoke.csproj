@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>SipSmoke</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SIPSorcery" Version="10.0.15" />
+    <!-- Pin the JSON stack at the framework version: SIPSorcery's transitive System.Text.Json
+         reference can otherwise race with the shared framework copy at runtime (flaky
+         FileNotFoundException on System.Text.Encodings.Web during JsonSerializer.Serialize). -->
+    <PackageReference Include="System.Text.Json" Version="10.0.0" />
+    <PackageReference Include="System.Text.Encodings.Web" Version="10.0.0" />
+  </ItemGroup>
+
+</Project>

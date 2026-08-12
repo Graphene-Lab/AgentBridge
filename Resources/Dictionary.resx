@@ -115,6 +115,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="CmdFiles" xml:space="preserve"><value>Upload+attach a file, delete one, or list uploads</value></data>
   <data name="CmdAttach" xml:space="preserve"><value>Toggle a file attachment for the chat (menu when no id)</value></data>
   <data name="CmdShortcuts" xml:space="preserve"><value>Show the keyboard shortcuts overlay</value></data>
+  <data name="CmdSip" xml:space="preserve"><value>SIP telephony: status, call &lt;sip-uri&gt;, answer on|off, hangup</value></data>
   <data name="CmdHealth" xml:space="preserve"><value>Ping the server and report latency</value></data>
   <data name="CmdRetry" xml:space="preserve"><value>Resend the last prompt (also Ctrl+Y)</value></data>
   <data name="CmdExit" xml:space="preserve"><value>Exit the terminal UI (Ctrl+Q, Ctrl+C twice, Ctrl+D)</value></data>
@@ -209,6 +210,18 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="NoteLastReplyOk" xml:space="preserve"><value>the last reply succeeded — still resending</value></data>
   <data name="NoteOpenedUrl" xml:space="preserve"><value>opened {0} in your browser</value></data>
   <data name="NoteOpenBrowserFailed" xml:space="preserve"><value>could not open the browser: {0}</value></data>
+  <data name="NoteSipUsage" xml:space="preserve"><value>usage: /sip status | call &lt;sip-uri&gt; | answer on|off | hangup</value></data>
+  <data name="NoteSipUnavailable" xml:space="preserve"><value>SIP unavailable (HTTP {0})</value></data>
+  <data name="NoteSipUnavailableCall" xml:space="preserve"><value>SIP not enabled — set Sip:Enabled true in appsettings.json</value></data>
+  <data name="NoteSipCalling" xml:space="preserve"><value>calling {0}…</value></data>
+  <data name="NoteSipCallOk" xml:space="preserve"><value>call to {0} answered</value></data>
+  <data name="NoteSipCallFailed" xml:space="preserve"><value>call to {0} failed: {1}</value></data>
+  <data name="NoteSipHangup" xml:space="preserve"><value>call hung up</value></data>
+  <data name="NoteSipAnswerChanged" xml:space="preserve"><value>auto-answer {0}</value></data>
+  <data name="SipPhaseRinging" xml:space="preserve"><value>ring</value></data>
+  <data name="SipPhasePin" xml:space="preserve"><value>pin</value></data>
+  <data name="SipPhaseConversation" xml:space="preserve"><value>call</value></data>
+  <data name="SipPhaseEnded" xml:space="preserve"><value>end</value></data>
   <data name="NoteWebClientOutdated" xml:space="preserve"><value>web client missing or outdated at {0} — downloading {1}…</value></data>
   <data name="NoteLaunchingWebClient" xml:space="preserve"><value>launching web client from {0}…</value></data>
   <data name="NoteWebClientFailed" xml:space="preserve"><value>web client failed: {0}</value></data>
@@ -244,6 +257,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="DlgToggleAttach" xml:space="preserve"><value>Toggle file attachment</value></data>
   <data name="DlgPageHint" xml:space="preserve"><value>— scroll with ↑↓ / PgUp-PgDn · close with Esc or Enter —</value></data>
   <data name="PageAgentStatus" xml:space="preserve"><value>agent status</value></data>
+  <data name="PageSipStatus" xml:space="preserve"><value>SIP status</value></data>
   <data name="PageUploadedFiles" xml:space="preserve"><value>uploaded files</value></data>
   <data name="AboutTitle" xml:space="preserve"><value>AGENT</value></data>
   <data name="AboutText" xml:space="preserve"><value>AGENT v2 - Modern TUI
@@ -255,6 +269,14 @@ Powered by Terminal.Gui</value></data>
   <data name="StatusFeatures" xml:space="preserve"><value>Features</value></data>
   <data name="StatusAttachments" xml:space="preserve"><value>Attachments</value></data>
   <data name="StatusCapabilities" xml:space="preserve"><value>Capabilities</value></data>
+  <data name="StatusSip" xml:space="preserve"><value>SIP enabled</value></data>
+  <data name="StatusSipListen" xml:space="preserve"><value>Listening</value></data>
+  <data name="StatusSipAnswer" xml:space="preserve"><value>Auto-answer</value></data>
+  <data name="StatusSipRegistered" xml:space="preserve"><value>Registered</value></data>
+  <data name="StatusSipCall" xml:space="preserve"><value>Call</value></data>
+  <data name="StatusSipPin" xml:space="preserve"><value>PIN attempts left</value></data>
+  <data name="StatusSipLocked" xml:space="preserve"><value>Locked until</value></data>
+  <data name="StatusSipStt" xml:space="preserve"><value>STT · TTS</value></data>
   <data name="StatusPromptHistory" xml:space="preserve"><value>prompt history: {0} entries</value></data>
   <data name="SetupTitle" xml:space="preserve"><value>Models &amp; Providers setup</value></data>
   <data name="SetupLlmTab" xml:space="preserve"><value>LLM &amp; Providers</value></data>

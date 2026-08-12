@@ -47,6 +47,11 @@
          binaries into every Linux/macOS archive; the correct per-RID native lib is still
          bundled into the single file via IncludeNativeLibrariesForSelfExtract. -->
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.0" ExcludeAssets="build" />
+    <!-- SIP telephony (incoming auto-answer + PIN, outgoing calls, RTP audio loop to the
+         agent): SIPSorcery implements the UAS/UAC, REGISTER and RFC 4733 DTMF on its own
+         (no media stack needed — the RTP audio is decoded/encoded with its bundled G.711
+         codecs and routed to/from the existing in-process TTS/STT). -->
+    <PackageReference Include="SIPSorcery" Version="10.0.15" />
   </ItemGroup>
 
   <!-- e2e/ hosts standalone tooling (TuiSmoke, run_e2e.ps1) — never part of this
@@ -118,6 +123,21 @@
     </ItemGroup>
     <Copy SourceFiles="@(_VoiceAgentFiles)" DestinationFiles="@(_VoiceAgentFiles->'$(OutputPath)voiceagent\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Message Text="VoiceAgent.Win output copied to $(OutputPath)voiceagent\" Importance="high" />
+  </Target>
+
+  <!-- Speech-to-text agent for the SIP telephony loop: the cross-platform AIOffice.VoiceAgent
+       executable (whisper.net) is spawned with the transcribe command to turn the RTP audio of a
+       call into text. Copied into its own voiceagent-stt/ subfolder (like VoiceAgent.Win) so its
+       dependencies cannot shadow the server's KokoroSharp. kokoro.onnx/voices are excluded: the
+       transcribe path never uses TTS, and they would add ~350 MB to the archive. On Linux/macOS
+       the deploy script must place the executable in voiceagent-stt/ alongside the server. -->
+  <Target Name="CopySttAgentOutput" AfterTargets="Build;Publish" Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\AIOffice.VoiceAgent.exe')">
+    <ItemGroup>
+      <_SttFiles Include="..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\**\*"
+                 Exclude="..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\logs\**\*;..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\kokoro.onnx;..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\voices\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SttFiles)" DestinationFiles="@(_SttFiles->'$(OutputPath)voiceagent-stt\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Message Text="VoiceAgent (STT) output copied to $(OutputPath)voiceagent-stt\" Importance="high" />
   </Target>
 
 </Project>
