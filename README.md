@@ -78,6 +78,11 @@ Think of the documents area as your company's brain. It is a simple folder on di
   [manual](docs/MANUAL.md#connecting-a-client-to-localhost)).
 - **Switch the LLM on the fly** — DeepSeek, Z.ai, Gemini, Ollama, ExLlamaV2 and more, with
   a context-window guard that refuses an overflow and explains why.
+- **Per-provider agent interaction mode** — each provider can drive the agent tools via the
+  JSON tool-calling API (`API`) or the application CLI (`CLI`), or leave it `Default` (CLI
+  for small models, API for large ones). Set it in the provider dialog under **Models &
+  Providers**; the active mode is shown on the status page and reported by `GET /v1/models`
+  as `interaction_mode`.
 - **Configure models & providers from the UI** — `/modelsetup` (menu **File → Models &
   Providers**) adds, edits or removes providers, picks the active model, sets the API keys,
   SMTP/IMAP and documents path — no JSON editing required.

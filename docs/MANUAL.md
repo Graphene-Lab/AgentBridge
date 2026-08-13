@@ -156,6 +156,7 @@ at a local server); it is reloaded when the configuration changes.
 | `Timeout` | Request timeout in .NET `TimeSpan` format, e.g. `"00:05:00"` = 5 minutes |
 | `PauseBetweenRequests` | Pause between requests (rate limiting), same format |
 | `ContextWindow` | Token window of the model — used by the context-window guard when switching |
+| `AgentInteractionMode` | Optional `API` / `CLI` / `Default`. How the agent tools are exposed: `API` = one JSON tool per method; `CLI` = the agent drives the application terminal with `ClassName subcommand args`; `Default` (omitted) = CLI for small models (context window < 128 000 tokens), API for large ones |
 
 > **Example — add an Anthropic provider:** copy the commented block at the top of
 > `providers.json`, set `Protocol` to `Anthropic`, `CacheType` to `AnthropicCache`, and

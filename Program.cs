@@ -246,6 +246,7 @@ var agentModelIds = new[]
 // context window — the client resets the conversation via POST /v1/control first.
 // ─────────────────────────────────────────────────────────────────────
 app.MapPost("/v1/chat/completions", async (
+    HttpContext http,
     [FromBody] ChatCompletionRequest request,
     CancellationToken ct) =>
 {
@@ -302,7 +303,13 @@ app.MapPost("/v1/chat/completions", async (
             }
 
             var orchestrator = session?.Orchestrator ?? owned!;
-            var result = orchestrator.ExecuteAction(prompt, agentTypes, maxIterations: maxIterations, attachments: attachments);
+            // isLocalUser: the caller is at the desktop only when it reaches us from a loopback
+            // address (same machine). Remote callers (including the SIP phone bridge) get false,
+            // so OfficeTool's watch/desktop-only methods stay disabled for them.
+            var isLocalUser = http.Connection.RemoteIpAddress != null
+                && System.Net.IPAddress.IsLoopback(http.Connection.RemoteIpAddress);
+            var result = orchestrator.ExecuteAction(prompt, agentTypes, maxIterations: maxIterations,
+                attachments: attachments, isLocalUser: isLocalUser);
 
             // Locale-neutral result codes (AgentResultCode) are rendered through the localized
             // dictionary in the current system language; LLM text (Message/Error) passes through
@@ -549,7 +556,8 @@ app.MapGet("/v1/models", () =>
         model_name = p.ModelName,
         protocol = p.Protocol.ToString(),
         context_window = p.ContextWindow,
-        base_address = p.BaseAddress.ToString()
+        base_address = p.BaseAddress.ToString(),
+        interaction_mode = p.EffectiveAgentInteractionMode.ToString()
     });
 
     return Results.Ok(new { @object = "list", data = agents.Cast<object>().Concat(providers.Cast<object>()) });
@@ -584,7 +592,8 @@ app.MapGet("/v1/models/{model}", (string model) =>
             model_name = provider.ModelName,
             protocol = provider.Protocol.ToString(),
             context_window = provider.ContextWindow,
-            base_address = provider.BaseAddress.ToString()
+            base_address = provider.BaseAddress.ToString(),
+            interaction_mode = provider.EffectiveAgentInteractionMode.ToString()
         });
     }
 
@@ -972,7 +981,8 @@ object BuildCapabilities()
             model_name = p.ModelName,
             protocol = p.Protocol.ToString(),
             context_window = p.ContextWindow,
-            base_address = p.BaseAddress.ToString()
+            base_address = p.BaseAddress.ToString(),
+            interaction_mode = p.EffectiveAgentInteractionMode.ToString()
         }),
         tts = new
         {
@@ -1010,6 +1020,7 @@ object SessionState(ActiveSession session)
             provider = session.Orchestrator.Provider,
             model_name = session.Orchestrator.ModelName,
             context_window = session.Orchestrator.ContextWindow,
+            interaction_mode = session.Orchestrator.InteractionMode.ToString(),
             history_messages = history.Count,
             history_tokens_estimate = EstimateTokens(string.Join("\n", history.Select(h => h.Content)))
         },

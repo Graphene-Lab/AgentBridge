@@ -194,8 +194,18 @@ Two kinds of entries:
 - **Agent sets** (`owned_by: "ai-orchestrator"`): select the agent tools via the chat `model` field.
 - **LLM providers** (`owned_by: "llm-provider"`): the actual LLMs behind the agents, each with
   its characteristics — `provider`, `model_name`, `protocol` (`OpenAI`/`Gemini`),
-  `context_window`, `base_address`. This is the "read the LLM characteristics" surface: a
+  `context_window`, `base_address`, `interaction_mode` (`API` or `CLI` — the effective agent
+  interaction mode; see below). This is the "read the LLM characteristics" surface: a
   client can pick a provider whose context window fits the task.
+
+**Agent interaction mode.** Each provider drives the agent tools either through the JSON
+tool-calling API (`interaction_mode: "API"` — one tool per method) or through the
+application CLI (`interaction_mode: "CLI"` — the agent issues `ClassName subcommand args`
+commands against the terminal). It is configured per provider in the Models & Providers UI
+or in `providers.json` (`AgentInteractionMode`, options `API`/`CLI`/`Default`); `Default`
+delegates to the model size — CLI for small models (context window < 128 000 tokens), API
+for large ones. `interaction_mode` always reports the **effective** value (the explicit
+setting or the size default). The same field appears on `GET /v1/control` session state.
 
 `GET /v1/models/{id}` returns a single entry (`404` for unknown ids).
 
@@ -208,7 +218,7 @@ Without a session id it returns what this platform can do right now:
   "capabilities": {
     "platform": "windows",
     "default_provider": "DeepSeekBridge",
-    "providers": [ { "name": "Zai", "model_name": "glm-4.7-flash", "protocol": "OpenAI", "context_window": 128000, "base_address": "https://api.z.ai/" }, ... ],
+    "providers": [ { "name": "Zai", "model_name": "glm-4.7-flash", "protocol": "OpenAI", "context_window": 128000, "base_address": "https://api.z.ai/", "interaction_mode": "API" }, ... ],
     "tts":   { "available": true, "engine": "kokoro", "voices": [ ... ], "detail": "" },
     "voice": { "available": true, "engine": "voiceagent-win", "detail": "" },
     "sessions": 3

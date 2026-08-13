@@ -21,6 +21,7 @@ public static class AgentTools
         "spreadsheet-agent" => new[] { typeof(AIOrchestrator.API.SpreadsheetTool) },
         "search-agent" or "research-agent" => new[] { typeof(AIOrchestrator.API.FileTool) },
         "email-agent" => new[] { typeof(AIOrchestrator.API.EMailTool) },
+        "office-agent" => new[] { typeof(AIOrchestrator.API.FileTool), typeof(AIOrchestrator.API.OfficeTool) },
         "multi-agent" => new[]
         {
             typeof(AIOrchestrator.API.FileTool),

@@ -327,6 +327,8 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="ProviderEditTitle" xml:space="preserve"><value>Edit provider: {0}</value></data>
   <data name="ProviderName" xml:space="preserve"><value>Name</value></data>
   <data name="ProviderProtocol" xml:space="preserve"><value>Protocol</value></data>
+  <data name="ProviderInteractionMode" xml:space="preserve"><value>Interaction mode</value></data>
+  <data name="InteractionModeDefault" xml:space="preserve"><value>Default</value></data>
   <data name="ProviderModel" xml:space="preserve"><value>Model</value></data>
   <data name="ProviderBaseAddress" xml:space="preserve"><value>Base address</value></data>
   <data name="ProviderEndpoint" xml:space="preserve"><value>Endpoint path</value></data>

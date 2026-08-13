@@ -164,7 +164,16 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("InputPlaceholder", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'InteractionModeDefault'.
+        /// </summary>
+        public static string InteractionModeDefault {
+            get {
+                return ResourceManager.GetString("InteractionModeDefault", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to 'WelcomeMessage'.
         /// </summary>
@@ -2414,7 +2423,16 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("ProviderProtocol", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'ProviderInteractionMode'.
+        /// </summary>
+        public static string ProviderInteractionMode {
+            get {
+                return ResourceManager.GetString("ProviderInteractionMode", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to 'ProviderModel'.
         /// </summary>

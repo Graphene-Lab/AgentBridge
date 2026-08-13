@@ -73,6 +73,7 @@ public static class ConsoleTui
 
         private string _provider = "";
         private string _modelName = "";
+        private string _interactionMode = "";
         private int _contextWindow;
         private int _historyTokens;
         private string _sessionId = "";
@@ -1396,7 +1397,7 @@ public static class ConsoleTui
             var lines = new List<string>
             {
                 $"{Dictionary.StatusSession.PadRight(18)}{_sessionId}",
-                $"{Dictionary.StatusProvider.PadRight(18)}{_provider}  ({_modelName})",
+                $"{Dictionary.StatusProvider.PadRight(18)}{_provider}  ({_modelName}, {(_interactionMode.Length > 0 ? _interactionMode : Dictionary.InteractionModeDefault)})",
                 string.Format(Dictionary.StatusContextWindow, _contextWindow, _historyTokens),
                 $"{Dictionary.StatusAgentSet.PadRight(18)}{_agentSet}",
                 $"{Dictionary.StatusFeatures.PadRight(18)}{feats}",
@@ -2317,7 +2318,7 @@ public static class ConsoleTui
             {
                 Title = existing == null ? Dictionary.ProviderAddTitle : string.Format(Dictionary.ProviderEditTitle, existing.ProviderName),
                 Width = 66,
-                Height = 13,
+                Height = 14,
                 SchemeName = "Dark",
             };
             int y = 0;
@@ -2330,6 +2331,18 @@ public static class ConsoleTui
                 Text = (existing?.Protocol ?? ProviderProtocol.OpenAI).ToString(),
             };
             dlg.Add(new Label { Text = Dictionary.ProviderProtocol, X = 1, Y = y, Width = 18 }, protocol);
+            y++;
+            // Interaction mode: Default leaves the decision to the model size (CLI for small
+            // models, API for large ones — ProviderConfig.EffectiveAgentInteractionMode).
+            var interactionMode = new DropDownList
+            {
+                ReadOnly = true,
+                X = 20, Y = y, Width = 32,
+                Source = new ListWrapper<string>(new ObservableCollection<string>(
+                    new[] { Dictionary.InteractionModeDefault, nameof(AgentInteractionMode.API), nameof(AgentInteractionMode.CLI) })),
+                Text = existing?.AgentInteractionMode?.ToString() ?? Dictionary.InteractionModeDefault,
+            };
+            dlg.Add(new Label { Text = Dictionary.ProviderInteractionMode, X = 1, Y = y, Width = 18 }, interactionMode);
             y++;
             var modelField = AddField(dlg, Dictionary.ProviderModel, existing?.ModelName, y++);
             var baseField = AddField(dlg, Dictionary.ProviderBaseAddress, existing?.BaseAddress.ToString(), y++);
@@ -2359,10 +2372,16 @@ public static class ConsoleTui
                 }
                 if (!int.TryParse((timeoutField.Text ?? "").Trim(), out var secs) || secs <= 0) secs = 30;
                 if (!Enum.TryParse<ProviderProtocol>((protocol.Text ?? "").Trim(), out var proto)) proto = ProviderProtocol.OpenAI;
+                // Interaction mode: "Default" (localized) → null → the model-size default applies.
+                var modeText = (interactionMode.Text ?? "").Trim();
+                AgentInteractionMode? mode = null;
+                if (string.Equals(modeText, nameof(AgentInteractionMode.API), StringComparison.OrdinalIgnoreCase)) mode = AgentInteractionMode.API;
+                else if (string.Equals(modeText, nameof(AgentInteractionMode.CLI), StringComparison.OrdinalIgnoreCase)) mode = AgentInteractionMode.CLI;
                 result = new ProviderConfig
                 {
                     ProviderName = providerName,
                     Protocol = proto,
+                    AgentInteractionMode = mode,
                     ModelName = (modelField.Text ?? "").Trim(),
                     BaseAddress = uri,
                     EndPoint = (endPointField.Text ?? "").Trim(),
@@ -2439,6 +2458,7 @@ public static class ConsoleTui
                 {
                     _provider = GetStr(llm, "provider") ?? "";
                     _modelName = GetStr(llm, "model_name") ?? "";
+                    _interactionMode = GetStr(llm, "interaction_mode") ?? "";
                     _contextWindow = GetInt(llm, "context_window");
                     _historyTokens = GetInt(llm, "history_tokens_estimate");
                 }

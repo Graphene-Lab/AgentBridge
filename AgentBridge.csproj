@@ -31,6 +31,13 @@
          when the sibling is absent — CI builds against the published package. -->
     <ProjectReference Include="..\AIOrchestrator\AIOrchestrator.csproj" Condition="Exists('..\AIOrchestrator\AIOrchestrator.csproj')" />
     <PackageReference Include="Graphene.AIOrchestrator" Version="1.*" />
+    <!-- Tool plugins (WordTool, SpreadsheetTool): separate repos since 2026-08-13 — the
+         word-agent/spreadsheet-agent/multi-agent sets in AgentTools.cs register them
+         statically, so they are referenced here (dual-reference pattern as above). -->
+    <ProjectReference Include="..\WordTool\WordTool.csproj" Condition="Exists('..\WordTool\WordTool.csproj')" />
+    <ProjectReference Include="..\SpreadsheetTool\SpreadsheetTool.csproj" Condition="Exists('..\SpreadsheetTool\SpreadsheetTool.csproj')" />
+    <PackageReference Include="Graphene.WordTool" Version="1.*" />
+    <PackageReference Include="Graphene.SpreadsheetTool" Version="1.*" />
     <!-- Kokoro neural TTS (same engine/voices as AIOffice.VoiceAgent.Win). The package ships
          voices/ + voices-zh/ as content (copied to the output directory); since 0.8.4 the
          phonemizer is MisakiSharp (pure managed — no espeak-ng binaries are shipped or needed).
