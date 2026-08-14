@@ -85,6 +85,11 @@ public static class ConsoleTui
         private bool _sipAvailable;
         private string _sipState = "";
 
+        private static readonly string[] SpinnerChars = { "⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷" };
+        private int _spinnerIndex;
+        private volatile bool _spinnerActive;
+        private Label? _spinnerLabel;
+
         private static readonly JsonSerializerOptions JsonOpts = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
@@ -249,6 +254,11 @@ public static class ConsoleTui
                     _inputField?.SetFocus();
                     UpdateInputLayout();
                     return false;   // one-shot
+                });
+                _app.AddTimeout(TimeSpan.FromMilliseconds(100), () =>
+                {
+                    TickSpinner();
+                    return true;   // recurring spinner animation
                 });
                 RefreshHistory();
                 _ = Task.Run(RefreshServerStateAsync);
@@ -415,11 +425,21 @@ public static class ConsoleTui
             chatFrame.Add(inputArea);
             _inputArea = inputArea;
 
+            // One-character spinner shown next to the prompt while generating.
+            _spinnerLabel = new Label
+            {
+                Text = " ",
+                X = 0, Y = 0, Width = 1,
+                SchemeName = "Dark",
+            };
+            inputArea.Add(_spinnerLabel);
+
             // Multi-line prompt box: soft-wraps and grows up to MaxInputLines rows (see
-            // UpdateInputLayout); full width, so it reaches the right margin of the frame.
+            // UpdateInputLayout); full width minus the spinner column, so it reaches
+            // the right margin of the frame without covering the spinner.
             _inputField = new Editor
             {
-                X = 0, Y = 0, Width = Dim.Fill(), Height = 1,
+                X = 1, Y = 0, Width = Dim.Fill() - 1, Height = 1,
                 WordWrap = true,
                 Multiline = true,
                 GutterOptions = GutterOptions.None,
@@ -738,6 +758,29 @@ public static class ConsoleTui
             return rows;
         }
 
+        // ── Spinner ──
+        private void StartSpinner()
+        {
+            _spinnerActive = true;
+            _spinnerIndex = 0;
+            if (_spinnerLabel != null)
+                _spinnerLabel.Text = SpinnerChars[0];
+        }
+
+        private void StopSpinner()
+        {
+            _spinnerActive = false;
+            if (_spinnerLabel != null)
+                _spinnerLabel.Text = " ";
+        }
+
+        private void TickSpinner()
+        {
+            if (_spinnerLabel == null || !_spinnerActive) return;
+            _spinnerIndex = (_spinnerIndex + 1) % SpinnerChars.Length;
+            _spinnerLabel.Text = SpinnerChars[_spinnerIndex];
+        }
+
         private bool CaretOnFirstLine()
         {
             if (_inputField is not { Document: { } doc }) return true;
@@ -824,6 +867,7 @@ public static class ConsoleTui
             var sw = Stopwatch.StartNew();
             Ui(() =>
             {
+                StartSpinner();
                 _history.Add(new Entry { Role = "user", Text = prompt });
                 _pending = new Entry { Role = "agent", Text = "" };
                 RefreshHistory();
@@ -911,7 +955,7 @@ public static class ConsoleTui
                     _chatCts?.Dispose();
                     _chatCts = null;
                 }
-                Ui(() => { RefreshHistory(); UpdateStatus(); });
+                Ui(() => { StopSpinner(); RefreshHistory(); UpdateStatus(); });
                 _ = Task.Run(RefreshSessionStateAsync);
             }
         }

@@ -3,14 +3,14 @@
 //
 //  Single table for the "model" ids exposed by /v1/models: the HTTP chat
 //  endpoint AND the SIP telephony loop (SipBridge) both resolve the id to the
-//  concrete IAgentTool implementations with this helper, so the two paths can
+//  concrete BaseAgentTool implementations with this helper, so the two paths can
 //  never drift apart. See AIOrchestrator/ARCHITECTURE.md — "Agent Architecture".
 // ═══════════════════════════════════════════════════════════════════════
 
 using AIOrchestrator;
 
 /// <summary>Maps an agent-set id ("default-agent", "web-agent", ...) to the AIOrchestrator
-/// IAgentTool implementations used by <see cref="AgentOrchestrator.ExecuteAction"/>.</summary>
+/// BaseAgentTool implementations used by <see cref="AgentOrchestrator.ExecuteAction"/>.</summary>
 public static class AgentTools
 {
     /// <summary>Resolves the agent-set id to the tool types for <see cref="AgentOrchestrator.ExecuteAction"/>.</summary>

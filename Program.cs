@@ -894,7 +894,7 @@ static string ExtractTextContent(object? content)
 
 // Maps the OpenAI "model" name to the real agent tool types in AIOrchestrator
 // (see AIOrchestrator/ARCHITECTURE.md — "Agent Architecture"): each "model" id exposed
-// by /v1/models corresponds to a concrete set of IAgentTool implementations that
+// by /v1/models corresponds to a concrete set of BaseAgentTool implementations that
 // AgentOrchestrator.ExecuteAction will instantiate as tools. Shared with the SIP
 // telephony loop (AgentTools) so the two paths resolve the same agent sets.
 static Type[] ResolveAgentTypes(string? model) => AgentTools.Resolve(model);
