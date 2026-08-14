@@ -5,6 +5,29 @@ process: a full-screen terminal chat (TUI) and a standard OpenAI-compatible HTTP
 Chat in the terminal while scripts, bots and apps drive the same agents on the same port —
 same process, same conversations, no bridge, no sync.
 
+## Install & download
+
+[![Download for your OS](https://img.shields.io/badge/Download%20for%20your%20OS-238636?style=for-the-badge&logo=download&logoColor=white)](https://graphenelab.it/AgentBridge/download/)
+[![Latest release](https://img.shields.io/github/v/release/Graphene-Lab/AgentBridge?style=for-the-badge&color=1f6feb)](https://github.com/Graphene-Lab/AgentBridge/releases/latest)
+
+The **Download for your OS** button detects your platform and starts the right archive
+(~460 MB, self-contained — no .NET installation needed, Kokoro TTS voices included).
+Prefer the terminal? One line is enough:
+
+| Platform | One-line install |
+|---|---|
+| **Windows** (PowerShell) | `irm https://graphenelab.it/AgentBridge/install.ps1 \| iex` |
+| **Linux / macOS** | `curl -fsSL https://graphenelab.it/AgentBridge/install.sh \| bash` |
+
+The one-liners download the latest release for your platform into `~/.agentbridge`
+(`%LOCALAPPDATA%\AgentBridge` on Windows) and print how to start it. Direct links:
+
+[![Windows 64-bit](https://img.shields.io/badge/Windows%2064--bit-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-win-x64.tar.gz)
+[![Linux x64](https://img.shields.io/badge/Linux%20x64-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-linux-x64.tar.gz)
+[![Linux ARM64](https://img.shields.io/badge/Linux%20ARM64-FCC624?style=flat-square&logo=linux&logoColor=black)](https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-linux-arm64.tar.gz)
+[![macOS Intel](https://img.shields.io/badge/macOS%20Intel-000000?style=flat-square&logo=apple&logoColor=white)](https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-osx-x64.tar.gz)
+[![macOS Apple Silicon](https://img.shields.io/badge/macOS%20Apple%20Silicon-000000?style=flat-square&logo=apple&logoColor=white)](https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-osx-arm64.tar.gz)
+
 Built on the [AIOffice](https://github.com/Graphene-Lab/AIOffice) agent orchestrator
 (`AIOrchestrator`), AgentBridge brings the agents to **everything**:
 
@@ -104,9 +127,8 @@ Think of the documents area as your company's brain. It is a simple folder on di
 
 ## Quick start
 
-Download the archive for your platform from the
-[Releases page](https://github.com/Graphene-Lab/AgentBridge/releases) (Windows `win-x64`,
-Linux `linux-x64` / `linux-arm64`, macOS `osx-x64` / `osx-arm64`), extract and run
+Run the one-line install above — or download the archive for your platform from the
+[Releases page](https://github.com/Graphene-Lab/AgentBridge/releases), extract and run
 `agent.exe` / `agent`.
 No .NET installation needed; each archive already includes the Kokoro TTS voices and model.
 

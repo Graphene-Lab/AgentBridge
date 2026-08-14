@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Download AgentBridge for your OS</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #0d1117; color: #e6edf3; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .card { max-width: 640px; padding: 48px 32px; text-align: center; }
+  h1 { font-size: 1.6rem; margin: 0 0 8px; }
+  .sub { color: #8b949e; margin: 0 0 32px; }
+  .btn {
+    display: inline-block; padding: 14px 28px; border-radius: 8px; font-size: 1.1rem; font-weight: 600;
+    text-decoration: none; color: #fff; background: #238636; transition: background .15s;
+  }
+  .btn:hover { background: #2ea043; }
+  .note { color: #8b949e; font-size: .9rem; margin: 16px 0 32px; }
+  .links { display: grid; gap: 8px; }
+  .links a { color: #58a6ff; text-decoration: none; }
+  .links a:hover { text-decoration: underline; }
+  .foot { margin-top: 32px; color: #8b949e; font-size: .85rem; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>&#11015;&#65039; Download AgentBridge</h1>
+    <p class="sub" id="status">Detecting your platform&hellip;</p>
+    <a class="btn" id="download" href="https://github.com/Graphene-Lab/AgentBridge/releases/latest">Download for your OS</a>
+    <p class="note" id="note">Your download will start automatically in a moment.<br>If it does not start, pick your platform below.</p>
+    <div class="links" id="links"></div>
+    <p class="foot">Archives are self-contained (~460 MB): no .NET installation needed, Kokoro TTS voices included.</p>
+  </div>
+
+<script>
+(function () {
+  var BASE = "https://github.com/Graphene-Lab/AgentBridge/releases/latest/download";
+  var ASSETS = {
+    windows: { x64: "agentbridge-win-x64.tar.gz", arm64: "agentbridge-win-x64.tar.gz" },
+    linux:   { x64: "agentbridge-linux-x64.tar.gz", arm64: "agentbridge-linux-arm64.tar.gz" },
+    macos:   { x64: "agentbridge-osx-x64.tar.gz", arm64: "agentbridge-osx-arm64.tar.gz" }
+  };
+  var LABELS = {
+    "agentbridge-win-x64.tar.gz":     ["Windows", "64-bit"],
+    "agentbridge-linux-x64.tar.gz":   ["Linux", "64-bit"],
+    "agentbridge-linux-arm64.tar.gz": ["Linux", "ARM64"],
+    "agentbridge-osx-x64.tar.gz":     ["macOS", "Intel"],
+    "agentbridge-osx-arm64.tar.gz":   ["macOS", "Apple Silicon"]
+  };
+
+  function detect(cb) {
+    var ua = navigator.userAgentData;
+    var platform = ((ua && ua.platform) || navigator.platform || "").toLowerCase();
+    var os = /win/.test(platform) ? "windows" : /mac/.test(platform) ? "macos" : /linux/.test(platform) ? "linux" : "";
+    var arch = /arm|aarch64/i.test(navigator.userAgent) ? "arm64" : "x64";
+    if (!ua || !ua.getHighEntropyValues) { cb(os, arch); return; }
+    ua.getHighEntropyValues(["architecture"]).then(function (h) {
+      if (h && h.architecture) { arch = /arm/i.test(h.architecture) ? "arm64" : "x64"; }
+      cb(os, arch);
+    }).catch(function () { cb(os, arch); });
+  }
+
+  detect(function (os, arch) {
+    var asset = (os && ASSETS[os]) ? ASSETS[os][arch] : "";
+    var dl = document.getElementById("download");
+    var status = document.getElementById("status");
+    var note = document.getElementById("note");
+    var links = document.getElementById("links");
+
+    if (!asset) {
+      status.textContent = "Could not detect your platform automatically.";
+      note.textContent = "Choose your platform below, or browse all releases.";
+    } else {
+      var label = LABELS[asset];
+      status.textContent = "Detected: " + (label ? label.join(" ") : os + " " + arch);
+      dl.href = BASE + "/" + asset;
+      dl.textContent = "Download for " + (label ? label.join(" ") : "your OS");
+      setTimeout(function () { window.location.href = dl.href; }, 1500);
+    }
+
+    ["agentbridge-win-x64.tar.gz", "agentbridge-linux-x64.tar.gz",
+     "agentbridge-linux-arm64.tar.gz", "agentbridge-osx-x64.tar.gz",
+     "agentbridge-osx-arm64.tar.gz"].forEach(function (a) {
+      var el = document.createElement("a");
+      el.href = BASE + "/" + a;
+      el.textContent = "Download for " + LABELS[a].join(" ");
+      links.appendChild(el);
+    });
+    var all = document.createElement("a");
+    all.href = "https://github.com/Graphene-Lab/AgentBridge/releases/latest";
+    all.textContent = "All releases \u2192";
+    links.appendChild(all);
+  });
+})();
+</script>
+<noscript>
+  <p>Download AgentBridge: <a href="https://github.com/Graphene-Lab/AgentBridge/releases/latest">open the latest release</a>.</p>
+</noscript>
+</body>
+</html>

@@ -15,8 +15,16 @@ the terminal UI, and connect a client to the local server.
 
 ## 1. Install
 
-**Prebuilt executables.** Download the archive for your platform from the
-[Releases page](https://github.com/Graphene-Lab/AgentBridge/releases):
+**One-line install** (downloads the latest release for your platform and extracts it into
+`~/.agentbridge` / `%LOCALAPPDATA%\AgentBridge`):
+
+- Windows (PowerShell): `irm https://graphenelab.it/AgentBridge/install.ps1 | iex`
+- Linux / macOS: `curl -fsSL https://graphenelab.it/AgentBridge/install.sh | bash`
+
+**Prebuilt executables.** Alternatively, download the archive for your platform from the
+[Releases page](https://github.com/Graphene-Lab/AgentBridge/releases) — the
+[auto-detect page](https://graphenelab.it/AgentBridge/download/) picks the right one
+for your OS:
 
 | Platform | Archive | Executable |
 |---|---|---|
