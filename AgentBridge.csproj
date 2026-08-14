@@ -31,16 +31,10 @@
          when the sibling is absent — CI builds against the published package. -->
     <ProjectReference Include="..\AIOrchestrator\AIOrchestrator.csproj" Condition="Exists('..\AIOrchestrator\AIOrchestrator.csproj')" />
     <PackageReference Include="Graphene.AIOrchestrator" Version="1.*" />
-    <!-- Tool plugins (WordTool, SpreadsheetTool, OfficeTool): separate repos — the
-         word-agent/spreadsheet-agent/multi-agent sets and the office-agent set in
-         AgentTools.cs register them statically, so they are referenced here
-         (dual-reference pattern as above). -->
-    <ProjectReference Include="..\WordTool\WordTool.csproj" Condition="Exists('..\WordTool\WordTool.csproj')" />
-    <ProjectReference Include="..\SpreadsheetTool\SpreadsheetTool.csproj" Condition="Exists('..\SpreadsheetTool\SpreadsheetTool.csproj')" />
-    <ProjectReference Include="..\OfficeTool\OfficeTool.csproj" Condition="Exists('..\OfficeTool\OfficeTool.csproj')" />
-    <PackageReference Include="Graphene.WordTool" Version="1.*" />
-    <PackageReference Include="Graphene.SpreadsheetTool" Version="1.*" />
-    <PackageReference Include="Graphene.OfficeTool" Version="1.*" />
+    <!-- Tool plugins (DocumentTool, SpreadsheetTool, OfficeTool) are loaded DYNAMICALLY from
+         the Tools/ folder (see ToolPlugins.cs + AIOrchestrator.ToolPluginHost): the agent sets
+         in AgentTools.cs pass tool NAMES, so no AgentBridge code references a plugin type and
+         NO Project/Package reference to a plugin exists here (see ShipToolPlugins below). -->
     <!-- Kokoro neural TTS (same engine/voices as AIOffice.VoiceAgent.Win). The package ships
          voices/ + voices-zh/ as content (copied to the output directory); since 0.8.4 the
          phonemizer is MisakiSharp (pure managed — no espeak-ng binaries are shipped or needed).
@@ -91,6 +85,37 @@
       <Generator>PublicResXFileCodeGenerator</Generator>
     </EmbeddedResource>
   </ItemGroup>
+
+  <!-- Ship the tool plugins into Tools/<Plugin>/ (dll + xml, no AIOrchestrator copy) so the
+       dynamic ToolPluginHost loader can pick them up at startup. Sibling build outputs on dev
+       machines (same pattern as AIOffice's BuildToolPlugins); skipped when the sibling repos
+       are absent — CI/standalone deploys must place the plugin outputs in Tools/ next to the
+       executable (the single-file publish cannot bundle byte-loaded plugin assemblies). -->
+  <Target Name="ShipToolPlugins" AfterTargets="Build">
+    <MSBuild Projects="..\WordTool\DocumentTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=" Condition="Exists('..\WordTool\DocumentTool.csproj')" />
+    <MSBuild Projects="..\SpreadsheetTool\SpreadsheetTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=" Condition="Exists('..\SpreadsheetTool\SpreadsheetTool.csproj')" />
+    <MSBuild Projects="..\OfficeTool\OfficeTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=" Condition="Exists('..\OfficeTool\OfficeTool.csproj')" />
+    <ItemGroup>
+      <_DocumentToolPlugin Include="..\WordTool\bin\$(Configuration)\net10.0\DocumentTool.*" Condition="Exists('..\WordTool\bin\$(Configuration)\net10.0\DocumentTool.dll')" />
+      <_SpreadsheetToolPlugin Include="..\SpreadsheetTool\bin\$(Configuration)\net10.0\SpreadsheetTool.*" Condition="Exists('..\SpreadsheetTool\bin\$(Configuration)\net10.0\SpreadsheetTool.dll')" />
+      <_OfficeToolPlugin Include="..\OfficeTool\bin\$(Configuration)\net10.0\OfficeTool.*" Condition="Exists('..\OfficeTool\bin\$(Configuration)\net10.0\OfficeTool.dll')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_DocumentToolPlugin)" DestinationFolder="$(OutputPath)Tools\DocumentTool" />
+    <Copy SourceFiles="@(_SpreadsheetToolPlugin)" DestinationFolder="$(OutputPath)Tools\SpreadsheetTool" />
+    <Copy SourceFiles="@(_OfficeToolPlugin)" DestinationFolder="$(OutputPath)Tools\OfficeTool" />
+  </Target>
+
+  <!-- Copies the tool plugins into a publish output (same rationale as AIOffice's
+       CopyToolPluginsToPublish): the Content-item registration drops files outside the
+       project directory, so a direct Copy is used. -->
+  <Target Name="CopyToolPluginsToPublish" AfterTargets="Publish"
+          Condition="'$(PublishDir)' != '' and Exists('$(OutputPath)Tools')">
+    <ItemGroup>
+      <_ToolPluginPublish Include="$(OutputPath)Tools\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ToolPluginPublish)"
+          DestinationFiles="@(_ToolPluginPublish->'$(PublishDir)Tools\%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
 
   <!-- Provide kokoro.onnx in the output directory (the 325 MB model binary is not tracked in
        git). Preferred source: the sibling VoiceAgent build output (already downloaded there on

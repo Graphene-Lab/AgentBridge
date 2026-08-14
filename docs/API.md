@@ -55,7 +55,7 @@ curl -N http://localhost:5290/v1/chat/completions \
 
 | Field | Meaning |
 |---|---|
-| `model` | Agent set: `default-agent`, `web-agent`, `search-agent`, `word-agent`, `spreadsheet-agent`, `email-agent`, `multi-agent`. |
+| `model` | Agent set: `default-agent`, `web-agent`, `search-agent`, `document-agent`, `spreadsheet-agent`, `email-agent`, `multi-agent`. |
 | `messages` | OpenAI messages; the last `user` message is the prompt. |
 | `file_ids` | Optional ids from `POST /v1/files` — attached as context (Markdown, server-side). |
 | `max_tokens` | Roughly maps to agent loop iterations (`max_tokens / 100`, clamped 1–50). |

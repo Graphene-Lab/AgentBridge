@@ -25,7 +25,7 @@ Standalone client ──HTTP──▶ AgentBridge (this project)
                                  │
                                  ▼
               LLM (DeepSeekBridge / DeepSeek / Z.ai / Gemini / Ollama / ExLlamaV2)
-              + agent tools (WebTool, FileTool, WordTool, SpreadsheetTool, EMailTool)
+              + agent tools (WebTool, FileTool, DocumentTool, SpreadsheetTool, EMailTool)
               + Kokoro neural TTS (in-process) + VoiceAgent.Win (Windows STT)
 ```
 

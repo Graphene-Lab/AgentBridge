@@ -208,6 +208,11 @@ VoiceBridge.ExePath = builder.Configuration["Voice:ExePath"];
 
 var app = builder.Build();
 
+// Tool plugins (DocumentTool, SpreadsheetTool, OfficeTool): loaded DYNAMICALLY from the
+// Tools/ folder next to the executable — no project depends on a plugin. The agent sets
+// pass tool names and ToolRegistry resolves them at runtime.
+_ = AgentBridge.ToolPlugins.Host;
+
 // SIP telephony (auto-answer + PIN, outgoing calls — see docs/sip.md): initialized from the
 // "Sip" appsettings section; the server itself starts right before the launch mode below so a
 // bind failure (port in use) cannot kill the HTTP API — it is reported and logged only.
@@ -232,7 +237,7 @@ var jsonOptions = new JsonSerializerOptions
 var agentModelIds = new[]
 {
     "default-agent", "web-agent", "search-agent", "research-agent",
-    "word-agent", "spreadsheet-agent", "email-agent", "multi-agent"
+    "document-agent", "spreadsheet-agent", "email-agent", "multi-agent"
 };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -266,7 +271,7 @@ app.MapPost("/v1/chat/completions", async (
             return Results.BadRequest(new { error = providerError });
         var provider = resolvedProvider!;
 
-        var agentTypes = ResolveAgentTypes(request.Model);
+        var agentToolNames = ResolveAgentTypes(request.Model);
         var attachments = ResolveAttachments(request.FileIds);
         var maxIterations = request.MaxTokens > 0
             ? Math.Clamp(request.MaxTokens.Value / 100, 1, 50)
@@ -308,7 +313,7 @@ app.MapPost("/v1/chat/completions", async (
             // so OfficeTool's watch/desktop-only methods stay disabled for them.
             var isLocalUser = http.Connection.RemoteIpAddress != null
                 && System.Net.IPAddress.IsLoopback(http.Connection.RemoteIpAddress);
-            var result = orchestrator.ExecuteAction(prompt, agentTypes, maxIterations: maxIterations,
+            var result = orchestrator.ExecuteAction(prompt, agentToolNames, maxIterations: maxIterations,
                 attachments: attachments, isLocalUser: isLocalUser);
 
             // Locale-neutral result codes (AgentResultCode) are rendered through the localized
@@ -892,12 +897,12 @@ static string ExtractTextContent(object? content)
     return content?.ToString() ?? "";
 }
 
-// Maps the OpenAI "model" name to the real agent tool types in AIOrchestrator
+// Maps the OpenAI "model" name to the real agent tool names in AIOrchestrator
 // (see AIOrchestrator/ARCHITECTURE.md — "Agent Architecture"): each "model" id exposed
-// by /v1/models corresponds to a concrete set of BaseAgentTool implementations that
-// AgentOrchestrator.ExecuteAction will instantiate as tools. Shared with the SIP
+// by /v1/models corresponds to a concrete set of BaseAgentTool names that
+// AgentOrchestrator.ExecuteAction resolves to live instances as tools. Shared with the SIP
 // telephony loop (AgentTools) so the two paths resolve the same agent sets.
-static Type[] ResolveAgentTypes(string? model) => AgentTools.Resolve(model);
+static string[] ResolveAgentTypes(string? model) => AgentTools.Resolve(model);
 
 // Resolves the effective LLM provider for a request: the explicit llm_provider field
 // (extension) or the appsettings default. Returns null + error message for unknown names.
@@ -1035,7 +1040,7 @@ object SessionState(ActiveSession session)
 /// <summary>OpenAI-compatible Chat Completions request body accepted by POST /v1/chat/completions.</summary>
 public record ChatCompletionRequest
 {
-    /// <summary>Agent set to use: default-agent, web-agent, search-agent, word-agent, spreadsheet-agent, multi-agent.</summary>
+    /// <summary>Agent set to use: default-agent, web-agent, search-agent, document-agent, spreadsheet-agent, multi-agent.</summary>
     [JsonPropertyName("model")]
     public string? Model { get; init; }
     /// <summary>Chat messages; the last user message becomes the agent prompt.</summary>

@@ -90,7 +90,7 @@ jobs:
           echo "Waiting for dependency packages at version $NVER ..."
           for i in $(seq 1 60); do
             missing=""
-            for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric; do
+            for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric graphene.documenttool graphene.spreadsheettool; do
               if curl -fsS "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" | grep -q "\"$NVER\""; then
                 echo "$pkg $NVER available (attempt $i)"
               else
@@ -121,6 +121,37 @@ jobs:
       # and the TTS endpoints need those assets next to the exe. The native
       # onnxruntime engine is included per-RID by the Microsoft.ML.OnnxRuntime
       # package (libonnxruntime.so / onnxruntime.dll).
+      #
+      # Tool plugins (Graphene.DocumentTool, Graphene.SpreadsheetTool) are loaded DYNAMICALLY
+      # from Tools/ by ToolPluginHost (byte-loaded, never referenced): the single-file publish
+      # cannot bundle them. Fetch the published packages and ship each plugin's assembly +
+      # XML docs into publish/Tools/<Plugin>/. (Graphene.OfficeTool is intentionally NOT
+      # fetched here — it is not part of the NuGet release set.)
+      - name: Fetch tool plugins into Tools/
+        shell: bash
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          NVER=$(printf '%s' "$VERSION" | awk -F. '{for(i=1;i<=NF;i++){gsub(/^0+/,"",$i); if($i=="")$i=0; printf "%s%s",(i>1?".":""),$i} print ""}')
+          for entry in "graphene.documenttool:DocumentTool" "graphene.spreadsheettool:SpreadsheetTool"; do
+            id="${entry%%:*}"; tool="${entry##*:}"
+            nupkg="/tmp/plugins/$id.$NVER.nupkg"
+            if ! curl -fsSL -o "$nupkg" "https://api.nuget.org/v3-flatcontainer/$id/$NVER/$id.$NVER.nupkg"; then
+              echo "::warning::plugin package $id $NVER not found; tool '$tool' will be missing from Tools/"
+              continue
+            fi
+            tmp="/tmp/plugins/$tool"
+            mkdir -p "$tmp"
+            if command -v unzip >/dev/null 2>&1; then
+              unzip -qo "$nupkg" "lib/net10.0/*" -d "$tmp"
+            else
+              powershell -Command "Expand-Archive -Path '$nupkg' -DestinationPath '$tmp' -Force"
+            fi
+            mkdir -p "publish/Tools/$tool"
+            cp "$tmp"/lib/net10.0/$tool.dll "$tmp"/lib/net10.0/$tool.xml "publish/Tools/$tool/"
+          done
+          find publish/Tools -type f 2>/dev/null | sort
+
       - name: Package
         shell: bash
         run: |

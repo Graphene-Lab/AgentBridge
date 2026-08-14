@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$BaseUrl = 'http://127.0.0.1:5290',
     [string]$Corpus = 'C:\Users\andre\AppData\Local\Temp\aioffice_e2e_corpus',
     [string]$Work = 'C:\Users\andre\AppData\Local\Temp\aioffice_e2e_work',
@@ -91,12 +91,12 @@ $code = HttpReq 'POST' "$BaseUrl/v1/chat/completions" $b (Join-Path $out 't03.tx
 $stream = Get-Content (Join-Path $out 't03.txt') -Raw
 T 'T03 streaming SSE' ($code -eq '200' -and $stream.StartsWith('data:') -and $stream.Contains('[DONE]') -and $stream.Contains('"finish_reason":"stop"'))
 
-# T04 word-agent (guard ACTIVE + bounded)
-$b = NewBody 't04' "{""model"":""word-agent"",""messages"":[{""role"":""user"",""content"":""rispondi in una frase: quanto fa 3+3?""}],""max_tokens"":300}"
+# T04 document-agent (guard ACTIVE + bounded)
+$b = NewBody 't04' "{""model"":""document-agent"",""messages"":[{""role"":""user"",""content"":""rispondi in una frase: quanto fa 3+3?""}],""max_tokens"":300}"
 $code = HttpReq 'POST' "$BaseUrl/v1/chat/completions" $b (Join-Path $out 't04.json')
 $j = ReadJson (Join-Path $out 't04.json')
 $c4 = if ($j -and $j.choices -and $j.choices[0].message.content) { $j.choices[0].message.content } else { '' }
-T 'T04 word-agent (guard bounded)' ($code -eq '200' -and $c4 -ne '')
+T 'T04 document-agent (guard bounded)' ($code -eq '200' -and $c4 -ne '')
 
 # T05 spreadsheet-agent (guard ACTIVE)
 $b = NewBody 't05' "{""model"":""spreadsheet-agent"",""messages"":[{""role"":""user"",""content"":""rispondi in una frase: qual è la capitale della Spagna?""}],""max_tokens"":300}"

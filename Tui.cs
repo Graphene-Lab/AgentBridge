@@ -152,7 +152,7 @@ public static class ConsoleTui
             new("exit", "", Dictionary.CmdExit, (t, _) => t.ExitAsync(), new[] { "/quit" }),
         };
 
-        private static readonly string[] AgentSets = { "default-agent", "web-agent", "search-agent", "research-agent", "word-agent", "spreadsheet-agent", "email-agent", "multi-agent" };
+        private static readonly string[] AgentSets = { "default-agent", "web-agent", "search-agent", "research-agent", "document-agent", "spreadsheet-agent", "email-agent", "multi-agent" };
 
         private const uint SndAsync = 0x0001;
         private const uint SndFilename = 0x00020000;
