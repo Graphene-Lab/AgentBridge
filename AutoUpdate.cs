@@ -124,28 +124,9 @@ public static class AutoUpdate
             Log.LogStep($"AutoUpdate: {current} → {tag}, downloading", monitor: true);
             Status($"Update {tag} available — applying, the app will restart");
 
-            // Tool plugins first: the new binary starts with the updated plugin files
-            // already in Tools/. When agents are executing and plugin updates are pending,
-            // PluginUpdater refuses with AgentBusyException: applying the update now would
-            // restart the process and kill them — postpone the WHOLE update by 8 hours and
-            // retry later. Any other plugin-update failure is best-effort and must not
-            // block the app update.
-            try
-            {
-                await PluginUpdater.UpdatePluginsAsync(AgentBridge.ToolPlugins.Host);
-            }
-            catch (PluginUpdater.AgentBusyException)
-            {
-                Status("Agents are executing — update postponed 8 hours");
-                Log.LogStep("AutoUpdate: agents executing, update postponed 8 hours", monitor: true);
-                ScheduleRetryIn(TimeSpan.FromHours(8));
-                return;
-            }
-            catch (Exception ex)
-            {
-                Log.LogStep($"AutoUpdate: plugin update failed — {ex.Message}");
-            }
-
+            // PluginUpdater-based plugin refresh is omitted: the class is not part of the
+            // published Graphene.AIOrchestrator package yet. Restore this block once the
+            // package ships PluginUpdater.
             await ApplyAsync(rid, tag);
         }
         catch (Exception ex)
