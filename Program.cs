@@ -17,10 +17,10 @@ if (args.Contains("--enable-log"))
 
 
 // ═══════════════════════════════════════════════════════════════════════
-//  AgentBridge — OpenAI-compatible HTTP server for AgentOrchestrator
+//  AgentBridge — OpenAI-compatible HTTP server for AgentHarness
 //
 //  Architecture (see AIOrchestrator/ARCHITECTURE.md):
-//    Standalone clients (e.g. Giraffe AI) → HTTP endpoints → AgentOrchestrator
+//    Standalone clients (e.g. Giraffe AI) → HTTP endpoints → AgentHarness
 //    → LLM + agent tools. The server hosts the AIOrchestrator library (which is
 //    not directly executable) and exposes its chat pipeline as standard
 //    OpenAI-compatible REST endpoints, so any OpenAI SDK works unchanged.
@@ -49,7 +49,7 @@ if (args.Contains("--enable-log"))
 //
 //  File attachments follow the same server-side conversion rule as the Blazor
 //  UI (never client-side): uploaded bytes are stored as FileAttachment and
-//  converted to Markdown via AgentOrchestrator.ConvertAttachmentToMarkdown
+//  converted to Markdown via AgentHarness.ConvertAttachmentToMarkdown
 //  (AllToMarkdown for documents, Z.ai GLM-OCR for images).
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -63,7 +63,7 @@ if (args.Contains("--enable-log"))
 if (args.Contains("-h") || args.Contains("--help") || args.Contains("/?"))
 {
     Console.WriteLine("""
-        AgentBridge — OpenAI-compatible HTTP server for AgentOrchestrator
+        AgentBridge — OpenAI-compatible HTTP server for AgentHarness
 
         Usage:
           dotnet run --project AgentBridge.csproj [-- <options>]
@@ -278,7 +278,7 @@ app.MapPost("/v1/chat/completions", async (
             : 50;
 
         ActiveSession? session = null;
-        AgentOrchestrator? owned = null;
+        AgentHarness? owned = null;
         try
         {
             if (!string.IsNullOrEmpty(request.SessionId))
@@ -304,7 +304,7 @@ app.MapPost("/v1/chat/completions", async (
             {
                 // No session → the historical stateless behaviour: one orchestrator per
                 // request (fresh history), disposed when the request completes.
-                owned = new AgentOrchestrator(provider, anonymize);
+                owned = new AgentHarness(provider, anonymize);
             }
 
             var orchestrator = session?.Orchestrator ?? owned!;
@@ -432,7 +432,7 @@ app.MapPost("/v1/files", async (IFormFile file, [FromQuery] string purpose = "as
 
     var fileId = $"file-{Guid.NewGuid():N}";
     var attachment = new FileAttachment(file.FileName, content);
-    var markdown = AgentOrchestrator.ConvertAttachmentToMarkdown(attachment);
+    var markdown = AgentHarness.ConvertAttachmentToMarkdown(attachment);
 
     FileCache.Store(new CachedFile
     {
@@ -900,7 +900,7 @@ static string ExtractTextContent(object? content)
 // Maps the OpenAI "model" name to the real agent tool names in AIOrchestrator
 // (see AIOrchestrator/ARCHITECTURE.md — "Agent Architecture"): each "model" id exposed
 // by /v1/models corresponds to a concrete set of BaseAgentTool names that
-// AgentOrchestrator.ExecuteAction resolves to live instances as tools. Shared with the SIP
+// AgentHarness.ExecuteAction resolves to live instances as tools. Shared with the SIP
 // telephony loop (AgentTools) so the two paths resolve the same agent sets.
 static string[] ResolveAgentTypes(string? model) => AgentTools.Resolve(model);
 
@@ -940,7 +940,7 @@ static object? ContextFitError(ActiveSession session, string targetProvider, str
 }
 
 // Resolves uploaded file ids to FileAttachment instances (original binary + converted
-// Markdown, see AgentOrchestrator.ConvertAttachmentToMarkdown), reusing the server-side
+// Markdown, see AgentHarness.ConvertAttachmentToMarkdown), reusing the server-side
 // conversion already performed at upload time. Unknown ids are skipped; returns null
 // when no usable attachment remains.
 //
@@ -948,7 +948,7 @@ static object? ContextFitError(ActiveSession session, string targetProvider, str
 // only the lightweight `file_ids` (OpenAI convention), never the document bytes. The
 // original filename survives the round trip because it was stored on CachedFile at upload
 // time — the LLM sees it later via the "[File: {FileName}]" header that
-// AgentOrchestrator.BuildAttachmentsContext prepends to each Markdown block.
+// AgentHarness.BuildAttachmentsContext prepends to each Markdown block.
 static IEnumerable<FileAttachment>? ResolveAttachments(List<string>? fileIds)
 {
     if (fileIds == null || fileIds.Count == 0)
@@ -1064,7 +1064,7 @@ public record ChatCompletionRequest
     /// (it was a short-lived beta parameter); it is our convention, following the OpenAI
     /// Files API "upload once, reference later" model. The server resolves each id against
     /// FileCache and injects the cached Markdown into the agent prompt
-    /// (AgentOrchestrator.BuildAttachmentsContext), never sending the raw bytes to the model.
+    /// (AgentHarness.BuildAttachmentsContext), never sending the raw bytes to the model.
     /// </summary>
     [JsonPropertyName("file_ids")]
     public List<string>? FileIds { get; init; }
@@ -1190,7 +1190,7 @@ public static class FileCache
 /// <summary>
 /// A single uploaded file as stored by <see cref="FileCache"/>: the original binary
 /// (<see cref="Content"/>) plus the Markdown produced server-side at upload time
-/// (<see cref="ExtractedText"/>, see <see cref="AgentOrchestrator.ConvertAttachmentToMarkdown"/>).
+/// (<see cref="ExtractedText"/>, see <see cref="AgentHarness.ConvertAttachmentToMarkdown"/>).
 /// </summary>
 public class CachedFile
 {
