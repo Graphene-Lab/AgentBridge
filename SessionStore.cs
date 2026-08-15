@@ -4,10 +4,10 @@ using System.Collections.Concurrent;
 // ═══════════════════════════════════════════════════════════════════════
 //  SessionStore — multi-turn chat sessions for AgentBridge
 //
-//  A session owns one AgentHarness (and therefore one LLMUtility with its
+//  A session owns one AgentOrchestrator (and therefore one LLMUtility with its
 //  accumulated conversation history). This is what makes the "switch the LLM
 //  currently in use" operation (POST /v1/control llm_provider) meaningful:
-//  history survives the switch (AgentHarness.SwitchProvider) and the
+//  history survives the switch (AgentOrchestrator.SwitchProvider) and the
 //  context-window check protects the target provider from overflow.
 //
 //  Concurrency: each session serializes access to its orchestrator through
@@ -24,7 +24,7 @@ public sealed class ActiveSession : IDisposable
     public string Id { get; }
 
     /// <summary>The orchestrator backing this session (conversation history lives here).</summary>
-    public AgentHarness Orchestrator { get; }
+    public AgentOrchestrator Orchestrator { get; }
 
     /// <summary>Per-session feature flags (e.g. "voice", "tts") — the extensible slot for future features.</summary>
     public Dictionary<string, bool> Features { get; } = new();
@@ -36,7 +36,7 @@ public sealed class ActiveSession : IDisposable
     public DateTime LastUsed { get; set; } = DateTime.UtcNow;
 
     /// <summary>Creates a session wrapping the given orchestrator.</summary>
-    public ActiveSession(string id, AgentHarness orchestrator)
+    public ActiveSession(string id, AgentOrchestrator orchestrator)
     {
         Id = id;
         Orchestrator = orchestrator;
@@ -74,11 +74,11 @@ public static class SessionStore
     public static ActiveSession Create(string provider, bool anonymize)
     {
         var id = $"sess-{Guid.NewGuid():N}";
-        // Responsive delivery of long-running tool results (see AgentHarness.AsyncTaskDeliveryEnabled):
+        // Responsive delivery of long-running tool results (see AgentOrchestrator.AsyncTaskDeliveryEnabled):
         // a session conversation survives across requests, so a background task started by the agent can
         // deliver its completion event on the next chat request. Stateless (session-less) requests keep the
         // default synchronous behavior — their orchestrator dies with the request.
-        var session = new ActiveSession(id, new AgentHarness(provider, anonymize) { AsyncTaskDeliveryEnabled = true });
+        var session = new ActiveSession(id, new AgentOrchestrator(provider, anonymize) { AsyncTaskDeliveryEnabled = true });
         Sessions[id] = session;
         return session;
     }
