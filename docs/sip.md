@@ -3,7 +3,7 @@
 The server can act as a **SIP user agent**: incoming calls are auto-answered behind a
 DTMF-PIN gate (or a trusted-caller allow-list), outgoing calls can be placed from the TUI,
 and while a call is up the caller talks to the agents by voice — speech is recognized
-(whisper), sent through the exact same `AgentOrchestrator` path as the HTTP API, and the
+(whisper), sent through the exact same `AgentHarness` path as the HTTP API, and the
 agent replies are spoken back over the RTP audio with the in-process Kokoro TTS.
 
 Implemented with [SIPSorcery](https://github.com/sipsorcery-org/sipsorcery) 10.0.15
@@ -20,7 +20,7 @@ Implemented with [SIPSorcery](https://github.com/sipsorcery-org/sipsorcery) 10.0
    RTP in (G.711 8 kHz) ─► G.711 decode ─► PCM16 ─┴──► VAD ─► AIOffice.VoiceAgent --transcribe
                                                                           │ whisper
                                                                           ▼
-                                                  SessionStore + AgentOrchestrator.ExecuteAction
+                                                  SessionStore + AgentHarness.ExecuteAction
                                                                           │
    RTP out ◄── resample+encode ◄── PCM 24 kHz ◄── TtsEngine (Kokoro, in-process)
 ```
@@ -106,7 +106,7 @@ The status bar shows a `sip:` segment (✓ idle, `ring`, `pin`, `call`) refreshe
    correct PIN or the lockout expiry resets the counter; the digit buffer is cleared on
    every new call so a partially typed PIN never concatenates across calls.
 5. **Conversation** — the caller's speech is transcribed per utterance (VAD: adaptive noise
-   floor + 700 ms silence) and fed to `AgentOrchestrator.ExecuteAction` with the configured
+   floor + 700 ms silence) and fed to `AgentHarness.ExecuteAction` with the configured
    agent set; the reply is chunked into sentences and spoken back. Replies are sanitized
    before synthesis (emoji/symbols stripped — the Kokoro phonemizer rejects them).
 

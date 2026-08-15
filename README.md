@@ -160,7 +160,7 @@ Terminal UI  ──┐
                ├──▶ AgentBridge (this server, one process)
 OpenAI client ─┘            │
                             ▼
-                     AIOrchestrator (agents + tools)
+                     AIOrchestrator (agents + tools + anonymization)
                             │
                             ▼
      LLMs (DeepSeek · Z.ai · Gemini · Ollama · ExLlamaV2 · ...)

@@ -55,6 +55,13 @@ public static class AutoUpdate
     private static bool IsPublished => !string.Equals(
         Path.GetExtension(Assembly.GetEntryAssembly()?.Location), ".dll", StringComparison.OrdinalIgnoreCase);
 
+    // Debug configuration (the SDK bakes AssemblyConfiguration into the entry assembly):
+    // auto-update must never run on a Debug build — not even a published one. Combined
+    // with IsPublished (which already blocks `dotnet run`), a Debug apphost is excluded too.
+    private static bool IsDebugBuild => string.Equals(
+        Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration,
+        "Debug", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Applies CLI + persisted state. Returns true when a persisted state file was applied.</summary>
     public static bool LoadState(bool noUpdateFlag)
     {
@@ -102,10 +109,12 @@ public static class AutoUpdate
         catch { }
     }
 
-    /// <summary>Startup check: latest GitHub release newer than the running version → update.</summary>
+    /// <summary>Startup check: latest GitHub release newer than the running version → update.
+    /// Skipped entirely on Debug builds and under <c>dotnet run</c> (see
+    /// <see cref="IsPublished"/>/<see cref="IsDebugBuild"/>).</summary>
     public static async Task CheckAndApplyAsync()
     {
-        if (!Enabled || !IsPublished || Rid() is not { } rid) return;
+        if (!Enabled || !IsPublished || IsDebugBuild || Rid() is not { } rid) return;
         try
         {
             var current = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
@@ -114,6 +123,29 @@ public static class AutoUpdate
 
             Log.LogStep($"AutoUpdate: {current} → {tag}, downloading", monitor: true);
             Status($"Update {tag} available — applying, the app will restart");
+
+            // Tool plugins first: the new binary starts with the updated plugin files
+            // already in Tools/. When agents are executing and plugin updates are pending,
+            // PluginUpdater refuses with AgentBusyException: applying the update now would
+            // restart the process and kill them — postpone the WHOLE update by 8 hours and
+            // retry later. Any other plugin-update failure is best-effort and must not
+            // block the app update.
+            try
+            {
+                await PluginUpdater.UpdatePluginsAsync(AgentBridge.ToolPlugins.Host);
+            }
+            catch (PluginUpdater.AgentBusyException)
+            {
+                Status("Agents are executing — update postponed 8 hours");
+                Log.LogStep("AutoUpdate: agents executing, update postponed 8 hours", monitor: true);
+                ScheduleRetryIn(TimeSpan.FromHours(8));
+                return;
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"AutoUpdate: plugin update failed — {ex.Message}");
+            }
+
             await ApplyAsync(rid, tag);
         }
         catch (Exception ex)
@@ -225,6 +257,30 @@ public static class AutoUpdate
     {
         try { return !Process.GetProcessById(pid).HasExited; }
         catch { return false; }
+    }
+
+    private static bool _retryScheduled;
+
+    // Postpones the whole update: runs the check again after the delay (agents may still be
+    // busy — then it defers again, but concurrent retries never stack). The process usually
+    // restarts before the delay elapses and the startup check takes over.
+    private static void ScheduleRetryIn(TimeSpan delay)
+    {
+        if (_retryScheduled) return;
+        _retryScheduled = true;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(delay);
+                _retryScheduled = false;
+                await CheckAndApplyAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"AutoUpdate: retry failed — {ex.Message}");
+            }
+        });
     }
 
     private static bool SameContent(string a, string b)

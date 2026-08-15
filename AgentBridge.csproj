@@ -99,10 +99,15 @@
       <_DocumentToolPlugin Include="..\WordTool\bin\$(Configuration)\net10.0\DocumentTool.*" Condition="Exists('..\WordTool\bin\$(Configuration)\net10.0\DocumentTool.dll')" />
       <_SpreadsheetToolPlugin Include="..\SpreadsheetTool\bin\$(Configuration)\net10.0\SpreadsheetTool.*" Condition="Exists('..\SpreadsheetTool\bin\$(Configuration)\net10.0\SpreadsheetTool.dll')" />
       <_OfficeToolPlugin Include="..\OfficeTool\bin\$(Configuration)\net10.0\OfficeTool.*" Condition="Exists('..\OfficeTool\bin\$(Configuration)\net10.0\OfficeTool.dll')" />
+      <!-- OfficeTool references the vendored OfficeCLI engine (ExternalDependencies/officecli)
+           as a separate library: the engine dll must travel with the adapter into the plugin
+           folder or the ToolPluginHost dependency resolution fails at runtime. -->
+      <_OfficeToolEngine Include="..\OfficeTool\bin\$(Configuration)\net10.0\officecli.dll" Condition="Exists('..\OfficeTool\bin\$(Configuration)\net10.0\officecli.dll')" />
     </ItemGroup>
     <Copy SourceFiles="@(_DocumentToolPlugin)" DestinationFolder="$(OutputPath)Tools\DocumentTool" />
     <Copy SourceFiles="@(_SpreadsheetToolPlugin)" DestinationFolder="$(OutputPath)Tools\SpreadsheetTool" />
     <Copy SourceFiles="@(_OfficeToolPlugin)" DestinationFolder="$(OutputPath)Tools\OfficeTool" />
+    <Copy SourceFiles="@(_OfficeToolEngine)" DestinationFolder="$(OutputPath)Tools\OfficeTool" />
   </Target>
 
   <!-- Copies the tool plugins into a publish output (same rationale as AIOffice's

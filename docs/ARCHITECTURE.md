@@ -21,7 +21,7 @@ platform capabilities). Any OpenAI SDK, script or standalone client — such as
 Standalone client ──HTTP──▶ AgentBridge (this project)
                                  │  hosts (references)
                                  ▼
-                          AIOrchestrator (AgentOrchestrator)
+                          AIOrchestrator (AgentHarness)
                                  │
                                  ▼
               LLM (DeepSeekBridge / DeepSeek / Z.ai / Gemini / Ollama / ExLlamaV2)
@@ -78,7 +78,7 @@ that instance instead of failing (useful to attach a UI to a running service).
 
 | Key | Values | Description |
 |---|---|---|
-| `LLM:Provider` | `Ollama_Granite3b`, `DeepSeek`, `DeepSeekBridge`, `Zai`, `Gemini`, `ExllamaV2_Llama3b`, ... | **Default** LLM provider for the `AgentOrchestrator`. The provider in use can be switched per-request / per-session — see [LLM switching](API.md#llm-switching-the-pilot-endpoint). |
+| `LLM:Provider` | `Ollama_Granite3b`, `DeepSeek`, `DeepSeekBridge`, `Zai`, `Gemini`, `ExllamaV2_Llama3b`, ... | **Default** LLM provider for the `AgentHarness`. The provider in use can be switched per-request / per-session — see [LLM switching](API.md#llm-switching-the-pilot-endpoint). |
 | `LLM:Anonymize` | `true` / `false` | NameOrKey anonymization (see AIOrchestrator docs). |
 | `SkipIndexingOnStartup` | `true` / `false` | Skip the DocumentsPath index build/refresh + file watcher at startup (debug/dev). |
 | `AutoUpdate:Enabled` | `true` / `false` | Automatic update check at startup (default `true`). Overridden by the CLI `--no-update` flag and the TUI **File → Auto-Update** menu — see [autoupdate.md](autoupdate.md). |
@@ -194,7 +194,7 @@ dotnet build AgentBridge.csproj
 Smoke: `health` → `models` → upload a CSV → `files/{id}/content` → `DELETE` → chat with
 `file_ids` → SSE → create session → multi-turn chat → `control` switch → `audio/speech`.
 The offline unit tests for the conversion pipeline live in
-`AIOrchestrator/AgentOrchestrator.Tests`.
+`AIOrchestrator/AgentHarness.Tests`.
 
 **Terminal UI smoke (Windows):** `e2e/TuiSmoke` launches the real `agent.exe` in a
 pseudoconsole (ConPTY), types `/model`, presses Esc, sends a chat message and asserts the

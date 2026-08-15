@@ -863,9 +863,9 @@ public static class SipBridge
             maxIterations: MaxAgentIterations, ct: call.Cts.Token));
     }
 
-    private static void OnAgentProgress(object? _, AgentOrchestrator.AgentProgressEventArgs e)
+    private static void OnAgentProgress(object? _, AgentHarness.AgentProgressEventArgs e)
     {
-        if (e.State != AgentOrchestrator.AgentState.Initiative || string.IsNullOrWhiteSpace(e.Message)) return;
+        if (e.State != AgentHarness.AgentState.Initiative || string.IsNullOrWhiteSpace(e.Message)) return;
         CallContext? call;
         lock (Sync) call = Call;
         var media = call?.VoiceMedia;

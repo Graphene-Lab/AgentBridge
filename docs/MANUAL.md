@@ -296,7 +296,7 @@ The full request/response details are in [docs/API.md](API.md).
 
 The server can act as a **phone endpoint**: a caller dials in, proves their identity with
 a DTMF PIN (or a trusted caller list), and talks to the agents by voice — the speech is
-recognized (whisper), sent through the same `AgentOrchestrator` path as the HTTP API, and
+recognized (whisper), sent through the same `AgentHarness` path as the HTTP API, and
 the replies are spoken back with the in-process Kokoro TTS over the RTP audio.
 
 Full reference (architecture, security, NAT/firewall, deployment): **[docs/sip.md](sip.md)**.
