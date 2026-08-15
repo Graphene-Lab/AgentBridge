@@ -156,11 +156,18 @@ jobs:
           VERSION: ${{ needs.check-version.outputs.version }}
         run: |
           NVER=$(printf '%s' "$VERSION" | awk -F. '{for(i=1;i<=NF;i++){gsub(/^0+/,"",$i); if($i=="")$i=0; printf "%s%s",(i>1?".":""),$i} print ""}')
+          mkdir -p /tmp/plugins publish/Tools
           for entry in "graphene.documenttool:DocumentTool" "graphene.spreadsheettool:SpreadsheetTool"; do
             id="${entry%%:*}"; tool="${entry##*:}"
-            nupkg="/tmp/plugins/$id.$NVER.nupkg"
-            if ! curl -fsSL -o "$nupkg" "https://api.nuget.org/v3-flatcontainer/$id/$NVER/$id.$NVER.nupkg"; then
-              echo "::warning::plugin package $id $NVER not found; tool '$tool' will be missing from Tools/"
+            pver="$NVER"
+            # Fall back to the latest published version when today's is not out yet
+            # (only changed repos publish today's date-versioned package).
+            if ! curl -fsSI "https://api.nuget.org/v3-flatcontainer/$id/$NVER/$id.$NVER.nupkg" >/dev/null 2>&1; then
+              pver=$(curl -fsS "https://api.nuget.org/v3-flatcontainer/$id/index.json" | grep -oE '"[0-9]+(\.[0-9]+)+"' | tr -d '"' | sort -V | tail -n1)
+            fi
+            nupkg="/tmp/plugins/$id.$pver.nupkg"
+            if [ -z "$pver" ] || ! curl -fsSL -o "$nupkg" "https://api.nuget.org/v3-flatcontainer/$id/$pver/$id.$pver.nupkg"; then
+              echo "::warning::plugin package $id (fallback $pver) not found; tool '$tool' will be missing from Tools/"
               continue
             fi
             tmp="/tmp/plugins/$tool"
@@ -173,7 +180,7 @@ jobs:
             mkdir -p "publish/Tools/$tool"
             cp "$tmp"/lib/net10.0/$tool.dll "$tmp"/lib/net10.0/$tool.xml "publish/Tools/$tool/"
           done
-          find publish/Tools -type f 2>/dev/null | sort
+          find publish/Tools -type f 2>/dev/null | sort || true
 
       - name: Package
         shell: bash
