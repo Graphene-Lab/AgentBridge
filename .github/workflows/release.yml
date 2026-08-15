@@ -197,7 +197,7 @@ jobs:
           path: agentbridge-${{ matrix.rid }}.tar.gz
 
   release:
-    needs: build
+    needs: [check-version, build]
     if: needs.check-version.outputs.do_release == 'true'
     runs-on: ubuntu-latest
     steps:
