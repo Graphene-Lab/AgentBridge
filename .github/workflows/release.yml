@@ -1,9 +1,14 @@
 name: Build and Release AgentBridge
 
+# The release is now AUTOMATIC: pushing master with IsPrerelease=false in AgentBridge.csproj
+# (in the pushed commit) triggers the wait for the dependency NuGet packages, the build of the
+# 5 platform archives and the GitHub release — the tag v1.yy.MM.dd is created on the fly. No
+# tag push and no release.ps1 invocation are needed anymore. With IsPrerelease=true, or when
+# today's tag already exists, the run is skipped. See docs/RELEASING.md.
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [master]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,8 +19,8 @@ jobs:
   check-version:
     runs-on: ubuntu-latest
     outputs:
-      prerelease: ${{ steps.ver.outputs.prerelease }}
       version: ${{ steps.ver.outputs.version }}
+      do_release: ${{ steps.gate.outputs.do_release }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,7 +28,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Detect prerelease version
+      - name: Detect version + release gate
         id: ver
         shell: bash
         run: |
@@ -34,10 +39,28 @@ jobs:
           case "$VER" in *-prerelease*) echo "prerelease=true" ;; *) echo "prerelease=false" ;; esac
           echo "prerelease=$(case "$VER" in *-prerelease*) echo true ;; *) echo false ;; esac)" >> "$GITHUB_OUTPUT"
           echo "version=$VER" >> "$GITHUB_OUTPUT"
+      - name: Decide whether to release
+        id: gate
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          PRERELEASE: ${{ steps.ver.outputs.prerelease }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then
+            echo "IsPrerelease=true -> prerelease build, no GitHub release"
+            echo "do_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q .; then
+            echo "Tag v$VERSION already exists -> no second release for this version"
+            echo "do_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "do_release=true" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     needs: check-version
-    if: needs.check-version.outputs.prerelease == 'false'
+    if: needs.check-version.outputs.do_release == 'true'
     name: Build ${{ matrix.rid }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -160,7 +183,37 @@ jobs:
           cd ..
           ls -lh agentbridge-${{ matrix.rid }}.tar.gz
 
-      - name: Attach to Release
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentbridge-${{ matrix.rid }}
+          path: agentbridge-${{ matrix.rid }}.tar.gz
+
+  release:
+    needs: build
+    if: needs.check-version.outputs.do_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download archives
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      # Pin the tag to the commit that triggered this run (github.sha = the gate-off commit) so
+      # a later master push (e.g. the IsPrerelease restore after a button release) cannot move
+      # it. The GITHUB_TOKEN push does not re-trigger workflows. The tag is informational:
+      # nothing listens on it.
+      - name: Tag the triggering commit
+        shell: bash
+        run: |
+          git tag "v${{ needs.check-version.outputs.version }}" "$GITHUB_SHA"
+          git push origin "v${{ needs.check-version.outputs.version }}"
+      # Creates the GitHub release (the tag already exists) with all 5 platform archives.
+      - name: Create GitHub Release v${{ needs.check-version.outputs.version }}
         uses: softprops/action-gh-release@v2
         with:
-          files: agentbridge-${{ matrix.rid }}.tar.gz
+          tag_name: v${{ needs.check-version.outputs.version }}
+          files: artifacts/**/*.tar.gz

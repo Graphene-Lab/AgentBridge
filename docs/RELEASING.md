@@ -15,12 +15,13 @@ git commit + git push origin master (AgentBridge)
                 (1.yy.MM.dd, --skip-duplicate → idempotent)
    └─ AgentBridge master pushed cleanly
 
-release:  powershell -File release.ps1        (or manually: sync-all → git tag v1.yy.MM.dd → push)
-   └─ release.yml on tag v*:
+release (automatic):  push master with IsPrerelease=false in the committed csproj
+   └─ release.yml (trigger: push to master):
         1. check-version: reads the version + the IsPrerelease gate from the csproj
+           (skips when IsPrerelease=true or when today's tag v1.yy.MM.dd already exists)
         2. wait for today's dependency packages on nuget.org (GLOBAL 30-min window, see below)
         3. build 5 single-file archives (win-x64, linux-x64, linux-arm64, osx-x64, osx-arm64)
-           with the Kokoro TTS assets → attach to the GitHub release
+           with the Kokoro TTS assets → create the GitHub release (tag auto-created)
 ```
 
 ## What an update must never touch — the file storage tiers
@@ -95,12 +96,16 @@ wait step use the normalized form).
   **skips the build** (no assets, no GitHub release).
 
 Set `IsPrerelease=true` while iterating and to `false` only when the test cycles proved
-the version works. `release.ps1` warns when the gate is on.
+the version works. The gate is the switch: pushing master with `IsPrerelease=false` in the
+committed csproj triggers the release automatically (release.yml); the workflow pins the tag
+`v1.yy.MM.dd` to the triggering commit. No tag push needed. The status-bar button runs
+`release.ps1`, which only flips the gate to `false`, pushes master and restores the gate to
+`true` afterwards (equivalent to doing it by hand).
 
 **A prerelease push publishes nothing.** With `IsPrerelease=true`, pushing `master` produces
-no GitHub release (`release.yml` only triggers on tags `v*`, and the gate skips the build
-even on a tag) and no NuGet update: the dependency repos' `publish.yml` still runs on the
-push and attempts the push, but `--skip-duplicate` skips the already-published date version
+no GitHub release (`release.yml` runs but the gate skips the build) and no NuGet update: the
+dependency repos' `publish.yml` still runs on the push and attempts the push, but
+`--skip-duplicate` skips the already-published date version
 (same-day freeze), ending with "Package ... already exists at feed". Real publishes only
 come from the next date's push with the gate off.
 
@@ -168,7 +173,8 @@ update + release system:
    ("Wait for dependency packages on NuGet").
 6. **If the package depends on `Graphene.AIOrchestrator` (or Naiad)**, set
    `<Papyrine_SponsorshipLicenseIgnored>true</...>` in its consumers.
-7. **Run the release** (`powershell -File release.ps1`, or the manual steps below).
+7. **Release by pushing master with `IsPrerelease=false`** (automatic — see
+   "Version scheme and the prerelease flag" above).
 
 Discovery is automatic: `sync-all.ps1` walks the ProjectReference tree from AgentBridge, so
 the new repo is pushed by the pre-push hook without any script edit.
