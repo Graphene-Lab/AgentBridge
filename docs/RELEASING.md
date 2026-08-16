@@ -137,7 +137,7 @@ Consequences:
 
 | NuGet package | Source repo | Notes |
 |---|---|---|
-| `Graphene.AIOrchestrator` | Graphene-Lab/AIOrchestrator | the engine; pins the four packages below |
+| `Graphene.AIOrchestrator` | Graphene-Lab/AgentHarness | the engine; pins the four packages below |
 | `AllToMarkdown` | Graphene-Lab/AllToMarkdown | |
 | `MermaidRendering` | Graphene-Lab/MermaidRendering | ships `assets/chart.umd.min.js` + `InstallMermaidRendering.sh` via `contentFiles` |
 | `Graphene.ReverseMarkdown` | Graphene-Lab/ReverseMarkdown | fork of the MIT library → renamed id + Andrea Bruno License 1.4 |
