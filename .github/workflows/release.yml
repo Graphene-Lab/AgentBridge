@@ -42,6 +42,9 @@ jobs:
       - name: Decide whether to release
         id: gate
         shell: bash
+        # The checkout above uses path: AgentBridge, so git must run from inside the repo
+        # (the workspace root is not a git repository — 'origin' does not exist there).
+        working-directory: AgentBridge
         env:
           VERSION: ${{ steps.ver.outputs.version }}
           PRERELEASE: ${{ steps.ver.outputs.prerelease }}
