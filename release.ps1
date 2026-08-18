@@ -1,21 +1,29 @@
-﻿# release.ps1 — triggered by the "Push AgentBridge Release" status-bar button. It turns the
-# release gate off (IsPrerelease=false) and pushes master: the push itself triggers everything
-# else — the pre-push hook syncs the dependency repos (NuGet) and release.yml runs the wait +
-# build + GitHub release (tag auto-created). Afterwards the gate is restored to true locally
-# (NOT pushed: the pushed commit must keep IsPrerelease=false so the release tag points at it).
+﻿# release.ps1 — triggered by the "Push AgentBridge" status-bar menu (Release entry). It turns the
+# release gate off (IsPrerelease=false), commits + pushes EVERY project with pending changes
+# (sync-all.ps1, message "Update at HH:mm") and pushes master: the push itself triggers the
+# wait + build + GitHub release (tag auto-created) in release.yml. Afterwards the gate is
+# restored to true locally (NOT pushed: the pushed commit must keep IsPrerelease=false so the
+# release tag points at it).
 #
-# Running it is exactly equivalent to: set IsPrerelease=false, commit, push master — so the
-# button works from VS Code and a plain git push works from anywhere. No confirmation dialog:
-# the button executes this script right away.
+# With -PreRelease it instead pushes everything keeping IsPrerelease=true: no GitHub release,
+# but all pending changes are still committed and pushed, and the dependency repos still
+# publish today's NuGet packages. The gate is flipped to true first when needed, so the pushed
+# commit can never trigger a release.
 #
-# Usage:  powershell -File release.ps1 [-Message "<commit message>"]
+# Usage:  powershell -File release.ps1 [-Message "<empty-commit message>"] [-PreRelease]
 #   -Message: commit message used for the empty trigger commit when the gate is already off
-#             (default "sync").
+#             and nothing else changed (default "sync").
+#   -PreRelease: commit + push everything with the gate ON (no GitHub release); flips
+#             IsPrerelease to true first if the working copy has it false.
+#
+# Pending changes in every project (AgentBridge + all dependency repos) are committed
+# automatically with "Update at HH:mm" via sync-all.ps1 in both modes.
 #
 # Full mechanism: docs/RELEASING.md.
 
 param(
-    [string]$Message = "sync"
+    [string]$Message = "sync",
+    [switch]$PreRelease
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,6 +36,7 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $csprojPath = Join-Path $root 'AgentBridge.csproj'
 $gateRegex = '<IsPrerelease>\s*(true|false)\s*</IsPrerelease>'
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$syncMsg = "Update at $(Get-Date -Format HH:mm)"
 
 function Set-IsPrerelease([string]$value, [switch]$Push) {
     $content = [regex]::Replace([System.IO.File]::ReadAllText($csprojPath), $gateRegex, "<IsPrerelease>$value</IsPrerelease>", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
@@ -38,9 +47,6 @@ function Set-IsPrerelease([string]$value, [switch]$Push) {
         git diff --cached --quiet HEAD -- AgentBridge.csproj
         if ($LASTEXITCODE -ne 0) {
             git commit -m "chore: IsPrerelease=$value" | Out-Null
-        } elseif ($Push) {
-            # Gate already off in HEAD: push an empty commit so the workflow still triggers.
-            git commit --allow-empty -m $Message | Out-Null
         }
         if ($Push) {
             git push origin master
@@ -51,10 +57,46 @@ function Set-IsPrerelease([string]$value, [switch]$Push) {
     }
 }
 
-# Turn the gate off and push → release.yml runs + the pre-push hook syncs the dependencies.
+# Commit + push every project with pending changes (AgentBridge + dependency repos).
+function Invoke-SyncAll {
+    Push-Location $root
+    try {
+        & (Join-Path $root 'sync-all.ps1') -Message $syncMsg
+        if ($LASTEXITCODE -ne 0) { throw "sync-all failed" }
+    } finally {
+        Pop-Location
+    }
+}
+
+# PreRelease: push the current state WITHOUT releasing. The pushed commit must keep
+# IsPrerelease=true (release.yml would skip the GitHub release) — flip it first if the working
+# copy has it false, then commit + push everything (sync-all: deps publish today's NuGet).
+if ($PreRelease) {
+    Write-Host "=== PreRelease: IsPrerelease=true + commit/push all pending changes (no GitHub release) ==="
+    Set-IsPrerelease 'true'
+    Invoke-SyncAll
+    Write-Host "Done. No GitHub release: everything pushed with the prerelease gate on."
+    exit 0
+}
+
+# Release: turn the gate off, commit every pending change and push → release.yml runs.
 try {
-    Write-Host "=== IsPrerelease=false + push master (release trigger) ==="
-    Set-IsPrerelease 'false' -Push
+    Write-Host "=== Release: IsPrerelease=false + commit/push all pending changes (release trigger) ==="
+    Set-IsPrerelease 'false'
+    Invoke-SyncAll
+    # sync-all pushed master already when anything changed. If nothing was pending AND the
+    # gate was already off, no ref moved → the workflow would not trigger: push an empty
+    # commit to fire it.
+    Push-Location $root
+    try {
+        if ((git rev-list --count origin/master..HEAD) -eq 0) {
+            git commit --allow-empty -m $Message | Out-Null
+            git push origin master
+            if ($LASTEXITCODE -ne 0) { throw "git push failed" }
+        }
+    } finally {
+        Pop-Location
+    }
 } finally {
     # Restore the gate afterwards — locally only, so the pushed commit keeps IsPrerelease=false.
     try {

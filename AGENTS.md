@@ -31,9 +31,14 @@ whose commit has `IsPrerelease=false` in `AgentBridge.csproj` (see `release.yml`
 the dependency packages on nuget.org, builds the 5 platform archives and creates the GitHub
 release — the tag `v1.yy.MM.dd` is created on the fly. Nothing else to run; works from any git
 client. With `IsPrerelease=true`, or when today's tag already exists, the run is skipped.
-The "Push AgentBridge Release" status-bar button does exactly this with one click (no
-confirmation): it runs `release.ps1`, which flips the gate to `false`, pushes master and
-restores the gate to `true` afterwards.
+The "Push AgentBridge" status-bar button does exactly this with one click (no confirmation):
+it opens a Release / PreRelease menu. In both modes `release.ps1` first commits **every
+project with pending changes** (AgentBridge + all dependency repos, via `sync-all.ps1`, commit
+message `"Update at HH:mm"`) and pushes them. **Release** then flips the gate to `false`
+(pushing the release trigger) and restores the gate to `true` locally afterwards.
+**PreRelease** instead keeps the gate on (flipping it first if needed), so all changes are
+committed and pushed and the dependency NuGet packages publish, but no GitHub release is
+created.
 
 **The push itself (always runs):** a `pre-push` hook (installed via `install-hooks.ps1`, template
 in `hooks/pre-push`) runs `sync-all.ps1` automatically whenever AgentBridge master is pushed to
