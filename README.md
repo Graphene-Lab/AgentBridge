@@ -56,8 +56,6 @@ the agent designs the slides for you:
 
 ![Market & financial analysis](docs/enanced_doc_demo.gif)
 
-ed playsinline controls></video>
-
 ## Agent Bridge: Your AI Assistant for Office Work
 
 Agent Bridge is a tool that allows you to connect to your preferred AI, transforming it into your personal assistant: a tireless worker capable of handling office tasks such as drafting complex documents, working with spreadsheets, interacting with email, and performing internet-based activities—all while having full awareness of your company's knowledge base: clients, documents, products, and everything stored in your archive.
