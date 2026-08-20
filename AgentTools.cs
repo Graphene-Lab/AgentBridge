@@ -20,19 +20,20 @@ public static class AgentTools
     public static string[] Resolve(string? model) => model?.ToLower() switch
     {
         "web-agent" => new[] { "FileTool", "WebTool" },
-        "document-agent" => new[] { "DocumentTool" },
-        "spreadsheet-agent" => new[] { "SpreadsheetTool" },
+        "document-agent" => new[] { "DocumentTool", "GitTool" },
+        "spreadsheet-agent" => new[] { "SpreadsheetTool", "GitTool" },
         "search-agent" or "research-agent" => new[] { "FileTool" },
         "email-agent" => new[] { "EMailTool" },
-        "office-agent" => new[] { "FileTool", "OfficeTool" },
+        "office-agent" => new[] { "FileTool", "OfficeTool", "GitTool" },
         "multi-agent" => new[]
         {
             "FileTool",
             "WebTool",
             "DocumentTool",
             "SpreadsheetTool",
-            "EMailTool"
+            "EMailTool",
+            "GitTool"
         },
-        _ => new[] { "FileTool", "WebTool" }
+        _ => new[] { "FileTool", "WebTool", "GitTool" }
     };
 }
