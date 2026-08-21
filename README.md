@@ -1,9 +1,15 @@
 # AgentBridge (codename "AGENT") — AI agents in your terminal and via an OpenAI-compatible API
 
-**AgentBridge is a self-hosted .NET server that runs AI agents with two faces in one
-process: a full-screen terminal chat (TUI) and a standard OpenAI-compatible HTTP API.**
-Chat in the terminal while scripts, bots and apps drive the same agents on the same port —
-same process, same conversations, no bridge, no sync.
+**Add agentic power to your work! Automate tasks and your work without sacrificing your privacy.
+We're happy to put this powerful tool in your hands to automate your business while reducing staff costs, providing you with the most advanced AI technology in the office automation industry.**
+
+AgentBridge is a self-hosted server that runs AI agents with two interfaces in a single process: a full-screen chat terminal (TUI) and a standard HTTP API compatible with OpenAI.
+
+Chat in the terminal while scripts, bots, and apps use the same agents on the same port:
+same process, same conversations, no bridges, no synchronization.
+
+> **Why teams choose this architecture**  
+> AgentBridge is built on the AIOrchestrator library model: one runtime, one agent core, and one consistent operational flow across terminal and API. The result is faster execution, lower integration overhead, and stronger control than traditional multi-server MCP setups. Read the white paper: [Why the AIOrchestrator Library Model Outperforms Traditional MCP Deployments](docs/AIORCHESTRATOR-WHITEPAPER.md).
 
 ## Install & download
 
@@ -92,6 +98,18 @@ Think of the documents area as your company's brain. It is a simple folder on di
 3. Press **Save**. AgentBridge starts reading that area in the background: the first indexing of a large archive takes a few minutes, but you can keep working while it runs.
 4. From now on, ask the AI anything about your documents — it searches the whole area and answers from your data. If you move to a different folder, just change the path again: AgentBridge automatically re-indexes the new area.
 
+### How to configure the LLM provider and API keys
+
+1. Open AgentBridge and type `/modelsetup` (menu **File → Models & Providers**).
+2. In the **LLM & Providers** tab, pick the active provider; use **Add…** / **Edit…** to
+   create or edit a provider. The provider dialog includes an **API key** field (masked on
+   screen) — every cloud provider (DeepSeek, Z.ai, Gemini, Anthropic, …) needs its key;
+   local providers (Ollama, ExLlamaV2, bridges on `localhost`/`127.0.0.1`) leave it empty.
+3. Press **Save**. Keys are stored per-provider in `providers.json` next to the executable
+   (the single source of truth, excluded from updates) — you can also edit that file
+   directly. The manual ([§3 — Configure the JSON files](docs/MANUAL.md#3-configure-the-json-files))
+   documents every field.
+
 ## Comparison with Main Alternative Products
 
 | Product | Target Audience | Key Strength | Main Integrations |
@@ -123,8 +141,8 @@ Think of the documents area as your company's brain. It is a simple folder on di
   Providers**; the active mode is shown on the status page and reported by `GET /v1/models`
   as `interaction_mode`.
 - **Configure models & providers from the UI** — `/modelsetup` (menu **File → Models &
-  Providers**) adds, edits or removes providers, picks the active model, sets the API keys,
-  SMTP/IMAP and documents path — no JSON editing required.
+  Providers**) adds, edits or removes providers, picks the active model, sets the
+  per-provider API keys, SMTP/IMAP and documents path — no JSON editing required.
 - **Voice in the terminal** — dictate from the server microphone (Windows) and hear the
   replies spoken by Kokoro neural TTS, in the UI and over the API.
 - **SIP telephony** — the server becomes a phone endpoint: auto-answer behind a DTMF PIN
@@ -166,20 +184,54 @@ client connects to localhost — is in the **[user manual](docs/MANUAL.md)**.
 ## How it works
 
 `AIOrchestrator` is a .NET library — it cannot run alone. AgentBridge hosts it and exposes
-its chat pipeline as a standard web API:
+its chat pipeline as a standard web API. **One process. Your machine. Your agents.**
 
+```mermaid
+flowchart LR
+    subgraph Clients["You — however you prefer"]
+        A["Terminal UI<br/>(/agent chat)"]
+        B["Any OpenAI client<br/>(SDKs, bots, scripts)"]
+        C["Web GUI"]
+    end
+    subgraph Server["AgentBridge — one process on your machine"]
+        API["OpenAI-compatible API"]
+        AGENT["Your agents<br/>AgentHarness + tools"]
+    end
+    subgraph Models["Your models"]
+        LOCAL["Local<br/>Ollama · ExLlamaV2<br/>DeepSeekBridge"]
+        CLOUD["Cloud<br/>DeepSeek · Z.ai<br/>Gemini · Anthropic"]
+    end
+    A --> API
+    B --> API
+    C --> API
+    API --> AGENT
+    AGENT --> LOCAL
+    AGENT --> CLOUD
 ```
-Terminal UI  ──┐
-               ├──▶ AgentBridge (this server, one process)
-OpenAI client ─┘            │
-                            ▼
-                     AIOrchestrator (agents + tools + anonymization)
-                            │
-                            ▼
-     LLMs (DeepSeek · Z.ai · Gemini · Ollama · ExLlamaV2 · ...)
-     + agent tools (web, search, Word, spreadsheet, email)
-     + Kokoro neural TTS (in-process) + VoiceAgent.Win (Windows speech)
+
+**The agents do the work — locally, under your control:**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as You (TUI / client)
+    participant A as Agent (on your machine)
+    participant T as Tools (web · search · docs · sheets · email)
+    participant M as LLM (local or cloud)
+    U->>A: "Analyse the market, draft the report"
+    loop Agent loop — plan, act, verify
+        A->>M: next step?
+        M-->>A: call the web tool
+        A->>T: gather the data
+        T-->>A: sources found
+        A->>M: reason over the result
+    end
+    A-->>U: PDF report ready
 ```
+
+**Your data stays yours.** Agents run on your machine inside an application-level sandbox;
+only the model call leaves it — and only when you pick a cloud provider. With local models,
+nothing leaves at all.
 
 ---
 
