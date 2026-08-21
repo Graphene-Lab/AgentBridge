@@ -1,4 +1,4 @@
-# AgentBridge (codename "AGENT") — AI agents in your terminal and via an OpenAI-compatible API
+# AgentBridge (codename "AGENT") — promises to replace humans in offices
 
 **Add agentic power to your work! Automate tasks and your work without sacrificing your privacy.
 We're happy to put this powerful tool in your hands to automate your business while reducing staff costs, providing you with the most advanced AI technology in the office automation industry.**
