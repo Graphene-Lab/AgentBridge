@@ -1,5 +1,8 @@
 ﻿# sync-all.ps1 — commit + push AgentBridge and every repo it depends on (recursively via
-# ProjectReference), so the dependency NuGet packages publish before the AgentBridge release.
+# ProjectReference). A plain push is a code-only sync: the dependency repos' publish.yml
+# triggers ONLY on v* tag pushes, so no NuGet package is published by this script. For a
+# real release, push a v1.yy.MM.dd tag on each dependency repo (in dependency order) and
+# then push AgentBridge with IsPrerelease=false — see AIOrchestrator/github-push-and-release.md.
 # New projects added to the dependency tree are picked up automatically (no script edits).
 #
 # Usage: powershell -File sync-all.ps1 [-Message "release prep"] [-Branch master]
@@ -68,4 +71,4 @@ Write-Host "Repos to sync ($($order.Count)):"
 foreach ($d in $order) { Write-Host "  - $d" }
 
 foreach ($d in $order) { Sync-Repo $d }
-Write-Host "Done. Dependency packages publish on nuget.org via each repo's publish.yml; then tag AgentBridge (v1.yy.MM.dd) to trigger the release."
+Write-Host "Done. This was a code-only sync (no NuGet publish: the dependency repos' publish.yml runs only on v* tag pushes). For a release, push a tag per dependency repo, then push AgentBridge with IsPrerelease=false — see AIOrchestrator/github-push-and-release.md."

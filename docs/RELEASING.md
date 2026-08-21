@@ -8,14 +8,17 @@ for **developers and coding agents**. Users only need the [README](../README.md)
 ## Overview — how an update reaches users
 
 ```
-git commit + git push origin master (AgentBridge)
+git commit + git push origin master (AgentBridge)   → pure code sync (pre-release)
    └─ pre-push hook (hooks/pre-push, installed by install-hooks.ps1)
         └─ sync-all.ps1 -SkipSelf  → pushes every dependency repo (recursive ProjectReference scan)
-             └─ each repo's publish.yml (push to master) → packs + pushes its NuGet package
-                (1.yy.MM.dd, --skip-duplicate → idempotent)
+             └─ each repo's publish.yml triggers ONLY on v* tag pushes → a plain push publishes NOTHING
    └─ AgentBridge master pushed cleanly
 
-release (automatic):  push master with IsPrerelease=false in the committed csproj
+release of the dependency packages (explicit): push a tag on each repo, in dependency order
+   git tag v1.yy.MM.dd && git push origin v1.yy.MM.dd    (per dependency repo)
+   └─ repo's publish.yml (trigger: tag v*) → packs + pushes its NuGet package (1.yy.MM.dd, --skip-duplicate)
+
+AgentBridge release (automatic): push master with IsPrerelease=false in the committed csproj
    └─ release.yml (trigger: push to master):
         1. check-version: reads the version + the IsPrerelease gate from the csproj
            (skips when IsPrerelease=true or when today's tag v1.yy.MM.dd already exists)
@@ -23,6 +26,10 @@ release (automatic):  push master with IsPrerelease=false in the committed cspro
         3. build 5 single-file archives (win-x64, linux-x64, linux-arm64, osx-x64, osx-arm64)
            with the Kokoro TTS assets → create the GitHub release (tag auto-created)
 ```
+
+> **General rule (see AIOrchestrator `github-push-and-release.md`):** the dependency repos
+> publish **only on a `v*` tag push** — plain master pushes never publish, and no
+> project-file changes are ever needed (current or future repos).
 
 ## What an update must never touch — the file storage tiers
 
