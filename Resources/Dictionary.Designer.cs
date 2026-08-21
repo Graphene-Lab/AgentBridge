@@ -2036,34 +2036,16 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("SetupActiveMarker", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'SetupDeepSeekKey'.
+        ///   Looks up a localized string similar to 'ProviderApiKey'.
         /// </summary>
-        public static string SetupDeepSeekKey {
+        public static string ProviderApiKey {
             get {
-                return ResourceManager.GetString("SetupDeepSeekKey", resourceCulture);
+                return ResourceManager.GetString("ProviderApiKey", resourceCulture);
             }
         }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupZaiKey'.
-        /// </summary>
-        public static string SetupZaiKey {
-            get {
-                return ResourceManager.GetString("SetupZaiKey", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupGeminiKey'.
-        /// </summary>
-        public static string SetupGeminiKey {
-            get {
-                return ResourceManager.GetString("SetupGeminiKey", resourceCulture);
-            }
-        }
-        
+
         /// <summary>
         ///   Looks up a localized string similar to 'SetupConfiguredProviders'.
         /// </summary>

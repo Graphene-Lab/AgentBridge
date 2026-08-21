@@ -93,20 +93,22 @@ AIOffice settings panel:
 
 | Tab | What you can edit |
 |---|---|
-| **LLM & Providers** | Active provider (dropdown, switches via the same path as `/model`), DeepSeek / Z.ai / Gemini API keys, and a provider list with **Add… / Edit… / Remove** — the CRUD operations apply immediately and persist to `providers.json` (see below) |
+| **LLM & Providers** | Active provider (dropdown, switches via the same path as `/model`) and a provider list with **Add… / Edit… / Remove** — the CRUD operations apply immediately and persist to `providers.json` (see below) |
 | **Email (SMTP)** | SMTP server, port, user, password and the recipient email |
 | **Mail (IMAP)** | IMAP server, port, user and password |
 | **General** | Step logging on/off (`logs/` folder) and the documents path (re-indexed on change) |
 
-- Field edits (keys, email, general) apply when you press **Save**; **Close** discards them.
+- Field edits (email, general) apply when you press **Save**; **Close** discards them.
 - Adding a provider opens a small form (name, protocol OpenAI/Gemini/Anthropic, interaction
-  mode Default/API/CLI, model, base address, endpoint path, context window, timeout).
+  mode Default/API/CLI, model, base address, endpoint path, **API key**, context window,
+  timeout). The API-key field serves every cloud provider — any provider whose endpoint is
+  **not** on loopback (`localhost` / `127.0.0.1`) needs one; local providers simply leave it
+  empty. Keys are stored per-provider in `providers.json` (masked on screen while typing).
   Editing replaces the config in place; removing refuses to delete the last remaining
-  provider. No API-key field: keys are wired to the three known names via `Setup.ApiKey`,
-  so a dynamically added cloud provider cannot use one yet. The interaction mode is
-  optional: `Default` (the initial choice) leaves the decision to the model size — CLI for
-  small models, API for large ones; `API`/`CLI` force one of the two. The active mode
-  appears on the status page and is reported by `GET /v1/models` as `interaction_mode`.
+  provider. The interaction mode is optional: `Default` (the initial choice) leaves the
+  decision to the model size — CLI for small models, API for large ones; `API`/`CLI` force
+  one of the two. The active mode appears on the status page and is reported by
+  `GET /v1/models` as `interaction_mode`.
 - The provider list also stays in sync with `GET /v1/models`, so an added provider can be
   switched to right away.
 

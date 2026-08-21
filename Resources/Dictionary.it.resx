@@ -234,9 +234,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupLlmTab" xml:space="preserve"><value>LLM e provider</value></data>
   <data name="SetupActiveProvider" xml:space="preserve"><value>Provider attivo</value></data>
   <data name="SetupActiveMarker" xml:space="preserve"><value>← attivo</value></data>
-  <data name="SetupDeepSeekKey" xml:space="preserve"><value>Chiave API DeepSeek</value></data>
-  <data name="SetupZaiKey" xml:space="preserve"><value>Chiave API Z.ai</value></data>
-  <data name="SetupGeminiKey" xml:space="preserve"><value>Chiave API Gemini</value></data>
+  <data name="ProviderApiKey" xml:space="preserve"><value>Chiave API</value></data>
   <data name="SetupConfiguredProviders" xml:space="preserve"><value>Provider configurati (Aggiungi/Modifica/Rimuovi si applicano subito):</value></data>
   <data name="SetupAdd" xml:space="preserve"><value>Aggiungi…</value></data>
   <data name="SetupEdit" xml:space="preserve"><value>Modifica…</value></data>

@@ -33,7 +33,7 @@ an auto-updater) must respect them:
 | Tier | Location | Purpose | Update rule |
 |---|---|---|---|
 | **User-editable configuration** | `<app folder>\PersistentData\` | JSON settings a user can edit by hand that must survive updates — currently `rag_settings.json` (the persisted DocumentsPath) | **Never delete or overwrite**. The legacy `rag_settings.json` next to the executable is migrated into `PersistentData` automatically on the first run after an upgrade |
-| **Application data & secrets** | OS app-data folder, `<AppData>\<AppName>\` (Windows `%LocalAppData%\<AppName>`, Linux `~/.local/share/<AppName>`, macOS `~/Library/Application Support/<AppName>`) | App-owned state and credentials — currently `setup.json` (API keys, DPAPI-encrypted on Windows, SMTP/IMAP, provider name) | **Never touch** — outside the app folder by construction |
+| **Application data & secrets** | OS app-data folder, `<AppData>\<AppName>\` (Windows `%LocalAppData%\<AppName>`, Linux `~/.local/share/<AppName>`, macOS `~/Library/Application Support/<AppName>`) | App-owned state and credentials — currently `setup.json` (SMTP/IMAP, DPAPI-encrypted on Windows, provider name; legacy per-provider API keys as fallback only — keys live per-provider in `providers.json`) | **Never touch** — outside the app folder by construction |
 | **Distribution content** | `<app folder>\` (everything the archive ships) | The runtime: `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `.playwright/`, `agent.staticwebassets.endpoints.json`, the default `appsettings.json`, … | **Replace on every update**, with TWO exceptions below |
 
 The folder name of the app-data tier is the **entry-assembly name of the running

@@ -212,9 +212,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupLlmTab" xml:space="preserve"><value>LLM и провайдеры</value></data>
   <data name="SetupActiveProvider" xml:space="preserve"><value>Активный провайдер</value></data>
   <data name="SetupActiveMarker" xml:space="preserve"><value>← активен</value></data>
-  <data name="SetupDeepSeekKey" xml:space="preserve"><value>Ключ API DeepSeek</value></data>
-  <data name="SetupZaiKey" xml:space="preserve"><value>Ключ API Z.ai</value></data>
-  <data name="SetupGeminiKey" xml:space="preserve"><value>Ключ API Gemini</value></data>
+  <data name="ProviderApiKey" xml:space="preserve"><value>Ключ API</value></data>
   <data name="SetupConfiguredProviders" xml:space="preserve"><value>Настроенные провайдеры (Добавить/Изменить/Удалить применяются сразу):</value></data>
   <data name="SetupAdd" xml:space="preserve"><value>Добавить…</value></data>
   <data name="SetupEdit" xml:space="preserve"><value>Изменить…</value></data>

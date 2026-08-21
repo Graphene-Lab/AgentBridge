@@ -42,7 +42,7 @@ The update mechanism respects the three tiers defined in
 | Tier | Rule |
 |---|---|
 | `PersistentData\` (user-editable config) | never touched — not present in the archive, never written |
-| OS app-data folder `<AppData>\agent\` (credentials, `setup.json`, `autoupdate.json`) | never touched — outside the app folder by construction |
+| OS app-data folder `<AppData>\agent\` (SMTP/IMAP credentials, `setup.json`, `autoupdate.json`; LLM API keys are NOT here — they live per-provider in `providers.json`) | never touched — outside the app folder by construction |
 | Distribution content (everything else) | replaced when changed, with **two exceptions** |
 
 The exceptions: **`appsettings.json`** (server config) and **`providers.json`** (LLM

@@ -282,9 +282,6 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupLlmTab" xml:space="preserve"><value>LLM &amp; Providers</value></data>
   <data name="SetupActiveProvider" xml:space="preserve"><value>Active provider</value></data>
   <data name="SetupActiveMarker" xml:space="preserve"><value>← active</value></data>
-  <data name="SetupDeepSeekKey" xml:space="preserve"><value>DeepSeek API key</value></data>
-  <data name="SetupZaiKey" xml:space="preserve"><value>Z.ai API key</value></data>
-  <data name="SetupGeminiKey" xml:space="preserve"><value>Gemini API key</value></data>
   <data name="SetupConfiguredProviders" xml:space="preserve"><value>Configured providers (Add/Edit/Remove apply immediately):</value></data>
   <data name="SetupAdd" xml:space="preserve"><value>Add…</value></data>
   <data name="SetupEdit" xml:space="preserve"><value>Edit…</value></data>
@@ -332,6 +329,7 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="ProviderModel" xml:space="preserve"><value>Model</value></data>
   <data name="ProviderBaseAddress" xml:space="preserve"><value>Base address</value></data>
   <data name="ProviderEndpoint" xml:space="preserve"><value>Endpoint path</value></data>
+  <data name="ProviderApiKey" xml:space="preserve"><value>API key</value></data>
   <data name="ProviderContextWindow" xml:space="preserve"><value>Context window</value></data>
   <data name="ProviderTimeout" xml:space="preserve"><value>Timeout (sec)</value></data>
   <data name="ProviderNameRequired" xml:space="preserve"><value>Name is required</value></data>

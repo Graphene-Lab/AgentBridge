@@ -88,6 +88,27 @@ that instance instead of failing (useful to attach a UI to a running service).
 
 Every key is overridable from the command line (`--LLM:Provider Zai`, `--SkipIndexingOnStartup true`, `--Voice:ExePath ...`, `--Sip:Enabled true`); run `--help` for the list.
 
+### LLM providers & API keys
+
+LLM providers are defined in **`providers.json`** next to the executable (the same file the
+AIOrchestrator library ships — embedded factory default as fallback). Each entry carries its
+own **`ApiKey`** field: the **single source of truth** for keys. `Setup.ApiKey` resolves the
+active provider's key from here; the legacy per-provider `Setup` properties are honored only
+as a fallback when a provider config has no key.
+
+- **Cloud providers** (DeepSeek, Z.ai, Gemini, Anthropic, …) require `ApiKey` — sent as
+  `Authorization: Bearer` (OpenAI/Anthropic) or in the query string (Gemini).
+- **Local providers are keyless by design**: any provider whose `BaseAddress` is on loopback
+  (`localhost` / `127.0.0.1`) is treated as keyless regardless of name — a dynamically added
+  Ollama/ExLlamaV2/DeepSeekBridge entry works out of the box.
+- Keys are edited via the TUI **provider dialog** (`/modelsetup` → Edit, masked field), the
+  AIOffice Settings panel, or directly in the file. `providers.json` is **excluded from
+  updates** (whitelisted — see [autoupdate.md](autoupdate.md)), so keys survive every update.
+- The Z.ai key also enables the image OCR pipeline (`ZaiOcrConverter` reads the `Zai` entry's
+  key).
+
+Full field reference: the AIOrchestrator `docs/providers-config.md`.
+
 > **⚠️ Startup indexing**: the server indexes `DocumentsPath` at startup (minutes on large
 > folders). When the feature under test does **not** need document searches, start with
 > `--SkipIndexingOnStartup true`.
@@ -104,9 +125,11 @@ summary:
   legacy `rag_settings.json` next to the executable is migrated there on first run.
 - **Application data & secrets** — the OS app-data folder in a subfolder named after the
   running executable: `%LocalAppData%\agent\setup.json` on Windows (`~/.local/share/agent`
-  on Linux, `~/Library/Application Support/agent` on macOS). API keys and SMTP/IMAP
-  credentials, DPAPI-encrypted on Windows. Outside the app folder, so updates never touch
-  it.
+  on Linux, `~/Library/Application Support/agent` on macOS). SMTP/IMAP credentials,
+  DPAPI-encrypted on Windows. Outside the app folder, so updates never touch it. (LLM API
+  keys are **not** here: they live per-provider in `providers.json` — see the AIOrchestrator
+  `docs/providers-config.md`; the legacy key fields of `setup.json` remain only as a
+  fallback.)
 - **Distribution content** — everything else next to the executable (what the archive
   ships): `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `.playwright/`,
   `agent.staticwebassets.endpoints.json`, the default `appsettings.json`. Replaced on

@@ -165,11 +165,29 @@ at a local server); it is reloaded when the configuration changes.
 | `PauseBetweenRequests` | Pause between requests (rate limiting), same format |
 | `ContextWindow` | Token window of the model — used by the context-window guard when switching |
 | `AgentInteractionMode` | Optional `API` / `CLI` / `Default`. How the agent tools are exposed: `API` = one JSON tool per method; `CLI` = the agent drives the application terminal with `ClassName subcommand args`; `Default` (omitted) = CLI for small models (context window < 128 000 tokens), API for large ones |
+| `ApiKey` | API key of this provider — empty for local providers (loopback endpoint). Set it here or via the `/modelsetup` provider dialog (masked) / AIOffice Settings panel |
 
 > **Example — add an Anthropic provider:** copy the commented block at the top of
-> `providers.json`, set `Protocol` to `Anthropic`, `CacheType` to `AnthropicCache`, and
-> configure its API key in the server's setup (`Setup.ApiKey`). Then
-> `agent --LLM:Provider Anthropic` or `/model Anthropic` in the UI.
+> `providers.json`, set `Protocol` to `Anthropic`, `CacheType` to `AnthropicCache`, and put
+> its API key in the `ApiKey` field of the entry (or set it via the UI provider dialog).
+> Then `agent --LLM:Provider Anthropic` or `/model Anthropic` in the UI.
+
+#### How API keys work
+
+- **One key per provider, stored in `providers.json`** — the `ApiKey` field of the
+  provider's entry is the single source of truth. Set it via the `/modelsetup` **Edit**
+  dialog (the field is masked while typing) or directly in the file.
+- **Local providers need no key**: any provider whose `BaseAddress` points at loopback
+  (`localhost` / `127.0.0.1` — Ollama, ExLlamaV2, the DeepSeekBridge) is treated as keyless
+  regardless of name.
+- Cloud keys are sent as `Authorization: Bearer` (OpenAI/Anthropic protocols) or in the
+  query string (Gemini protocol).
+- `providers.json` is excluded from updates, so configured keys survive every update.
+- The same Z.ai key also enables image OCR: the attachment pipeline converts images via
+  Z.ai GLM-OCR using the `Zai` provider's key. Without it, images are simply skipped.
+- Legacy note: keys set through the older per-provider `Setup` properties (e.g.
+  `%LocalAppData%\agent\setup.json`) still work as a fallback until a key is set on the
+  provider itself.
 
 ---
 
@@ -226,7 +244,7 @@ see [section 6](#6-connect-a-client-to-localhost)):
 | `/retry` | **Resend the last prompt** | also `Ctrl+Y` |
 | `/docs` | **Open the online docs** | in the browser |
 | `/web` | **Launch the web GUI (Giraffe AI)** | installs the client on first run and auto-connects it to this server (see [section 6](#6-connect-a-client-to-localhost)) |
-| `/modelsetup` | **Configure models & providers** | add/edit/remove providers, active model, API keys, email (SMTP), mail reading (IMAP), logging, documents path |
+| `/modelsetup` | **Configure models & providers** | add/edit/remove providers (including the per-provider API key), active model, email (SMTP), mail reading (IMAP), logging, documents path |
 | `/exit` · `/quit` | **Exit** | also `Ctrl+C` twice, or `Ctrl+D` |
 
 > Platform-dependent features are honest: if the platform or the assets are missing, the
@@ -332,7 +350,7 @@ Full reference (architecture, security, NAT/firewall, deployment): **[docs/sip.m
 |---|---|
 | `agent` / `agent.exe` | The server (self-contained single file) |
 | `appsettings.json` | Server configuration (port, default LLM, voice path) |
-| `providers.json` | LLM provider definitions |
+| `providers.json` | LLM provider definitions + the per-provider API keys (excluded from updates) |
 | `kokoro.onnx` + `voices/` | Kokoro TTS model and voices |
 | `AIOffice.VoiceAgent.Win.exe` (Windows) | Voice dictation backend |
 | `voiceagent-stt/` | `AIOffice.VoiceAgent` executable (whisper) — SIP call speech-to-text |

@@ -2178,18 +2178,15 @@ public static class ConsoleTui
             // ── LLM / Providers tab ──
             var providerDropdown = new DropDownList { ReadOnly = true };
             var providersList = new ListView();
-            TextField deepSeekKey = null!, zaiKey = null!, geminiKey = null!;
             var llmTab = new View { Title = Dictionary.SetupLlmTab, CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
             {
                 providerDropdown.X = 17; providerDropdown.Y = 0; providerDropdown.Width = 46;
                 llmTab.Add(new Label { Text = Dictionary.SetupActiveProvider, X = 1, Y = 0, Width = 15 }, providerDropdown);
 
+                // API keys are set per-provider in the Add/Edit dialog below (providers.json);
+                // local providers (localhost/127.0.0.1 endpoint) simply leave the field empty.
                 int y = 2;
-                deepSeekKey = AddField(llmTab, Dictionary.SetupDeepSeekKey, AIOrchestrator.Setup.DeepSeekApiKey, y++);
-                zaiKey = AddField(llmTab, Dictionary.SetupZaiKey, AIOrchestrator.Setup.ZaiApiKey, y++);
-                geminiKey = AddField(llmTab, Dictionary.SetupGeminiKey, AIOrchestrator.Setup.GeminiApiKey, y++);
-
-                llmTab.Add(new Label { Text = Dictionary.SetupConfiguredProviders, X = 1, Y = ++y, Width = Dim.Fill() });
+                llmTab.Add(new Label { Text = Dictionary.SetupConfiguredProviders, X = 1, Y = y, Width = Dim.Fill() });
                 y++;
                 providersList.X = 1; providersList.Y = y; providersList.Width = 62; providersList.Height = 6;
                 llmTab.Add(providersList);
@@ -2316,10 +2313,6 @@ public static class ConsoleTui
                     return;
                 }
 
-                AIOrchestrator.Setup.DeepSeekApiKey = (deepSeekKey.Text ?? "").Trim();
-                AIOrchestrator.Setup.ZaiApiKey = (zaiKey.Text ?? "").Trim();
-                AIOrchestrator.Setup.GeminiApiKey = (geminiKey.Text ?? "").Trim();
-
                 AIOrchestrator.Setup.SmtpServer = (smtpServer.Text ?? "").Trim();
                 if (int.TryParse((smtpPort.Text ?? "").Trim(), out var sp)) AIOrchestrator.Setup.SmtpPort = sp;
                 AIOrchestrator.Setup.SmtpUser = (smtpUser.Text ?? "").Trim();
@@ -2354,8 +2347,9 @@ public static class ConsoleTui
         }
 
         // Modal form to add a new provider or edit an existing one (returns the edited
-        // config on OK, null on cancel). No API-key field: keys live in Setup.ApiKey's
-        // hardcoded per-name switch, so a dynamically named cloud provider cannot use one.
+        // config on OK, null on cancel). The API-key field serves every cloud provider
+        // (any non-loopback endpoint); local providers simply leave it empty. Keys are
+        // persisted with the provider to providers.json.
         private ProviderConfig? ShowProviderDialog(ProviderConfig? existing)
         {
             var dlg = new Dialog
@@ -2391,6 +2385,9 @@ public static class ConsoleTui
             var modelField = AddField(dlg, Dictionary.ProviderModel, existing?.ModelName, y++);
             var baseField = AddField(dlg, Dictionary.ProviderBaseAddress, existing?.BaseAddress.ToString(), y++);
             var endPointField = AddField(dlg, Dictionary.ProviderEndpoint, existing?.EndPoint, y++);
+            // Masked API-key field (secret on screen); leave empty for local providers
+            // (localhost/127.0.0.1 endpoint — they are treated as keyless regardless of name).
+            var apiKeyField = AddField(dlg, Dictionary.ProviderApiKey, existing?.ApiKey, y++, secret: true);
             var ctxField = AddField(dlg, Dictionary.ProviderContextWindow, (existing?.ContextWindow ?? 32768).ToString(), y++);
             var timeoutField = AddField(dlg, Dictionary.ProviderTimeout, ((int)(existing?.Timeout.TotalSeconds ?? 30)).ToString(), y++);
 
@@ -2429,6 +2426,7 @@ public static class ConsoleTui
                     ModelName = (modelField.Text ?? "").Trim(),
                     BaseAddress = uri,
                     EndPoint = (endPointField.Text ?? "").Trim(),
+                    ApiKey = (apiKeyField.Text ?? "").Trim(),
                     ContextWindow = ctx,
                     Timeout = TimeSpan.FromSeconds(secs),
                 };
@@ -2445,10 +2443,11 @@ public static class ConsoleTui
         }
 
         // Adds a labelled single-line field to a form and returns the field.
-        private static TextField AddField(View parent, string label, string? value, int y, int labelWidth = 18, int fieldWidth = 44)
+        // When secret is true the typed text is masked on screen (e.g. API keys, passwords).
+        private static TextField AddField(View parent, string label, string? value, int y, int labelWidth = 18, int fieldWidth = 44, bool secret = false)
         {
             parent.Add(new Label { Text = label, X = 1, Y = y, Width = labelWidth });
-            var field = new TextField { Text = value ?? "", X = labelWidth + 2, Y = y, Width = fieldWidth };
+            var field = new TextField { Text = value ?? "", X = labelWidth + 2, Y = y, Width = fieldWidth, Secret = secret };
             parent.Add(field);
             return field;
         }

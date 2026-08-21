@@ -180,8 +180,11 @@ var anonymize = builder.Configuration.GetValue<bool>("LLM:Anonymize");
 Setup.SkipIndexingOnStartup = builder.Configuration.GetValue<bool>("SkipIndexingOnStartup");
 
 // This host has no settings UI of its own: load credentials persisted by the previous
-// run (Setup.Save) from %LocalAppData%\{app}\setup.json — SMTP/IMAP for EMailTool,
-// API keys. Provider selection above stays appsettings-driven (Setup.Load only restores
+// run (Setup.Save) from %LocalAppData%\{app}\setup.json — SMTP/IMAP for EMailTool.
+// LLM API keys are NOT here: they live per-provider in providers.json (edited via the
+// TUI /modelsetup provider dialog or directly — see docs/providers-config.md); the
+// legacy key fields of setup.json are only a fallback when a provider has no key.
+// Provider selection above stays appsettings-driven (Setup.Load only restores
 // Setup.ProviderConfig if the file contains ProviderName). See Setup.Load XML docs.
 // The assembly was renamed AgentBridge → agent: migrate the credentials file so the
 // old %LocalAppData%\AgentBridge\setup.json still applies (Setup.SetupFilePath uses
