@@ -82,14 +82,18 @@ if ($PreRelease) {
 # Release: turn the gate off, commit every pending change and push → release.yml runs.
 try {
     Write-Host "=== Release: IsPrerelease=false + commit/push all pending changes (release trigger) ==="
+    $originBefore = (git rev-parse origin/master).Trim()
     Set-IsPrerelease 'false'
     Invoke-SyncAll
-    # sync-all pushed master already when anything changed. If nothing was pending AND the
-    # gate was already off, no ref moved → the workflow would not trigger: push an empty
-    # commit to fire it.
+    # sync-all pushed master whenever anything changed (the "chore: IsPrerelease=false" commit
+    # or pending work) — that push already triggered release.yml. Only when NOTHING was pushed
+    # (gate already off + no pending changes) does no ref move and the workflow stay
+    # untriggered: push an empty commit to fire it. Comparing origin/master before vs after is
+    # the correct "was it triggered?" check — a rev-list count is always 0 once sync-all has
+    # pushed, which caused a duplicate trigger commit + a double push (two release builds).
     Push-Location $root
     try {
-        if ((git rev-list --count origin/master..HEAD) -eq 0) {
+        if ((git rev-parse origin/master).Trim() -eq $originBefore) {
             git commit --allow-empty -m $Message | Out-Null
             git push origin master
             if ($LASTEXITCODE -ne 0) { throw "git push failed" }
