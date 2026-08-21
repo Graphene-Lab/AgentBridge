@@ -5,7 +5,7 @@
 //  endpoint AND the SIP telephony loop (SipBridge) both resolve the id to the
 //  tool names with this helper, so the two paths can never drift apart.
 //  The names are resolved to concrete BaseAgentTool types at runtime by
-//  AgentHarness.ToolRegistry (plugin names are unique by definition), so
+//  AgentHarness.McpToolRegistry (plugin names are unique by definition), so
 //  no project needs a compile-time dependency on a plugin. Core tools live in
 //  the AIOrchestrator assembly; plugin tools are loaded dynamically from the
 //  Tools/ folder (see ToolPlugins). See AIOrchestrator/ARCHITECTURE.md —

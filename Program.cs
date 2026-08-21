@@ -210,7 +210,7 @@ var app = builder.Build();
 
 // Tool plugins (DocumentTool, SpreadsheetTool, OfficeTool): loaded DYNAMICALLY from the
 // Tools/ folder next to the executable — no project depends on a plugin. The agent sets
-// pass tool names and ToolRegistry resolves them at runtime.
+// pass tool names and McpToolRegistry resolves them at runtime.
 _ = AgentBridge.ToolPlugins.Host;
 
 // SIP telephony (auto-answer + PIN, outgoing calls — see docs/sip.md): initialized from the
