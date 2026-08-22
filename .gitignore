@@ -88,3 +88,6 @@ node_modules/
 __pycache__/
 *.pyc
 MigrationBackup/
+
+# Local secrets (SSH keys for the SIP entry-point server, etc.) — never committed
+secrets/

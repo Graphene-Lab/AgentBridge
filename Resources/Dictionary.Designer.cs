@@ -1471,6 +1471,33 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'NoteSipConfigFailed'.
+        /// </summary>
+        public static string NoteSipConfigFailed {
+            get {
+                return ResourceManager.GetString("NoteSipConfigFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteSipConfigRestart'.
+        /// </summary>
+        public static string NoteSipConfigRestart {
+            get {
+                return ResourceManager.GetString("NoteSipConfigRestart", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteSipConfigUsage'.
+        /// </summary>
+        public static string NoteSipConfigUsage {
+            get {
+                return ResourceManager.GetString("NoteSipConfigUsage", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'SipPhaseRinging'.
         /// </summary>
         public static string SipPhaseRinging {
@@ -1829,7 +1856,16 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("PageSipStatus", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'PageSipConfig'.
+        /// </summary>
+        public static string PageSipConfig {
+            get {
+                return ResourceManager.GetString("PageSipConfig", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to 'PageUploadedFiles'.
         /// </summary>

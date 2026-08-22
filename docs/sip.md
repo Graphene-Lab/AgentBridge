@@ -17,20 +17,27 @@ Implemented with [SIPSorcery](https://github.com/sipsorcery-org/sipsorcery) 10.0
                                                   │
                  DTMF (RFC 4733) ─────────────────┤──► PIN gate (3 attempts, 24 h lockout)
                                                   │
-   RTP in (G.711 8 kHz) ─► G.711 decode ─► PCM16 ─┴──► VAD ─► AIOffice.VoiceAgent --transcribe
-                                                                          │ whisper
-                                                                          ▼
+   RTP in (G.711 8 kHz) ─► G.711 decode ─► PCM16 ─┴──► persistent voice subprocess
+                                                              (AIOffice.VoiceAgent --pipe-audio:
+                                                               VAD + whisper STT, Kokoro/SAPI TTS)
+                                                                          │
                                                   SessionStore + AgentHarness.ExecuteAction
                                                                           │
-   RTP out ◄── resample+encode ◄── PCM 24 kHz ◄── TtsEngine (Kokoro, in-process)
+   RTP out ◄── resample+encode ◄── PCM 24 kHz ◄── {"cmd":"speak","render":true} chunks
 ```
 
 - **One call at a time.** A second incoming call gets `486 Busy Here`; `/sip call` while a
   call is active is refused.
-- **Speech-to-text** runs as the `AIOffice.VoiceAgent` subprocess (`--transcribe <wav>`,
-  whisper.net). While the agent's TTS is playing, the caller's capture is paused — a
-  hands-free caller would otherwise echo the reply back and the VAD would transcribe our
-  own answer into an endless loop.
+- **Speech engines live in ONE subprocess** — architectural rule (see AIOrchestrator
+  ARCHITECTURE.md "Media as I/O"): the media is only transport. `SipBridge` runs the
+  cross-platform `AIOffice.VoiceAgent --pipe-audio` as a **persistent** process: decoded RTP
+  PCM (8→16 kHz upsample) is pushed via `{"cmd":"audio"}`; **VAD + whisper stay in the
+  subprocess** (no duplicated VAD in the bridge); replies are rendered with
+  `{"cmd":"speak","render":true}` and the 24 kHz PCM chunks come back as `{"type":"audio"}`.
+  The process lives for the whole server lifetime → the whisper model stays loaded
+  (**persistent STT**: no per-utterance model-load cost). While the agent's TTS is playing,
+  the caller's capture is paused — a hands-free caller would otherwise echo the reply back
+  and the VAD would transcribe our own answer into an endless loop.
 - The **conversation** is the SHARED agentic voice conversation (`AIOrchestrator
   ExecuteActionStream` with `isVoiceChat: true` — see `VoiceConversation.StreamToMediaAsync`):
   the same loop the AIOffice Voice panel uses, so the phone gets the same tools, the same
@@ -56,10 +63,13 @@ Every key is overridable from the command line (`--Sip:Pin 12345`, ...).
 | `Pin` | `""` | The 5-digit DTMF PIN (any length; DTMF validates when the buffer matches it) |
 | `MaxPinAttempts` | `3` | Wrong-PIN attempts before the lockout — **cumulative across calls**: a redial does not reset the counter; only a correct PIN or the lockout expiry does |
 | `LockoutHours` | `24` | Lockout duration after the attempts are exhausted |
+| `RegisterExpiry` | `60` | REGISTER expiry/refresh interval in seconds. Keep it low (60) behind home NAT: consumer routers drop the NAT mapping long before the SIP default 300 s, and inbound calls between refreshes would go unanswered |
+| `PinTimeoutSeconds` | `60` | Seconds to wait for the PIN before the server hangs up the call (min 10). A call left in the PIN gate with no digits ends itself with a spoken notice |
 | `AllowedCallers` | `[]` | Trusted caller URIs that skip the PIN in `allowlist` mode |
 | `Agent` | `"default-agent"` | Agent set used for the conversation (`default`, `multi`, `word`, ...) |
 | `Lang` | system language | Two-letter ISO language for STT/TTS and the announcements (Italian default when empty on an Italian machine) |
 | `SttExePath` | `<server>\voiceagent-stt\` | Path to the `AIOffice.VoiceAgent` executable |
+| `SttModel` | `small` | Whisper model for the STT subprocess (`tiny/base/small/medium/largev2/largev3`). **Do not go below `small`**: tiny/base were tested on real phone calls and fail to recognize speech (e.g. "il meteo" → "villioni sul metto"); `small` is the floor for acceptable accuracy on real G.711 audio (~7 s per utterance on CPU) |
 | `RtpPortRange` | `""` | Fixed RTP port range, e.g. `"40000-41000"` (firewalled deployments); empty = ephemeral ports |
 
 ## TUI commands
@@ -67,6 +77,9 @@ Every key is overridable from the command line (`--Sip:Pin 12345`, ...).
 | Command | Meaning |
 |---|---|
 | `/sip status` | Live state: enabled/listening, registered, answer gate, call phase, PIN attempts left, lockout expiry, STT/TTS availability |
+| `/sip config` | Show the effective configuration (secrets masked) — keys match appsettings.json |
+| `/sip config set <key> <value>` | Change one config key and persist it to appsettings.json (live-apply when possible; see [Configuring from the TUI](#configuring-from-the-tui)) |
+| `/sip config reload` | Re-read the `Sip` section from appsettings.json (hand edits made outside the TUI) and apply it live |
 | `/sip call <sip-uri>` | Place an outgoing call (`sip:user@host`, or a bare number routed via the registrar) |
 | `/sip answer on\|off` | Toggle the incoming-call auto-answer gate |
 | `/sip hangup` | Hang up the active call |
@@ -77,9 +90,42 @@ The status bar shows a `sip:` segment (✓ idle, `ring`, `pin`, `call`) refreshe
 | Endpoint | Body | Purpose |
 |---|---|---|
 | `GET /v1/sip/status` | — | Same state as `/sip status` |
+| `GET /v1/sip/config` | — | Same state as `/sip config` (secrets masked) |
+| `POST /v1/sip/config` | `{"key": "Pin", "value": "12345"}` | Set one config key (persisted to appsettings.json) |
+| `POST /v1/sip/config/reload` | `{}` | Re-read the `Sip` section from appsettings.json |
 | `POST /v1/sip/call` | `{"uri": "sip:user@host"}` | Outgoing call (blocks until answered/failed, ring timeout 60 s) |
 | `POST /v1/sip/hangup` | `{}` | Hang up |
 | `POST /v1/sip/answer` | `{"on": false}` | Toggle the answer gate |
+
+## Configuring from the TUI
+
+The single source of truth is the `Sip` section of `appsettings.json` (a runtime file:
+updates never overwrite it — see RELEASING.md). `/sip config` reads it through the server,
+`/sip config set` writes it back, so TUI edits and manual JSON edits converge on the same
+file:
+
+```
+/sip config                     → show the effective config (PIN/password masked)
+/sip config set Pin 12345       → change + persist, live if possible
+/sip config set AnswerMode none → change + persist
+/sip config set AllowedCallers +393331234567,+390212345678   → comma-separated list
+/sip config reload              → re-apply hand edits made directly in appsettings.json
+```
+
+- **Keys** are the appsettings.json property names, case-insensitive: `Enabled`,
+  `ListenPort`, `Registrar`, `Username`, `Password`, `AnswerMode`, `Pin`,
+  `MaxPinAttempts`, `LockoutHours`, `RegisterExpiry`, `AllowedCallers`
+  (comma-separated), `Agent`, `Lang`, `SttExePath`, `RtpPortRange`. Booleans accept
+  `true/false/1/on`.
+- **Live vs restart.** PIN-policy keys (`Pin`, `MaxPinAttempts`, `LockoutHours`) and the
+  per-call keys (`AnswerMode`, `AllowedCallers`, `Agent`, `Lang`, `SttExePath`) apply
+  immediately to the next call. Transport-level keys (`Enabled`, `ListenPort`, `Registrar`,
+  `Username`, `Password`, `RtpPortRange`, `RegisterExpiry`) restart the SIP channel
+  automatically (a new REGISTER is sent, the UDP socket is re-bound); if a call is active
+  the change is refused with "hang up first". A lockout in progress survives a PIN change
+  (the 24 h counter is carried over); the wrong-attempt counter resets with a new PIN.
+- **Secrets never leave the server**: `/sip config` reports only whether `Pin`/`Password`
+  are set; `set` never echoes them back in the response message.
 
 ## Incoming call flow
 
@@ -97,18 +143,28 @@ The status bar shows a `sip:` segment (✓ idle, `ring`, `pin`, `call`) refreshe
      to the PIN when one is configured. A startup warning is logged when `allowlist` is
      used without a registrar.
    - `AnswerMode: "pin"` (default) → the caller hears a welcome prompt and must type the
-     PIN on the keypad (DTMF, RFC 4733 — deterministic, no speech recognition).
-4. **PIN validation** — each 5-digit (or PIN-length) burst is one attempt; overflow digits
-   stay in the buffer for the next attempt. Wrong → "attempts left: N". After
-   `MaxPinAttempts` wrong attempts **in total** (across calls — hanging up and redialing
-   does not reset the counter) the server announces the lockout, hangs up and persists
-   `locked_until` to `%LocalAppData%\agent\sipstate.json` (survives restarts). Only a
-   correct PIN or the lockout expiry resets the counter; the digit buffer is cleared on
-   every new call so a partially typed PIN never concatenates across calls.
+     PIN on the keypad (DTMF accepted from any transport — see step 4).
+4. **PIN validation** — the keypad digits are accepted from **any transport**: RFC 4733 RTP
+   events (the standard), SIP INFO bodies (`application/dtmf-relay` — handled at the
+   transport level and routed by the entry point) and **in-band tones** (Goertzel detection,
+   active only during the PIN phase — once the conversation starts, speech is never misread
+   as digits). Each PIN-length burst is one attempt; overflow digits stay in the buffer for
+   the next attempt. Wrong → "attempts left: N". After `MaxPinAttempts` wrong attempts
+   **in total** (across calls — hanging up and redialing does not reset the counter) the
+   server announces the lockout, hangs up and persists `locked_until` to
+   `%LocalAppData%\agent\sipstate.json` (survives restarts). Only a correct PIN or the
+   lockout expiry resets the counter; the digit buffer is cleared on every new call so a
+   partially typed PIN never concatenates across calls. If no digit arrives within
+   `PinTimeoutSeconds`, the call ends with a spoken notice.
 5. **Conversation** — the caller's speech is transcribed per utterance (VAD: adaptive noise
-   floor + 700 ms silence) and fed to `AgentHarness.ExecuteAction` with the configured
+   floor + 500 ms silence) and fed to `AgentHarness.ExecuteAction` with the configured
    agent set; the reply is chunked into sentences and spoken back. Replies are sanitized
    before synthesis (emoji/symbols stripped — the Kokoro phonemizer rejects them).
+   **Robustness to background noise**: the decoded G.711 stream passes through an 80 Hz
+   high-pass filter (removes hum/rumble) before the VAD; the audio is upsampled 8→16 kHz
+   before transcription (whisper is trained on 16 kHz); and transcripts consisting ONLY of
+   non-speech placeholders (`[Musica]`, `[Rumore]`, ...) are dropped — background music is
+   never sent to the LLM, so the agent cannot "answer the music".
 
 ## Robustness
 
@@ -145,6 +201,97 @@ The status bar shows a `sip:` segment (✓ idle, `ring`, `pin`, `call`) refreshe
   public SIP port needed; set `AnswerMode: "allowlist"` with your own numbers to skip the
   PIN (PAID from the trunk is reliable).
 
+## Minimal SIP entry point (smartphone → AgentBridge)
+
+When AgentBridge lives behind NAT (home PC, no router access) and the smartphone is on
+mobile data, a tiny VPS can act as the **SIP entry point**: a pure relay that **only
+smista** signalling and RTP — **no codec handling, no transcoding, no voicemail** — so a
+low-end box (~256 MB) is enough. Both sides are *clients* of the entry point: AgentBridge
+REGISTERs to it (outbound — no inbound port needed on the home router), the smartphone
+dials it, and the entry point routes the call to AgentBridge's registration. RTP is
+force-relayed through **rtpengine**, so neither side ever needs to reach the other directly.
+
+```
+A = AgentBridge (PC, NAT)   B = 195.20.235.5 (entry point)   C = smartphone (mobile NAT)
+        A ──REGISTER──► B ◄──INVITE── C          (signalling)
+        A ────RTP──────► B ◄────RTP─── C          (media, relayed, no codecs)
+        A ◄──────────── B ──────────► C
+```
+
+This is also the production architecture: AgentBridge behaves like a normal SIP client —
+it initiates the connection and stays registered, so no firewall changes are ever needed
+at its location.
+
+> **Full guide + unattended installer**: see `docs/sip-entry/README.md` (step-by-step) and
+> `docs/sip-entry/setup-entrypoint.sh` — one command installs Kamailio + rtpengine, writes
+> the configs, generates the shared secret and prints the AgentBridge/phone settings.
+> Interactive config generators for the AgentBridge side (same keys as `/sip config`):
+> `scripts/sip-config.bat` / `sip-config.sh`.
+
+**Software** (Debian/Ubuntu, on the entry point) — installs `kamailio kamailio-extra-modules
+rtpengine` (rtpengine, not rtpproxy: Debian 12 has no rtpproxy package) and deploys the
+configs, all in one command (the script in `docs/sip-entry/`, auto-generated credentials):
+
+```bash
+sudo bash docs/sip-entry/setup-entrypoint.sh
+```
+
+`kamailio-extra-modules` provides the `rtpengine`/`nathelper` modules. `rtpengine` runs as a
+daemon (`systemctl enable --now rtpengine-daemon`).
+
+The authoritative Kamailio config (digest-auth REGISTER for the AgentBridge AOR, any-user
+200-OK registration for the phone, rtpengine relay, NAT handling) lives in
+**`docs/sip-entry/kamailio.cfg`** and is deployed by `setup-entrypoint.sh` — use those
+files, not a pasted copy.
+
+**AgentBridge side** (on the home PC) — the server becomes a client of the entry point:
+
+```
+/sip config set Enabled true
+/sip config set Registrar sip:195.20.235.5:5060
+/sip config set Username agent
+/sip config set Password <shared secret>      # must match the HA1 on the server
+/sip config set ListenPort 6070               # non-standard port: many home ISPs (e.g. Italian
+                                              # lines) silently drop INBOUND UDP on 5060 — the
+                                              # REGISTER replies would never reach the agent
+/sip config set RegisterExpiry 60             # keep the home-NAT mapping alive (see below)
+/sip config set Pin 12345
+/sip config set Lang it
+```
+
+Each `set` persists to `appsettings.json` and the transport restarts automatically (the
+REGISTER goes out with the new credentials). `/sip status` shows `registered on` when the
+entry point accepted it. **ListenPort matters**: the ISP/modem often blocks inbound UDP on
+the standard SIP port 5060 while allowing it on any other port — if the registration never
+completes (the agent keeps retransmitting REGISTER without ever receiving the 401/200),
+move the local listener to a non-standard port (e.g. 6070) with `/sip config set ListenPort
+6070`. The entry point routes replies to the port the REGISTER came from, so no change is
+needed on the server side.
+
+**Firewall** on the entry point: open `5060/udp` (SIP) and `40000-41000/udp` (RTP relay)
+to the internet. On Debian 12 the relay is **rtpengine** (no `rtpproxy` package exists):
+userspace-only (`table = -1`), control socket `udp:127.0.0.1:2223`, media ports
+40000-41000 (see `docs/sip-entry/rtpengine.conf`). AgentBridge and the phone need no open
+ports at all.
+
+**Verification** from the entry point (needs the `ctl` module loaded — see
+`docs/sip-entry/kamailio.cfg`; without it `kamcmd` is unavailable and the registration can
+be confirmed from the agent side with `/sip status`):
+
+```bash
+sudo kamcmd usrloc.dump | grep -A3 agent   # AgentBridge's registration present
+sudo kamcmd core.uptime
+```
+
+Then dial `sip:agent@195.20.235.5` from the phone (Linphone: account with the proxy set
+to `195.20.235.5`, transport UDP, no auth for calls) — the PIN prompt is spoken, DTMF
+keys validate (`/sip status` on the PC shows the phase: `pin` → `call`).
+
+**Variant — static forwarding** (only when AgentBridge has a reachable IP, e.g. a public
+VPS): skip the `usrloc`/`registrar` modules and forward every INVITE with
+`$du = "sip:<agentbridge-ip>:5060"` instead of `lookup("location")`. No registration
+needed on the AgentBridge side.
+
 ## Deploying the speech-to-text executable
 
 `voiceagent-stt/` must contain the **cross-platform** `AIOffice.VoiceAgent` executable
@@ -180,6 +327,15 @@ Test 18 (the voice loop) requires the default LLM provider to be reachable and i
 with `--skip-voice`; the LLM bridge can stall or produce very long replies, so the voice
 loop runs last — it never contaminates the other checks. `--voice-only` skips straight to
 it (with the lockout state pre-expired) for fast iteration on the media path.
+
+**`e2e/SipClientTest`** is a standalone softphone for testing a REMOTE chain (entry point +
+AgentBridge): it dials `sip:agent@<host>`, answers the spoken PIN prompt with DTMF, speaks
+a bundled Italian TTS greeting and captures the agent's reply (saved as `reply.wav`):
+
+```bash
+dotnet run --project e2e\SipClientTest                 # defaults: sip:agent@195.20.235.5, pin 12345
+dotnet run --project e2e\SipClientTest -- sip:agent@host 12345 5071 45 --pin-wait=10
+```
 
 ## Known limitations
 

@@ -67,7 +67,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="CmdFiles" xml:space="preserve"><value>Carica+allega un file, elimina uno, o elenca i caricamenti</value></data>
   <data name="CmdAttach" xml:space="preserve"><value>Attiva/disattiva un allegato per la chat (menu se non viene dato un id)</value></data>
   <data name="CmdShortcuts" xml:space="preserve"><value>Mostra l'overlay delle scorciatoie da tastiera</value></data>
-  <data name="CmdSip" xml:space="preserve"><value>Telefonia SIP: status, call &lt;sip-uri&gt;, answer on|off, hangup</value></data>
+  <data name="CmdSip" xml:space="preserve"><value>Telefonia SIP: status, config [set &lt;key&gt; &lt;value&gt;|reload], call &lt;sip-uri&gt;, answer on|off, hangup</value></data>
   <data name="CmdHealth" xml:space="preserve"><value>Esegue un ping al server e riporta la latenza</value></data>
   <data name="CmdRetry" xml:space="preserve"><value>Reinvia l'ultimo prompt (anche Ctrl+Y)</value></data>
   <data name="CmdExit" xml:space="preserve"><value>Esci dall'interfaccia a terminale (Ctrl+Q, Ctrl+C due volte, Ctrl+D)</value></data>
@@ -162,7 +162,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="NoteLastReplyOk" xml:space="preserve"><value>l'ultima risposta è riuscita — reinvio comunque</value></data>
   <data name="NoteOpenedUrl" xml:space="preserve"><value>aperto {0} nel browser</value></data>
   <data name="NoteOpenBrowserFailed" xml:space="preserve"><value>impossibile aprire il browser: {0}</value></data>
-  <data name="NoteSipUsage" xml:space="preserve"><value>uso: /sip status | call &lt;sip-uri&gt; | answer on|off | hangup</value></data>
+  <data name="NoteSipUsage" xml:space="preserve"><value>uso: /sip status | config [set &lt;key&gt; &lt;value&gt;|reload] | call &lt;sip-uri&gt; | answer on|off | hangup</value></data>
   <data name="NoteSipUnavailable" xml:space="preserve"><value>SIP non disponibile (HTTP {0})</value></data>
   <data name="NoteSipUnavailableCall" xml:space="preserve"><value>SIP non abilitato — imposta Sip:Enabled true in appsettings.json</value></data>
   <data name="NoteSipCalling" xml:space="preserve"><value>chiamata a {0} in corso…</value></data>
@@ -170,6 +170,9 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="NoteSipCallFailed" xml:space="preserve"><value>chiamata a {0} non riuscita: {1}</value></data>
   <data name="NoteSipHangup" xml:space="preserve"><value>chiamata terminata</value></data>
   <data name="NoteSipAnswerChanged" xml:space="preserve"><value>auto-risposta {0}</value></data>
+  <data name="NoteSipConfigUsage" xml:space="preserve"><value>uso: /sip config | config set &lt;key&gt; &lt;value&gt; | config reload</value></data>
+  <data name="NoteSipConfigFailed" xml:space="preserve"><value>errore configurazione SIP: {0}</value></data>
+  <data name="NoteSipConfigRestart" xml:space="preserve"><value>server SIP riavviato per applicare la modifica</value></data>
   <data name="SipPhaseRinging" xml:space="preserve"><value>squilla</value></data>
   <data name="SipPhasePin" xml:space="preserve"><value>pin</value></data>
   <data name="SipPhaseConversation" xml:space="preserve"><value>chiamata</value></data>
@@ -210,6 +213,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="DlgPageHint" xml:space="preserve"><value>— scorri con ↑↓ / PgUp-PgDn · chiudi con Esc o Invio —</value></data>
   <data name="PageAgentStatus" xml:space="preserve"><value>stato agente</value></data>
   <data name="PageSipStatus" xml:space="preserve"><value>stato SIP</value></data>
+  <data name="PageSipConfig" xml:space="preserve"><value>configurazione SIP</value></data>
   <data name="PageUploadedFiles" xml:space="preserve"><value>file caricati</value></data>
   <data name="AboutTitle" xml:space="preserve"><value>AGENT</value></data>
   <data name="AboutText" xml:space="preserve"><value>AGENT v2 - TUI moderna

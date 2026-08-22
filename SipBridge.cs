@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using AIOrchestrator;
 using Microsoft.Extensions.Configuration;
 using SIPSorcery.Media;
@@ -58,6 +60,24 @@ public static class SipBridge
         public int MaxPinAttempts { get; set; } = 3;
         /// <summary>Lockout duration after the attempts are exhausted (hours, default 24).</summary>
         public int LockoutHours { get; set; } = 24;
+        /// <summary>REGISTER expiry/refresh interval in seconds (default 60). Home NAT mappings
+        /// often time out well before the SIP default 300 s: with a too-long interval, inbound
+        /// calls between refreshes go unanswered — the entry point still holds the registration,
+        /// but the router has dropped the mapping and the INVITE never arrives. 60 s keeps the
+        /// pinhole alive on consumer routers.</summary>
+        public int RegisterExpiry { get; set; } = 60;
+        /// <summary>Seconds to wait for the PIN before the server hangs up the call (default 60,
+        /// min 10). A call that reaches the PIN gate and receives nothing ends instead of
+        /// staying open forever.</summary>
+        public int PinTimeoutSeconds { get; set; } = 60;
+        /// <summary>Whisper model used by the STT subprocess (tiny/base/small/medium/largev2/
+        /// largev3).
+        /// ⚠️ DO NOT GO BELOW "small": tiny/base were tested on real phone calls and their
+        /// recognition is unusable (e.g. "il meteo" → "villioni sul metto"). "small" is the
+        /// minimum that works acceptably on real G.711 audio (≈7 s per utterance on CPU —
+        /// the accuracy trade-off is worth it). Larger models (medium+) are more accurate but
+        /// far too slow on this CPU.</summary>
+        public string SttModel { get; set; } = "small";
         /// <summary>Trusted caller URIs (P-Asserted-Identity from an authenticating provider/trunk)
         /// that skip the PIN. Matched on the full URI or on the user part alone.
         /// SECURITY: PAI is honored only when the INVITE comes from <see cref="Registrar"/> — in
@@ -103,6 +123,7 @@ public static class SipBridge
         public CancellationTokenSource Cts = new();
         public Task? Loop;
         public volatile bool Validating;
+        public DateTime PinDeadline;            // moment the PIN gate gives up (EnforcePinTimeoutAsync)
     }
 
     /// <summary>
@@ -114,12 +135,32 @@ public static class SipBridge
     private sealed class SipVoiceMedia : IAudioMedia
     {
         private readonly CallContext _call;
-        private readonly UtteranceDetector _vad = new();
-        private readonly SemaphoreSlim _transcribeGate = new(1, 1);
+        private readonly DtmfDetector _dtmf = new();
+        private readonly System.Threading.Channels.Channel<byte[]> _inputQueue = System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
+        private readonly System.Threading.Channels.Channel<byte[]> _ttsQueue = System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
+        private int _ttsPending;
+        private Task _inputPump = Task.CompletedTask;
+        private Task _ttsPump = Task.CompletedTask;
         private volatile bool _speaking;
         private volatile bool _conversationActive;   // set by StartAsync: distinguishes conversation replies from pre-PIN announcements
+        private bool _pinAudioLogged;
+        private int _firstChunkLogged;               // diagnostic: when the first TTS chunk hits RTP
 
-        public SipVoiceMedia(CallContext call) => _call = call;
+        public SipVoiceMedia(CallContext call)
+        {
+            _call = call;
+            // In-band keypad tones (for clients that cannot emit RFC 4733 events or SIP INFO):
+            // fed to the same PIN gate as the RTP-event digits. Active ONLY while the call is
+            // in the PIN phase — once the conversation starts, speech must never be misread
+            // as tones (the detector is disabled).
+            _dtmf.DigitDetected += d =>
+            {
+                Log.LogStep($"SIP in-band DTMF: {d}");
+                HandleDtmfDigit(d, 0);
+            };
+            // STT lives in the persistent subprocess (VAD + whisper); transcripts arrive here.
+            SipVoiceAgent.Transcript += OnSubprocessTranscript;
+        }
 
         public string Language => VoiceConversation.ResolveLang(Cfg.Lang);
 
@@ -127,29 +168,45 @@ public static class SipBridge
 
         public Task StartAsync(CancellationToken ct = default)
         {
-            _call.Media.OnRtpPacketReceived += OnRtpAudio;
-            _vad.UtteranceReady += OnUtterance;
+            // RTP capture is attached at call setup (Attach) so the in-band DTMF detector also
+            // hears the PIN phase; here only the conversation-specific wiring is added.
             _conversationActive = true;
             Log.LogStep("SIP RTP capture attached (conversation media loop started)");
             return Task.CompletedTask;
         }
 
+        /// <summary>Attaches the RTP capture for the WHOLE call (PIN phase included): the
+        /// in-band DTMF detector needs the caller's audio before the conversation starts, and the
+        /// TTS pump must be live from the first announcement (the spoken welcome precedes the
+        /// conversation, which is when VoiceConversation calls StartAsync).</summary>
+        public void Attach()
+        {
+            _call.Media.OnRtpPacketReceived += OnRtpAudio;
+            _dtmf.Reset();
+            StartPumps();
+        }
+
         public Task StopAsync()
         {
             _call.Media.OnRtpPacketReceived -= OnRtpAudio;
-            _vad.UtteranceReady -= OnUtterance;
-            _vad.Reset();
+            SipVoiceAgent.Transcript -= OnSubprocessTranscript;
+            _inputQueue.Writer.TryComplete();
+            _ttsQueue.Writer.TryComplete();
+            _dtmf.Reset();
             _conversationActive = false;
             return Task.CompletedTask;
         }
 
-        // Decodes G.711 payloads (1 byte = 1 sample @ 8 kHz) into 16-bit PCM and feeds the VAD.
-        // RFC 4733 DTMF events (dynamic payload type) are skipped — they never reach the STT.
-        // Capture is paused while the TTS reply plays (no barge-in: a hands-free caller would
-        // otherwise echo the reply back into the STT).
+        // Decodes G.711 payloads (1 byte = 1 sample @ 8 kHz) into 16-bit PCM. RFC 4733 DTMF
+        // events (dynamic payload type) are skipped — they never reach the STT. Capture is paused
+        // while the TTS reply plays (no barge-in: a hands-free caller would otherwise echo the
+        // reply back into the subprocess STT). In conversation the PCM is forwarded to the
+        // persistent voice subprocess (VAD + whisper live there — media is I/O only).
         private void OnRtpAudio(IPEndPoint _, SDPMediaTypesEnum __, RTPPacket packet)
         {
-            if (_call.Phase != CallPhase.Conversation || _speaking) return;
+            if (_speaking) return;
+            var phase = _call.Phase;
+            if (phase != CallPhase.Pin && phase != CallPhase.Conversation) return;
             var payload = packet.Payload;
             if (payload == null || payload.Length == 0) return;
 
@@ -165,163 +222,253 @@ public static class SipBridge
                 pcm[i * 2] = (byte)(sample & 0xFF);
                 pcm[i * 2 + 1] = (byte)((sample >> 8) & 0xFF);
             }
-            _vad.Feed(pcm);
+            if (phase == CallPhase.Pin)
+            {
+                if (!_pinAudioLogged)
+                {
+                    _pinAudioLogged = true;
+                    Log.LogStep($"SIP pin-phase audio capture active ({pcm.Length} bytes first packet)");
+                }
+                _dtmf.Feed(pcm);       // in-band keypad tones only (RFC 4733 handled by OnDtmfTone)
+            }
+            else
+            {
+                _inputQueue.Writer.TryWrite(Upsample8kTo16k(pcm));   // conversation speech → subprocess STT
+            }
         }
 
-        private void OnUtterance(byte[] pcm8k)
+        /// <summary>Linear 8→16 kHz upsample of PCM16 (whisper is trained on 16 kHz).</summary>
+        private static byte[] Upsample8kTo16k(byte[] pcm8k)
         {
-            Log.LogStep($"SIP utterance detected ({pcm8k.Length} bytes)");
-            _ = Task.Run(async () =>
+            var samples = pcm8k.Length / 2;
+            var outPcm = new byte[samples * 4];
+            for (int i = 0; i < samples; i++)
             {
-                try
+                var s = (short)(pcm8k[i * 2] | pcm8k[i * 2 + 1] << 8);
+                var next = i + 1 < samples ? (short)(pcm8k[(i + 1) * 2] | pcm8k[(i + 1) * 2 + 1] << 8) : s;
+                var mid = (short)((s + next) / 2);
+                var o = i * 4;
+                outPcm[o] = (byte)(s & 0xFF); outPcm[o + 1] = (byte)((s >> 8) & 0xFF);
+                outPcm[o + 2] = (byte)(mid & 0xFF); outPcm[o + 3] = (byte)((mid >> 8) & 0xFF);
+            }
+            return outPcm;
+        }
+
+        /// <summary>Transcript from the persistent subprocess (VAD done there).</summary>
+        private void OnSubprocessTranscript(string text)
+        {
+            if (!_conversationActive) return;
+            // Whisper labels non-speech segments as "[Musica]"/"[Rumore]"/"[Applausi]" etc. When
+            // the whole utterance is such a placeholder (background music, line noise), it must
+            // never reach the LLM — the agent would "answer the music". Mixed text is kept.
+            if (!IsNoiseOnlyTranscript(text))
+            {
+                Log.LogStep($"SIP caller said: {text}");
+                SpeechReceived?.Invoke(text);
+            }
+        }
+
+        /// <summary>Drains queued conversation PCM into the persistent subprocess, in order.</summary>
+        private void StartPumps()
+        {
+            if (!_inputPump.IsCompleted) return;
+            _inputPump = Task.Run(async () =>
+            {
+                await foreach (var pcm in _inputQueue.Reader.ReadAllAsync())
+                    await SipVoiceAgent.SendAudioAsync(pcm, _call.Cts.Token);
+            });
+            if (!_ttsPump.IsCompleted) return;
+            _ttsPump = Task.Run(async () =>
+            {
+                await foreach (var pcm in _ttsQueue.Reader.ReadAllAsync())
                 {
-                    await _transcribeGate.WaitAsync();
                     try
                     {
-                        var text = await TranscribeAsync(pcm8k, Language, _call.Cts.Token);
-                        if (!string.IsNullOrWhiteSpace(text))
-                        {
-                            Log.LogStep($"SIP caller said: {text}");
-                            SpeechReceived?.Invoke(text);
-                        }
+                        await _call.Media.AudioExtrasSource.SendAudioFromStream(new MemoryStream(pcm), AudioSamplingRatesEnum.Rate24kHz);
                     }
-                    finally
-                    {
-                        _transcribeGate.Release();
-                    }
-                }
-                catch (OperationCanceledException) { }
-                catch (Exception ex)
-                {
-                    Log.LogStep($"SIP STT error: {ex.Message}");
+                    catch { }
+                    Interlocked.Decrement(ref _ttsPending);
                 }
             });
         }
 
-        /// <summary>Renders speakable text to the caller: in-process Kokoro TTS → raw PCM → RTP.</summary>
+        /// <summary>True when the transcript contains ONLY non-speech placeholders (whisper's
+        /// "[Musica]", "[Rumore]", "[Music]", "[Noise]", ...) — i.e. the utterance carried no
+        /// real speech and must not be fed to the LLM.</summary>
+        private static bool IsNoiseOnlyTranscript(string text)
+        {
+            foreach (var part in text.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                if (!(part.Length > 2 && part[0] == '[' && part[^1] == ']'))
+                    return false;
+            return true;
+        }
+
+        /// <summary>Renders speakable text to the caller: the persistent voice subprocess renders
+        /// Kokoro/SAPI PCM (streamed sentence by sentence) → raw PCM → RTP. Media is I/O only —
+        /// no TTS engine lives here (see ARCHITECTURE.md).</summary>
         public async Task SpeakAsync(string text, bool isLast, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(text)) return;
-            if (!TtsEngine.IsAvailable || _call.Media.IsClosed) return;
+            if (_call.Media.IsClosed) return;
+            if (!SipVoiceAgent.IsReady) return;
             if (_conversationActive) Log.LogStep($"SIP agent replied: {text}");
-            byte[] wav;
-            try
-            {
-                wav = TtsEngine.Synthesize(text, null, null, Language);
-            }
-            catch (Exception ex)
-            {
-                Log.LogStep($"SIP TTS failed: {ex.Message}");
-                return;
-            }
             _speaking = true;
+            _firstChunkLogged = 0;   // measure time-to-first-audio of THIS reply
             try
             {
-                // Strip the 44-byte RIFF header: SendAudioFromStream expects raw 16-bit PCM.
-                var pcm = wav.AsSpan(44).ToArray();
-                await _call.Media.AudioExtrasSource.SendAudioFromStream(new MemoryStream(pcm), AudioSamplingRatesEnum.Rate24kHz);
+                foreach (var sentence in SplitSentences(text))
+                {
+                    if (ct.IsCancellationRequested) return;
+                    await SipVoiceAgent.SpeakAsync(sentence, Language, pcm =>
+                    {
+                        if (_firstChunkLogged == 0) { _firstChunkLogged = 1; Log.LogStep($"SIP TTS first-chunk t={DateTime.UtcNow:HH:mm:ss.fff}"); }
+                        _ttsQueue.Writer.TryWrite(pcm);
+                        Interlocked.Increment(ref _ttsPending);
+                    }, ct);
+                    // Let the RTP send of this sentence finish before the next one starts.
+                    while (Volatile.Read(ref _ttsPending) > 0 && !ct.IsCancellationRequested)
+                        await Task.Delay(15, ct);
+                }
             }
             finally
             {
                 _speaking = false;
             }
         }
+
+        /// <summary>Splits a reply into sentences (on ".!?"), keeping empty chunks out. Short
+        /// replies stay as one chunk; long ones stream one sentence at a time.</summary>
+        private static IEnumerable<string> SplitSentences(string text)
+        {
+            var sentences = text.Split(['.', '!', '?'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (sentences.Length <= 1) return new[] { text };
+            return sentences;
+        }
     }
 
-    /// <summary>Energy-based voice activity detection on 8 kHz PCM16, ported from the
-    /// AIOffice.VoiceAgent WhisperRecognizer (adaptive noise floor + 700 ms silence hangover):
-    /// collects a spoken utterance and raises <see cref="UtteranceReady"/> when it ends.</summary>
-    private sealed class UtteranceDetector
+    /// <summary>Goertzel-based in-band DTMF detector on 8 kHz PCM16. Emits each digit once after
+    /// ~50 ms of a steady tone pair and requires a ~75 ms gap before accepting the next digit
+    /// (a held key never repeats). Used ONLY during the PIN phase — SipVoiceMedia stops feeding
+    /// it once the conversation starts, so speech is never misread as keypad tones.</summary>
+    private sealed class DtmfDetector
     {
-        private const int FrameSamples = 80;         // 10 ms @ 8 kHz
-        private const int HangoverFrames = 70;       // 700 ms of silence ends an utterance
-        private const int MinUtteranceMs = 350;
-        private const int MaxUtteranceMs = 30_000;
-        private const double MinThreshold = 0.006;
+        private const int FrameSamples = 205;          // ~25.6 ms @ 8 kHz (≥ one DTMF tone period)
+        private const int MinValidFrames = 2;          // ~51 ms steady tone before emitting
+        private const int GapFrames = 3;               // ~77 ms silence/detune before re-arming
+        private const double AbsThreshold = 0.015;     // normalized power floor for row+col
+        private const double RatioThreshold = 3.0;     // chosen freq must beat its group's second
 
-        private readonly MemoryStream _utterance = new();
-        private DateTime _speechStart;
-        private double _noiseFloor = 0.004;
-        private int _hangover;
+        private static readonly double[] RowFreqs = { 697, 770, 852, 941 };
+        private static readonly double[] ColFreqs = { 1209, 1336, 1477, 1633 };
+        private static readonly string[] Matrix = { "123A", "456B", "789C", "*0#D" };
 
-        public event Action<byte[]>? UtteranceReady;
+        private readonly double[] _coeffs = new double[8];
+        private readonly double[] _q1 = new double[8];
+        private readonly double[] _q2 = new double[8];
+        private readonly short[] _frame = new short[FrameSamples];
+        private int _frameLen;
+        private int _validCount;
+        private int _gapCount;
+        private byte? _lastDigit;
 
-        public void Feed(ReadOnlySpan<byte> pcm)
+        public event Action<byte>? DigitDetected;
+
+        public DtmfDetector()
         {
-            _utterance.Write(pcm);
-
-            if (_utterance.Length > MaxUtteranceMs * 2 * 8)   // 8 kHz → 16 000 bytes/s
+            for (int i = 0; i < 8; i++)
             {
-                Flush();
-                return;
+                var f = i < 4 ? RowFreqs[i] : ColFreqs[i - 4];
+                var k = (int)Math.Round(0.5 + FrameSamples * f / 8000.0);
+                _coeffs[i] = 2.0 * Math.Cos(2.0 * Math.PI * k / FrameSamples);
             }
-
-            var frameBytes = FrameSamples * 2;
-            var end = (int)_utterance.Length;
-            var start = end - pcm.Length;
-            for (int offset = start; offset + frameBytes <= end; offset += frameBytes)
-                UpdateVad(Rms(_utterance.GetBuffer().AsSpan(offset, frameBytes)));
         }
 
         public void Reset()
         {
-            _utterance.SetLength(0);
-            _hangover = 0;
-            _speechStart = default;
+            _frameLen = 0;
+            _validCount = 0;
+            _gapCount = 0;
+            _lastDigit = null;
+            Array.Clear(_q1);
+            Array.Clear(_q2);
         }
 
-        private static double Rms(ReadOnlySpan<byte> frame)
+        public void Feed(ReadOnlySpan<byte> pcm)
         {
-            long sumSquares = 0;
-            for (int i = 0; i < frame.Length; i += 2)
+            for (int i = 0; i + 1 < pcm.Length; i += 2)
             {
-                var sample = (short)(frame[i] | frame[i + 1] << 8);
-                sumSquares += (long)sample * sample;
+                _frame[_frameLen++] = (short)(pcm[i] | pcm[i + 1] << 8);
+                if (_frameLen == FrameSamples)
+                {
+                    DetectFrame();
+                    _frameLen = 0;
+                }
             }
-            return Math.Sqrt(sumSquares / (double)(frame.Length / 2)) / short.MaxValue;
         }
 
-        private void UpdateVad(double rms)
+        private void DetectFrame()
         {
-            var threshold = Math.Max(_noiseFloor * 3.5, MinThreshold);
-            var now = DateTime.UtcNow;
+            // Goertzel recurrence over the frame, once per candidate frequency.
+            Array.Clear(_q1);
+            Array.Clear(_q2);
+            for (int n = 0; n < FrameSamples; n++)
+            {
+                var x = _frame[n] / 32768.0;
+                for (int i = 0; i < 8; i++)
+                {
+                    var s = x + _coeffs[i] * _q1[i] - _q2[i];
+                    _q2[i] = _q1[i];
+                    _q1[i] = s;
+                }
+            }
+            var norm = (FrameSamples / 2.0) * (FrameSamples / 2.0);
+            double[] power = new double[8];
+            for (int i = 0; i < 8; i++)
+                power[i] = (_q2[i] * _q2[i] + _q1[i] * _q1[i] - _coeffs[i] * _q1[i] * _q2[i]) / norm;
 
-            if (_hangover > 0)
+            var row = Best(power, 0, 4);
+            var col = Best(power, 4, 8);
+            var valid = row.Power >= AbsThreshold && col.Power >= AbsThreshold &&
+                        row.Power >= RatioThreshold * row.Second && col.Power >= RatioThreshold * col.Second;
+
+            if (valid)
             {
-                if (rms > threshold)
-                    _hangover = 0;
-                else if (++_hangover >= HangoverFrames)
-                    Flush();
-            }
-            else if (_speechStart != default)
-            {
-                if (rms <= threshold)
-                    _hangover = 1;
-                else if ((now - _speechStart).TotalMilliseconds > MaxUtteranceMs)
-                    Flush();
-            }
-            else if (rms > threshold)
-            {
-                _speechStart = now;
+                var digit = (byte)Matrix[row.Index][col.Index];
+                if (_lastDigit != digit)
+                {
+                    _lastDigit = digit;
+                    _validCount = 1;
+                    _gapCount = 0;
+                }
+                else if (++_validCount == MinValidFrames)
+                {
+                    DigitDetected?.Invoke(digit);
+                }
             }
             else
             {
-                _noiseFloor = Math.Min(_noiseFloor, Math.Max(rms, 0.0005));
-                _noiseFloor = _noiseFloor * 0.995 + Math.Min(rms, threshold) * 0.005;
+                _gapCount++;
+                if (_gapCount >= GapFrames)
+                {
+                    _validCount = 0;
+                    _gapCount = 0;
+                    _lastDigit = null;
+                }
             }
         }
 
-        private void Flush()
+        private static (int Index, double Power, double Second) Best(double[] power, int from, int to)
         {
-            var duration = _speechStart == default ? 0 : (DateTime.UtcNow - _speechStart).TotalMilliseconds;
-            var bytes = _utterance.ToArray();
-            _utterance.SetLength(0);
-            _hangover = 0;
-            _speechStart = default;
-
-            if (duration < MinUtteranceMs || bytes.Length < MinUtteranceMs * 2 * 8)
-                return;
-            UtteranceReady?.Invoke(bytes);
+            // i1 = largest, i2 = second largest (must be DISTINCT indices: the group-ratio
+            // check compares the winner against the runner-up, never against itself).
+            int i1 = from, i2 = from + 1;
+            if (power[i2] > power[i1]) (i1, i2) = (i2, i1);
+            for (int i = from + 2; i < to; i++)
+            {
+                if (power[i] > power[i1]) { i2 = i1; i1 = i; }
+                else if (power[i] > power[i2]) i2 = i;
+            }
+            return (i1, power[i1], power[i2]);
         }
     }
 
@@ -348,7 +495,6 @@ public static class SipBridge
     private const byte PcmaPayloadType = 8;
     private const int MaxAgentIterations = 20;
     private const int RingTimeoutSeconds = 60;
-    private const int RegistrationExpiry = 300;
 
     /// <summary>True when the SIP server is configured (appsettings Sip:Enabled).</summary>
     public static bool IsEnabled => Cfg.Enabled;
@@ -376,8 +522,8 @@ public static class SipBridge
                 remote = call?.RemoteUri,
                 pin_remaining = Gate.IsLocked ? 0 : Math.Max(0, Cfg.MaxPinAttempts - Gate.Attempts),
                 locked_until = Gate.LockedUntilUtc,
-                stt_available = ResolveSttExe() != null,
-                tts_available = TtsEngine.IsAvailable,
+                stt_available = SipVoiceAgent.IsReady,
+                tts_available = SipVoiceAgent.IsReady,
                 rtp_port_range = Cfg.RtpPortRange,
             };
         }
@@ -403,6 +549,12 @@ public static class SipBridge
         if (!Cfg.Enabled || Transport != null) return null;
         try
         {
+            // The persistent voice subprocess (VAD + whisper STT + Kokoro/SAPI TTS) is started
+            // once for the whole server lifetime: the whisper model stays loaded → persistent
+            // STT. Both the announcements and the conversation go through it (media = I/O only).
+            SipVoiceAgent.ExePath = ResolveSttExe();
+            await SipVoiceAgent.StartAsync(Cfg.Lang);
+
             var transport = new SIPTransport();
             transport.AddSIPChannel(new SIPUDPChannel(new IPEndPoint(IPAddress.Any, Cfg.ListenPort)));
             var ua = CreateUserAgent(transport);
@@ -411,7 +563,7 @@ public static class SipBridge
             if (!string.IsNullOrWhiteSpace(Cfg.Registrar) && !string.IsNullOrWhiteSpace(Cfg.Username))
             {
                 registration = new SIPRegistrationUserAgent(transport, Cfg.Username, Cfg.Password,
-                    Cfg.Registrar, RegistrationExpiry, exitOnUnequivocalFailure: false);
+                    Cfg.Registrar, Math.Max(30, Cfg.RegisterExpiry), exitOnUnequivocalFailure: false);
                 registration.RegistrationFailed += (_, _, err) => Log.LogStep($"SIP registration failed: {err}");
                 registration.RegistrationSuccessful += (_, _) => Log.LogStep("SIP registration successful");
                 registration.Start();
@@ -426,8 +578,8 @@ public static class SipBridge
             HealthTimer = new Timer(_ => EnsureUserAgentHealthy(), null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
             if (Cfg.AnswerMode == "allowlist" && string.IsNullOrWhiteSpace(Cfg.Registrar))
                 Log.LogStep("SIP warning: allow-list mode without a registrar — the caller identity (From header) is NOT authenticated and can be spoofed; run allow-list only behind an authenticating trunk");
-            if (!TtsEngine.IsAvailable)
-                Log.LogStep("SIP warning: TTS unavailable (Kokoro voices/onnxruntime missing) — announcements and agent replies will be silent for callers");
+            if (!SipVoiceAgent.IsReady)
+                Log.LogStep("SIP warning: voice subprocess unavailable (AIOffice.VoiceAgent missing in voiceagent-stt/) — announcements and agent replies will be silent for callers");
             Log.LogStep($"SIP listening on UDP {Cfg.ListenPort} (answer mode '{Cfg.AnswerMode}', agent '{Cfg.Agent}')");
             return null;
         }
@@ -452,6 +604,195 @@ public static class SipBridge
         Transport = null;
         Ua = null;
         EndCall("shutdown");
+        SipVoiceAgent.Stop();
+    }
+
+    // ─── Config management (TUI ↔ appsettings.json "Sip" section) ─────────
+
+    /// <summary>Keys whose change requires a SIP transport restart (bind/REGISTER are
+    /// transport-level). Every other key is read per call and applies to the next one.</summary>
+    private static readonly HashSet<string> RestartKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        nameof(SipConfig.Enabled), nameof(SipConfig.ListenPort), nameof(SipConfig.Registrar),
+        nameof(SipConfig.Username), nameof(SipConfig.Password), nameof(SipConfig.RtpPortRange),
+        nameof(SipConfig.RegisterExpiry),
+    };
+
+    /// <summary>Keys cached by the PIN gate (rebuilt when they change).</summary>
+    private static readonly HashSet<string> GateKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        nameof(SipConfig.Pin), nameof(SipConfig.MaxPinAttempts), nameof(SipConfig.LockoutHours),
+    };
+
+    /// <summary>Read-only snapshot of the effective SIP configuration, secrets masked
+    /// (Pin/Password report only whether they are set). Consumed by GET /v1/sip/config.</summary>
+    public static object ConfigSnapshot
+    {
+        get
+        {
+            var c = Cfg;
+            return new
+            {
+                enabled = c.Enabled,
+                listen_port = c.ListenPort,
+                registrar = c.Registrar,
+                username = c.Username,
+                password_set = !string.IsNullOrEmpty(c.Password),
+                answer_mode = c.AnswerMode,
+                pin_set = !string.IsNullOrEmpty(c.Pin),
+                max_pin_attempts = c.MaxPinAttempts,
+                lockout_hours = c.LockoutHours,
+                register_expiry = c.RegisterExpiry,
+                pin_timeout_seconds = c.PinTimeoutSeconds,
+                allowed_callers = c.AllowedCallers,
+                agent = c.Agent,
+                lang = c.Lang,
+                stt_exe_path = c.SttExePath,
+                stt_model = c.SttModel,
+                rtp_port_range = c.RtpPortRange,
+            };
+        }
+    }
+
+    /// <summary>Sets one SIP config key, persists the whole "Sip" section back to
+    /// appsettings.json and applies the change. Returns an error message, whether a transport
+    /// restart was needed/applied, and a human-readable outcome.</summary>
+    public static async Task<(string? Error, bool RestartRequired, string Message)> SetConfigAsync(string key, string? value)
+    {
+        var prop = typeof(SipConfig).GetProperty(key, System.Reflection.BindingFlags.IgnoreCase |
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+        if (prop == null) return ($"unknown SIP config key: {key}", false, "");
+
+        object? parsed;
+        try { parsed = ParseConfigValue(prop.PropertyType, value); }
+        catch (Exception ex) { return ($"invalid value for {key}: {ex.Message}", false, ""); }
+
+        var restarting = RestartKeys.Contains(key);
+        CallContext? call;
+        lock (Sync) call = Call;
+        if (restarting && call != null)
+            return ($"{key} needs a SIP transport restart — hang up the active call first", false, "");
+
+        var previous = prop.GetValue(Cfg);
+        prop.SetValue(Cfg, parsed);
+        var persistError = PersistConfig();
+        if (persistError != null)
+        {
+            prop.SetValue(Cfg, previous);   // roll back the in-memory change
+            return (persistError, false, "");
+        }
+        if (GateKeys.Contains(key)) ApplyRuntime();
+
+        if (!restarting) return (null, false, $"{key} set to {DisplayValue(key, parsed)} — active from the next call");
+        var restartError = await RestartTransportAsync();
+        var state = Cfg.Enabled ? "transport restarted" : "transport stopped";
+        return (restartError, true, restartError ?? $"{key} set to {DisplayValue(key, parsed)} — {state}");
+    }
+
+    /// <summary>Re-reads the "Sip" section from appsettings.json (hand edits made outside the
+    /// TUI) and applies it live. Returns an error, whether a transport restart was needed, and
+    /// a human-readable outcome.</summary>
+    public static async Task<(string? Error, bool RestartRequired, string Message)> ReloadConfigAsync()
+    {
+        try
+        {
+            var path = ConfigFilePath();
+            if (!File.Exists(path)) return ($"appsettings.json not found at {path}", false, "");
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            if (!doc.RootElement.TryGetProperty("Sip", out var section))
+                return ("no Sip section in appsettings.json", false, "");
+            var fileCfg = section.Deserialize<SipConfig>() ?? new SipConfig();
+            fileCfg.Pin = (fileCfg.Pin ?? "").Trim();
+            fileCfg.MaxPinAttempts = Math.Max(1, fileCfg.MaxPinAttempts);
+            fileCfg.LockoutHours = Math.Max(1, fileCfg.LockoutHours);
+
+            var restarting = RestartKeys.Any(k => ConfigValueDiffers(Cfg, fileCfg, k));
+            CallContext? call;
+            lock (Sync) call = Call;
+            if (restarting && call != null)
+                return ("the file changed a transport-level key — hang up the active call and reload again", false, "");
+
+            if (GateKeys.Any(k => ConfigValueDiffers(Cfg, fileCfg, k)))
+            {
+                var prevLock = Gate.LockedUntilUtc;
+                Cfg = fileCfg;
+                Gate = new PinAuthGate(Cfg.Pin, Cfg.MaxPinAttempts, TimeSpan.FromHours(Cfg.LockoutHours));
+                Gate.RestoreLockout(prevLock);
+            }
+            else
+            {
+                Cfg = fileCfg;
+            }
+
+            if (!restarting) return (null, false, "SIP config reloaded from appsettings.json");
+            var restartError = await RestartTransportAsync();
+            var state = Cfg.Enabled ? "transport restarted" : "transport stopped";
+            return (restartError, true, restartError ?? $"SIP config reloaded — {state}");
+        }
+        catch (Exception ex)
+        {
+            return ($"SIP config reload failed: {ex.Message}", false, "");
+        }
+    }
+
+    private static string ConfigFilePath() =>
+        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+
+    private static object? ParseConfigValue(Type type, string? value)
+    {
+        if (type == typeof(bool)) return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) ||
+                                        value == "1" || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase);
+        if (type == typeof(int)) return int.Parse((value ?? "").Trim(), System.Globalization.CultureInfo.InvariantCulture);
+        if (type == typeof(List<string>))
+            return (value ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        return value ?? "";
+    }
+
+    private static bool ConfigValueDiffers(SipConfig a, SipConfig b, string key) =>
+        !Equals(typeof(SipConfig).GetProperty(key)!.GetValue(a), typeof(SipConfig).GetProperty(key)!.GetValue(b));
+
+    private static string DisplayValue(string key, object? value)
+    {
+        if (key.Equals(nameof(SipConfig.Pin), StringComparison.OrdinalIgnoreCase)) return "•••• (PIN)";
+        if (key.Equals(nameof(SipConfig.Password), StringComparison.OrdinalIgnoreCase)) return "•••• (password)";
+        return value?.ToString() ?? "";
+    }
+
+    /// <summary>Rebuilds the PIN gate after a PIN-policy change; the persisted lockout state
+    /// carries over (the wrong-attempt counter resets with a new PIN).</summary>
+    private static void ApplyRuntime()
+    {
+        var prevLock = Gate.LockedUntilUtc;
+        Gate = new PinAuthGate(Cfg.Pin, Cfg.MaxPinAttempts, TimeSpan.FromHours(Cfg.LockoutHours));
+        Gate.RestoreLockout(prevLock);
+    }
+
+    private static async Task<string?> RestartTransportAsync()
+    {
+        Stop();
+        if (!Cfg.Enabled) return null;
+        return await StartAsync();
+    }
+
+    /// <summary>Persists the effective "Sip" section back to appsettings.json, preserving every
+    /// other section of the file. appsettings.json is a runtime file for this server (updates
+    /// never overwrite it — see AutoUpdate.cs), so it is safe to write from here.</summary>
+    private static string? PersistConfig()
+    {
+        try
+        {
+            var path = ConfigFilePath();
+            if (!File.Exists(path)) return $"appsettings.json not found at {path}";
+            var root = JsonNode.Parse(File.ReadAllText(path)) as JsonObject ?? new JsonObject();
+            root["Sip"] = JsonSerializer.SerializeToNode(Cfg);
+            File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            Log.LogStep("SIP config persisted to appsettings.json");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return $"SIP config persist failed: {ex.Message}";
+        }
     }
 
     private static SIPUserAgent CreateUserAgent(SIPTransport transport)
@@ -498,6 +839,11 @@ public static class SipBridge
 
     private static async Task OnTransportRequest(SIPEndPoint _, SIPEndPoint __, SIPRequest request)
     {
+        if (request.Method == SIPMethodsEnum.INFO)
+        {
+            await HandleInfoDtmfAsync(request);
+            return;
+        }
         if (request.Method != SIPMethodsEnum.INVITE) return;
         CallContext? call;
         lock (Sync) call = Call;
@@ -534,6 +880,50 @@ public static class SipBridge
         {
             Log.LogStep($"SIP busy response failed: {ex.Message}");
         }
+    }
+
+    /// <summary>DTMF over SIP INFO (RFC 2976): clients that cannot emit RFC 4733 RTP events
+    /// send the keypad digit as an INFO body. The shared user agent does not handle INFO at
+    /// all (non-exclusive transport → it stays silent), so this transport-level hook answers
+    /// 200 and feeds the digit to the same PIN gate. Only in-dialog INFO of the ACTIVE call
+    /// is consumed; anything else is left to the user agent.</summary>
+    private static async Task HandleInfoDtmfAsync(SIPRequest request)
+    {
+        CallContext? call;
+        lock (Sync) call = Call;
+        if (call == null || call.CallId == null || request.Header.CallId != call.CallId ||
+            request.Header.To?.ToTag == null) return;
+
+        try
+        {
+            await Transport!.SendResponseAsync(SIPResponse.GetResponse(request, SIPResponseStatusCodesEnum.Ok, null));
+        }
+        catch { }
+
+        var tone = ParseInfoDtmf(request);
+        if (tone is { } t)
+        {
+            Log.LogStep($"SIP INFO DTMF: {t}");
+            HandleDtmfDigit(t, 0);
+        }
+    }
+
+    private static byte? ParseInfoDtmf(SIPRequest request)
+    {
+        var body = request.Body ?? "";
+        // application/dtmf-relay (Cisco/Asterisk): "Signal = 7" (also "Signal: 7", lowercase).
+        var m = Regex.Match(body, @"(?im)^\s*Signal\s*[=:]\s*([0-9#*a-dA-D])\s*$");
+        if (m.Success) return MapDtmfChar(m.Groups[1].Value[0]);
+        // Bare-digit bodies ("7", "7\r\n") used by some RFC 4733-style INFO senders.
+        m = Regex.Match(body, @"(?m)^\s*([0-9#*a-dA-D])\s*$");
+        return m.Success ? MapDtmfChar(m.Groups[1].Value[0]) : null;
+    }
+
+    private static byte? MapDtmfChar(char c)
+    {
+        c = char.ToUpperInvariant(c);
+        if (c is >= '0' and <= '9') return (byte)(c - '0');
+        return c switch { '*' => 10, '#' => 11, _ => null };
     }
 
     /// <summary>Enables/disables the incoming-call auto-answer gate.</summary>
@@ -625,6 +1015,7 @@ public static class SipBridge
                 call.VoiceMedia = new SipVoiceMedia(call);   // used for the announcements too
                 lock (Sync) Call = call;
                 await ua.Answer(uas, media);
+                call.VoiceMedia.Attach();   // RTP capture for the whole call (PIN phase included)
                 Log.LogStep($"SIP incoming call answered from {caller}");
             }
             finally
@@ -658,6 +1049,7 @@ public static class SipBridge
             {
                 Gate.ResetBuffer();   // fresh digit buffer; wrong attempts stay cumulative across calls (lockout after MaxPinAttempts total)
                 await call.VoiceMedia!.SpeakAsync(AnnounceWelcome(), true, default);
+                StartPinTimeout(call);   // hang up if no PIN arrives within PinTimeoutSeconds
             }
             else
             {
@@ -740,8 +1132,12 @@ public static class SipBridge
     }
 
     // ─── DTMF PIN ───────────────────────────────────────────────────────
+    // One shared entry point for every digit source: RFC 4733 RTP events (OnDtmfTone),
+    // SIP INFO bodies (HandleInfoDtmfAsync) and in-band keypad tones (DtmfDetector).
 
-    private static void OnDtmfTone(byte tone, int durationMs)
+    private static void OnDtmfTone(byte tone, int durationMs) => HandleDtmfDigit(tone, durationMs);
+
+    private static void HandleDtmfDigit(byte tone, int durationMs)
     {
         CallContext? call;
         lock (Sync) call = Call;
@@ -760,6 +1156,38 @@ public static class SipBridge
                 call.Validating = true;
                 _ = Task.Run(() => ValidatePinAsync(call, result));
             }
+        }
+    }
+
+    // ─── PIN timeout ──────────────────────────────────────────────────
+    // A call left in the PIN phase with no digits ends itself after PinTimeoutSeconds:
+    // the caller hears a short notice, then the server hangs up (same pattern as the
+    // lockout path). The watcher exits as soon as the phase changes or the call ends.
+
+    private static void StartPinTimeout(CallContext call)
+    {
+        call.PinDeadline = DateTime.UtcNow.AddSeconds(Math.Max(10, Cfg.PinTimeoutSeconds));
+        _ = Task.Run(() => EnforcePinTimeoutAsync(call));
+    }
+
+    private static async Task EnforcePinTimeoutAsync(CallContext call)
+    {
+        try
+        {
+            while (call.Phase == CallPhase.Pin && DateTime.UtcNow < call.PinDeadline)
+                await Task.Delay(1000, call.Cts.Token);
+            if (call.Phase != CallPhase.Pin) return;   // PIN accepted or the call ended
+
+            Log.LogStep("SIP PIN timeout — ending the call");
+            await call.VoiceMedia!.SpeakAsync(AnnouncePinTimeout(), true, call.Cts.Token);
+            try { Ua?.Hangup(); } catch (Exception ex) { Log.LogStep($"SIP pin-timeout hangup failed: {ex.Message}"); }
+            EndCall("pin-timeout");
+            EnsureUserAgentHealthy();
+        }
+        catch (OperationCanceledException) { }   // call ended before the deadline
+        catch (Exception ex)
+        {
+            Log.LogStep($"SIP PIN timeout handler error: {ex.Message}");
         }
     }
 
@@ -873,57 +1301,7 @@ public static class SipBridge
         _ = Task.Run(() => media.SpeakAsync(e.Message, false, call!.Cts.Token));
     }
 
-    // ─── STT: AIOffice.VoiceAgent --transcribe subprocess ───────────────
-
-    private static async Task<string?> TranscribeAsync(byte[] pcm8k, string lang, CancellationToken ct)
-    {
-        var exe = ResolveSttExe();
-        if (exe == null)
-        {
-            Log.LogStep("SIP STT unavailable: AIOffice.VoiceAgent not found (voiceagent-stt/)");
-            return null;
-        }
-
-        var tmp = Path.Combine(Path.GetTempPath(), $"sip-{Guid.NewGuid():N}.wav");
-        try
-        {
-            WriteWav8k(tmp, pcm8k);
-            var psi = new ProcessStartInfo { FileName = exe, UseShellExecute = false, RedirectStandardOutput = true, CreateNoWindow = true };
-            psi.ArgumentList.Add("--transcribe");
-            psi.ArgumentList.Add(tmp);
-            if (!string.IsNullOrWhiteSpace(lang)) { psi.ArgumentList.Add("--lang"); psi.ArgumentList.Add(lang); }
-
-            using var proc = Process.Start(psi);
-            if (proc == null) return null;
-
-            try
-            {
-                string? text = null;
-                while (await proc.StandardOutput.ReadLineAsync(ct) is { } line)
-                    if (TryParseTranscript(line, out var t)) text = t;
-
-                await proc.WaitForExitAsync(ct);
-                return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
-            }
-            catch (OperationCanceledException)
-            {
-                // The call ended while the subprocess was transcribing: kill it now, or orphaned
-                // STT processes (and their temp WAVs, which they may still have open) accumulate.
-                try { proc.Kill(true); } catch { }
-                return null;
-            }
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            Log.LogStep($"SIP STT failed: {ex.Message}");
-            return null;
-        }
-        finally
-        {
-            try { File.Delete(tmp); } catch { }
-        }
-    }
+    // ─── STT/TTS via the persistent voice subprocess (see SipVoiceAgent.cs) ─
 
     private static string? ResolveSttExe()
     {
@@ -937,45 +1315,6 @@ public static class SipBridge
         var exeName = OperatingSystem.IsWindows() ? "AIOffice.VoiceAgent.exe" : "AIOffice.VoiceAgent";
         var def = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "voiceagent-stt", exeName);
         return File.Exists(def) ? def : null;
-    }
-
-    private static bool TryParseTranscript(string line, out string text)
-    {
-        text = "";
-        try
-        {
-            using var doc = JsonDocument.Parse(line);
-            var root = doc.RootElement;
-            if (root.TryGetProperty("type", out var type) && type.GetString() == "transcript" &&
-                root.TryGetProperty("text", out var t))
-                text = t.GetString() ?? "";
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    private static void WriteWav8k(string path, byte[] pcm)
-    {
-        using var fs = File.Create(path);
-        using var w = new BinaryWriter(fs);
-        const int sampleRate = 8000;
-        w.Write("RIFF"u8);
-        w.Write(36 + pcm.Length);
-        w.Write("WAVE"u8);
-        w.Write("fmt "u8);
-        w.Write(16);
-        w.Write((short)1);
-        w.Write((short)1);
-        w.Write(sampleRate);
-        w.Write(sampleRate * 2);
-        w.Write((short)2);
-        w.Write((short)16);
-        w.Write("data"u8);
-        w.Write(pcm.Length);
-        w.Write(pcm);
     }
 
     // ─── Media session ──────────────────────────────────────────────────
@@ -1061,4 +1400,7 @@ public static class SipBridge
 
     private static string AnnounceLocked() =>
         Italian ? "Tentativi esauriti. Il servizio è bloccato per ventiquattro ore." : "Too many attempts. The service is locked for twenty four hours.";
+
+    private static string AnnouncePinTimeout() =>
+        Italian ? "Nessun codice ricevuto. La chiamata verrà terminata." : "No code received. Ending the call.";
 }

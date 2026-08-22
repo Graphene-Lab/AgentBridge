@@ -95,6 +95,53 @@ internal static class Program
             && (ttv.ValueKind == JsonValueKind.True || ttv.ValueKind == JsonValueKind.False);
         Check("status exposes stt/tts availability flags", sttFlag && ttsFlag);
 
+        // ── Config surface: GET /v1/sip/config (masked), set (live), bad input ──
+        // The set endpoint persists the "Sip" section to the executable's appsettings.json —
+        // back it up and restore it so the developer's local config is never left modified.
+        Console.WriteLine("Config: /v1/sip/config read/write surface");
+        var appsettingsPath = Path.Combine(Path.GetDirectoryName(agentExe)!, "appsettings.json");
+        var appsettingsBackup = File.Exists(appsettingsPath) ? File.ReadAllText(appsettingsPath) : null;
+        try
+        {
+            async Task<(bool Ok, bool Restart, string Body)> SetCfg(string key, string value)
+            {
+                using var http = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(5) };
+                var body = JsonSerializer.Serialize(new { key, value });
+                using var resp = await http.PostAsync("/v1/sip/config", new StringContent(body, Encoding.UTF8, "application/json"));
+                var text = await resp.Content.ReadAsStringAsync();
+                var restart = false;
+                if (resp.IsSuccessStatusCode)
+                    using (var doc = JsonDocument.Parse(text))
+                        restart = doc.RootElement.TryGetProperty("restart_required", out var r) && r.GetBoolean();
+                return (resp.IsSuccessStatusCode, restart, text);
+            }
+
+            using (var http = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(5) })
+            {
+                using var resp = await http.GetAsync("/v1/sip/config");
+                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                var sip = doc.RootElement.GetProperty("sip");
+                Check("config exposes the effective keys with secrets masked",
+                    resp.IsSuccessStatusCode &&
+                    sip.TryGetProperty("pin_set", out var ps) && ps.ValueKind == JsonValueKind.True &&
+                    sip.TryGetProperty("answer_mode", out var am) && am.GetString() == "pin" &&
+                    !sip.TryGetProperty("pin", out _) && !sip.TryGetProperty("password", out _));
+            }
+
+            var setNone = await SetCfg("AnswerMode", "none");
+            Check("config set applies live (answer_mode → none, no restart)",
+                setNone.Ok && !setNone.Restart &&
+                (await SipStatus(baseUrl))?.GetProperty("answer_mode").GetString() == "none");
+            var setBack = await SetCfg("AnswerMode", "pin");
+            Check("config set restores pin mode", setBack.Ok && (await SipStatus(baseUrl))?.GetProperty("answer_mode").GetString() == "pin");
+            Check("unknown config key refused (400)", !(await SetCfg("BogusKey", "x")).Ok);
+            Check("invalid value refused (400)", !(await SetCfg("ListenPort", "not-a-port")).Ok);
+        }
+        finally
+        {
+            if (appsettingsBackup != null) File.WriteAllText(appsettingsPath, appsettingsBackup);
+        }
+
         // ── Test 1: correct PIN → conversation ──
         Console.WriteLine("Test 1: correct PIN connects to the conversation phase");
         using (var client = new CallClient(uacPort))

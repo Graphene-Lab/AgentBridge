@@ -797,6 +797,26 @@ app.MapPost("/v1/sip/answer", (SipAnswerRequest request) =>
     return Results.Ok(new { ok = true, answer_enabled = request.On ?? true });
 });
 
+app.MapGet("/v1/sip/config", () => Results.Ok(new { sip = SipBridge.ConfigSnapshot }));
+
+app.MapPost("/v1/sip/config", async (SipConfigRequest request) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Key))
+        return Results.BadRequest(new { error = "key is required (e.g. Enabled, ListenPort, Registrar, Username, Password, AnswerMode, Pin, MaxPinAttempts, LockoutHours, AllowedCallers, Agent, Lang, SttExePath, RtpPortRange)" });
+    var (error, restart, message) = await SipBridge.SetConfigAsync(request.Key.Trim(), request.Value);
+    return error == null
+        ? Results.Ok(new { ok = true, message, restart_required = restart })
+        : Results.BadRequest(new { ok = false, error });
+});
+
+app.MapPost("/v1/sip/config/reload", async () =>
+{
+    var (error, restart, message) = await SipBridge.ReloadConfigAsync();
+    return error == null
+        ? Results.Ok(new { ok = true, message, restart_required = restart })
+        : Results.BadRequest(new { ok = false, error });
+});
+
 // ─────────────────────────────────────────────────────────────────────
 // Auto-update: at startup, check the latest GitHub release and apply it when newer
 // (download → swap → restart). Background and best-effort: any failure leaves the
@@ -1149,6 +1169,17 @@ public record SipAnswerRequest
     /// <summary>When true the SIP server auto-answers incoming calls (PIN/allow-list gate).</summary>
     [JsonPropertyName("on")]
     public bool? On { get; init; }
+}
+
+/// <summary>Request body for POST /v1/sip/config (proprietary) — one config key at a time.</summary>
+public record SipConfigRequest
+{
+    /// <summary>Sip config key, case-insensitive (e.g. "Enabled", "Pin", "AnswerMode", "AllowedCallers").</summary>
+    [JsonPropertyName("key")]
+    public string? Key { get; init; }
+    /// <summary>New value as a string; booleans accept true/false/1/on, AllowedCallers is comma-separated.</summary>
+    [JsonPropertyName("value")]
+    public string? Value { get; init; }
 }
 
 /// <summary>Request body for POST /v1/control — the pilot/steering endpoint.</summary>

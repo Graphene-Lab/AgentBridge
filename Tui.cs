@@ -143,7 +143,7 @@ public static class ConsoleTui
             new("new", "", Dictionary.CmdNew, (t, _) => t.NewSessionAsync(), new[] { "/reset" }),
             new("clear", "", Dictionary.CmdClear, (t, _) => t.ClearHistoryAsync()),
             new("status", "", Dictionary.CmdStatus, (t, _) => t.ShowStatusAsync()),
-            new("sip", "status|call <sip-uri>|answer on|off|hangup", Dictionary.CmdSip, (t, a) => t.SipAsync(a)),
+            new("sip", "status|config [set <key> <value>|reload]|call <sip-uri>|answer on|off|hangup", Dictionary.CmdSip, (t, a) => t.SipAsync(a)),
             new("files", "add <path>|rm <id>|list", Dictionary.CmdFiles, (t, a) => t.FilesAsync(a)),
             new("attach", "[id]", Dictionary.CmdAttach, (t, a) => t.AttachAsync(a)),
             new("shortcuts", "", Dictionary.CmdShortcuts, (t, _) => t.ShowShortcutsAsync(), new[] { "/keys" }),
@@ -1183,6 +1183,87 @@ public static class ConsoleTui
                         AddNote(string.Format(Dictionary.NoteSipAnswerChanged, on ? Dictionary.On : Dictionary.Off));
                     else
                         AddNote(string.Format(Dictionary.NoteSipCallFailed, "answer", await ReadErrorAsync(resp)));
+                    break;
+                }
+                case "config":
+                {
+                    var rest = arg.Length == 0 ? "" : arg;
+                    var parts2 = rest.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    var sub2 = parts2.Length == 0 ? "" : parts2[0].ToLowerInvariant();
+
+                    if (sub2 == "set")
+                    {
+                        var kv = parts2.Length > 1 ? parts2[1].Trim() : "";
+                        var kvParts = kv.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                        if (kvParts.Length == 0) { AddNote(Dictionary.NoteSipConfigUsage); return; }
+                        var key = kvParts[0];
+                        var value = kvParts.Length > 1 ? kvParts[1] : "";
+                        var body = JsonSerializer.Serialize(new { key, value }, JsonOpts);
+                        using var resp = await _http.PostAsync("/v1/sip/config", new StringContent(body, Encoding.UTF8, "application/json"));
+                        if (resp.IsSuccessStatusCode)
+                        {
+                            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                            var msg = GetStr(doc.RootElement, "message") ?? "";
+                            AddNote(msg);
+                            if (GetBool(doc.RootElement, "restart_required"))
+                                AddNote(Dictionary.NoteSipConfigRestart);
+                        }
+                        else
+                        {
+                            AddNote(string.Format(Dictionary.NoteSipConfigFailed, await ReadErrorAsync(resp)));
+                        }
+                    }
+                    else if (sub2 == "reload")
+                    {
+                        using var resp = await _http.PostAsync("/v1/sip/config/reload", new StringContent("{}", Encoding.UTF8, "application/json"));
+                        if (resp.IsSuccessStatusCode)
+                        {
+                            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                            var msg = GetStr(doc.RootElement, "message") ?? "";
+                            AddNote(msg);
+                            if (GetBool(doc.RootElement, "restart_required"))
+                                AddNote(Dictionary.NoteSipConfigRestart);
+                        }
+                        else
+                        {
+                            AddNote(string.Format(Dictionary.NoteSipConfigFailed, await ReadErrorAsync(resp)));
+                        }
+                    }
+                    else if (sub2.Length > 0)
+                    {
+                        AddNote(Dictionary.NoteSipConfigUsage);
+                    }
+                    else
+                    {
+                        using var resp = await _http.GetAsync("/v1/sip/config").WaitAsync(TimeSpan.FromSeconds(5));
+                        if (!resp.IsSuccessStatusCode) { AddNote(string.Format(Dictionary.NoteSipUnavailable, (int)resp.StatusCode)); return; }
+                        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                        var sip = doc.RootElement.GetProperty("sip");
+                        var allowed = sip.TryGetProperty("allowed_callers", out var ac) && ac.ValueKind == JsonValueKind.Array
+                            ? string.Join(", ", ac.EnumerateArray().Select(x => x.GetString()))
+                            : "";
+                        var lines = new List<string>
+                        {
+                            $"{("enabled").PadRight(18)}{(GetBool(sip, "enabled") ? Dictionary.On : Dictionary.Off)}",
+                            $"{("listen_port").PadRight(18)}{GetInt(sip, "listen_port")}",
+                            $"{("registrar").PadRight(18)}{ValueOr(GetStr(sip, "registrar"), "(empty)")}",
+                            $"{("username").PadRight(18)}{ValueOr(GetStr(sip, "username"), "(empty)")}",
+                            $"{("password").PadRight(18)}{(GetBool(sip, "password_set") ? "set" : "not set")}",
+                            $"{("answer_mode").PadRight(18)}{GetStr(sip, "answer_mode") ?? ""}",
+                            $"{("pin").PadRight(18)}{(GetBool(sip, "pin_set") ? "set" : "not set")}",
+                            $"{("max_pin_attempts").PadRight(18)}{GetInt(sip, "max_pin_attempts")}",
+                            $"{("lockout_hours").PadRight(18)}{GetInt(sip, "lockout_hours")}",
+                            $"{("register_expiry").PadRight(18)}{GetInt(sip, "register_expiry")}",
+                            $"{("pin_timeout_seconds").PadRight(18)}{GetInt(sip, "pin_timeout_seconds")}",
+                            $"{("allowed_callers").PadRight(18)}{ValueOr(allowed, "(none)")}",
+                            $"{("agent").PadRight(18)}{GetStr(sip, "agent") ?? ""}",
+                            $"{("lang").PadRight(18)}{ValueOr(GetStr(sip, "lang"), "(system)")}",
+                            $"{("stt_exe_path").PadRight(18)}{ValueOr(GetStr(sip, "stt_exe_path"), "(default)")}",
+                            $"{("stt_model").PadRight(18)}{ValueOr(GetStr(sip, "stt_model"), "(small)")}",
+                            $"{("rtp_port_range").PadRight(18)}{ValueOr(GetStr(sip, "rtp_port_range"), "(default)")}",
+                        };
+                        await ShowPageUiAsync(Dictionary.PageSipConfig, lines);
+                    }
                     break;
                 }
                 default:   // status
@@ -2577,5 +2658,7 @@ public static class ConsoleTui
             e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var i) ? i : 0;
         private static bool GetBool(JsonElement e, string name) =>
             e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
+        private static string ValueOr(string? value, string fallback) =>
+            string.IsNullOrWhiteSpace(value) ? fallback : value;
     }
 }
