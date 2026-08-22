@@ -325,10 +325,11 @@ public static class SipBridge
                         _ttsQueue.Writer.TryWrite(pcm);
                         Interlocked.Increment(ref _ttsPending);
                     }, ct);
-                    // Let the RTP send of this sentence finish before the next one starts.
-                    while (Volatile.Read(ref _ttsPending) > 0 && !ct.IsCancellationRequested)
-                        await Task.Delay(15, ct);
                 }
+                // Sentences are enqueued back-to-back (the single ordered queue preserves the
+                // order); only the FINAL drain waits, so capture stays paused until all RTP is sent.
+                while (Volatile.Read(ref _ttsPending) > 0 && !ct.IsCancellationRequested)
+                    await Task.Delay(15, ct);
             }
             finally
             {
