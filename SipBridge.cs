@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -12,8 +13,20 @@ using SIPSorcery.SIP;
 using SIPSorcery.SIP.App;
 using SIPSorcery.Sys;
 using SIPSorceryMedia.Abstractions;
+// Localized strings: the generated resx class is aliased (it clashes with the generic
+// System.Collections.Generic.Dictionary). NEVER inline user-facing text — see the banner below.
+using Lang = AgentBridge.Resources.Dictionary;
 
 // ═══════════════════════════════════════════════════════════════════════
+//  LOCALIZATION INVARIANT — project rule, ALWAYS visible (read before editing):
+//  NEVER put user-facing text in this file. Every string belongs in the language
+//  dictionaries (Resources/Dictionary.resx + Dictionary.{it,de,es,fr,ru}.resx)
+//  and MUST be read through Dictionary.<Key>, translated in ALL supported
+//  languages. The culture is set from the resolved call language — never a
+//  hardcoded pair. (The old `Italian ? "…" : "…"` announcements violated this
+//  and supported only 2 of the 5 languages.)
+// ═══════════════════════════════════════════════════════════════════════
+//
 //  SipBridge — SIP telephony for AgentBridge (see docs/sip.md)
 //
 //  Turns the server into a phone endpoint:
@@ -1386,22 +1399,31 @@ public static class SipBridge
         try { call.Media.Close(null); } catch { }
     }
 
-    // ─── Announcements (language follows the shared VoiceConversation resolution) ──
+    // ─── Announcements (localization: Resources/Dictionary.*.resx — ALL 5 languages) ──
+    //
+    // LOCALIZATION INVARIANT (see the file header): never hardcode announcement text here.
+    // The strings live in the dictionaries (SipAnnounce*) and are read with the culture of the
+    // resolved call language. The old `Italian ? "…" : "…"` supported only 2 languages.
 
-    private static bool Italian => VoiceConversation.ResolveLang(Cfg.Lang).StartsWith("it", StringComparison.OrdinalIgnoreCase);
+    /// <summary>Sets the dictionary culture to the resolved call language (it/de/es/fr/ru/…),
+    /// so every <see cref="Lang"/> lookup returns the right language.</summary>
+    private static void ApplyAnnouncementLanguage()
+    {
+        try { Lang.Culture = CultureInfo.GetCultureInfo(VoiceConversation.ResolveLang(Cfg.Lang)); }
+        catch { Lang.Culture = null; }   // fall back to the thread's culture
+    }
 
-    private static string AnnounceWelcome() =>
-        Italian ? "Benvenuto. Inserisci il codice PIN di cinque cifre." : "Welcome. Please enter the five digit PIN code.";
+    private static string AnnounceWelcome() { ApplyAnnouncementLanguage(); return Lang.SipAnnounceWelcome; }
 
-    private static string AnnounceWelcomeOk() =>
-        Italian ? "Codice corretto. Collegamento con l'agente in corso." : "Code accepted. Connecting you to the agent.";
+    private static string AnnounceWelcomeOk() { ApplyAnnouncementLanguage(); return Lang.SipAnnounceWelcomeOk; }
 
-    private static string AnnouncePinWrong(int remaining) =>
-        Italian ? $"Codice errato. Tentativi rimasti: {remaining}." : $"Wrong code. Attempts left: {remaining}.";
+    private static string AnnouncePinWrong(int remaining)
+    {
+        ApplyAnnouncementLanguage();
+        return string.Format(Lang.SipAnnouncePinWrong, remaining);
+    }
 
-    private static string AnnounceLocked() =>
-        Italian ? "Tentativi esauriti. Il servizio è bloccato per ventiquattro ore." : "Too many attempts. The service is locked for twenty four hours.";
+    private static string AnnounceLocked() { ApplyAnnouncementLanguage(); return Lang.SipAnnounceLocked; }
 
-    private static string AnnouncePinTimeout() =>
-        Italian ? "Nessun codice ricevuto. La chiamata verrà terminata." : "No code received. Ending the call.";
+    private static string AnnouncePinTimeout() { ApplyAnnouncementLanguage(); return Lang.SipAnnouncePinTimeout; }
 }

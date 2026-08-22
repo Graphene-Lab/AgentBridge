@@ -2027,7 +2027,52 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("StatusSipStt", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SipAnnounceWelcome'.
+        /// </summary>
+        public static string SipAnnounceWelcome {
+            get {
+                return ResourceManager.GetString("SipAnnounceWelcome", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SipAnnounceWelcomeOk'.
+        /// </summary>
+        public static string SipAnnounceWelcomeOk {
+            get {
+                return ResourceManager.GetString("SipAnnounceWelcomeOk", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SipAnnouncePinWrong'.
+        /// </summary>
+        public static string SipAnnouncePinWrong {
+            get {
+                return ResourceManager.GetString("SipAnnouncePinWrong", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SipAnnounceLocked'.
+        /// </summary>
+        public static string SipAnnounceLocked {
+            get {
+                return ResourceManager.GetString("SipAnnounceLocked", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SipAnnouncePinTimeout'.
+        /// </summary>
+        public static string SipAnnouncePinTimeout {
+            get {
+                return ResourceManager.GetString("SipAnnouncePinTimeout", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to 'StatusPromptHistory'.
         /// </summary>
