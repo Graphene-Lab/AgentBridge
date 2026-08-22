@@ -3,15 +3,17 @@
 //
 // Feeds: [1.0 s noise @ level] + [speech from greeting-it.wav] + [1.5 s noise @ level]
 // for several noise levels relative to the speech RMS. Asserts per case:
-//   • an utterance CLOSES (transcript arrives ~0.7-2 s after the speech ends — NOT stuck open),
+//   • an utterance CLOSES (VAD "end" fires — the utterance is not stuck open on noise),
 //   • the transcript contains the speech (the threshold did not cut it),
 //   • the VAD state stream is coherent: "speech" (utterance opened) → "end" (closed, i.e. the
-//     processing indicator would be armed here) → the transcript — the ordering the SIP bridge
-//     depends on.
+//     processing indicator would be armed here) → the transcript,
+//   • whisper INFERENCE (wall-clock "end" → transcript) is sane (< 8 s) — the STT latency.
 // The old VAD stayed open forever when the noise exceeded its fixed 0.006 threshold; the new
 // one calibrates the ambient from the first ~1 s and sets threshold = ambient × 2.
 //
 // Usage: dotnet run --project e2e\VadTest [--agent <AIOffice.VoiceAgent.exe>]
+//   (set AIOFFICE_WHISPER_MODEL / AIOFFICE_WHISPER_QUANT in the environment to test a
+//    specific whisper model — e.g. `set AIOFFICE_WHISPER_MODEL=base` for a base re-test)
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -35,12 +37,13 @@ foreach (var ratio in noiseRatios)
         speech16k,                     // the spoken phrase
         Noise(1.5, noiseLevel));       // 1.5 s trailing ambient
     Console.WriteLine($"\n=== case noise={ratio:F2}×speech (ambient rms {noiseLevel:F4}) ===");
-    var (ok, transcript, dtSec, transcriptAt, vad) = RunAgent(agent, pcm);
+    var (ok, transcript, inferenceSec, transcriptAt, vad) = RunAgent(agent, pcm);
     var vadSeq = string.Join("→", vad.Select(v => $"{v.State}@{v.At:F1}s"));
     var endAt = vad.FirstOrDefault(v => v.State == "end");
     // "end" (utterance closed → indicator armed) must precede the transcript (whisper done).
+    // inferenceSec is the wall-clock whisper time (end → transcript): the real STT latency.
     var vadOk = HasSpeechThenEnd(vad) && endAt != default && transcriptAt > endAt.At;
-    Console.WriteLine($"  transcript: '{transcript}'  (utterance closed {dtSec:F1}s after speech end)  ok={ok}");
+    Console.WriteLine($"  transcript: '{transcript}'  (whisper inference {inferenceSec:F1}s after utterance end)  ok={ok}");
     Console.WriteLine($"  vad events: {vadSeq}  ok={vadOk}");
     if (!ok || !vadOk) failed++;
 }
@@ -111,14 +114,16 @@ static (bool, string?, double, double, List<(string State, double At)>) RunAgent
     Thread.Sleep(800);
     try { proc.Kill(true); } catch { }
 
-    var speechSec = 1.0 + pcm16k.Length / 2 / 16000.0 - 1.5;   // speech starts at 1.0 s, ends at 1.0+speechLen
-    var speechLen = (pcm16k.Length / 2) / 16000.0 - 2.5;
-    var speechEnd = 1.0 + speechLen;
     if (transcripts.Count == 0) return (false, null, double.NaN, double.NaN, vad);
     var first = transcripts[0];
-    var dt = first.At - speechEnd;   // seconds after the speech ended
-    var ok = first.Text.Length > 5 && dt is > 0.3 and < 6.0;   // closed, not stuck, not cut
-    return (ok, first.Text, dt, first.At, vad);
+    // Whisper inference = wall-clock time from the utterance close ("end") to the transcript.
+    // (The old "dt after speech end" metric assumed audio-time ≈ wall-clock, but the PCM is fed
+    // ~20x faster than real-time — with a fast model the transcript lands "before" the nominal
+    // speech end and dt went negative. The end→transcript delta is the real STT latency.)
+    var endAt = vad.FirstOrDefault(v => v.State == "end");
+    var inferenceSec = endAt != default ? first.At - endAt.At : double.NaN;
+    var ok = first.Text.Length > 5 && inferenceSec is > 0.2 and < 8.0;   // closed, transcribed, not stuck
+    return (ok, first.Text, inferenceSec, first.At, vad);
 }
 
 static byte[] WavPcm(string path)

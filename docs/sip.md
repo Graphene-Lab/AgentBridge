@@ -75,7 +75,7 @@ Every key is overridable from the command line (`--Sip:Pin 12345`, ...).
 | `Agent` | `"default-agent"` | Agent set used for the conversation (`default`, `multi`, `word`, ...) |
 | `Lang` | system language | Two-letter ISO language for STT/TTS and the announcements (Italian default when empty on an Italian machine) |
 | `SttExePath` | `<server>\voiceagent-stt\` | Path to the `AIOffice.VoiceAgent` executable |
-| `SttModel` | `small` | Whisper model for the STT subprocess (`tiny/base/small/medium/largev2/largev3`). **Do not go below `small`**: tiny/base were tested on real phone calls and fail to recognize speech (e.g. "il meteo" → "villioni sul metto"); `small` is the floor for acceptable accuracy on real G.711 audio |
+| `SttModel` | `small` | Whisper model for the STT subprocess (`tiny/base/small/medium/largev2/largev3`). **`base` is the latency pick** — re-tested 2026-08-22 with the current pipeline (8→16 kHz upsample + adaptive VAD + multicore): it transcribes real Italian correctly and is ~2x faster than small-q8_0 (VadTest: 2.2–4.4 s vs 7.0–8.3 s whisper inference per 7.4 s utterance). `small` keeps an extra accuracy margin on very noisy lines. Never go below base — tiny is unusable |
 | `SttQuant` | `q8_0` | Whisper quantization (`empty/q4_0/q4_1/q5_0/q5_1/q8_0`). `q8_0` is ~15% faster than FP16 with minimal accuracy loss — kept as the default; the bigger win is the **multicore** transcription (all logical processors; measured 8.3 s → 4.9 s per utterance on a 6c/12t CPU) |
 | `RtpPortRange` | `""` | Fixed RTP port range, e.g. `"40000-41000"` (firewalled deployments); empty = ephemeral ports |
 

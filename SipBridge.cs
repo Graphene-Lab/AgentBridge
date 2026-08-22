@@ -91,11 +91,15 @@ public static class SipBridge
         public int IndicatorDelaySeconds { get; set; } = 2;
         /// <summary>Whisper model used by the STT subprocess (tiny/base/small/medium/largev2/
         /// largev3).
-        /// ⚠️ DO NOT GO BELOW "small": tiny/base were tested on real phone calls and their
-        /// recognition is unusable (e.g. "il meteo" → "villioni sul metto"). "small" is the
-        /// minimum that works acceptably on real G.711 audio (≈7 s per utterance on CPU —
-        /// the accuracy trade-off is worth it). Larger models (medium+) are more accurate but
-        /// far too slow on this CPU.</summary>
+        /// ⚠️ "small" was the floor for a long time: tiny/base tested on real phone calls with the
+        /// OLD pipeline (pre-16 kHz-upsample/filters) failed to recognize speech (e.g. "il meteo"
+        /// → "villioni sul metto"). RE-TESTED 2026-08-22 with the current pipeline (8→16 kHz
+        /// upsample + adaptive VAD + q8_0/multicore), "base" transcribes real Italian correctly
+        /// ("che tempo fa a Milano mi racconti le previsioni del meteo" → verbatim) and is ~2x
+        /// FASTER than small-q8_0 (measured via e2e/VadTest: base-FP16 2.2–4.4 s vs small-q8_0
+        /// 7.0–8.3 s of whisper inference per 7.4 s utterance). "base" is the latency pick for
+        /// phone calls; "small" keeps the extra accuracy margin on very noisy lines. Never go
+        /// below base — tiny is unusable.</summary>
         public string SttModel { get; set; } = "small";
         /// <summary>Whisper quantization for the STT subprocess (empty/q4_0/q4_1/q5_0/q5_1/q8_0).
         /// Default <c>q8_0</c>: "small-q8_0" is ~2-3x FASTER on CPU (measured STT 8.3 s → ~3-4 s)
@@ -172,6 +176,7 @@ public static class SipBridge
         private Task _inputPump = Task.CompletedTask;
         private Task _ttsPump = Task.CompletedTask;
         private volatile bool _speaking;
+        private int _activeSpeaks;               // SpeakAsyncs in flight — capture unmutes only at zero
         private volatile bool _conversationActive;   // set by StartAsync: distinguishes conversation replies from pre-PIN announcements
         private bool _pinAudioLogged;
         private int _firstChunkLogged;               // diagnostic: when the first TTS chunk hits RTP
@@ -490,10 +495,11 @@ public static class SipBridge
         /// no TTS engine lives here (see ARCHITECTURE.md).</summary>
         public async Task SpeakAsync(string text, bool isLast, CancellationToken ct = default)
         {
-            if (string.IsNullOrWhiteSpace(text)) return;
-            if (_call.Media.IsClosed) return;
-            if (!SipVoiceAgent.IsReady) return;
+            if (string.IsNullOrWhiteSpace(text)) { _replyStarted = true; return; }   // empty turn → stop the indicator
+            if (_call.Media.IsClosed) { _replyStarted = true; return; }
+            if (!SipVoiceAgent.IsReady) { _replyStarted = true; return; }
             if (_conversationActive) Log.LogStep($"SIP agent replied: {text}");
+            Interlocked.Increment(ref _activeSpeaks);
             _speaking = true;
             _firstChunkLogged = 0;   // measure time-to-first-audio of THIS reply
             _replyStarted = true;    // stop the processing indicator — the real reply is here
@@ -519,9 +525,15 @@ public static class SipBridge
                 // Post-TTS echo guard: the caller's phone plays the reply through its speaker, and
                 // the echo comes BACK delayed by network + phone latency. Keep capture muted
                 // PostTtsMuteMs after the last chunk so the subprocess VAD never hears our own
-                // answer (recognition itself is continuous — mute, don't stop/start).
-                if (!ct.IsCancellationRequested) await Task.Delay(PostTtsMuteMs, CancellationToken.None);
-                _speaking = false;
+                // answer (recognition itself is continuous — mute, don't stop/start). Only the
+                // LAST SpeakAsync to finish unmutes: another reply may still be rendering (an
+                // agent-initiative turn racing the reply loop) — its chunks would otherwise be
+                // heard by the VAD as caller input.
+                if (Interlocked.Decrement(ref _activeSpeaks) == 0)
+                {
+                    if (!ct.IsCancellationRequested) await Task.Delay(PostTtsMuteMs, CancellationToken.None);
+                    if (Volatile.Read(ref _activeSpeaks) == 0) _speaking = false;   // re-check: a new speak may have started during the wait
+                }
             }
         }
 
@@ -1057,8 +1069,11 @@ public static class SipBridge
         // The shared user agent no longer tracks any dialog while we still hold a call: the
         // remote hangup was processed at the transport but the cleanup event was missed. Clear
         // the orphaned call state and rebuild the user agent — its stale internal dialog would
-        // silently drop this INVITE and every later one.
-        if (Ua != null && !Ua.IsCallActive)
+        // silently drop this INVITE and every later one. Same guard as the watchdog: only a
+        // fully established call (MediaAttached) may be cleared — a call mid-setup (Call
+        // registered, Answer pending) has no dialog yet and must never be misread as an orphan,
+        // or the DTMF PIN gate would go dead.
+        if (Ua != null && !Ua.IsCallActive && call.MediaAttached)
         {
             lock (Sync)
             {
@@ -1176,6 +1191,9 @@ public static class SipBridge
 
             call.Phase = CallPhase.Conversation;
             call.MediaAttached = true;   // the outbound dialog is up — the watchdog may clear orphans now
+            call.VoiceMedia ??= new SipVoiceMedia(call);
+            call.VoiceMedia.Attach();    // wire the RTP capture + TTS pump (incoming calls attach at setup;
+                                        // without it an outbound conversation would never hear the caller)
             StartConversation(call);
             Log.LogStep($"SIP outbound call answered: {uri}");
             return null;
