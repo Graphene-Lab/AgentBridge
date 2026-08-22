@@ -174,11 +174,13 @@
        call into text. Copied into its own voiceagent-stt/ subfolder (like VoiceAgent.Win) so its
        dependencies cannot shadow the server's KokoroSharp. kokoro.onnx/voices are excluded: the
        transcribe path never uses TTS, and they would add ~350 MB to the archive. On Linux/macOS
-       the deploy script must place the executable in voiceagent-stt/ alongside the server. -->
-  <Target Name="CopySttAgentOutput" AfterTargets="Build;Publish" Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\AIOffice.VoiceAgent.exe')">
+       the deploy script must place the executable in voiceagent-stt/ alongside the server.
+       The Windows build uses the net10.0-windows TFM (adds the SAPI TTS fallback); Linux/macOS
+       deploy the plain net10.0 output. -->
+  <Target Name="CopySttAgentOutput" AfterTargets="Build;Publish" Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\AIOffice.VoiceAgent.exe')">
     <ItemGroup>
-      <_SttFiles Include="..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\**\*"
-                 Exclude="..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\logs\**\*;..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\kokoro.onnx;..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\voices\**\*" />
+      <_SttFiles Include="..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\**\*"
+                 Exclude="..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\logs\**\*;..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\kokoro.onnx;..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\voices\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(_SttFiles)" DestinationFiles="@(_SttFiles->'$(OutputPath)voiceagent-stt\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Message Text="VoiceAgent (STT) output copied to $(OutputPath)voiceagent-stt\" Importance="high" />
