@@ -177,6 +177,12 @@
        the deploy script must place the executable in voiceagent-stt/ alongside the server.
        The Windows build uses the net10.0-windows TFM (adds the SAPI TTS fallback); Linux/macOS
        deploy the plain net10.0 output. -->
+  <ItemGroup>
+    <!-- Processing-indicator sound played to the SIP caller while the agent computes (STT/LLM) —
+         a looped "data processing" cue (3 s, 24 kHz mono, from assets/). -->
+    <Content Include="assets\processing-indicator.wav" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <Target Name="CopySttAgentOutput" AfterTargets="Build;Publish" Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\AIOffice.VoiceAgent.exe')">
     <ItemGroup>
       <_SttFiles Include="..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\**\*"

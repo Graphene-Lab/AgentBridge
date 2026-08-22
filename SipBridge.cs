@@ -153,10 +153,14 @@ public static class SipBridge
     /// </summary>
     private sealed class SipVoiceMedia : IAudioMedia
     {
+        /// <summary>One TTS output unit: a real reply chunk or a processing-indicator piece
+        /// (tagged so the pump can discard queued indicator pieces the moment the reply starts).</summary>
+        private sealed record TtsChunk(byte[] Pcm, bool Indicator);
+
         private readonly CallContext _call;
         private readonly DtmfDetector _dtmf = new();
         private readonly System.Threading.Channels.Channel<byte[]> _inputQueue = System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
-        private readonly System.Threading.Channels.Channel<byte[]> _ttsQueue = System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
+        private readonly System.Threading.Channels.Channel<TtsChunk> _ttsQueue = System.Threading.Channels.Channel.CreateUnbounded<TtsChunk>();
         private int _ttsPending;
         private Task _inputPump = Task.CompletedTask;
         private Task _ttsPump = Task.CompletedTask;
@@ -164,6 +168,16 @@ public static class SipBridge
         private volatile bool _conversationActive;   // set by StartAsync: distinguishes conversation replies from pre-PIN announcements
         private bool _pinAudioLogged;
         private int _firstChunkLogged;               // diagnostic: when the first TTS chunk hits RTP
+
+        // Processing indicator: a looped "data processing" cue played to the caller while the
+        // agent computes (STT/LLM/tools) — starts 3 s after the caller's utterance was acquired
+        // and stops the moment the first reply chunk arrives. Fills the latency void so the
+        // caller knows the line is working. Sent over the MEDIA (RTP) — never played locally.
+        private byte[]? _indicatorPcm = LoadIndicatorPcm();
+        private DateTime _processingSince;
+        private volatile bool _replyStarted;
+        private Task _indicatorLoop = Task.CompletedTask;
+        private const int IndicatorPieceMs = 400;    // pieces this small bound the reply delay to ~400 ms
 
         public SipVoiceMedia(CallContext call)
         {
@@ -283,6 +297,12 @@ public static class SipBridge
             if (!IsNoiseOnlyTranscript(text))
             {
                 Log.LogStep($"SIP caller said: {text}");
+                // The caller's utterance is now being processed (STT done → LLM/tools may take a
+                // while): arm the processing indicator — it starts after 3 s and loops until the
+                // first reply chunk arrives.
+                _processingSince = DateTime.UtcNow;
+                _replyStarted = false;
+                EnsureIndicatorLoop();
                 SpeechReceived?.Invoke(text);
             }
         }
@@ -299,15 +319,53 @@ public static class SipBridge
             if (!_ttsPump.IsCompleted) return;
             _ttsPump = Task.Run(async () =>
             {
-                await foreach (var pcm in _ttsQueue.Reader.ReadAllAsync())
+                await foreach (var chunk in _ttsQueue.Reader.ReadAllAsync())
                 {
+                    // The moment a real reply starts, queued indicator pieces are discarded
+                    // (bounded to ~1 in-flight piece = IndicatorPieceMs) so the reply is not
+                    // delayed by the processing cue.
+                    if (chunk.Indicator && _replyStarted) { Interlocked.Decrement(ref _ttsPending); continue; }
                     try
                     {
-                        await _call.Media.AudioExtrasSource.SendAudioFromStream(new MemoryStream(pcm), AudioSamplingRatesEnum.Rate24kHz);
+                        await _call.Media.AudioExtrasSource.SendAudioFromStream(new MemoryStream(chunk.Pcm), AudioSamplingRatesEnum.Rate24kHz);
                     }
                     catch { }
                     Interlocked.Decrement(ref _ttsPending);
                 }
+            });
+        }
+
+        /// <summary>Loops the processing cue over RTP: starts 3 s after the utterance was acquired
+        /// and keeps pushing 400 ms pieces until the first reply chunk arrives (then the pump
+        /// discards whatever is left).</summary>
+        private void EnsureIndicatorLoop()
+        {
+            if (_indicatorPcm == null) return;
+            if (!_indicatorLoop.IsCompleted) return;
+            _indicatorLoop = Task.Run(async () =>
+            {
+                var pieceBytes = IndicatorPieceMs * 48;   // 24 kHz × 2 B = 48 B/ms
+                try
+                {
+                    while (_conversationActive && !_replyStarted && !_call.Cts.IsCancellationRequested)
+                    {
+                        if ((DateTime.UtcNow - _processingSince).TotalSeconds >= 3)
+                        {
+                            for (int off = 0; off < _indicatorPcm.Length; off += pieceBytes)
+                            {
+                                var piece = _indicatorPcm.AsSpan(off, Math.Min(pieceBytes, _indicatorPcm.Length - off)).ToArray();
+                                _ttsQueue.Writer.TryWrite(new TtsChunk(piece, true));
+                                Interlocked.Increment(ref _ttsPending);
+                                // Play the piece in real time (48 B per ms) before the next one.
+                                await Task.Delay(piece.Length / 48, _call.Cts.Token);
+                                if (_replyStarted || _call.Cts.IsCancellationRequested) return;
+                            }
+                        }
+                        await Task.Delay(150, _call.Cts.Token);
+                    }
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex) { Log.LogStep($"SIP processing indicator error: {ex.Message}"); }
             });
         }
 
@@ -322,6 +380,34 @@ public static class SipBridge
             return true;
         }
 
+        /// <summary>Loads the processing-indicator cue (assets/processing-indicator.wav — 24 kHz
+        /// mono PCM16, deployed with the server) as raw PCM for looping over RTP. Null when the
+        /// asset is missing (the indicator is simply skipped).</summary>
+        private static byte[]? LoadIndicatorPcm()
+        {
+            try
+            {
+                var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "processing-indicator.wav");
+                if (!File.Exists(path)) { Log.LogStep("SIP processing indicator: asset not found (assets/processing-indicator.wav)"); return null; }
+                var bytes = File.ReadAllBytes(path);
+                var off = 12;
+                while (off + 8 <= bytes.Length)
+                {
+                    var id = System.Text.Encoding.ASCII.GetString(bytes, off, 4);
+                    var size = BitConverter.ToInt32(bytes, off + 4);
+                    if (id == "data") return bytes.AsSpan(off + 8, Math.Min(size, bytes.Length - off - 8)).ToArray();
+                    off += 8 + size + (size % 2);
+                }
+                Log.LogStep("SIP processing indicator: no data chunk in the asset WAV");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"SIP processing indicator load failed: {ex.Message}");
+                return null;
+            }
+        }
+
         /// <summary>Renders speakable text to the caller: the persistent voice subprocess renders
         /// Kokoro/SAPI PCM (streamed sentence by sentence) → raw PCM → RTP. Media is I/O only —
         /// no TTS engine lives here (see ARCHITECTURE.md).</summary>
@@ -333,6 +419,7 @@ public static class SipBridge
             if (_conversationActive) Log.LogStep($"SIP agent replied: {text}");
             _speaking = true;
             _firstChunkLogged = 0;   // measure time-to-first-audio of THIS reply
+            _replyStarted = true;    // stop the processing indicator — the real reply is here
             try
             {
                 foreach (var sentence in SplitSentences(text))
@@ -341,7 +428,7 @@ public static class SipBridge
                     await SipVoiceAgent.SpeakAsync(sentence, Language, pcm =>
                     {
                         if (_firstChunkLogged == 0) { _firstChunkLogged = 1; Log.LogStep($"SIP TTS first-chunk t={DateTime.UtcNow:HH:mm:ss.fff}"); }
-                        _ttsQueue.Writer.TryWrite(pcm);
+                        _ttsQueue.Writer.TryWrite(new TtsChunk(pcm, false));
                         Interlocked.Increment(ref _ttsPending);
                     }, ct);
                 }
