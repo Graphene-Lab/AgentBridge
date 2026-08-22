@@ -42,6 +42,12 @@ public static class SipVoiceAgent
     /// <summary>Path to the cross-platform AIOffice.VoiceAgent executable (voiceagent-stt/).</summary>
     public static string? ExePath { get; set; }
 
+    /// <summary>Whisper model passed to the subprocess via AIOFFICE_WHISPER_MODEL (e.g. "small").</summary>
+    public static string? SttModel { get; set; }
+
+    /// <summary>Whisper quantization passed via AIOFFICE_WHISPER_QUANT (e.g. "q8_0", empty = FP16).</summary>
+    public static string? SttQuant { get; set; }
+
     /// <summary>
     /// Starts the persistent subprocess (idempotent) and sends "start" with the language.
     /// The whisper model loads once and stays resident for the whole server lifetime.
@@ -68,6 +74,9 @@ public static class SipVoiceAgent
                     StandardInputEncoding = new UTF8Encoding(false),
                 };
                 psi.ArgumentList.Add("--pipe-audio");
+                // Model + quantization must be set BEFORE the process starts (read at startup).
+                if (!string.IsNullOrWhiteSpace(SttModel)) psi.Environment["AIOFFICE_WHISPER_MODEL"] = SttModel;
+                if (!string.IsNullOrWhiteSpace(SttQuant)) psi.Environment["AIOFFICE_WHISPER_QUANT"] = SttQuant;
                 _proc = new Process { StartInfo = psi };
                 if (!_proc.Start())
                 {

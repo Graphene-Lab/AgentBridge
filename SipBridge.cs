@@ -91,6 +91,12 @@ public static class SipBridge
         /// the accuracy trade-off is worth it). Larger models (medium+) are more accurate but
         /// far too slow on this CPU.</summary>
         public string SttModel { get; set; } = "small";
+        /// <summary>Whisper quantization for the STT subprocess (empty/q4_0/q4_1/q5_0/q5_1/q8_0).
+        /// Default <c>q8_0</c>: "small-q8_0" is ~2-3x FASTER on CPU (measured STT 8.3 s → ~3-4 s)
+        /// with minimal accuracy loss — the latency fix for phone calls, where whisper is the
+        /// recognizer by necessity (RTP audio, not the mic → WinRT is not usable). Set empty to
+        /// keep the full FP16 model.</summary>
+        public string SttQuant { get; set; } = "q8_0";
         /// <summary>Trusted caller URIs (P-Asserted-Identity from an authenticating provider/trunk)
         /// that skip the PIN. Matched on the full URI or on the user part alone.
         /// SECURITY: PAI is honored only when the INVITE comes from <see cref="Registrar"/> — in
@@ -567,6 +573,8 @@ public static class SipBridge
             // once for the whole server lifetime: the whisper model stays loaded → persistent
             // STT. Both the announcements and the conversation go through it (media = I/O only).
             SipVoiceAgent.ExePath = ResolveSttExe();
+            SipVoiceAgent.SttModel = Cfg.SttModel;
+            SipVoiceAgent.SttQuant = Cfg.SttQuant;
             await SipVoiceAgent.StartAsync(Cfg.Lang);
 
             var transport = new SIPTransport();
@@ -663,6 +671,7 @@ public static class SipBridge
                 lang = c.Lang,
                 stt_exe_path = c.SttExePath,
                 stt_model = c.SttModel,
+                stt_quant = c.SttQuant,
                 rtp_port_range = c.RtpPortRange,
             };
         }
