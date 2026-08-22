@@ -69,7 +69,8 @@ Every key is overridable from the command line (`--Sip:Pin 12345`, ...).
 | `Agent` | `"default-agent"` | Agent set used for the conversation (`default`, `multi`, `word`, ...) |
 | `Lang` | system language | Two-letter ISO language for STT/TTS and the announcements (Italian default when empty on an Italian machine) |
 | `SttExePath` | `<server>\voiceagent-stt\` | Path to the `AIOffice.VoiceAgent` executable |
-| `SttModel` | `small` | Whisper model for the STT subprocess (`tiny/base/small/medium/largev2/largev3`). **Do not go below `small`**: tiny/base were tested on real phone calls and fail to recognize speech (e.g. "il meteo" → "villioni sul metto"); `small` is the floor for acceptable accuracy on real G.711 audio (~7 s per utterance on CPU) |
+| `SttModel` | `small` | Whisper model for the STT subprocess (`tiny/base/small/medium/largev2/largev3`). **Do not go below `small`**: tiny/base were tested on real phone calls and fail to recognize speech (e.g. "il meteo" → "villioni sul metto"); `small` is the floor for acceptable accuracy on real G.711 audio |
+| `SttQuant` | `q8_0` | Whisper quantization (`empty/q4_0/q4_1/q5_0/q5_1/q8_0`). `q8_0` is ~15% faster than FP16 with minimal accuracy loss — kept as the default; the bigger win is the **multicore** transcription (all logical processors; measured 8.3 s → 4.9 s per utterance on a 6c/12t CPU) |
 | `RtpPortRange` | `""` | Fixed RTP port range, e.g. `"40000-41000"` (firewalled deployments); empty = ephemeral ports |
 
 ## TUI commands
@@ -115,8 +116,8 @@ file:
 - **Keys** are the appsettings.json property names, case-insensitive: `Enabled`,
   `ListenPort`, `Registrar`, `Username`, `Password`, `AnswerMode`, `Pin`,
   `MaxPinAttempts`, `LockoutHours`, `RegisterExpiry`, `AllowedCallers`
-  (comma-separated), `Agent`, `Lang`, `SttExePath`, `RtpPortRange`. Booleans accept
-  `true/false/1/on`.
+  (comma-separated), `Agent`, `Lang`, `SttExePath`, `SttModel`, `SttQuant`,
+  `RtpPortRange`. Booleans accept `true/false/1/on`.
 - **Live vs restart.** PIN-policy keys (`Pin`, `MaxPinAttempts`, `LockoutHours`) and the
   per-call keys (`AnswerMode`, `AllowedCallers`, `Agent`, `Lang`, `SttExePath`) apply
   immediately to the next call. Transport-level keys (`Enabled`, `ListenPort`, `Registrar`,
@@ -165,6 +166,14 @@ file:
    before transcription (whisper is trained on 16 kHz); and transcripts consisting ONLY of
    non-speech placeholders (`[Musica]`, `[Rumore]`, ...) are dropped — background music is
    never sent to the LLM, so the agent cannot "answer the music".
+6. **Processing indicator** — while the agent computes (STT/LLM/tools, which can take several
+   seconds), the caller would hear silence and wonder if the line dropped. So 3 s after the
+   caller's utterance is acquired, a looped "data processing" cue (`assets/processing-indicator.wav`,
+   10 s, 24 kHz mono — trimmed from a freesound preview via `e2e/Mp3ToWav`) is sent to the
+   caller over RTP, repeating until the first reply chunk arrives. The cue is sent through the
+   SAME media path as the replies (never played locally); the TTS queue tags the cue pieces and
+   discards them the moment the real reply starts (400 ms pieces → the reply is delayed by at
+   most ~400 ms). The asset ships with the server; if missing the indicator is simply skipped.
 
 ## Robustness
 
