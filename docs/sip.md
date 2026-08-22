@@ -35,9 +35,14 @@ Implemented with [SIPSorcery](https://github.com/sipsorcery-org/sipsorcery) 10.0
   subprocess** (no duplicated VAD in the bridge); replies are rendered with
   `{"cmd":"speak","render":true}` and the 24 kHz PCM chunks come back as `{"type":"audio"}`.
   The process lives for the whole server lifetime → the whisper model stays loaded
-  (**persistent STT**: no per-utterance model-load cost). While the agent's TTS is playing,
-  the caller's capture is paused — a hands-free caller would otherwise echo the reply back
-  and the VAD would transcribe our own answer into an endless loop.
+  (**persistent STT**: no per-utterance model-load cost). **Recognition is continuous**: the
+  subprocess never stops/restarts the recognizer between turns (whisper.net has no streaming
+  mode — the continuous part is the capture+VAD, which stays up); instead the caller's capture
+  is **muted** while the agent's TTS plays (RTP packets are dropped — a hands-free caller would
+  otherwise echo the reply back and the VAD would transcribe our own answer into an endless
+  loop) and for **500 ms after** the last chunk, because the echo of the reply comes back
+  delayed by network + phone latency. The VAD state ("speech"/"end") is streamed to the bridge
+  as `{"type":"vad","state":…}` so it can time the processing indicator.
 - The **conversation** is the SHARED agentic voice conversation (`AIOrchestrator
   ExecuteActionStream` with `isVoiceChat: true` — see `VoiceConversation.StreamToMediaAsync`):
   the same loop the AIOffice Voice panel uses, so the phone gets the same tools, the same
@@ -65,6 +70,7 @@ Every key is overridable from the command line (`--Sip:Pin 12345`, ...).
 | `LockoutHours` | `24` | Lockout duration after the attempts are exhausted |
 | `RegisterExpiry` | `60` | REGISTER expiry/refresh interval in seconds. Keep it low (60) behind home NAT: consumer routers drop the NAT mapping long before the SIP default 300 s, and inbound calls between refreshes would go unanswered |
 | `PinTimeoutSeconds` | `60` | Seconds to wait for the PIN before the server hangs up the call (min 10). A call left in the PIN gate with no digits ends itself with a spoken notice |
+| `IndicatorDelaySeconds` | `2` | Seconds after the caller's speech ends before the looped "data processing" cue starts (the processing indicator). The cue is armed by the subprocess VAD `end` event (speech ended → STT/LLM processing began) — never by the transcript, which can arrive seconds later or not at all if background noise keeps the utterance open |
 | `AllowedCallers` | `[]` | Trusted caller URIs that skip the PIN in `allowlist` mode |
 | `Agent` | `"default-agent"` | Agent set used for the conversation (`default`, `multi`, `word`, ...) |
 | `Lang` | system language | Two-letter ISO language for STT/TTS and the announcements (Italian default when empty on an Italian machine) |
@@ -115,7 +121,8 @@ file:
 
 - **Keys** are the appsettings.json property names, case-insensitive: `Enabled`,
   `ListenPort`, `Registrar`, `Username`, `Password`, `AnswerMode`, `Pin`,
-  `MaxPinAttempts`, `LockoutHours`, `RegisterExpiry`, `AllowedCallers`
+  `MaxPinAttempts`, `LockoutHours`, `RegisterExpiry`, `PinTimeoutSeconds`,
+  `IndicatorDelaySeconds`, `AllowedCallers`
   (comma-separated), `Agent`, `Lang`, `SttExePath`, `SttModel`, `SttQuant`,
   `RtpPortRange`. Booleans accept `true/false/1/on`.
 - **Live vs restart.** PIN-policy keys (`Pin`, `MaxPinAttempts`, `LockoutHours`) and the
@@ -167,13 +174,20 @@ file:
    non-speech placeholders (`[Musica]`, `[Rumore]`, ...) are dropped — background music is
    never sent to the LLM, so the agent cannot "answer the music".
 6. **Processing indicator** — while the agent computes (STT/LLM/tools, which can take several
-   seconds), the caller would hear silence and wonder if the line dropped. So 3 s after the
-   caller's utterance is acquired, a looped "data processing" cue (`assets/processing-indicator.wav`,
-   10 s, 24 kHz mono — trimmed from a freesound preview via `e2e/Mp3ToWav`) is sent to the
-   caller over RTP, repeating until the first reply chunk arrives. The cue is sent through the
-   SAME media path as the replies (never played locally); the TTS queue tags the cue pieces and
-   discards them the moment the real reply starts (400 ms pieces → the reply is delayed by at
-   most ~400 ms). The asset ships with the server; if missing the indicator is simply skipped.
+   seconds), the caller would hear silence and wonder if the line dropped. So `IndicatorDelaySeconds`
+   (default 2 s) after the caller's speech ENDS, a looped "data processing" cue
+   (`assets/processing-indicator.wav`, 10 s, 24 kHz mono — trimmed from a freesound preview via
+   `e2e/Mp3ToWav`) is sent to the caller over RTP, repeating until the first reply chunk arrives.
+   The cue is **armed by the subprocess VAD `end` event** (speech closed → transcription began),
+   not by the transcript: whisper can take seconds to return, and with background noise the
+   utterance may never close at all — arming on the VAD guarantees the caller always gets feedback
+   the moment processing starts. While the caller speaks again (VAD `speech`), the cue is paused
+   so it never beeps over their own voice; a 25 s hard cap stops it if STT/LLM stalls. The cue is
+   sent through the SAME media path as the replies (never played locally); the TTS queue tags the
+   cue pieces and discards them the moment the real reply starts (400 ms pieces → the reply is
+   delayed by at most ~400 ms). The asset is normalized to near-full-scale before playback (RTP
+   has no volume knob — the PCM amplitude IS the volume); it ships with the server, and if missing
+   the indicator is simply skipped.
 
 ## Robustness
 
@@ -181,9 +195,20 @@ file:
   its internal dialog state after a hangup, which would silently drop every later INVITE.
   A watchdog (5 s) rebuilds it whenever the server and the agent disagree on the call state
   — both when the agent still believes a call is active without one, and when the server
-  still holds an orphaned call the agent reports as inactive. The transport-level busy
-  handler clears the same orphaned state (and rebuilds the agent) if an INVITE arrives
-  before the watchdog fires. New calls are never lost for long.
+  still holds an orphaned call the agent reports as inactive. New calls are never lost for
+  long. The orphan-clear only fires once the call is fully established (`MediaAttached`):
+  between "Call registered" and "Answer/Attach complete" a fresh call has no dialog yet and
+  must never be misread as an orphan — clearing it mid-setup would make the DTMF PIN gate go
+  dead (reproduced by an immediate call colliding with the 5 s tick). The same guard skips
+  the rebuild while an INVITE is being set up (the call gate is held for the whole setup).
+- **Serialized TTS rendering**: the voice subprocess renders ONE speak at a time. A new speak
+  can start while a previous one is still rendering (the PIN accepted while the welcome is
+  still streaming, a lockout notice landing mid-announcement, an agent-initiative turn racing
+  the reply loop). The newcomer WAITS for the in-flight render instead of failing: an
+  exception there would fault a fire-and-forget task and silently kill the conversation
+  (phase stays Conversation, `StartConversation` never runs, transcripts are dropped — the
+  call goes dead with no reply and no processing indicator). The slot is cleared only by its
+  owner (`ReferenceEquals`), so a newer speak can never lose its "done" resolution.
 - **In-call DTMF** (RFC 4733 events) is filtered out of the speech path — keypad tones never
   reach the STT.
 - **Hold re-INVITE** from the remote party is answered by the library and the call survives.

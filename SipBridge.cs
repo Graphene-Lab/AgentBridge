@@ -83,6 +83,12 @@ public static class SipBridge
         /// min 10). A call that reaches the PIN gate and receives nothing ends instead of
         /// staying open forever.</summary>
         public int PinTimeoutSeconds { get; set; } = 60;
+        /// <summary>Seconds after the caller's speech ends before the processing indicator (the
+        /// looped "data processing" cue) starts playing (default 2). The cue is armed by the
+        /// subprocess VAD "end" event — i.e. the moment STT/LLM processing begins — so a caller
+        /// never stares at silence while the agent computes. Set higher to delay the cue (it can
+        /// sound noisy on a quiet line), lower to reassure sooner.</summary>
+        public int IndicatorDelaySeconds { get; set; } = 2;
         /// <summary>Whisper model used by the STT subprocess (tiny/base/small/medium/largev2/
         /// largev3).
         /// ⚠️ DO NOT GO BELOW "small": tiny/base were tested on real phone calls and their
@@ -142,6 +148,7 @@ public static class SipBridge
         public CancellationTokenSource Cts = new();
         public Task? Loop;
         public volatile bool Validating;
+        public volatile bool MediaAttached;     // set once the RTP capture is live (see the watchdog)
         public DateTime PinDeadline;            // moment the PIN gate gives up (EnforcePinTimeoutAsync)
     }
 
@@ -170,14 +177,21 @@ public static class SipBridge
         private int _firstChunkLogged;               // diagnostic: when the first TTS chunk hits RTP
 
         // Processing indicator: a looped "data processing" cue played to the caller while the
-        // agent computes (STT/LLM/tools) — starts 3 s after the caller's utterance was acquired
-        // and stops the moment the first reply chunk arrives. Fills the latency void so the
-        // caller knows the line is working. Sent over the MEDIA (RTP) — never played locally.
+        // agent computes (STT/LLM/tools) — armed by the subprocess VAD "end" event (speech ended,
+        // processing began), starts IndicatorDelaySeconds later and stops the moment the first
+        // reply chunk arrives. Fills the latency void so the caller knows the line is working.
+        // Sent over the MEDIA (RTP) — never played locally. While the caller speaks again
+        // (VAD "speech"), the cue is paused so it never beeps over the caller's own voice.
         private byte[]? _indicatorPcm = LoadIndicatorPcm();
         private DateTime _processingSince;
         private volatile bool _replyStarted;
+        private volatile bool _indicatorPaused;
         private Task _indicatorLoop = Task.CompletedTask;
         private const int IndicatorPieceMs = 400;    // pieces this small bound the reply delay to ~400 ms
+        private const int IndicatorMaxSeconds = 25;  // hard cap — a stalled STT/LLM must never beep forever
+        private const int PostTtsMuteMs = 500;       // capture stays muted this long after the last TTS
+                                                     // chunk: the caller's echo of the reply is delayed
+                                                     // by network + phone latency, not real-time
 
         public SipVoiceMedia(CallContext call)
         {
@@ -193,6 +207,9 @@ public static class SipBridge
             };
             // STT lives in the persistent subprocess (VAD + whisper); transcripts arrive here.
             SipVoiceAgent.Transcript += OnSubprocessTranscript;
+            // The subprocess VAD reports "speech"/"end" — the indicator is armed at "end"
+            // (processing start) and paused at "speech" (the caller is talking, not waiting).
+            SipVoiceAgent.VadState += OnVadState;
         }
 
         public string Language => VoiceConversation.ResolveLang(Cfg.Lang);
@@ -223,6 +240,7 @@ public static class SipBridge
         {
             _call.Media.OnRtpPacketReceived -= OnRtpAudio;
             SipVoiceAgent.Transcript -= OnSubprocessTranscript;
+            SipVoiceAgent.VadState -= OnVadState;
             _inputQueue.Writer.TryComplete();
             _ttsQueue.Writer.TryComplete();
             _dtmf.Reset();
@@ -294,16 +312,43 @@ public static class SipBridge
             // Whisper labels non-speech segments as "[Musica]"/"[Rumore]"/"[Applausi]" etc. When
             // the whole utterance is such a placeholder (background music, line noise), it must
             // never reach the LLM — the agent would "answer the music". Mixed text is kept.
-            if (!IsNoiseOnlyTranscript(text))
+            if (IsNoiseOnlyTranscript(text))
             {
-                Log.LogStep($"SIP caller said: {text}");
-                // The caller's utterance is now being processed (STT done → LLM/tools may take a
-                // while): arm the processing indicator — it starts after 3 s and loops until the
-                // first reply chunk arrives.
-                _processingSince = DateTime.UtcNow;
-                _replyStarted = false;
-                EnsureIndicatorLoop();
-                SpeechReceived?.Invoke(text);
+                // Nothing to process → cancel the cue armed at VAD "end" (it must not beep for
+                // background music the agent will never answer).
+                _indicatorPaused = true;
+                return;
+            }
+            Log.LogStep($"SIP caller said: {text}");
+            // The caller's utterance is now being processed (STT done → LLM/tools may take a
+            // while): arm the processing indicator — it starts after IndicatorDelaySeconds and
+            // loops until the first reply chunk arrives. Re-arming here is a safety net: the
+            // primary arming happened at the VAD "end" event (before whisper ran).
+            _processingSince = DateTime.UtcNow;
+            _replyStarted = false;
+            _indicatorPaused = false;
+            EnsureIndicatorLoop();
+            SpeechReceived?.Invoke(text);
+        }
+
+        /// <summary>VAD transitions from the subprocess: "speech" = the caller started talking
+        /// (pause the cue — they are speaking, not waiting), "end" = the utterance closed and
+        /// transcription began (arm the cue — processing has started). "end" always follows a
+        /// "speech", so a cue never starts while the caller is still talking.</summary>
+        private void OnVadState(string state)
+        {
+            if (!_conversationActive) return;
+            switch (state)
+            {
+                case "speech":
+                    _indicatorPaused = true;      // never beep over the caller's own voice
+                    break;
+                case "end":
+                    _processingSince = DateTime.UtcNow;
+                    _replyStarted = false;
+                    _indicatorPaused = false;
+                    EnsureIndicatorLoop();
+                    break;
             }
         }
 
@@ -321,10 +366,10 @@ public static class SipBridge
             {
                 await foreach (var chunk in _ttsQueue.Reader.ReadAllAsync())
                 {
-                    // The moment a real reply starts, queued indicator pieces are discarded
-                    // (bounded to ~1 in-flight piece = IndicatorPieceMs) so the reply is not
-                    // delayed by the processing cue.
-                    if (chunk.Indicator && _replyStarted) { Interlocked.Decrement(ref _ttsPending); continue; }
+                    // Indicator pieces are discarded the moment the real reply starts (bounded to
+                    // ~1 in-flight piece = IndicatorPieceMs, so the reply is not delayed by the
+                    // cue) and while the cue is paused (the caller is talking again).
+                    if (chunk.Indicator && (_replyStarted || _indicatorPaused)) { Interlocked.Decrement(ref _ttsPending); continue; }
                     try
                     {
                         await _call.Media.AudioExtrasSource.SendAudioFromStream(new MemoryStream(chunk.Pcm), AudioSamplingRatesEnum.Rate24kHz);
@@ -335,9 +380,11 @@ public static class SipBridge
             });
         }
 
-        /// <summary>Loops the processing cue over RTP: starts 3 s after the utterance was acquired
-        /// and keeps pushing 400 ms pieces until the first reply chunk arrives (then the pump
-        /// discards whatever is left).</summary>
+        /// <summary>Loops the processing cue over RTP: starts <see cref="SipConfig.IndicatorDelaySeconds"/>
+        /// after the utterance was acquired and keeps pushing 400 ms pieces until the first reply
+        /// chunk arrives (then the pump discards whatever is left). Pauses while the caller speaks
+        /// again; hard-stops after <see cref="IndicatorMaxSeconds"/> so a stalled STT/LLM can never
+        /// beep forever.</summary>
         private void EnsureIndicatorLoop()
         {
             if (_indicatorPcm == null) return;
@@ -345,14 +392,19 @@ public static class SipBridge
             _indicatorLoop = Task.Run(async () =>
             {
                 var pieceBytes = IndicatorPieceMs * 48;   // 24 kHz × 2 B = 48 B/ms
+                DateTime? sentSince = null;
                 try
                 {
                     while (_conversationActive && !_replyStarted && !_call.Cts.IsCancellationRequested)
                     {
-                        if ((DateTime.UtcNow - _processingSince).TotalSeconds >= 3)
+                        if (!_indicatorPaused &&
+                            (DateTime.UtcNow - _processingSince).TotalSeconds >= Math.Max(1, Cfg.IndicatorDelaySeconds))
                         {
+                            sentSince ??= DateTime.UtcNow;
+                            if ((DateTime.UtcNow - sentSince.Value).TotalSeconds >= IndicatorMaxSeconds) return;
                             for (int off = 0; off < _indicatorPcm.Length; off += pieceBytes)
                             {
+                                if (_indicatorPaused || _replyStarted || _call.Cts.IsCancellationRequested) break;
                                 var piece = _indicatorPcm.AsSpan(off, Math.Min(pieceBytes, _indicatorPcm.Length - off)).ToArray();
                                 _ttsQueue.Writer.TryWrite(new TtsChunk(piece, true));
                                 Interlocked.Increment(ref _ttsPending);
@@ -395,7 +447,7 @@ public static class SipBridge
                 {
                     var id = System.Text.Encoding.ASCII.GetString(bytes, off, 4);
                     var size = BitConverter.ToInt32(bytes, off + 4);
-                    if (id == "data") return bytes.AsSpan(off + 8, Math.Min(size, bytes.Length - off - 8)).ToArray();
+                    if (id == "data") return NormalizePeak(bytes.AsSpan(off + 8, Math.Min(size, bytes.Length - off - 8)).ToArray());
                     off += 8 + size + (size % 2);
                 }
                 Log.LogStep("SIP processing indicator: no data chunk in the asset WAV");
@@ -406,6 +458,31 @@ public static class SipBridge
                 Log.LogStep($"SIP processing indicator load failed: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>Amplifies the cue to near-full-scale (peak ≈ 0.9 × int16 max) so the caller
+        /// hears it clearly — RTP has no volume knob, the only "playback volume" is the PCM
+        /// amplitude we send. The gain is capped (a silent asset must not be boosted into noise)
+        /// and samples are clamped to avoid clipping distortion.</summary>
+        private static byte[] NormalizePeak(byte[] pcm)
+        {
+            int peak = 1;
+            for (int i = 0; i + 1 < pcm.Length; i += 2)
+            {
+                var s = Math.Abs((short)(pcm[i] | pcm[i + 1] << 8));
+                if (s > peak) peak = s;
+            }
+            var gain = Math.Min(0.9 * short.MaxValue / peak, 8.0);
+            if (gain <= 1.01) return pcm;
+            for (int i = 0; i + 1 < pcm.Length; i += 2)
+            {
+                var s = (int)Math.Round((short)(pcm[i] | pcm[i + 1] << 8) * gain);
+                s = Math.Clamp(s, short.MinValue, short.MaxValue);
+                pcm[i] = (byte)(s & 0xFF);
+                pcm[i + 1] = (byte)((s >> 8) & 0xFF);
+            }
+            Log.LogStep($"SIP processing indicator: amplified ×{gain:F2} (peak {peak} → {0.9 * short.MaxValue:F0})");
+            return pcm;
         }
 
         /// <summary>Renders speakable text to the caller: the persistent voice subprocess renders
@@ -439,6 +516,11 @@ public static class SipBridge
             }
             finally
             {
+                // Post-TTS echo guard: the caller's phone plays the reply through its speaker, and
+                // the echo comes BACK delayed by network + phone latency. Keep capture muted
+                // PostTtsMuteMs after the last chunk so the subprocess VAD never hears our own
+                // answer (recognition itself is continuous — mute, don't stop/start).
+                if (!ct.IsCancellationRequested) await Task.Delay(PostTtsMuteMs, CancellationToken.None);
                 _speaking = false;
             }
         }
@@ -753,6 +835,7 @@ public static class SipBridge
                 lockout_hours = c.LockoutHours,
                 register_expiry = c.RegisterExpiry,
                 pin_timeout_seconds = c.PinTimeoutSeconds,
+                indicator_delay_seconds = c.IndicatorDelaySeconds,
                 allowed_callers = c.AllowedCallers,
                 agent = c.Agent,
                 lang = c.Lang,
@@ -929,6 +1012,10 @@ public static class SipBridge
         if (call == null)
         {
             if (!ua.IsCallActive) return;
+            // A fresh INVITE is being set up right now (AcceptCall ran, but Call is not yet
+            // registered — a sub-millisecond window in OnIncomingCall): rebuilding the user
+            // agent mid-setup would kill the call. The gate is held for the whole setup.
+            if (CallGate.CurrentCount == 0) return;
             Log.LogStep("SIP user agent cleanup failed — rebuilding it (stale dialog would drop new INVITEs)");
             try { ua.Close(); } catch { }
             Ua = CreateUserAgent(transport);
@@ -937,8 +1024,13 @@ public static class SipBridge
         // We still hold a call the user agent reports as inactive: the remote hangup reached
         // the transport but OnCallHungup was missed. The stale internal dialog would silently
         // drop every later INVITE — clear the orphan and rebuild now, instead of waiting for
-        // the next INVITE to trip the transport-level handler.
-        if (!ua.IsCallActive)
+        // the next INVITE to trip the transport-level handler. ONLY once the call is fully
+        // established (MediaAttached): between "Call registered" and "Answer/Attach complete"
+        // the dialog does not exist yet and a fresh call must never be misread as an orphan —
+        // clearing Call mid-setup makes HandleDtmfDigit drop every PIN digit and the call
+        // goes dead (reproduced by SipSmoke --voice-only's immediate call, which collides
+        // with the 5 s watchdog tick).
+        if (!ua.IsCallActive && call.MediaAttached)
         {
             Log.LogStep("SIP orphaned call state cleared by watchdog (user agent has no active dialog)");
             lock (Sync) if (Call == call) Call = null;
@@ -1083,6 +1175,7 @@ public static class SipBridge
             }
 
             call.Phase = CallPhase.Conversation;
+            call.MediaAttached = true;   // the outbound dialog is up — the watchdog may clear orphans now
             StartConversation(call);
             Log.LogStep($"SIP outbound call answered: {uri}");
             return null;
@@ -1126,6 +1219,7 @@ public static class SipBridge
                 lock (Sync) Call = call;
                 await ua.Answer(uas, media);
                 call.VoiceMedia.Attach();   // RTP capture for the whole call (PIN phase included)
+                call.MediaAttached = true;  // the dialog is up — the watchdog may clear orphans now
                 Log.LogStep($"SIP incoming call answered from {caller}");
             }
             finally

@@ -4,7 +4,10 @@
 // Feeds: [1.0 s noise @ level] + [speech from greeting-it.wav] + [1.5 s noise @ level]
 // for several noise levels relative to the speech RMS. Asserts per case:
 //   • an utterance CLOSES (transcript arrives ~0.7-2 s after the speech ends — NOT stuck open),
-//   • the transcript contains the speech (the threshold did not cut it).
+//   • the transcript contains the speech (the threshold did not cut it),
+//   • the VAD state stream is coherent: "speech" (utterance opened) → "end" (closed, i.e. the
+//     processing indicator would be armed here) → the transcript — the ordering the SIP bridge
+//     depends on.
 // The old VAD stayed open forever when the noise exceeded its fixed 0.006 threshold; the new
 // one calibrates the ambient from the first ~1 s and sets threshold = ambient × 2.
 //
@@ -32,17 +35,26 @@ foreach (var ratio in noiseRatios)
         speech16k,                     // the spoken phrase
         Noise(1.5, noiseLevel));       // 1.5 s trailing ambient
     Console.WriteLine($"\n=== case noise={ratio:F2}×speech (ambient rms {noiseLevel:F4}) ===");
-    var (ok, transcript, dtSec) = RunAgent(agent, pcm);
+    var (ok, transcript, dtSec, transcriptAt, vad) = RunAgent(agent, pcm);
+    var vadSeq = string.Join("→", vad.Select(v => $"{v.State}@{v.At:F1}s"));
+    var endAt = vad.FirstOrDefault(v => v.State == "end");
+    // "end" (utterance closed → indicator armed) must precede the transcript (whisper done).
+    var vadOk = HasSpeechThenEnd(vad) && endAt != default && transcriptAt > endAt.At;
     Console.WriteLine($"  transcript: '{transcript}'  (utterance closed {dtSec:F1}s after speech end)  ok={ok}");
-    if (!ok) failed++;
+    Console.WriteLine($"  vad events: {vadSeq}  ok={vadOk}");
+    if (!ok || !vadOk) failed++;
 }
-Console.WriteLine(failed == 0 ? "\nRESULT: PASS — the adaptive VAD closes utterances at every noise level"
+Console.WriteLine(failed == 0 ? "\nRESULT: PASS — the adaptive VAD closes utterances at every noise level, VAD events are coherent"
                               : $"\nRESULT: FAIL — {failed} case(s) failed");
 return failed == 0 ? 0 : 1;
 
 // ─── helpers ──────────────────────────────────────────────────────────────
 
-static (bool, string?, double) RunAgent(string exe, byte[] pcm16k)
+static bool HasSpeechThenEnd(List<(string State, double At)> vad) =>
+    vad.Any(v => v.State == "speech") && vad.Any(v => v.State == "end") &&
+    vad.First(v => v.State == "speech").At < vad.First(v => v.State == "end").At;
+
+static (bool, string?, double, double, List<(string State, double At)>) RunAgent(string exe, byte[] pcm16k)
 {
     var psi = new ProcessStartInfo
     {
@@ -56,6 +68,7 @@ static (bool, string?, double) RunAgent(string exe, byte[] pcm16k)
     psi.ArgumentList.Add("--pipe-audio");
     using var proc = Process.Start(psi)!;
     var transcripts = new List<(string Text, double At)>();
+    var vad = new List<(string State, double At)>();
     var t0 = DateTime.UtcNow;
     var readerTask = Task.Run(async () =>
     {
@@ -65,9 +78,14 @@ static (bool, string?, double) RunAgent(string exe, byte[] pcm16k)
             {
                 using var doc = JsonDocument.Parse(line);
                 var root = doc.RootElement;
-                if (root.TryGetProperty("type", out var t) && t.GetString() == "transcript" &&
-                    root.TryGetProperty("text", out var tx))
-                    transcripts.Add((tx.GetString()!, (DateTime.UtcNow - t0).TotalSeconds));
+                var at = (DateTime.UtcNow - t0).TotalSeconds;
+                if (root.TryGetProperty("type", out var t))
+                {
+                    if (t.GetString() == "transcript" && root.TryGetProperty("text", out var tx))
+                        transcripts.Add((tx.GetString()!, at));
+                    else if (t.GetString() == "vad" && root.TryGetProperty("state", out var st))
+                        vad.Add((st.GetString()!, at));
+                }
             }
             catch { }
         }
@@ -96,11 +114,11 @@ static (bool, string?, double) RunAgent(string exe, byte[] pcm16k)
     var speechSec = 1.0 + pcm16k.Length / 2 / 16000.0 - 1.5;   // speech starts at 1.0 s, ends at 1.0+speechLen
     var speechLen = (pcm16k.Length / 2) / 16000.0 - 2.5;
     var speechEnd = 1.0 + speechLen;
-    if (transcripts.Count == 0) return (false, null, double.NaN);
+    if (transcripts.Count == 0) return (false, null, double.NaN, double.NaN, vad);
     var first = transcripts[0];
     var dt = first.At - speechEnd;   // seconds after the speech ended
     var ok = first.Text.Length > 5 && dt is > 0.3 and < 6.0;   // closed, not stuck, not cut
-    return (ok, first.Text, dt);
+    return (ok, first.Text, dt, first.At, vad);
 }
 
 static byte[] WavPcm(string path)

@@ -27,6 +27,11 @@ public static class SipVoiceAgent
     /// <summary>Raised on {"type":"transcript"} — recognized user speech (VAD done in the subprocess).</summary>
     public static event Action<string>? Transcript;
 
+    /// <summary>Raised on {"type":"vad"} — the subprocess VAD state: "speech" (utterance opened)
+    /// or "end" (utterance closed, transcription started). The media bridge uses it to arm the
+    /// processing indicator at the right moment (speech end = processing start).</summary>
+    public static event Action<string>? VadState;
+
     /// <summary>Raised on {"type":"audio"} while a render-speak is in flight — PCM chunk (24 kHz).</summary>
     public static event Action<byte[]>? AudioChunk;
 
@@ -110,15 +115,30 @@ public static class SipVoiceAgent
     /// <summary>
     /// Renders text to speech in the subprocess and streams the resulting 24 kHz PCM chunks to
     /// <paramref name="onChunk"/> until the reply is complete (the subprocess emits "done").
+    /// The subprocess renders ONE speak at a time: a new speak can start while a previous one is
+    /// still rendering (e.g. the PIN accepted while the welcome is still streaming, or an
+    /// agent-initiative turn racing the reply loop). The newcomer WAITS for the in-flight render
+    /// instead of throwing — an exception here faults the fire-and-forget caller task and
+    /// silently kills the conversation (phase stays Conversation, StartConversation never runs,
+    /// transcripts are dropped: the call goes dead with no reply and no processing indicator).
     /// </summary>
     public static async Task SpeakAsync(string text, string lang, Action<byte[]> onChunk, CancellationToken ct = default)
     {
         TaskCompletionSource done;
-        lock (SpeakLock)
+        while (true)
         {
-            if (_speakDone is { Task.IsCompleted: false })
-                throw new InvalidOperationException("SIP voice subprocess: overlapping speak not supported");
-            done = _speakDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            TaskCompletionSource? inFlight;
+            lock (SpeakLock) inFlight = _speakDone is { Task.IsCompleted: false } ? _speakDone : null;
+            if (inFlight == null)
+            {
+                lock (SpeakLock)
+                {
+                    if (_speakDone is { Task.IsCompleted: false }) continue;   // lost the race — retry
+                    done = _speakDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+                break;
+            }
+            await inFlight.Task.WaitAsync(ct);
         }
         AudioChunk += Handler;
         try
@@ -129,7 +149,12 @@ public static class SipVoiceAgent
         finally
         {
             AudioChunk -= Handler;
-            lock (SpeakLock) _speakDone = null;
+            // Clear the slot ONLY if it still holds THIS speak's TCS. A newer speak may have
+            // acquired the slot between our completion and this finally (the acquirer treats a
+            // completed leftover as free and overwrites it) — nulling then would kill the newer
+            // speak's "done" resolution and hang it forever (seen in SipSmoke test 19: the
+            // locked-notice speak never completed, so the server never hung up).
+            lock (SpeakLock) if (ReferenceEquals(_speakDone, done)) _speakDone = null;
         }
 
         void Handler(byte[] pcm) => onChunk(pcm);
@@ -186,6 +211,10 @@ public static class SipVoiceAgent
                         case "transcript":
                             if (root.TryGetProperty("text", out var txt) && txt.GetString() is { Length: > 0 } text)
                                 Transcript?.Invoke(text);
+                            break;
+                        case "vad":
+                            if (root.TryGetProperty("state", out var st) && st.GetString() is { Length: > 0 } state)
+                                VadState?.Invoke(state);
                             break;
                         case "audio":
                             if (root.TryGetProperty("b64", out var b64) && b64.ValueKind == JsonValueKind.String)

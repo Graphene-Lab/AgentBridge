@@ -1255,6 +1255,7 @@ public static class ConsoleTui
                             $"{("lockout_hours").PadRight(18)}{GetInt(sip, "lockout_hours")}",
                             $"{("register_expiry").PadRight(18)}{GetInt(sip, "register_expiry")}",
                             $"{("pin_timeout_seconds").PadRight(18)}{GetInt(sip, "pin_timeout_seconds")}",
+                            $"{("indicator_delay_seconds").PadRight(18)}{GetInt(sip, "indicator_delay_seconds")}",
                             $"{("allowed_callers").PadRight(18)}{ValueOr(allowed, "(none)")}",
                             $"{("agent").PadRight(18)}{GetStr(sip, "agent") ?? ""}",
                             $"{("lang").PadRight(18)}{ValueOr(GetStr(sip, "lang"), "(system)")}",
