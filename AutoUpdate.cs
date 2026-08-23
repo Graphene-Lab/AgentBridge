@@ -164,10 +164,11 @@ public static class AutoUpdate
         using (var gz = new GZipStream(File.OpenRead(archive), CompressionMode.Decompress))
             TarFile.ExtractToDirectory(gz, extract, overwriteFiles: true);
 
-        // Protected (see RELEASING.md): the user's server config and provider list are
-        // never overwritten. Everything else in the archive is distribution content.
+        // Protected (see RELEASING.md): the user's server config, provider list and Telegram
+        // config are never overwritten. Everything else in the archive is distribution content.
         File.Delete(Path.Combine(extract, "appsettings.json"));
         File.Delete(Path.Combine(extract, "providers.json"));
+        File.Delete(Path.Combine(extract, "telegram.json"));
 
         // The updater restarts with the original command line, minus --no-update.
         File.WriteAllText(Path.Combine(extract, RestartArgsFile), JsonSerializer.Serialize(

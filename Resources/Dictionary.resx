@@ -225,6 +225,24 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="SipPhasePin" xml:space="preserve"><value>pin</value></data>
   <data name="SipPhaseConversation" xml:space="preserve"><value>call</value></data>
   <data name="SipPhaseEnded" xml:space="preserve"><value>end</value></data>
+  <data name="CmdTelegram" xml:space="preserve"><value>Telegram chat medium: status, config [set &lt;key&gt; &lt;value&gt;|reload], login-code &lt;code&gt;, allow|disallow &lt;user&gt;</value></data>
+  <data name="NoteTelegramUsage" xml:space="preserve"><value>usage: /telegram status | config [set &lt;key&gt; &lt;value&gt;|reload] | login-code &lt;code&gt; | allow &lt;user&gt; | disallow &lt;user&gt;</value></data>
+  <data name="NoteTelegramUnavailable" xml:space="preserve"><value>Telegram unavailable (HTTP {0})</value></data>
+  <data name="NoteTelegramConfigUsage" xml:space="preserve"><value>usage: /telegram config | config set &lt;key&gt; &lt;value&gt; | config reload</value></data>
+  <data name="NoteTelegramConfigFailed" xml:space="preserve"><value>Telegram config error: {0}</value></data>
+  <data name="NoteTelegramConfigRestart" xml:space="preserve"><value>Telegram bridge restarted to apply the change</value></data>
+  <data name="NoteTelegramLoginPending" xml:space="preserve"><value>Telegram login pending — send the code with /telegram login-code &lt;code&gt;</value></data>
+  <data name="NoteTelegramLoginCodeSubmitted" xml:space="preserve"><value>Telegram login code submitted</value></data>
+  <data name="NoteTelegramLoginCodeFailed" xml:space="preserve"><value>Telegram login code failed: {0}</value></data>
+  <data name="NoteTelegramAllowOk" xml:space="preserve"><value>{0}</value></data>
+  <data name="NoteTelegramAllowFailed" xml:space="preserve"><value>Telegram allow-list error: {0}</value></data>
+  <data name="TelegramPhaseDisabled" xml:space="preserve"><value>off</value></data>
+  <data name="TelegramPhaseConnecting" xml:space="preserve"><value>conn</value></data>
+  <data name="TelegramPhaseLoginPendingCode" xml:space="preserve"><value>code</value></data>
+  <data name="TelegramPhaseLoginPendingPassword" xml:space="preserve"><value>2fa</value></data>
+  <data name="TelegramPhaseConnected" xml:space="preserve"><value>on</value></data>
+  <data name="TelegramPhaseFailed" xml:space="preserve"><value>err</value></data>
+  <data name="TelegramAttachmentMarker" xml:space="preserve"><value>  [attachment: {0}]</value></data>
   <data name="NoteWebClientOutdated" xml:space="preserve"><value>web client missing or outdated at {0} — downloading {1}…</value></data>
   <data name="NoteLaunchingWebClient" xml:space="preserve"><value>launching web client from {0}…</value></data>
   <data name="NoteWebClientFailed" xml:space="preserve"><value>web client failed: {0}</value></data>

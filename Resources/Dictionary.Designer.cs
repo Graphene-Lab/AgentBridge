@@ -1534,6 +1534,168 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'CmdTelegram'.
+        /// </summary>
+        public static string CmdTelegram {
+            get {
+                return ResourceManager.GetString("CmdTelegram", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteTelegramUsage'.
+        /// </summary>
+        public static string NoteTelegramUsage {
+            get {
+                return ResourceManager.GetString("NoteTelegramUsage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteTelegramUnavailable'.
+        /// </summary>
+        public static string NoteTelegramUnavailable {
+            get {
+                return ResourceManager.GetString("NoteTelegramUnavailable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteTelegramConfigUsage'.
+        /// </summary>
+        public static string NoteTelegramConfigUsage {
+            get {
+                return ResourceManager.GetString("NoteTelegramConfigUsage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteTelegramConfigFailed'.
+        /// </summary>
+        public static string NoteTelegramConfigFailed {
+            get {
+                return ResourceManager.GetString("NoteTelegramConfigFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteTelegramConfigRestart'.
+        /// </summary>
+        public static string NoteTelegramConfigRestart {
+            get {
+                return ResourceManager.GetString("NoteTelegramConfigRestart", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteTelegramLoginPending'.
+        /// </summary>
+        public static string NoteTelegramLoginPending {
+            get {
+                return ResourceManager.GetString("NoteTelegramLoginPending", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteTelegramLoginCodeSubmitted'.
+        /// </summary>
+        public static string NoteTelegramLoginCodeSubmitted {
+            get {
+                return ResourceManager.GetString("NoteTelegramLoginCodeSubmitted", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteTelegramLoginCodeFailed'.
+        /// </summary>
+        public static string NoteTelegramLoginCodeFailed {
+            get {
+                return ResourceManager.GetString("NoteTelegramLoginCodeFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteTelegramAllowOk'.
+        /// </summary>
+        public static string NoteTelegramAllowOk {
+            get {
+                return ResourceManager.GetString("NoteTelegramAllowOk", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'NoteTelegramAllowFailed'.
+        /// </summary>
+        public static string NoteTelegramAllowFailed {
+            get {
+                return ResourceManager.GetString("NoteTelegramAllowFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'TelegramPhaseDisabled'.
+        /// </summary>
+        public static string TelegramPhaseDisabled {
+            get {
+                return ResourceManager.GetString("TelegramPhaseDisabled", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'TelegramPhaseConnecting'.
+        /// </summary>
+        public static string TelegramPhaseConnecting {
+            get {
+                return ResourceManager.GetString("TelegramPhaseConnecting", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'TelegramPhaseLoginPendingCode'.
+        /// </summary>
+        public static string TelegramPhaseLoginPendingCode {
+            get {
+                return ResourceManager.GetString("TelegramPhaseLoginPendingCode", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'TelegramPhaseLoginPendingPassword'.
+        /// </summary>
+        public static string TelegramPhaseLoginPendingPassword {
+            get {
+                return ResourceManager.GetString("TelegramPhaseLoginPendingPassword", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'TelegramPhaseConnected'.
+        /// </summary>
+        public static string TelegramPhaseConnected {
+            get {
+                return ResourceManager.GetString("TelegramPhaseConnected", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'TelegramPhaseFailed'.
+        /// </summary>
+        public static string TelegramPhaseFailed {
+            get {
+                return ResourceManager.GetString("TelegramPhaseFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'TelegramAttachmentMarker'.
+        /// </summary>
+        public static string TelegramAttachmentMarker {
+            get {
+                return ResourceManager.GetString("TelegramAttachmentMarker", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'NoteWebClientOutdated'.
         /// </summary>
         public static string NoteWebClientOutdated {

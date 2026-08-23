@@ -221,6 +221,12 @@ _ = AgentBridge.ToolPlugins.Host;
 // bind failure (port in use) cannot kill the HTTP API — it is reported and logged only.
 SipBridge.Init(app.Configuration, startupProvider, anonymize);
 
+// Telegram chat medium (WTelegramClient userbot — see docs/telegram.md): initialized from
+// telegram.json (a standalone file next to the executable, never overwritten by updates).
+// The bridge starts at boot only when Enabled=true; the login is fully automatic when the
+// .session file already exists, otherwise the TUI drives the pending verification code.
+TelegramBridge.Init(startupProvider, anonymize);
+
 // Auto-update toggle: CLI --no-update > persisted state (TUI File → Auto-Update)
 // > appsettings default. The persisted file lives in the OS app-data folder, so
 // updates never touch it (see RELEASING.md, storage tiers).
@@ -349,6 +355,26 @@ app.MapPost("/v1/chat/completions", async (
                         await stream.FlushAsync(ct);
                         await Task.Delay(30, ct);
                     }
+                    // Agent-attached files (done method's "attachments" field): delivered as a
+                    // dedicated chunk carrying the standard MCP embedded-resource shape. Giraffe AI
+                    // reads parsed.attachments from any SSE chunk, so one chunk before the end suffices.
+                    if (result.Attachments is { Count: > 0 })
+                    {
+                        var attachmentsChunk = new
+                        {
+                            id = $"chatcmpl-{Guid.NewGuid():N}",
+                            @object = "chat.completion.chunk",
+                            created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                            model,
+                            attachments = result.Attachments,
+                            choices = new[]
+                            {
+                                new { index = 0, delta = new { content = (string?)null }, finish_reason = (string?)null }
+                            }
+                        };
+                        await stream.WriteAsync(Encoding.UTF8.GetBytes($"data: {JsonSerializer.Serialize(attachmentsChunk, jsonOptions)}\n\n"), ct);
+                        await stream.FlushAsync(ct);
+                    }
                     var finalChunk = new
                     {
                         id = $"chatcmpl-{Guid.NewGuid():N}",
@@ -373,6 +399,9 @@ app.MapPost("/v1/chat/completions", async (
                 created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 model = request.Model ?? "default-agent",
                 session_id = sessionId,
+                // Agent-attached files in the standard MCP embedded-resource shape (same payload
+                // the streaming path sends as a dedicated chunk).
+                attachments = result.Attachments,
                 choices = new[]
                 {
                     new
@@ -838,6 +867,18 @@ if (SipBridge.IsEnabled)
         Console.WriteLine($"SIP server not started: {sipError}");
 }
 
+// Telegram: background start so a pending first-login (verification code) never blocks the
+// boot — the TUI shows the pending-login phase and drives the code via /telegram.
+if (TelegramBridge.IsEnabled)
+{
+    _ = Task.Run(async () =>
+    {
+        var tgError = await TelegramBridge.StartAsync();
+        if (tgError != null)
+            Console.WriteLine($"Telegram bridge not started: {tgError}");
+    });
+}
+
 if (useTui)
 {
     string? hostError = null;
@@ -866,6 +907,7 @@ if (useTui)
     finally
     {
         SipBridge.Stop();
+        TelegramBridge.Stop();
         try { await app.StopAsync(); } catch { }
     }
     return 0;

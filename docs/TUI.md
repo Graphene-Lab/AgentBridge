@@ -56,6 +56,7 @@ project and get a persistent TUI where:
 | `/agent [name]` | Switch the agent set (default/web/search/research/word/spreadsheet/email/multi) |
 | `/voice [lang]` | Dictate from the server microphone into the input |
 | `/tts [text]` | Speak the last agent reply (or the given text) — Kokoro TTS, WAV playback |
+| `/telegram status\|config [set <key> <value>\|reload]\|login-code <code>\|allow\|disallow <user>` | Telegram chat medium: status, config, pending-login code, allow-list (see [Telegram](#telegram-chat)) |
 | `/features [name] [on\|off]` | Show or toggle session feature flags (voice, tts, ...) |
 | `/new` · `/reset` | Start a new session (fresh conversation) |
 | `/clear` | Reset the current session history (keeps the session) |
@@ -85,6 +86,37 @@ detected and re-downloaded automatically.
 - The client runs in its own launcher window/process and keeps serving after the TUI exits.
 - The browser talks straight to this server (`POST /v1/chat/completions`), so CORS is enabled
   and no API key is needed for local use.
+
+## Telegram chat
+
+`/telegram` turns AgentBridge into a **Telegram chat client** (a userbot): people write to
+the account in a **private chat**, the message (text and/or file attachments) goes through
+the same per-user chat session as the TUI and the HTML client, and the reply — text plus
+any files the agent attaches — comes back into the same chat. Text chat only: the Telegram
+Client API has no audio-call support, so Telegram is **not** a voice medium (see
+[docs/telegram.md](telegram.md)).
+
+| Command | What it does |
+|---|---|
+| `/telegram status` | Live state: enabled, phase (`off`/`conn`/`code`/`2fa`/`on`/`err`), logged-in user, allow-list, agent |
+| `/telegram config` | Show the effective configuration (api_hash masked) |
+| `/telegram config set <key> <value>` | Change one config key and persist it to `telegram.json` (connection keys restart the bridge) |
+| `/telegram config reload` | Re-read `telegram.json` (hand edits made outside the TUI) and apply them |
+| `/telegram login-code <code>` | Complete the pending first login (verification code or 2FA password) |
+| `/telegram allow <user>` · `/telegram disallow <user>` | Add / remove an allow-list entry (numeric id or `@username`) |
+
+The **status bar** shows a `tg:` segment (`off`/`conn`/`code`/`2fa`/`on`/`err`), refreshed
+by the same 3-second poll as SIP. When an agent reply carries attached files, the chat
+history shows them as **`[attachment: <path>]`** lines — the files are saved under an
+`attachments/` folder next to the executable.
+
+The first login is TUI-guided: `/telegram status` shows `code` while the verification code
+is pending, `/telegram login-code <code>` completes it (a 2FA password, if the account has
+one, is submitted the same way), and the session persists in `telegram.session` — no code
+is asked again. Configuration lives in `telegram.json` next to the executable (excluded
+from updates); edit it by hand, with the setup scripts (`scripts/setup-telegram.bat` on
+Windows, `scripts/setup-telegram.sh` on Linux/macOS), or with these commands. Full
+reference: [docs/telegram.md](telegram.md).
 
 ## Models & Providers setup
 

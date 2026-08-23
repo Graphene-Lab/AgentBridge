@@ -30,6 +30,10 @@ without modification.
 | `POST /v1/voice/listen` | One-shot speech recognition from the server microphone (Windows only) |
 | `GET /v1/audio/voices` | TTS voices available on this platform |
 
+> **Telegram is an in-process medium and exposes no HTTP endpoints** — messages travel
+> directly through the WTelegramClient library; configuration is done from the TUI
+> (`/telegram`) or in `telegram.json` (see [Telegram chat](#telegram-chat-an-in-process-medium-no-http-endpoints)).
+
 The rule for platform-dependent features: the server reports them **unavailable (501)** when
 the platform or the assets are missing, and `GET /v1/control` / `GET /v1/audio/voices` always
 tell the client what is actually available — a chat client activates voice/TTS only where they
@@ -209,6 +213,24 @@ setting or the size default). The same field appears on `GET /v1/control` sessio
 
 `GET /v1/models/{id}` returns a single entry (`404` for unknown ids).
 
+## Telegram chat — an in-process medium, **no HTTP endpoints**
+
+The **Telegram chat medium** — a [WTelegramClient](https://github.com/wiz0u/WTelegramClient)
+4.4.8 userbot that acts as a chat client (text + file attachments), **not** a voice medium
+(the Telegram Client API has no audio-call support; see [docs/telegram.md](telegram.md)) —
+is **purely in-process**: messages flow directly through the WTelegramClient library into
+the agent harness, and configuration is driven from the TUI (`/telegram`), which calls
+`TelegramBridge` directly. **There are no `/v1/telegram/*` HTTP endpoints** — Telegram is
+not a web client, so nothing about it is exposed over HTTP.
+
+Configuration lives in `telegram.json` next to the executable (excluded from updates) — set
+it by hand, with the setup scripts (`scripts/setup-telegram.bat` on Windows,
+`scripts/setup-telegram.sh` on Linux/macOS), or from the TUI `/telegram` command. Config
+keys (case-insensitive): `Enabled`, `ApiId`, `ApiHash`, `PhoneNumber`, `SessionPath`,
+`AllowedUsers` (comma-separated list of ids / `@usernames`), `Agent`. Changing a
+**connection-affecting key** (`Enabled`, `ApiId`, `ApiHash`, `PhoneNumber`, `SessionPath`)
+restarts the bridge from the TUI.
+
 ## `GET /v1/control` — capabilities
 
 Without a session id it returns what this platform can do right now:
@@ -221,6 +243,7 @@ Without a session id it returns what this platform can do right now:
     "providers": [ { "name": "Zai", "model_name": "glm-4.7-flash", "protocol": "OpenAI", "context_window": 128000, "base_address": "https://api.z.ai/", "interaction_mode": "API" }, ... ],
     "tts":   { "available": true, "engine": "kokoro", "voices": [ ... ], "detail": "" },
     "voice": { "available": true, "engine": "voiceagent-win", "detail": "" },
+    "telegram": { "available": true, "connected": true, "status": { "phase": "connected", ... } },
     "sessions": 3
   }
 }

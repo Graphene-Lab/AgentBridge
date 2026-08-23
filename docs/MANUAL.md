@@ -79,7 +79,7 @@ failing — handy to attach a UI to a running service.
 
 ## 3. Configure the JSON files
 
-Two JSON files control the server. Both live next to the executable.
+Three JSON files control the server. All live next to the executable.
 
 ### `appsettings.json` — server and default LLM
 
@@ -189,6 +189,43 @@ at a local server); it is reloaded when the configuration changes.
   `%LocalAppData%\agent\setup.json`) still work as a fallback until a key is set on the
   provider itself.
 
+### `telegram.json` — the Telegram chat medium
+
+Telegram turns AgentBridge into a **chat client** (a userbot, not a bot): people write to
+the account in a **private chat** and the agents reply in the same chat — text and file
+attachments both ways. Text chat only: the Telegram Client API has no audio-call support,
+so Telegram is **not** a voice medium. Full reference:
+**[docs/telegram.md](telegram.md)**.
+
+```json
+{
+  "Enabled": false,
+  "ApiId": 0,
+  "ApiHash": "",
+  "PhoneNumber": "",
+  "SessionPath": "telegram.session",
+  "AllowedUsers": [],
+  "Agent": "default-agent"
+}
+```
+
+| Key | Description |
+|---|---|
+| `Enabled` | Master switch — the bridge starts at boot only when true |
+| `ApiId` / `ApiHash` | App credentials from https://my.telegram.org/apps |
+| `PhoneNumber` | Account phone number, international format (e.g. `+393331234567`) |
+| `SessionPath` | Session file (auth keys) next to the executable — written on the first login, then no code is asked again |
+| `AllowedUsers` | Users allowed to talk to the agent (numeric ids and/or `@usernames`). Empty = all private chats |
+| `Agent` | Agent set used for the conversations |
+
+Like `providers.json`, this file is **excluded from updates** — your edits survive every
+update.
+
+> **Telegram quick config:** the first login is guided from the TUI (`/telegram status` →
+> `/telegram login-code <code>`). The setup scripts — `scripts/setup-telegram.bat` on
+> Windows, `scripts/setup-telegram.sh` on Linux/macOS — ask for the credentials
+> interactively and write `telegram.json` for you.
+
 ---
 
 ## 4. Use the terminal UI (GUI from the console)
@@ -234,6 +271,7 @@ see [section 6](#6-connect-a-client-to-localhost)):
 | `/voice [lang]` | **Voice dictation** | dictates from the server microphone into the input (Windows) |
 | `/tts [text]` | **Text-to-speech** | speaks the last agent reply (or the given text) with Kokoro TTS; WAV playback |
 | `/sip status\|call\|answer\|hangup` | **SIP telephony** | phone-gate the agent: status, outgoing call, auto-answer on/off, hangup (see [section 7](#7-sip-telephony)) |
+| `/telegram status\|config [set <key> <value>\|reload]\|login-code <code>\|allow\|disallow <user>` | **Telegram chat** | userbot chat client: status, config, pending-login code, allow-list (see [section 3](#3-configure-the-json-files)) |
 | `/features [name] [on\|off]` | **Toggle session feature flags** | e.g. `voice`, `tts` — enable/disable per session |
 | `/files add <path>` · `/files rm <id>` · `/files` | **File upload/management** | upload+attach a file, delete one, list uploads |
 | `/attach [id]` | **Attach a file to the chat** | menu when no id |
@@ -302,6 +340,9 @@ existed is re-downloaded automatically; the first download needs internet access
 | `GET /v1/sip/status` · `POST /v1/sip/call` · `POST /v1/sip/hangup` · `POST /v1/sip/answer` | SIP telephony control (see [section 7](#7-sip-telephony)) |
 | `GET /health` | Liveness probe |
 
+> **Telegram has no HTTP endpoints** — it is an in-process chat medium configured from the
+> TUI (`/telegram`) or in `telegram.json` (see [section 3](#3-configure-the-json-files)).
+
 The full request/response details are in [docs/API.md](API.md).
 
 > **Same conversation:** messages sent from the terminal UI go through the exact same
@@ -351,6 +392,8 @@ Full reference (architecture, security, NAT/firewall, deployment): **[docs/sip.m
 | `agent` / `agent.exe` | The server (self-contained single file) |
 | `appsettings.json` | Server configuration (port, default LLM, voice path) |
 | `providers.json` | LLM provider definitions + the per-provider API keys (excluded from updates) |
+| `telegram.json` | Telegram chat medium configuration (excluded from updates) |
+| `telegram.session` | Telegram session file (auth keys, created on the first login) |
 | `kokoro.onnx` + `voices/` | Kokoro TTS model and voices |
 | `AIOffice.VoiceAgent.Win.exe` (Windows) | Voice dictation backend |
 | `voiceagent-stt/` | `AIOffice.VoiceAgent` executable (whisper) — SIP call speech-to-text |

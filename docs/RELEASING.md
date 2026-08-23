@@ -41,25 +41,27 @@ an auto-updater) must respect them:
 |---|---|---|---|
 | **User-editable configuration** | `<app folder>\PersistentData\` | JSON settings a user can edit by hand that must survive updates — currently `rag_settings.json` (the persisted DocumentsPath) | **Never delete or overwrite**. The legacy `rag_settings.json` next to the executable is migrated into `PersistentData` automatically on the first run after an upgrade |
 | **Application data & secrets** | OS app-data folder, `<AppData>\<AppName>\` (Windows `%LocalAppData%\<AppName>`, Linux `~/.local/share/<AppName>`, macOS `~/Library/Application Support/<AppName>`) | App-owned state and credentials — currently `setup.json` (SMTP/IMAP, DPAPI-encrypted on Windows, provider name; legacy per-provider API keys as fallback only — keys live per-provider in `providers.json`) | **Never touch** — outside the app folder by construction |
-| **Distribution content** | `<app folder>\` (everything the archive ships) | The runtime: `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `.playwright/`, `agent.staticwebassets.endpoints.json`, the default `appsettings.json`, … | **Replace on every update**, with TWO exceptions below |
+| **Distribution content** | `<app folder>\` (everything the archive ships) | The runtime: `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `.playwright/`, `agent.staticwebassets.endpoints.json`, the default `appsettings.json`, … | **Replace on every update**, with THREE exceptions below |
 
 The folder name of the app-data tier is the **entry-assembly name of the running
 executable** (`agent` for AgentBridge → `%LocalAppData%\agent\setup.json`), not the
 product name: each host executable gets its own folder so several apps using the
 AIOrchestrator library never share credentials.
 
-**The two exceptions in the distribution tier are `appsettings.json` and
-`providers.json`** — the server config (port, default LLM, voice path) and the LLM
-provider definitions, both editable by the user. An updater must preserve them.
+**The three exceptions in the distribution tier are `appsettings.json`, `providers.json`
+and `telegram.json`** — the server config (port, default LLM, voice path), the LLM
+provider definitions, and the Telegram chat medium, all editable by the user. An updater
+must preserve them.
 Every OTHER `.json` in the archive (`.playwright/package/*.json`,
 `agent.staticwebassets.endpoints.json`, …) is generated or shipped content that **must**
 be overwritten: a "don't touch `.json` files" rule would break the update, not protect the
-user. Protect by **whitelist** (`appsettings.json` + `providers.json` + `PersistentData\`),
-never by file extension.
+user. Protect by **whitelist** (`appsettings.json` + `providers.json` + `telegram.json` +
+`PersistentData\`), never by file extension.
 
 Both storage conventions (`PersistentData`, app-data folder) are implemented in
 AIOrchestrator `Setup.cs` (`PersistentDataDir`/`SettingsFile` and `SetupFilePath`);
-AgentBridge adds its own `appsettings.json` and `providers.json` to the protected set.
+AgentBridge adds its own `appsettings.json`, `providers.json` and `telegram.json` to the
+protected set.
 The split is deliberate: user-editable JSON stays next to the executable so a portable
 install keeps its configuration when the folder moves, while credentials are per-user
 OS state. The automatic updater enforces these rules — see [autoupdate.md](autoupdate.md).

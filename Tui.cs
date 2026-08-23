@@ -84,6 +84,9 @@ public static class ConsoleTui
         // SIP telephony state (from GET /v1/sip/status; polled while the server reports it available).
         private bool _sipAvailable;
         private string _sipState = "";
+        // Telegram chat medium state (from GET /v1/telegram/status; polled while enabled).
+        private bool _telegramAvailable;
+        private string _telegramState = "";
 
         private static readonly string[] SpinnerChars = { "⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷" };
         private int _spinnerIndex;
@@ -116,6 +119,9 @@ public static class ConsoleTui
             public required string Role;
             public required string Text;
             public bool Error;
+            // Files the agent attached to this message (done method's "attachments"): each is
+            // saved to disk by the client so the terminal user can open/download it.
+            public List<string>? Attachments;
         }
 
         private sealed class FileRef
@@ -144,6 +150,7 @@ public static class ConsoleTui
             new("clear", "", Dictionary.CmdClear, (t, _) => t.ClearHistoryAsync()),
             new("status", "", Dictionary.CmdStatus, (t, _) => t.ShowStatusAsync()),
             new("sip", "status|config [set <key> <value>|reload]|call <sip-uri>|answer on|off|hangup", Dictionary.CmdSip, (t, a) => t.SipAsync(a)),
+            new("telegram", "status|config [set <key> <value>|reload]|login-code <code>|allow|disallow <user>", Dictionary.CmdTelegram, (t, a) => t.TelegramAsync(a)),
             new("files", "add <path>|rm <id>|list", Dictionary.CmdFiles, (t, a) => t.FilesAsync(a)),
             new("attach", "[id]", Dictionary.CmdAttach, (t, a) => t.AttachAsync(a)),
             new("shortcuts", "", Dictionary.CmdShortcuts, (t, _) => t.ShowShortcutsAsync(), new[] { "/keys" }),
@@ -338,6 +345,7 @@ public static class ConsoleTui
                 {
                     new MenuItem(Dictionary.MenuLlmModel, Key.Empty, () => RunCommandByName("model", "")),
                     new MenuItem(Dictionary.MenuAgent, Key.Empty, () => RunCommandByName("agent", "")),
+                    new MenuItem("Telegram", Key.Empty, () => RunCommandByName("telegram", "")),
                     new MenuItem(Dictionary.MenuStatus, Key.Empty, () => RunCommandByName("status", "")),
                     new MenuItem(Dictionary.MenuHealth, Key.Empty, () => RunCommandByName("health", "")),
                 }),
@@ -918,6 +926,28 @@ public static class ConsoleTui
                     try
                     {
                         using var doc = JsonDocument.Parse(data);
+                        // Agent-attached files (standard MCP embedded-resource shape): saved to
+                        // disk next to the executable so the terminal user can open/download them.
+                        if (doc.RootElement.TryGetProperty("attachments", out var atts) && atts.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var att in atts.EnumerateArray())
+                            {
+                                try
+                                {
+                                    if (!att.TryGetProperty("resource", out var res) ||
+                                        !res.TryGetProperty("blob", out var blob) || blob.ValueKind != JsonValueKind.String)
+                                        continue;
+                                    var name = att.TryGetProperty("name", out var n) ? n.GetString() : "attachment";
+                                    var safe = string.Concat((name ?? "attachment").Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
+                                    var dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "attachments");
+                                    Directory.CreateDirectory(dir);
+                                    var path = Path.Combine(dir, $"{DateTime.Now:yyyyMMdd-HHmmss}-{safe}");
+                                    await File.WriteAllBytesAsync(path, Convert.FromBase64String(blob.GetString()!), _chatCts.Token);
+                                    (_pending!.Attachments ??= new List<string>()).Add(path);
+                                }
+                                catch { /* a broken attachment must never break the chat */ }
+                            }
+                        }
                         var delta = doc.RootElement.GetProperty("choices")[0].GetProperty("delta");
                         if (delta.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.String)
                         {
@@ -1019,6 +1049,12 @@ public static class ConsoleTui
                 _ => "·",
             }).Append('\n');
             sb.Append(e.Text.Replace("\r\n", "\n")).Append("\n\n");
+            if (e.Attachments is { Count: > 0 })
+            {
+                foreach (var path in e.Attachments)
+                    sb.Append(string.Format(Dictionary.TelegramAttachmentMarker, path)).Append('\n');
+                sb.Append('\n');
+            }
         }
 
         private void AddNote(string text)
@@ -1056,6 +1092,7 @@ public static class ConsoleTui
                 _ttsAvailable ? "tts:✓" : "tts:✗",
                 _voiceAvailable ? "mic:✓" : "mic:✗",
                 _sipAvailable ? "sip:" + (_sipState.Length > 0 ? _sipState : "✓") : "",
+                _telegramAvailable ? "tg:" + (_telegramState.Length > 0 ? _telegramState : "✓") : "",
                 feats.Length > 0 ? "f:" + feats : "",
                 _chatRunning != 0 ? Dictionary.StatusGeneratingShort : "",
                 _statusNote,
@@ -1291,6 +1328,115 @@ public static class ConsoleTui
                 }
             }
             await RefreshSipStatusAsync();
+        }
+
+        private async Task TelegramAsync(string args)
+        {
+            var parts = args.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var sub = parts.Length == 0 ? "status" : parts[0].ToLowerInvariant();
+            var arg = parts.Length > 1 ? parts[1].Trim() : "";
+
+            switch (sub)
+            {
+                case "login-code":
+                {
+                    if (string.IsNullOrEmpty(arg)) { AddNote(Dictionary.NoteTelegramLoginPending); return; }
+                    var error = TelegramBridge.SubmitLoginInput(arg);
+                    if (error == null)
+                        AddNote(Dictionary.NoteTelegramLoginCodeSubmitted);
+                    else
+                        AddNote(string.Format(Dictionary.NoteTelegramLoginCodeFailed, error));
+                    break;
+                }
+                case "allow":
+                case "disallow":
+                {
+                    if (string.IsNullOrEmpty(arg)) { AddNote(Dictionary.NoteTelegramUsage); return; }
+                    var (error, message) = sub == "allow"
+                        ? TelegramBridge.AddAllowedUser(arg)
+                        : TelegramBridge.RemoveAllowedUser(arg);
+                    if (error == null)
+                        AddNote(message);
+                    else
+                        AddNote(string.Format(Dictionary.NoteTelegramAllowFailed, error));
+                    break;
+                }
+                case "config":
+                {
+                    var rest = arg.Length == 0 ? "" : arg;
+                    var parts2 = rest.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    var sub2 = parts2.Length == 0 ? "" : parts2[0].ToLowerInvariant();
+
+                    if (sub2 == "set")
+                    {
+                        var kv = parts2.Length > 1 ? parts2[1].Trim() : "";
+                        var kvParts = kv.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                        if (kvParts.Length == 0) { AddNote(Dictionary.NoteTelegramConfigUsage); return; }
+                        var (error, restart, message) = await TelegramBridge.SetConfigAsync(kvParts[0], kvParts.Length > 1 ? kvParts[1] : "");
+                        if (error == null)
+                        {
+                            AddNote(message);
+                            if (restart) AddNote(Dictionary.NoteTelegramConfigRestart);
+                        }
+                        else
+                        {
+                            AddNote(string.Format(Dictionary.NoteTelegramConfigFailed, error));
+                        }
+                    }
+                    else if (sub2 == "reload")
+                    {
+                        var (error, restart, message) = await TelegramBridge.ReloadConfigAsync();
+                        if (error == null)
+                        {
+                            AddNote(message);
+                            if (restart) AddNote(Dictionary.NoteTelegramConfigRestart);
+                        }
+                        else
+                        {
+                            AddNote(string.Format(Dictionary.NoteTelegramConfigFailed, error));
+                        }
+                    }
+                    else if (sub2.Length > 0)
+                    {
+                        AddNote(Dictionary.NoteTelegramConfigUsage);
+                    }
+                    else
+                    {
+                        var c = TelegramBridge.ConfigSnapshot;
+                        var allowed = string.Join(", ", c.AllowedUsers);
+                        var lines = new List<string>
+                        {
+                            $"{("enabled").PadRight(18)}{(c.Enabled ? Dictionary.On : Dictionary.Off)}",
+                            $"{("api_id").PadRight(18)}{c.ApiId}",
+                            $"{("api_hash").PadRight(18)}{(c.ApiHash.Length > 0 ? "set" : "not set")}",
+                            $"{("phone_number").PadRight(18)}{ValueOr(c.PhoneNumber, "(empty)")}",
+                            $"{("session_path").PadRight(18)}{ValueOr(c.SessionPath, "(default)")}",
+                            $"{("allowed_users").PadRight(18)}{ValueOr(allowed, "(all private chats)")}",
+                            $"{("agent").PadRight(18)}{c.Agent}",
+                        };
+                        await ShowPageUiAsync("Telegram config", lines);
+                    }
+                    break;
+                }
+                default:   // status
+                {
+                    var s = TelegramBridge.Status;
+                    var user = s.User == null ? Dictionary.None : $"{s.User.Name} (@{s.User.Username}, id {s.User.Id})";
+                    var lines = new List<string>
+                    {
+                        $"{("enabled").PadRight(18)}{(s.Enabled ? Dictionary.On : Dictionary.Off)}",
+                        $"{("phase").PadRight(18)}{TelegramPhaseLabel(TelegramBridge.Phase)}",
+                        $"{("user").PadRight(18)}{user}",
+                        $"{("allowed_users").PadRight(18)}{(s.AllowedUsers is { Count: > 0 } au ? string.Join(", ", au) : "(all)")}",
+                        $"{("agent").PadRight(18)}{s.Agent}",
+                    };
+                    if (s.Error is { Length: > 0 } err)
+                        lines.Add($"{"error".PadRight(18)}{err}");
+                    await ShowPageUiAsync("Telegram status", lines);
+                    break;
+                }
+            }
+            await RefreshTelegramStatusAsync();
         }
 
         private async Task SwitchModelAsync(string args)
@@ -2615,19 +2761,23 @@ public static class ConsoleTui
                         if (sip.TryGetProperty("status", out var s))
                             _sipState = PhaseLabel(GetStr(s, "phase") ?? "");
                     }
+                    // Telegram is an in-process chat medium (no HTTP surface): availability
+                    // mirrors the telegram.json Enabled flag, refreshed directly from the bridge.
+                    _telegramAvailable = TelegramBridge.IsEnabled;
                 }
                 UpdateStatusUi();
             }
             catch { }
         }
 
-        // While the SIP server is available its state changes on its own (incoming calls),
-        // so the status bar polls /v1/sip/status every few seconds.
+        // While the SIP server / Telegram bridge are available their state changes on their
+        // own (incoming calls, login progress), so the status bar polls them every few seconds.
         private void StartSipPolling()
         {
             _app.AddTimeout(TimeSpan.FromSeconds(3), () =>
             {
                 if (_sipAvailable) _ = RefreshSipStatusAsync();
+                if (_telegramAvailable) _ = RefreshTelegramStatusAsync();
                 return true;   // recurring
             });
         }
@@ -2645,6 +2795,26 @@ public static class ConsoleTui
             }
             catch { }
         }
+
+        private async Task RefreshTelegramStatusAsync()
+        {
+            try
+            {
+                _telegramState = TelegramPhaseLabel(TelegramBridge.Phase);
+                UpdateStatusUi();
+            }
+            catch { }
+        }
+
+        private static string TelegramPhaseLabel(TelegramBridge.TelegramPhase phase) => phase switch
+        {
+            TelegramBridge.TelegramPhase.Connecting => Dictionary.TelegramPhaseConnecting,
+            TelegramBridge.TelegramPhase.LoginPendingCode => Dictionary.TelegramPhaseLoginPendingCode,
+            TelegramBridge.TelegramPhase.LoginPendingPassword => Dictionary.TelegramPhaseLoginPendingPassword,
+            TelegramBridge.TelegramPhase.Connected => Dictionary.TelegramPhaseConnected,
+            TelegramBridge.TelegramPhase.Failed => Dictionary.TelegramPhaseFailed,
+            _ => Dictionary.TelegramPhaseDisabled,
+        };
 
         private static string PhaseLabel(string phase) => phase switch
         {

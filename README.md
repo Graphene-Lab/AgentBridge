@@ -72,8 +72,13 @@ Our **Agentic AI** is designed to be installed on standalone devices, such as mi
 
 ## Innovative Features
 
-- **AI Assistant Available 24/7 via SIP Protocol**  
+- **AI Assistant Available 24/7 via SIP Protocol**
   The system provides a fully integrated AI agent that can be reached at any time through SIP‑based telephone access. It operates as a dedicated personal assistant capable of natural voice interaction, immediate task execution, and uninterrupted availability. Unlike a human secretary who may be distracted or unavailable, this assistant remains consistently focused, reliable, and committed to carrying out assigned duties with precision.
+
+- **Full Telegram Integration — Your Agents on Your Messenger**
+  AgentBridge connects to Telegram as a user account (WTelegramClient, MTProto) and behaves like any other chat client: send a private message — text or files — and the agents reply in the same chat, including the documents they produce. Attachments are supported both ways, first login is guided from the TUI (verification code), an optional allow-list restricts who can talk to the agent, and the configuration lives in `telegram.json` (editable from the TUI, by hand, or with the guided setup scripts). See [docs/telegram.md](docs/telegram.md).
+
+  ![Telegram agent chat](docs/telegram-agent.png)
 
 - **AI‑Exoskeleton Technology for Enhanced Model Performance**
   Our proprietary AI‑Exoskeleton framework significantly amplifies the capabilities of AI models while reducing bias in complex document processing. Just as an exoskeleton enables a human to lift weights far beyond natural limits, AI‑Exoskeleton empowers smaller models to outperform frontier‑scale systems in specific office workflows. It strengthens analytical consistency, improves the accuracy of business reports and technical documentation, and produces ready‑to‑use PDF outputs with exceptional reliability. This technology transforms artificial intelligence into a genuinely augmented professional tool capable of sustaining cognitive workloads that would normally require specialized human teams.
@@ -148,6 +153,9 @@ Think of the documents area as your company's brain. It is a simple folder on di
 - **SIP telephony** — the server becomes a phone endpoint: auto-answer behind a DTMF PIN
   (3 attempts, 24 h lockout), outgoing calls, and full voice conversations with the agents
   over RTP (whisper STT + Kokoro TTS). See [docs/sip.md](docs/sip.md).
+- **Telegram chat** — private-chat messaging with the agents, attachments both ways,
+  allow-list access control and TUI-guided first login (WTelegramClient userbot).
+  See [docs/telegram.md](docs/telegram.md).
 - **Upload-and-attach files** — documents and images converted to Markdown server-side,
   attached to chat requests as `file_ids`.
 - **Agents with tools** — web, search, research, Word, spreadsheet, email and multi-agent
@@ -179,6 +187,7 @@ client connects to localhost — is in the **[user manual](docs/MANUAL.md)**.
 | [HTTP API reference](docs/API.md) | All endpoints: chat, sessions, LLM switching, TTS, voice, files |
 | [Architecture & operations](docs/ARCHITECTURE.md) | Launch modes, configuration keys, build & publish, project layout |
 | [SIP telephony](docs/sip.md) | Phone-gate the agents: config, PIN/allow-list security, NAT/trunk, STT deployment |
+| [Telegram chat](docs/telegram.md) | Connect the agents to Telegram: config, first login, allow-list, attachments |
 | [Releases & NuGet pipeline](docs/RELEASING.md) | *(developers)* how updates and releases work |
 
 ## How it works

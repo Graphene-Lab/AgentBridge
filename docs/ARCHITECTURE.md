@@ -40,6 +40,30 @@ Standalone client ──HTTP──▶ AgentBridge (this project)
 When the UI starts while another instance already owns the port, it connects to
 that instance instead of failing (useful to attach a UI to a running service).
 
+## Debugging — separate ports from the running instance
+
+Running a debug build on the same machine as an installed AgentBridge **conflicts on the
+HTTP port** (`Urls`, default `5290`) and, when SIP is enabled, on **`Sip:ListenPort`**
+(default `5060`/`6070`). In TUI mode the second instance silently attaches to the running
+one (your breakpoints never fire); in `--headless` mode it fails with a bind exception.
+
+The repo ships debug profiles that use **separate ports** — `5291` for HTTP, `6071` for
+SIP — so the installed agent can keep running untouched:
+
+| IDE | File | How it launches |
+|---|---|---|
+| Visual Studio | `Properties/launchSettings.json` | F5 → `applicationUrl: http://localhost:5291` + `--Sip:ListenPort 6071` |
+| VS Code | `.vscode/launch.json` + `.vscode/tasks.json` | Run and Debug → "AgentBridge (Debug ports)" → `--Urls http://localhost:5291 --Sip:ListenPort 6071` |
+
+Manual equivalent:
+
+```
+agent.exe --Urls http://localhost:5291 --Sip:ListenPort 6071
+```
+
+Note: `%LocalAppData%\agent\` runtime files (`sipstate.json`, `setup.json`) are shared
+between all instances on the machine — the SIP PIN lockout state is machine-wide by design.
+
 ## Configuration
 
 `appsettings.json`:
@@ -88,6 +112,27 @@ that instance instead of failing (useful to attach a UI to a running service).
 
 Every key is overridable from the command line (`--LLM:Provider Zai`, `--SkipIndexingOnStartup true`, `--Voice:ExePath ...`, `--Sip:Enabled true`); run `--help` for the list.
 
+### Telegram chat medium (`telegram.json`)
+
+Telegram is a **text-chat client medium** — like the TUI and the HTML client, not like SIP.
+A private message (text and/or file attachments) is handed to the agent through a per-user
+chat session and the reply (text + attachments) is sent back to the same chat. There is no
+audio: the Telegram Client API has no audio-call support, so Telegram adds **no
+`IAudioMedia` and no `VoiceConversation`** — the media list stays **SIP (phone calls)** and
+**Voice (desktop microphone)**. The transport is
+[WTelegramClient](https://github.com/wiz0u/WTelegramClient) **4.4.8** (userbot, MTProto).
+
+Configuration lives in its own file, **`telegram.json` next to the executable** — separate
+from `appsettings.json`, and **excluded from updates** (same whitelist as
+`appsettings.json` and `providers.json`, see
+[RELEASING.md](RELEASING.md#what-an-update-must-never-touch--the-file-storage-tiers)).
+Keys: `Enabled`, `ApiId`, `ApiHash`, `PhoneNumber`, `SessionPath`, `AllowedUsers`,
+`Agent` (see [docs/telegram.md](telegram.md)). When `Enabled=true` the bridge **starts in
+the background at boot** — a pending first login (verification code / 2FA password) never
+blocks the boot; the TUI `/telegram` command drives status, config, the pending-login code
+and the allow-list **in-process** (the bridge exposes **no HTTP endpoints** — Telegram is a
+chat client, not a web client, so nothing about it travels over HTTP).
+
 ### LLM providers & API keys
 
 LLM providers are defined in **`providers.json`** next to the executable (the same file the
@@ -133,10 +178,10 @@ summary:
 - **Distribution content** — everything else next to the executable (what the archive
   ships): `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `.playwright/`,
   `agent.staticwebassets.endpoints.json`, the default `appsettings.json`. Replaced on
-  every update, **except `appsettings.json` and `providers.json`** (user-editable server
-  config and LLM providers — preserved by whitelist). All other `.json` files in the
-  archive are distribution content and must be overwritten. The automatic updater
-  implements these rules — see [autoupdate.md](autoupdate.md).
+  every update, **except `appsettings.json`, `providers.json` and `telegram.json`**
+  (user-editable server config, LLM providers and the Telegram chat medium — preserved by
+  whitelist). All other `.json` files in the archive are distribution content and must be
+  overwritten. The automatic updater implements these rules — see [autoupdate.md](autoupdate.md).
 
 Ephemeral runtime files (TTS WAVs, the Giraffe web GUI download) go to the OS temp folder
 (`%TEMP%`) and are never part of an update.
@@ -201,10 +246,12 @@ systemd) so only the HTTP API is exposed.
 | `SessionStore.cs` | Multi-turn sessions (orchestrator + history + feature flags) |
 | `TtsEngine.cs` | In-process Kokoro TTS (lazy init, WAV synthesis) |
 | `VoiceBridge.cs` | VoiceAgent.Win subprocess bridge (one-shot recognition) |
+| `TelegramBridge.cs` | Telegram text-chat medium: WTelegramClient 4.4.8 userbot (private-chat → agent session → reply) |
 | `SystemLang.cs` | Machine language resolution (two-letter ISO code) |
 | `AgentBridge.csproj` | Web SDK, `AssemblyName=agent`, references AIOrchestrator + Terminal.Gui + KokoroSharp, asset targets |
 | `AGRNT_ascii_art.txt` | Source of the colored `AGENT` wordmark shown in the TUI |
 | `appsettings.json` | Port, LLM provider, voice path |
+| `telegram.json` | Telegram chat medium config (enabled, api credentials, allow-list, agent) — excluded from updates |
 | `e2e/` | PowerShell regression harness (33+ tests, requires DeepSeekBridge) |
 | `e2e/TuiSmoke/` | ConPTY harness that launches the real TUI, injects keystrokes and asserts the UI (logo, `/model` picker + Esc, chat) |
 

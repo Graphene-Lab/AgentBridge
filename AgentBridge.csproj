@@ -62,6 +62,13 @@
          encode/decode through its AudioEncoder wrapper, which we reuse for sending). -->
     <PackageReference Include="SIPSorcery" Version="10.0.15" />
     <PackageReference Include="Concentus" Version="2.2.2" />
+    <!-- Telegram client API (MTProto userbot) for the text-chat medium: incoming/outgoing
+         messages and file attachments, no audio (the Telegram Client API has no audio-call
+         support — see docs/telegram.md). Config lives in telegram.json next to the executable
+         (never overwritten by updates — see AutoUpdate.cs) and is editable from the TUI or by
+         hand. Session state (auth keys) persists in a .session file so no re-login is needed
+         after the first pairing. -->
+    <PackageReference Include="WTelegramClient" Version="4.4.8" />
     <!-- The processing-indicator cue (played to the SIP caller while the agent computes) ships
          as an EMBEDDED resource — a copied content file proved unreliable on the OneDrive-synced
          bin folder (the file vanished, the indicator silently disabled: "asset not found" on real
