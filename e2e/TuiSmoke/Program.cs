@@ -281,6 +281,12 @@ internal static class Program
             Console.WriteLine($"[diag] raw /clear at {ci}: " + (ci >= 0 ? string.Join(",", raw.Skip(Math.Max(0, ci - 6)).Take(20).Select(c => ((int)c).ToString())) : "raw NOT FOUND"));
         }
         Check("commands sorted alphabetically in palette", idx.All(i => i >= 0) && idx.SequenceEqual(idx.OrderBy(i => i)));
+
+        // 4b) USER BUG REPORT: filtering the palette to NO matches used to crash the
+        //     TUI (the list's SelectedItem setter threw on an empty result set).
+        conpty.Send("zzz");
+        await Task.Delay(600);
+        CheckAlive(conpty, "process alive after empty palette filter");
         conpty.Send("\x1b");
         await Task.Delay(500);
 

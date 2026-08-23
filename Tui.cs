@@ -2465,7 +2465,7 @@ public static class ConsoleTui
                 var f = (q.Text ?? "").Trim();
                 matches = _promptHistory.Where(p => p.Contains(f, StringComparison.OrdinalIgnoreCase)).ToList();
                 list.Source = new ListWrapper<string>(new ObservableCollection<string>(matches));
-                list.SelectedItem = Math.Clamp(list.SelectedItem ?? 0, 0, Math.Max(0, matches.Count - 1));
+                ClampSelection(list, matches.Count);
             }
             Recompute();
             q.ValueChanged += (_, _) => Recompute();
@@ -2627,7 +2627,7 @@ public static class ConsoleTui
                         || (f.Length > 0 && p.Display.Contains(f, StringComparison.OrdinalIgnoreCase)))
                     .ToList();
                 list.Source = new ListWrapper<string>(new ObservableCollection<string>(visible.Select(p => p.Display)));
-                list.SelectedItem = Math.Clamp(list.SelectedItem ?? 0, 0, Math.Max(0, visible.Count - 1));
+                ClampSelection(list, visible.Count);
             }
             string? result = null;
             Recompute();
@@ -2755,7 +2755,7 @@ public static class ConsoleTui
                                   .ToList();
                 list.Source = new ListWrapper<string>(new ObservableCollection<string>(
                     visible.Select(c => $"/{c.Name} {c.Args}".TrimEnd() + "  —  " + c.Help)));
-                list.SelectedItem = Math.Clamp(list.SelectedItem ?? 0, 0, Math.Max(0, visible.Count - 1));
+                ClampSelection(list, visible.Count);
             }
             Recompute();
             filter.ValueChanged += (_, _) => Recompute();
@@ -3326,6 +3326,12 @@ public static class ConsoleTui
             "ended" => Dictionary.SipPhaseEnded,
             _ => "",
         };
+
+        // Sets a ListView selection clamped to the item range; null (no selection) when
+        // the list is empty — assigning a clamped 0 to an empty ListView throws
+        // "SelectedItem must be greater than 0 or less than the number of items".
+        private static void ClampSelection(ListView list, int count)
+            => list.SelectedItem = count > 0 ? Math.Clamp(list.SelectedItem ?? 0, 0, count - 1) : null;
 
         private static string? GetStr(JsonElement e, string name) =>
             e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
