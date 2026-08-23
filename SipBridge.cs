@@ -1484,7 +1484,13 @@ public static class SipBridge
     // One shared entry point for every digit source: RFC 4733 RTP events (OnDtmfTone),
     // SIP INFO bodies (HandleInfoDtmfAsync) and in-band keypad tones (DtmfDetector).
 
-    private static void OnDtmfTone(byte tone, int durationMs) => HandleDtmfDigit(tone, durationMs);
+    private static void OnDtmfTone(byte tone, int durationMs)
+    {
+        // Diagnostic: the "telefono" client negotiates telephone-event (RFC 4733) but no digit
+        // ever validated — log every event to see what actually arrives from the client.
+        Log.LogStep($"SIP RFC4733 DTMF event: tone={tone} duration={durationMs}ms");
+        HandleDtmfDigit(tone, durationMs);
+    }
 
     private static void HandleDtmfDigit(byte tone, int durationMs)
     {
@@ -1498,6 +1504,7 @@ public static class SipBridge
         lock (ValidateLock)
         {
             Gate.SubmitDigit((char)('0' + tone));
+            Log.LogStep($"SIP DTMF buffered: {tone} (buffer length {Gate.PendingDigits})");
             // One validation at a time: digits that arrive while the previous attempt is being
             // announced stay in the gate buffer and trigger the next validation when it completes.
             if (!call.Validating && Gate.TrySubmitPending(out var result))
