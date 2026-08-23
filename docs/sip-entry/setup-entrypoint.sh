@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Provision a minimal SIP entry point (Kamailio + rtpengine, userspace) — UNATTENDED.
+# Provision a minimal SIP entry point (Kamailio + rtpengine, userspace) -- UNATTENDED.
 #
 # Architecture: AgentBridge (behind NAT) and the smartphone are both SIP *clients* of this
 # box. AgentBridge REGISTERs here with the shared secret and stays registered; the phone
 # dials sip:<user>@<this-host>; calls are routed to AgentBridge's registration and media is
-# force-relayed by rtpengine (payloads pass through untouched — no codec handling).
+# force-relayed by rtpengine (payloads pass through untouched -- no codec handling).
 #
 # Usage:
 #   sudo bash setup-entrypoint.sh                    # shared secret auto-generated (printed)
@@ -42,6 +42,13 @@ apt-get install -y kamailio kamailio-extra-modules rtpengine
 
 echo "==> configuring rtpengine (userspace relay)"
 sed -e "s/__PUBLIC_IP__/${SIP_PUBLIC_IP}/g" "$SRC/rtpengine.conf" > /etc/rtpengine/rtpengine.conf
+# Fail loudly if any template placeholder survived: an old script version left them
+# unsubstituted and kamailio silently kept the stale (broken) config.
+if grep -q '__[A-Z][A-Z0-9_]*__' /etc/rtpengine/rtpengine.conf; then
+    echo "ERROR: unsubstituted placeholders in /etc/rtpengine/rtpengine.conf -- re-upload the"
+    echo "whole docs/sip-entry/ folder to the server and re-run this script."
+    exit 1
+fi
 mkdir -p /etc/systemd/system/rtpengine-daemon.service.d
 cp "$SRC/rtpengine-daemon.override.conf" /etc/systemd/system/rtpengine-daemon.service.d/override.conf
 systemctl daemon-reload
@@ -54,6 +61,12 @@ sed -e "s/__PUBLIC_IP__/${SIP_PUBLIC_IP}/g" \
     -e "s/__USER__/${SIP_USER}/g" \
     -e "s/__PORT__/${SIP_PORT}/g" \
     "$SRC/kamailio.cfg" > /etc/kamailio/kamailio.cfg
+if grep -q '__[A-Z][A-Z0-9_]*__' /etc/kamailio/kamailio.cfg; then
+    echo "ERROR: unsubstituted placeholders in /etc/kamailio/kamailio.cfg -- the template has"
+    echo "placeholders this script does not know. Re-upload the whole docs/sip-entry/ folder"
+    echo "to the server and re-run."
+    exit 1
+fi
 sed -i \
     -e 's/^#\?RUN_KAMAILIO=.*/RUN_KAMAILIO=yes/' \
     -e 's/^#\?SHM_MEMORY=.*/SHM_MEMORY=32/' \
