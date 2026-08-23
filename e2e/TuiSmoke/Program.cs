@@ -146,6 +146,7 @@ internal static class Program
         var out0 = conpty.Screen;
         var uiRendered = out0.Contains("·");
         Check("chat panel rendered (system entries)", out0.Contains("·"));
+        Check("ascii art banner rendered (gradient block chars)", out0.Contains("█"));
         Check("window title rendered", out0.Contains("AGENT - AI Chat Console") || out0.Contains("Console chat IA"));
         Check("status bar shows server host:port", out0.Contains(baseUrl.Replace("http://", "")));
 
@@ -330,12 +331,14 @@ internal static class Program
         conpty.Send("\x1b");
         await Task.Delay(500);
 
-        // 6) Chat: the user's message appears immediately in the conversation.
+        // 6) Chat: the user's message appears immediately in the conversation, and the
+        //    startup ASCII-art banner collapses (no block chars in the fresh frames).
         conpty.Mark();
         conpty.Send("ciao\r");
         await Task.Delay(1500);
         var afterChat = conpty.ScreenSinceMark();
         Check("user message shown in conversation", afterChat.Contains("ciao") && (afterChat.Contains("you") || afterChat.Contains("❯")));
+        Check("ascii art banner collapsed after first message", !afterChat.Contains("█"));
 
         // 7) Process still alive (no crash).
         CheckAlive(conpty, "process still alive after the interactions");

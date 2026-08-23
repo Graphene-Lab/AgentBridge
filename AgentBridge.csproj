@@ -74,6 +74,10 @@
          bin folder (the file vanished, the indicator silently disabled: "asset not found" on real
          calls). An embedded resource travels inside the assembly, immune to the deployed file state. -->
     <EmbeddedResource Include="assets\processing-indicator.wav" LogicalName="AgentBridge.assets.processing-indicator.wav" />
+    <!-- The AGENT ASCII art (startup banner + Help → About) travels inside the assembly:
+         a loose .txt in the output proved unreliable on the OneDrive-synced bin folder
+         (same lesson as the processing-indicator.wav). Loaded once by ConsoleTui. -->
+    <EmbeddedResource Include="AGRNT_ascii_art.txt" LogicalName="AgentBridge.assets.agent-ascii-art.txt" />
   </ItemGroup>
   <!-- e2e/ hosts standalone tooling (TuiSmoke, run_e2e.ps1) — never part of this
        project. WITHOUT these Remove items the Web SDK's default globbing compiles

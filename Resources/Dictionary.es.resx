@@ -200,6 +200,7 @@ Escribe un mensaje y pulsa Intro · / abre comandos · @ archivos · ? atajos ·
   <data name="AboutTitle" xml:space="preserve"><value>AGENT</value></data>
   <data name="AboutText" xml:space="preserve"><value>AGENT v2 - TUI moderna
 Powered by Terminal.Gui</value></data>
+  <data name="AboutCopyright" xml:space="preserve"><value>© {0} AGENT — AgentBridge</value></data>
   <data name="StatusSession" xml:space="preserve"><value>Sesión</value></data>
   <data name="StatusProvider" xml:space="preserve"><value>Proveedor</value></data>
   <data name="StatusContextWindow" xml:space="preserve"><value>Ventana de contexto {0:N0} tokens · historial ≈ {1:N0}</value></data>

@@ -218,6 +218,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="AboutTitle" xml:space="preserve"><value>AGENT</value></data>
   <data name="AboutText" xml:space="preserve"><value>AGENT v2 - TUI moderna
 Powered by Terminal.Gui</value></data>
+  <data name="AboutCopyright" xml:space="preserve"><value>© {0} AGENT — AgentBridge</value></data>
   <data name="StatusSession" xml:space="preserve"><value>Sessione</value></data>
   <data name="StatusProvider" xml:space="preserve"><value>Provider</value></data>
   <data name="StatusContextWindow" xml:space="preserve"><value>Finestra di contesto {0:N0} token · cronologia ≈ {1:N0}</value></data>

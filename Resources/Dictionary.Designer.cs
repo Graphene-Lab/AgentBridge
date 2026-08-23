@@ -58,6 +58,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to '© {0} AGENT — AgentBridge'.
+        /// </summary>
+        public static string AboutCopyright {
+            get {
+                return ResourceManager.GetString("AboutCopyright", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'AboutText'.
         /// </summary>
         public static string AboutText {

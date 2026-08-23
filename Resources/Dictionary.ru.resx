@@ -200,6 +200,7 @@
   <data name="AboutTitle" xml:space="preserve"><value>AGENT</value></data>
   <data name="AboutText" xml:space="preserve"><value>AGENT v2 - Современный TUI
 Powered by Terminal.Gui</value></data>
+  <data name="AboutCopyright" xml:space="preserve"><value>© {0} AGENT — AgentBridge</value></data>
   <data name="StatusSession" xml:space="preserve"><value>Сессия</value></data>
   <data name="StatusProvider" xml:space="preserve"><value>Провайдер</value></data>
   <data name="StatusContextWindow" xml:space="preserve"><value>Окно контекста {0:N0} токенов · история ≈ {1:N0}</value></data>

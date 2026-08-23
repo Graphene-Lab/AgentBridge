@@ -62,6 +62,8 @@ public static class ConsoleTui
         private bool _inputPlaceholderActive = true;
         private bool _suppressCommandMenu;
         private bool _disposed;
+        private View? _asciiBanner;
+        private bool _bannerVisible;
 
         // Shared state (files/attachments/features/chat control) is touched from the
         // background tasks (HTTP, streaming) as well as the UI thread: guard the
@@ -175,6 +177,35 @@ public static class ConsoleTui
         [DllImport("winmm.dll", SetLastError = true)]
         private static extern bool PlaySound(string pszSound, IntPtr hmod, uint fdwSound);
 
+        // ── AGENT ASCII art ──
+        // ONE definition (embedded resource, see the csproj) used by both the startup
+        // banner above the chat and Help → About. The per-line gradient follows the
+        // Qwen CLI brand (#4796E4 → #847ACE → #C3677F → BrightBlue/BrightMagenta/BrightRed).
+        private static readonly string[] AsciiArtLines = LoadAsciiArt();
+        private static readonly TuiAttribute[] AsciiArtColors =
+        {
+            new(Color.BrightBlue, Color.Black),
+            new(Color.BrightBlue, Color.Black),
+            new(Color.BrightMagenta, Color.Black),
+            new(Color.BrightMagenta, Color.Black),
+            new(Color.BrightRed, Color.Black),
+            new(Color.BrightRed, Color.Black),
+        };
+
+        private static string[] LoadAsciiArt()
+        {
+            try
+            {
+                using var s = typeof(ConsoleTui).Assembly
+                    .GetManifestResourceStream("AgentBridge.assets.agent-ascii-art.txt");
+                if (s == null) return Array.Empty<string>();
+                using var r = new StreamReader(s);
+                return r.ReadToEnd().Replace("\r\n", "\n")
+                    .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            }
+            catch { return Array.Empty<string>(); }
+        }
+
         private static readonly (string Keys, string What)[] ShortcutTable =
         {
             ("Enter", Dictionary.ShortEnter),
@@ -220,6 +251,8 @@ public static class ConsoleTui
                 Normal = new TuiAttribute(Color.Gray, Color.Black),
                 Focus = new TuiAttribute(Color.Gray, Color.Black),
             });
+            for (int i = 0; i < Math.Min(AsciiArtLines.Length, AsciiArtColors.Length); i++)
+                SchemeManager.AddScheme($"Ascii{i}", new Scheme { Normal = AsciiArtColors[i] });
 
             BuildUI();
             _history.Add(new Entry
@@ -377,8 +410,9 @@ public static class ConsoleTui
             };
             _mainWindow.Add(contentArea);
 
-            // Chat panel: history + input line (full width — the decorative AGENT
-            // logo panel was removed: it wasted 48 columns on every terminal).
+            // Chat panel: history + input line, full width. The AGENT ASCII-art banner
+            // (gradient) sits above the chat at startup — the welcome message is the
+            // first history entry below it — and collapses on the first chat message.
             var chatFrame = new FrameView
             {
                 Title = Dictionary.ChatFrameTitle,
@@ -387,9 +421,21 @@ public static class ConsoleTui
             };
             contentArea.Add(chatFrame);
 
+            if (AsciiArtLines.Length > 0)
+            {
+                _asciiBanner = new View
+                {
+                    X = 0, Y = 0, Width = Dim.Fill(), Height = AsciiArtLines.Length + 1,
+                };
+                for (int i = 0; i < AsciiArtLines.Length; i++)
+                    _asciiBanner.Add(new Label { Text = AsciiArtLines[i], X = 1, Y = i, SchemeName = $"Ascii{i}" });
+                chatFrame.Add(_asciiBanner);
+                _bannerVisible = true;
+            }
+
             _chatView = new Editor
             {
-                X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 1,
+                X = 0, Y = _bannerVisible ? Pos.Bottom(_asciiBanner!) : 0, Width = Dim.Fill(), Height = Dim.Fill() - 1,
                 ReadOnly = true,
                 WordWrap = true,
                 CanFocus = false,
@@ -738,7 +784,21 @@ public static class ConsoleTui
             _inputLines = rows;
             ed.Height = rows;
             area.Height = rows;
-            chat.Height = Dim.Fill() - rows;
+            chat.Height = Dim.Fill() - rows - BannerRows;
+        }
+
+        // Rows the startup ASCII-art banner occupies above the chat (0 once collapsed).
+        private int BannerRows => _bannerVisible ? AsciiArtLines.Length + 1 : 0;
+
+        // The banner gives way to the conversation on the first chat message.
+        private void CollapseBanner()
+        {
+            if (!_bannerVisible || _asciiBanner == null || _chatView == null) return;
+            _bannerVisible = false;
+            _asciiBanner.SuperView?.Remove(_asciiBanner);
+            _chatView.Y = 0;
+            _inputLines = 0;   // force UpdateInputLayout to recompute the chat height
+            UpdateInputLayout();
         }
 
         // Approximate the soft-wrapped visual rows (the Editor wraps at the viewport width).
@@ -838,6 +898,7 @@ public static class ConsoleTui
                 RunCommandLine(text);
                 return;
             }
+            CollapseBanner();   // the conversation starts: the ASCII-art banner gives way
             _promptHistory.Add(text);
             if (_promptHistory.Count > 200) _promptHistory.RemoveAt(0);
             StartChat(text);
@@ -2786,7 +2847,34 @@ public static class ConsoleTui
 
         private void ShowAbout()
         {
-            _ = MessageBox.Query(_app, Dictionary.AboutTitle, Dictionary.AboutText, Dictionary.Ok);
+            Ui(() =>
+            {
+                // A real About window: the AGENT ASCII art (same gradient as the startup
+                // banner), the tagline and the © copyright with the project name.
+                var dlg = new Dialog
+                {
+                    Title = Dictionary.AboutTitle,
+                    Width = Dim.Percent(55),
+                    Height = Dim.Percent(45),
+                    SchemeName = "Dark",
+                };
+                int y = 1;
+                for (int i = 0; i < AsciiArtLines.Length; i++)
+                    dlg.Add(new Label { Text = AsciiArtLines[i], X = 2, Y = y++, SchemeName = $"Ascii{i}" });
+                dlg.Add(new Label { Text = Dictionary.AboutText, X = 2, Y = y + 1, Width = Dim.Fill() - 4 });
+                dlg.Add(new Label
+                {
+                    Text = string.Format(Dictionary.AboutCopyright, DateTime.Now.Year),
+                    X = 2, Y = y + 3, Width = Dim.Fill() - 4,
+                    SchemeName = "Hint",
+                });
+                var ok = new Button { Text = Dictionary.Ok, IsDefault = true };
+                ok.Accepted += (_, _) => _app.RequestStop(dlg);
+                dlg.AddButton(ok);
+                _app.Run(dlg);
+                dlg.Dispose();
+                _inputField?.SetFocus();
+            });
         }
 
         // ── Models & providers setup ──

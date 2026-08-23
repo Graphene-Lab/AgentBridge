@@ -200,6 +200,7 @@ Nachricht eingeben und Eingabetaste drücken · / öffnet Befehle · @ Dateien �
   <data name="AboutTitle" xml:space="preserve"><value>AGENT</value></data>
   <data name="AboutText" xml:space="preserve"><value>AGENT v2 - Moderne TUI
 Powered by Terminal.Gui</value></data>
+  <data name="AboutCopyright" xml:space="preserve"><value>© {0} AGENT — AgentBridge</value></data>
   <data name="StatusSession" xml:space="preserve"><value>Sitzung</value></data>
   <data name="StatusProvider" xml:space="preserve"><value>Anbieter</value></data>
   <data name="StatusContextWindow" xml:space="preserve"><value>Kontextfenster {0:N0} Token · Verlauf ≈ {1:N0}</value></data>

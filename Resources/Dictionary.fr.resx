@@ -200,6 +200,7 @@ Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichie
   <data name="AboutTitle" xml:space="preserve"><value>AGENT</value></data>
   <data name="AboutText" xml:space="preserve"><value>AGENT v2 - TUI moderne
 Powered by Terminal.Gui</value></data>
+  <data name="AboutCopyright" xml:space="preserve"><value>© {0} AGENT — AgentBridge</value></data>
   <data name="StatusSession" xml:space="preserve"><value>Session</value></data>
   <data name="StatusProvider" xml:space="preserve"><value>Fournisseur</value></data>
   <data name="StatusContextWindow" xml:space="preserve"><value>Fenêtre de contexte {0:N0} jetons · historique ≈ {1:N0}</value></data>
