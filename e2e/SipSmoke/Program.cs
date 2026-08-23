@@ -191,6 +191,34 @@ internal static class Program
             }
         }
 
+        // ── Test 2b: in-band DTMF (audible tones over RTP) validates the PIN ──
+        // Regression (2026-08-23): the Goertzel detector was dead — the sample-rate refactor
+        // never computed the coefficients, the column index went out of range on the first
+        // valid tone, and the "0.5 +" bin offset mis-binned the 1336 Hz/941 Hz tones. Clients
+        // that cannot emit RFC 4733 events (Linphone, issue #592) rely on this path and got a
+        // silent PIN timeout ("code entered, nothing happened").
+        await WaitForIdleAsync(baseUrl);
+        Console.WriteLine("Test 2b: in-band DTMF (audible tones) validates the PIN");
+        using (var client = new CallClient(uacPort + 2))
+        {
+            var answered = await client.CallAsync($"sip:agent@127.0.0.1:{sipPort}", 20_000);
+            if (!answered) { Check("in-band DTMF reaches the conversation", false); }
+            else
+            {
+                // Wait until the spoken welcome has finished playing (capture is muted while it
+                // plays — _speaking — so tones sent earlier would be dropped; real callers press
+                // the keys AFTER the prompt, when capture is live again).
+                await WaitSpeechSilenceAsync(client, 2_000, 20_000);
+                // Send the 5 PIN digits as REAL DTMF tones in the audio stream (no RFC 4733).
+                var tones = DtmfTonePcm(Pin);
+                await client.Media.AudioExtrasSource.SendAudioFromStream(new MemoryStream(tones), AudioSamplingRatesEnum.Rate8KHz);
+                var conv = await WaitForAsync(async () =>
+                    (await SipStatus(baseUrl))?.GetProperty("phase").GetString() == "conversation", 15_000);
+                Check("in-band DTMF reaches the conversation", conv);
+                await client.HangupAsync();
+            }
+        }
+
         // ── Test 3: DTMF during the conversation → ignored, no STT garbage ──
         await WaitForIdleAsync(baseUrl);
         Console.WriteLine("Test 3: DTMF during conversation does not reach the STT");
@@ -955,5 +983,40 @@ internal static class Program
         }
 
         public void Dispose() => _transport.Shutdown();
+    }
+
+    /// <summary>Generates the DTMF tones of a digit string as 8 kHz PCM16 (0.08 s tone +
+    /// 0.12 s gap per digit) — real audible tones, NOT RFC 4733 telephone-events.</summary>
+    private static byte[] DtmfTonePcm(string digits)
+    {
+        const int rate = 8000;
+        static double RowFreq(char d) => d switch
+        {
+            '1' or '2' or '3' or 'A' => 697, '4' or '5' or '6' or 'B' => 770,
+            '7' or '8' or '9' or 'C' => 852, _ => 941,
+        };
+        static double ColFreq(char d) => d switch
+        {
+            '1' or '4' or '7' or '*' => 1209, '2' or '5' or '8' or '0' => 1336,
+            '3' or '6' or '9' or '#' => 1477, _ => 1633,
+        };
+        using var ms = new MemoryStream();
+        void Write(short s)
+        {
+            ms.WriteByte((byte)(s & 0xFF));
+            ms.WriteByte((byte)((s >> 8) & 0xFF));
+        }
+        foreach (var d in digits)
+        {
+            for (int i = 0; i < rate * 0.08; i++)   // 80 ms tone
+            {
+                var t = i / (double)rate;
+                var s = (short)(0.4 * short.MaxValue * (Math.Sin(2 * Math.PI * RowFreq(d) * t) + Math.Sin(2 * Math.PI * ColFreq(d) * t)) / 2);
+                Write(s);
+            }
+            for (int i = 0; i < rate * 0.12; i++)   // 120 ms gap
+                Write(0);
+        }
+        return ms.ToArray();
     }
 }

@@ -668,7 +668,7 @@ public static class SipBridge
         private readonly double[] _q2 = new double[8];
         private readonly short[] _frame = new short[512];   // max frame: ~25.6 ms @ 16 kHz = 410 samples
         private int _frameSamples = 205;                    // ~25.6 ms at the current sample rate
-        private int _sampleRate = 8000;
+        private int _sampleRate;                            // 0 = unconfigured (the ctor runs Configure(8000))
         private int _frameLen;
         private int _validCount;
         private int _gapCount;
@@ -686,7 +686,11 @@ public static class SipBridge
             for (int i = 0; i < 8; i++)
             {
                 var f = i < 4 ? RowFreqs[i] : ColFreqs[i - 4];
-                var k = (int)Math.Round(0.5 + _frameSamples * f / sampleRate);
+                // k = round(N·f/sr) — the Goertzel bin whose center is nearest to the tone.
+                // (The old "0.5 +" offset shifted the 1336 Hz column to bin 35 (center 1366 Hz)
+                // and the 941 Hz row to bin 25 (center 976 Hz), leaving those tones off-center
+                // with their energy split — the digits of that column/row were never detected.)
+                var k = (int)Math.Round(_frameSamples * f / sampleRate);
                 _coeffs[i] = 2.0 * Math.Cos(2.0 * Math.PI * k / _frameSamples);
             }
             Reset();
@@ -743,7 +747,13 @@ public static class SipBridge
 
             if (valid)
             {
-                var digit = (byte)Matrix[row.Index][col.Index];
+                // col.Index is relative to the FULL power array (Best(power, 4, 8) → 4..7):
+                // shift it back to the group so the 4x4 matrix indexes stay in range. The matrix
+                // holds display chars ("123A"...): emit the KEYPAD VALUE (0-9, '*'/'#' → 10/11)
+                // like the RFC 4733 events do — HandleDtmfDigit expects tone ≤ 9, and the raw
+                // ASCII codes ('1' = 49) would be silently dropped.
+                var c = Matrix[row.Index][col.Index - 4];
+                var digit = (byte)(c == '*' ? 10 : c == '#' ? 11 : c - '0');
                 if (_lastDigit != digit)
                 {
                     _lastDigit = digit;
