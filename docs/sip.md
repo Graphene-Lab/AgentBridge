@@ -28,10 +28,21 @@ Implemented with [SIPSorcery](https://github.com/sipsorcery-org/sipsorcery) 10.0
 
 - **One call at a time.** A second incoming call gets `486 Busy Here`; `/sip call` while a
   call is active is refused.
+- **Wideband-first codecs.** The media offers **Opus (RFC 7587, mono) → G.722 → PCMA → PCMU**
+  so the STT hears real 16 kHz audio (50 Hz–7 kHz) instead of the upsampled narrowband G.711
+  band. Whisper is trained on 16 kHz; G.711's 300 Hz–3.4 kHz band cuts the fricative energy
+  (4–8 kHz) that matters for consonants — the same reason Google Cloud STT ships a dedicated
+  `telephony` model for 8 kHz and rates 16 kHz as "optimal". G.722 (payload type 9) is the
+  classic SIP wideband codec (16 kHz, 64 kbps — same bandwidth as G.711); Opus decodes to
+  16 kHz mono. The entry point relays RTP transparently, so the codec is negotiated
+  end-to-end with the softphone (enable G.722/Opus in the client's codec list); narrowband
+  clients/trunks fall back to G.711 automatically. The in-band DTMF detector adapts to the
+  negotiated sample rate (8 or 16 kHz).
 - **Speech engines live in ONE subprocess** — architectural rule (see AIOrchestrator
   ARCHITECTURE.md "Media as I/O"): the media is only transport. `SipBridge` runs the
   cross-platform `AIOffice.VoiceAgent --pipe-audio` as a **persistent** process: decoded RTP
-  PCM (8→16 kHz upsample) is pushed via `{"cmd":"audio"}`; **VAD + whisper stay in the
+  PCM (16 kHz straight through for G.722/Opus; G.711 is upsampled 8→16 kHz) is pushed via
+  `{"cmd":"audio"}`; **VAD + whisper stay in the
   subprocess** (no duplicated VAD in the bridge); replies are rendered with
   `{"cmd":"speak","render":true}` and the 24 kHz PCM chunks come back as `{"type":"audio"}`.
   The process lives for the whole server lifetime → the whisper model stays loaded
@@ -77,6 +88,7 @@ Every key is overridable from the command line (`--Sip:Pin 12345`, ...).
 | `SttExePath` | `<server>\voiceagent-stt\` | Path to the `AIOffice.VoiceAgent` executable |
 | `SttModel` | `small` | Whisper model for the STT subprocess (`tiny/base/small/medium/largev2/largev3`). **`base` is the latency pick** — re-tested 2026-08-22 with the current pipeline (8→16 kHz upsample + adaptive VAD + multicore): it transcribes real Italian correctly and is ~2x faster than small-q8_0 (VadTest: 2.2–4.4 s vs 7.0–8.3 s whisper inference per 7.4 s utterance). `small` keeps an extra accuracy margin on very noisy lines. Never go below base — tiny is unusable |
 | `SttQuant` | `q8_0` | Whisper quantization (`empty/q4_0/q4_1/q5_0/q5_1/q8_0`). `q8_0` is ~15% faster than FP16 with minimal accuracy loss — kept as the default; the bigger win is the **multicore** transcription (all logical processors; measured 8.3 s → 4.9 s per utterance on a 6c/12t CPU) |
+| `SttDevice` | `auto` | STT accelerator passed to the voice subprocess as `AIOFFICE_WHISPER_DEVICE`: `auto` (default) lets the whisper.net loader probe Cuda → Cuda12 → Vulkan → CPU and **falls back to CPU automatically** when no usable GPU/driver is present; `cuda`/`vulkan` force that backend; `cpu` skips the probe (no one-time delay on machines whose GPU cannot run whisper, e.g. Turing sm_75). GPU is an acceleration, never a prerequisite — the distributed package works on every OS as-is (the CPU runtime is always bundled) |
 | `RtpPortRange` | `""` | Fixed RTP port range, e.g. `"40000-41000"` (firewalled deployments); empty = ephemeral ports |
 
 ## TUI commands
@@ -123,7 +135,7 @@ file:
   `ListenPort`, `Registrar`, `Username`, `Password`, `AnswerMode`, `Pin`,
   `MaxPinAttempts`, `LockoutHours`, `RegisterExpiry`, `PinTimeoutSeconds`,
   `IndicatorDelaySeconds`, `AllowedCallers`
-  (comma-separated), `Agent`, `Lang`, `SttExePath`, `SttModel`, `SttQuant`,
+  (comma-separated), `Agent`, `Lang`, `SttExePath`, `SttModel`, `SttQuant`, `SttDevice`,
   `RtpPortRange`. Booleans accept `true/false/1/on`.
 - **Live vs restart.** PIN-policy keys (`Pin`, `MaxPinAttempts`, `LockoutHours`) and the
   per-call keys (`AnswerMode`, `AllowedCallers`, `Agent`, `Lang`, `SttExePath`) apply
@@ -373,9 +385,16 @@ dotnet run --project e2e\SipClientTest -- sip:agent@host 12345 5071 45 --pin-wai
 
 ## Known limitations
 
-- Only G.711 (PCMU/PCMA) is offered — universal, but not Opus/G.722; the caller's endpoint
-  must support at least one of them.
+- Codecs: Opus / G.722 / G.711 (PCMU/PCMA) are offered (wideband first); no G.729, no SRTP
+  variants, and the caller's endpoint must support at least one of the four.
 - One call at a time.
 - No SRTP, no SIP-over-TLS, no attended transfer, no voicemail.
 - While the agent's reply is spoken, the caller's speech is not captured (no barge-in).
 - The PIN prompt is spoken; keypad confirmation beeps are not emitted.
+- **GPU acceleration is opt-in**: build the STT subprocess with `-p:WhisperGpu=true` to bundle
+  the whisper.cpp CUDA12/Vulkan runtimes (Vulkan is Windows-x64 only; on Linux the only GPU
+  backend is CUDA). The default CPU-only build works on every OS with zero prerequisites;
+  a GPU-enabled build still works on GPU-less machines (the whisper.net loader probes and
+  falls back to CPU automatically). Tested 2026-08-23 on a GTX 1650 Ti (Turing sm_75): CUDA
+  fails to load (as documented) and Vulkan loads but gives no speedup over CPU — the switch
+  `SttDevice=cpu` skips the probe entirely.

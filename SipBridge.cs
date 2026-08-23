@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using AIOrchestrator;
+using Concentus.Structs;
 using Microsoft.Extensions.Configuration;
 using SIPSorcery.Media;
 using SIPSorcery.Net;
@@ -107,6 +108,14 @@ public static class SipBridge
         /// recognizer by necessity (RTP audio, not the mic → WinRT is not usable). Set empty to
         /// keep the full FP16 model.</summary>
         public string SttQuant { get; set; } = "q8_0";
+        /// <summary>STT accelerator selection passed to the voice subprocess as
+        /// AIOFFICE_WHISPER_DEVICE: "auto" (default) lets the whisper.net loader probe
+        /// Cuda → Cuda12 → Vulkan → CPU and falls back to CPU automatically when no usable GPU/
+        /// driver is present; "cuda"/"vulkan" force that backend; "cpu" skips the probe entirely
+        /// (avoids the one-time failed-probe delay on machines whose GPU cannot run whisper,
+        /// e.g. Turing sm_75). The CPU runtime is always bundled — GPU is an acceleration,
+        /// never a prerequisite: the distributed package works on every OS as-is.</summary>
+        public string SttDevice { get; set; } = "auto";
         /// <summary>Trusted caller URIs (P-Asserted-Identity from an authenticating provider/trunk)
         /// that skip the PIN. Matched on the full URI or on the user part alone.
         /// SECURITY: PAI is honored only when the INVITE comes from <see cref="Registrar"/> — in
@@ -198,6 +207,18 @@ public static class SipBridge
                                                      // chunk: the caller's echo of the reply is delayed
                                                      // by network + phone latency, not real-time
 
+        // Wideband codec receive path: G.722 is a static payload type (RFC 3551); Opus is
+        // negotiated dynamically (RFC 7587) — the PT we OFFER (111) is what both sides use in
+        // SDP offer/answer, refreshed from the negotiated formats at Attach. G.722 and Opus
+        // decode to 16 kHz PCM — whisper's native rate — so the STT input is real 50 Hz–7 kHz
+        // audio (G.711 narrowband is still upsampled). Decoders keep per-stream state.
+        private const byte G722PayloadType = 9;
+        private const int MaxOpusFrameSamples = 960;   // 60 ms @ 16 kHz = the largest Opus frame
+        private int _opusPayloadType = 111;
+        private G722Codec? _g722;
+        private G722CodecState? _g722State;
+        private OpusDecoder? _opusDecoder;
+
         public SipVoiceMedia(CallContext call)
         {
             _call = call;
@@ -239,6 +260,25 @@ public static class SipBridge
             _call.Media.OnRtpPacketReceived += OnRtpAudio;
             _dtmf.Reset();
             StartPumps();
+            // The Opus payload type is dynamic (RFC 7587): after negotiation the common formats
+            // (with the REMOTE's payload IDs) land in the local track's capabilities — read the
+            // Opus PT from there; the offer default (111) remains the fallback.
+            try
+            {
+                var caps = _call.Media.AudioStream?.LocalTrack?.Capabilities ?? [];
+                foreach (var f in caps)
+                    Log.LogStep($"SIP negotiated audio: pt {f.ID} {f.Name()}");
+                // The list elements are structs: with no match FirstOrDefault returns the default
+                // struct (ID 0, _isEmpty false, Name()="PCMU") — the final NAME check tells a
+                // real opus entry apart from that default, so the offer PT (111) stays.
+                var opus = caps.FirstOrDefault(f => string.Equals(f.Name(), "opus", StringComparison.OrdinalIgnoreCase));
+                if (opus is { } fmt && string.Equals(fmt.Name(), "opus", StringComparison.OrdinalIgnoreCase))
+                {
+                    _opusPayloadType = fmt.ID;
+                    Log.LogStep($"SIP Opus negotiated on payload type {_opusPayloadType}");
+                }
+            }
+            catch { }
         }
 
         public Task StopAsync()
@@ -253,11 +293,12 @@ public static class SipBridge
             return Task.CompletedTask;
         }
 
-        // Decodes G.711 payloads (1 byte = 1 sample @ 8 kHz) into 16-bit PCM. RFC 4733 DTMF
-        // events (dynamic payload type) are skipped — they never reach the STT. Capture is paused
+        // Decodes the negotiated codec to 16-bit PCM and feeds the STT (conversation) or the
+        // in-band DTMF detector (PIN phase). Wideband (G.722/Opus, 16 kHz) goes to whisper
+        // untouched; narrowband G.711 (8 kHz) is upsampled. RFC 4733 DTMF events (negotiated
+        // dynamic payload type) are skipped — they never reach the STT. Capture is paused
         // while the TTS reply plays (no barge-in: a hands-free caller would otherwise echo the
-        // reply back into the subprocess STT). In conversation the PCM is forwarded to the
-        // persistent voice subprocess (VAD + whisper live there — media is I/O only).
+        // reply back into the subprocess STT).
         private void OnRtpAudio(IPEndPoint _, SDPMediaTypesEnum __, RTPPacket packet)
         {
             if (_speaking) return;
@@ -267,30 +308,70 @@ public static class SipBridge
             if (payload == null || payload.Length == 0) return;
 
             var pt = packet.Header.PayloadType;
-            if (pt != PcmuPayloadType && pt != PcmaPayloadType) return;
-
-            var pcm = new byte[payload.Length * 2];
-            for (int i = 0; i < payload.Length; i++)
+            byte[] pcm;
+            int rate;
+            switch (pt)
             {
-                var sample = pt == PcmuPayloadType
-                    ? MuLawDecoder.MuLawToLinearSample(payload[i])
-                    : ALawDecoder.ALawToLinearSample(payload[i]);
-                pcm[i * 2] = (byte)(sample & 0xFF);
-                pcm[i * 2 + 1] = (byte)((sample >> 8) & 0xFF);
+                case PcmuPayloadType:
+                case PcmaPayloadType:
+                    // Narrowband G.711 (300 Hz–3.4 kHz): 1 byte = 1 sample @ 8 kHz.
+                    pcm = new byte[payload.Length * 2];
+                    for (int i = 0; i < payload.Length; i++)
+                    {
+                        var sample = pt == PcmuPayloadType
+                            ? MuLawDecoder.MuLawToLinearSample(payload[i])
+                            : ALawDecoder.ALawToLinearSample(payload[i]);
+                        pcm[i * 2] = (byte)(sample & 0xFF);
+                        pcm[i * 2 + 1] = (byte)((sample >> 8) & 0xFF);
+                    }
+                    rate = 8000;
+                    break;
+                case G722PayloadType:
+                    // Wideband G.722 (50 Hz–7 kHz): 2 PCM16 samples per byte @ 16 kHz.
+                    _g722 ??= new G722Codec();
+                    _g722State ??= new G722CodecState(64000, G722Flags.None);
+                    var g722out = new short[payload.Length * 2];
+                    var g722samples = _g722.Decode(_g722State, g722out, payload, payload.Length);
+                    pcm = ShortsToPcm16(g722out, g722samples);
+                    rate = 16000;
+                    break;
+                default:
+                    if (pt != _opusPayloadType) return;   // RFC 4733 DTMF events + anything unnegotiated
+                    // Opus (RFC 7587): decode at 16 kHz mono directly — Concentus resamples
+                    // from the stream's native rate, so whisper sees its training bandwidth.
+                    _opusDecoder ??= new OpusDecoder(16000, 1);
+                    var opusOut = new short[MaxOpusFrameSamples];
+                    var opusSamples = _opusDecoder.Decode(payload, 0, payload.Length, opusOut, 0, MaxOpusFrameSamples);
+                    if (opusSamples <= 0) return;
+                    pcm = ShortsToPcm16(opusOut, opusSamples);
+                    rate = 16000;
+                    break;
             }
             if (phase == CallPhase.Pin)
             {
                 if (!_pinAudioLogged)
                 {
                     _pinAudioLogged = true;
-                    Log.LogStep($"SIP pin-phase audio capture active ({pcm.Length} bytes first packet)");
+                    Log.LogStep($"SIP pin-phase audio capture active (pt {pt}, {rate} Hz, {pcm.Length} bytes first packet)");
                 }
-                _dtmf.Feed(pcm);       // in-band keypad tones only (RFC 4733 handled by OnDtmfTone)
+                _dtmf.Feed(pcm, rate);       // in-band keypad tones only (RFC 4733 handled by OnDtmfTone)
             }
             else
             {
-                _inputQueue.Writer.TryWrite(Upsample8kTo16k(pcm));   // conversation speech → subprocess STT
+                _inputQueue.Writer.TryWrite(rate == 8000 ? Upsample8kTo16k(pcm) : pcm);   // 16 kHz speech → subprocess STT
             }
+        }
+
+        /// <summary>PCM16 (short[]) → little-endian byte[] — the format the subprocess expects.</summary>
+        private static byte[] ShortsToPcm16(short[] samples, int count)
+        {
+            var b = new byte[count * 2];
+            for (int i = 0; i < count; i++)
+            {
+                b[i * 2] = (byte)(samples[i] & 0xFF);
+                b[i * 2 + 1] = (byte)((samples[i] >> 8) & 0xFF);
+            }
+            return b;
         }
 
         /// <summary>Linear 8→16 kHz upsample of PCM16 (whisper is trained on 16 kHz).</summary>
@@ -547,13 +628,14 @@ public static class SipBridge
         }
     }
 
-    /// <summary>Goertzel-based in-band DTMF detector on 8 kHz PCM16. Emits each digit once after
-    /// ~50 ms of a steady tone pair and requires a ~75 ms gap before accepting the next digit
-    /// (a held key never repeats). Used ONLY during the PIN phase — SipVoiceMedia stops feeding
-    /// it once the conversation starts, so speech is never misread as keypad tones.</summary>
+    /// <summary>Goertzel-based in-band DTMF detector on PCM16, sample-rate agnostic (8 kHz for
+    /// G.711, 16 kHz for G.722/Opus — the frame duration stays ~25.6 ms and the Goertzel k
+    /// index scales with the rate, so the same tone pairs are detected on either). Emits each
+    /// digit once after ~50 ms of a steady tone pair and requires a ~75 ms gap before accepting
+    /// the next digit (a held key never repeats). Used ONLY during the PIN phase — SipVoiceMedia
+    /// stops feeding it once the conversation starts, so speech is never misread as keypad tones.</summary>
     private sealed class DtmfDetector
     {
-        private const int FrameSamples = 205;          // ~25.6 ms @ 8 kHz (≥ one DTMF tone period)
         private const int MinValidFrames = 2;          // ~51 ms steady tone before emitting
         private const int GapFrames = 3;               // ~77 ms silence/detune before re-arming
         private const double AbsThreshold = 0.015;     // normalized power floor for row+col
@@ -566,7 +648,9 @@ public static class SipBridge
         private readonly double[] _coeffs = new double[8];
         private readonly double[] _q1 = new double[8];
         private readonly double[] _q2 = new double[8];
-        private readonly short[] _frame = new short[FrameSamples];
+        private readonly short[] _frame = new short[512];   // max frame: ~25.6 ms @ 16 kHz = 410 samples
+        private int _frameSamples = 205;                    // ~25.6 ms at the current sample rate
+        private int _sampleRate = 8000;
         private int _frameLen;
         private int _validCount;
         private int _gapCount;
@@ -574,14 +658,20 @@ public static class SipBridge
 
         public event Action<byte>? DigitDetected;
 
-        public DtmfDetector()
+        public DtmfDetector() => Configure(8000);
+
+        private void Configure(int sampleRate)
         {
+            if (sampleRate == _sampleRate) return;
+            _sampleRate = sampleRate;
+            _frameSamples = (int)Math.Round(sampleRate * 0.0256);   // ~25.6 ms per frame (205 @ 8 kHz, 410 @ 16 kHz)
             for (int i = 0; i < 8; i++)
             {
                 var f = i < 4 ? RowFreqs[i] : ColFreqs[i - 4];
-                var k = (int)Math.Round(0.5 + FrameSamples * f / 8000.0);
-                _coeffs[i] = 2.0 * Math.Cos(2.0 * Math.PI * k / FrameSamples);
+                var k = (int)Math.Round(0.5 + _frameSamples * f / sampleRate);
+                _coeffs[i] = 2.0 * Math.Cos(2.0 * Math.PI * k / _frameSamples);
             }
+            Reset();
         }
 
         public void Reset()
@@ -594,12 +684,13 @@ public static class SipBridge
             Array.Clear(_q2);
         }
 
-        public void Feed(ReadOnlySpan<byte> pcm)
+        public void Feed(ReadOnlySpan<byte> pcm, int sampleRate)
         {
+            Configure(sampleRate);
             for (int i = 0; i + 1 < pcm.Length; i += 2)
             {
                 _frame[_frameLen++] = (short)(pcm[i] | pcm[i + 1] << 8);
-                if (_frameLen == FrameSamples)
+                if (_frameLen == _frameSamples)
                 {
                     DetectFrame();
                     _frameLen = 0;
@@ -612,7 +703,7 @@ public static class SipBridge
             // Goertzel recurrence over the frame, once per candidate frequency.
             Array.Clear(_q1);
             Array.Clear(_q2);
-            for (int n = 0; n < FrameSamples; n++)
+            for (int n = 0; n < _frameSamples; n++)
             {
                 var x = _frame[n] / 32768.0;
                 for (int i = 0; i < 8; i++)
@@ -622,7 +713,7 @@ public static class SipBridge
                     _q1[i] = s;
                 }
             }
-            var norm = (FrameSamples / 2.0) * (FrameSamples / 2.0);
+            var norm = (_frameSamples / 2.0) * (_frameSamples / 2.0);
             double[] power = new double[8];
             for (int i = 0; i < 8; i++)
                 power[i] = (_q2[i] * _q2[i] + _q1[i] * _q1[i] - _coeffs[i] * _q1[i] * _q2[i]) / norm;
@@ -756,6 +847,7 @@ public static class SipBridge
             SipVoiceAgent.ExePath = ResolveSttExe();
             SipVoiceAgent.SttModel = Cfg.SttModel;
             SipVoiceAgent.SttQuant = Cfg.SttQuant;
+            SipVoiceAgent.SttDevice = Cfg.SttDevice;
             await SipVoiceAgent.StartAsync(Cfg.Lang);
 
             var transport = new SIPTransport();
@@ -854,6 +946,7 @@ public static class SipBridge
                 stt_exe_path = c.SttExePath,
                 stt_model = c.SttModel,
                 stt_quant = c.SttQuant,
+                stt_device = c.SttDevice,
                 rtp_port_range = c.RtpPortRange,
             };
         }
@@ -1545,14 +1638,45 @@ public static class SipBridge
     {
         // The config ctor (NOT the parameterless one — that enables the on-hold music
         // generator, which would stream music to the caller for the whole call).
-        var endpoint = new MediaEndPoints { AudioSource = new AudioExtrasSource() };
+        // Wideband-first codec offer (Opus → G.722 → PCMA → PCMU): G.722 and Opus decode to
+        // 16 kHz PCM — whisper's native rate — so the STT hears real 50 Hz–7 kHz audio instead
+        // of the upsampled narrowband G.711 band (see OnRtpAudio). The wrapper reorders
+        // SIPSorcery's AudioEncoder (which already ships Opus via Concentus, not offered by
+        // default) so the SDP offer prefers wideband; the answering client picks its own
+        // favourite among the common formats.
+        var endpoint = new MediaEndPoints { AudioSource = new AudioExtrasSource(new SttWidebandFirstEncoder()) };
         var config = new VoIPMediaSessionConfig { MediaEndPoint = endpoint };
         if (TryParsePortRange(Cfg.RtpPortRange, out var start, out var end))
             config.RtpPortRange = new PortRange(start, end);
         var media = new VoIPMediaSession(config);
-        endpoint.AudioSource!.RestrictFormats(f => f.Codec == AudioCodecsEnum.PCMU || f.Codec == AudioCodecsEnum.PCMA);
         media.AcceptRtpFromAny = true;
         return media;
+    }
+
+    /// <summary>Wraps SIPSorcery's <see cref="AudioEncoder"/> and reorders the offered formats
+    /// so wideband comes first. The encode/decode dispatch is SIPSorcery's own (G.711/G.722 and
+    /// Opus via Concentus, enabled with the includeOpus constructor flag) — this class only
+    /// changes the preference order of the SDP offer, drops G.729 and forces Opus MONO (the
+    /// default OpusWebRTC entry is stereo; the STT decodes at 16 kHz mono).</summary>
+    private sealed class SttWidebandFirstEncoder : IAudioEncoder
+    {
+        private readonly AudioEncoder _inner = new(includeLinearFormats: false, includeOpus: true);
+        public List<AudioFormat> SupportedFormats { get; } = new AudioEncoder(includeLinearFormats: false, includeOpus: true)
+            .SupportedFormats
+            .Where(f => f.Codec is AudioCodecsEnum.OPUS or AudioCodecsEnum.G722 or AudioCodecsEnum.PCMA or AudioCodecsEnum.PCMU)
+            .Select(f => f.Codec == AudioCodecsEnum.OPUS
+                ? new AudioFormat(f.FormatID, f.FormatName, f.ClockRate, 1, f.Parameters)   // mono for STT
+                : f)
+            .OrderBy(f => f.Codec switch
+            {
+                AudioCodecsEnum.OPUS => 0,
+                AudioCodecsEnum.G722 => 1,
+                AudioCodecsEnum.PCMA => 2,
+                _ => 3,
+            })
+            .ToList();
+        public short[] DecodeAudio(byte[] encodedSample, AudioFormat format) => _inner.DecodeAudio(encodedSample, format);
+        public byte[] EncodeAudio(short[] pcm, AudioFormat format) => _inner.EncodeAudio(pcm, format);
     }
 
     private static bool TryParsePortRange(string range, out int start, out int end)

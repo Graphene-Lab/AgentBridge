@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -24,7 +23,6 @@
     <Version Condition="'$(IsPrerelease)' == 'true'">$([System.DateTime]::Now.ToString("1.yy.MM.dd"))-prerelease</Version>
     <Version Condition="'$(IsPrerelease)' != 'true'">$([System.DateTime]::Now.ToString("1.yy.MM.dd"))</Version>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="Terminal.Gui" Version="2.4.17" />
     <PackageReference Include="Terminal.Gui.Editor" Version="2.5.7" />
@@ -56,12 +54,15 @@
          bundled into the single file via IncludeNativeLibrariesForSelfExtract. -->
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.0" ExcludeAssets="build" />
     <!-- SIP telephony (incoming auto-answer + PIN, outgoing calls, RTP audio loop to the
-         agent): SIPSorcery implements the UAS/UAC, REGISTER and RFC 4733 DTMF on its own
-         (no media stack needed — the RTP audio is decoded/encoded with its bundled G.711
-         codecs and routed to/from the existing in-process TTS/STT). -->
+         agent): SIPSorcery implements the UAS/UAC, REGISTER, RFC 4733 DTMF and the
+         G.711/G.722 codecs on its own; the OPUS codec is bundled inside SIPSorcery (via
+         Concentus) but not offered by default — SipBridge reorders the offer so the STT
+         gets wideband (16 kHz) audio: Opus → G.722 → PCMA → PCMU. Concentus is referenced
+         directly for the Opus DECODE on the receive path (SIPSorcery only exposes the
+         encode/decode through its AudioEncoder wrapper, which we reuse for sending). -->
     <PackageReference Include="SIPSorcery" Version="10.0.15" />
+    <PackageReference Include="Concentus" Version="2.2.2" />
   </ItemGroup>
-
   <!-- e2e/ hosts standalone tooling (TuiSmoke, run_e2e.ps1) — never part of this
        project. WITHOUT these Remove items the Web SDK's default globbing compiles
        e2e/TuiSmoke/Program.cs into AgentBridge (duplicate `Program` with the
@@ -72,7 +73,6 @@
     <None Remove="e2e\**" />
     <EmbeddedResource Remove="e2e\**" />
   </ItemGroup>
-
   <!-- Localized UI strings (EN neutral + it/fr/es/de/ru satellites) — see Resources/Dictionary.*.resx.
        The satellite files are picked up automatically by the SDK; the neutral file drives the
        generated Designer used from Tui.cs / Program.cs. -->
@@ -89,7 +89,6 @@
       <Generator>PublicResXFileCodeGenerator</Generator>
     </EmbeddedResource>
   </ItemGroup>
-
   <!-- Ship the tool plugins into Tools/<Plugin>/ (dll + xml, no AIOrchestrator copy) so the
        dynamic ToolPluginHost loader can pick them up at startup. Sibling build outputs on dev
        machines (same pattern as AIOffice's BuildToolPlugins); skipped when the sibling repos
@@ -113,19 +112,15 @@
     <Copy SourceFiles="@(_OfficeToolPlugin)" DestinationFolder="$(OutputPath)Tools\OfficeTool" />
     <Copy SourceFiles="@(_OfficeToolEngine)" DestinationFolder="$(OutputPath)Tools\OfficeTool" />
   </Target>
-
   <!-- Copies the tool plugins into a publish output (same rationale as AIOffice's
        CopyToolPluginsToPublish): the Content-item registration drops files outside the
        project directory, so a direct Copy is used. -->
-  <Target Name="CopyToolPluginsToPublish" AfterTargets="Publish"
-          Condition="'$(PublishDir)' != '' and Exists('$(OutputPath)Tools')">
+  <Target Name="CopyToolPluginsToPublish" AfterTargets="Publish" Condition="'$(PublishDir)' != '' and Exists('$(OutputPath)Tools')">
     <ItemGroup>
       <_ToolPluginPublish Include="$(OutputPath)Tools\**\*" />
     </ItemGroup>
-    <Copy SourceFiles="@(_ToolPluginPublish)"
-          DestinationFiles="@(_ToolPluginPublish->'$(PublishDir)Tools\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_ToolPluginPublish)" DestinationFiles="@(_ToolPluginPublish->'$(PublishDir)Tools\%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
-
   <!-- Provide kokoro.onnx in the output directory (the 325 MB model binary is not tracked in
        git). Preferred source: the sibling VoiceAgent build output (already downloaded there on
        dev machines); fallback: the local copy at the project root; last resort: download with
@@ -134,10 +129,9 @@
     <MakeDir Directories="$(OutputPath)" />
     <Copy Condition="Exists('..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\kokoro.onnx')" SourceFiles="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\kokoro.onnx" DestinationFiles="$(OutputPath)kokoro.onnx" />
     <Copy Condition="!Exists('$(OutputPath)kokoro.onnx') and Exists('kokoro.onnx')" SourceFiles="kokoro.onnx" DestinationFiles="$(OutputPath)kokoro.onnx" />
-    <Exec Condition="!Exists('$(OutputPath)kokoro.onnx')" Command="curl -L --fail -o &quot;$(OutputPath)kokoro.onnx&quot; &quot;https://github.com/Lyrcaxis/KokoroSharpBinaries/releases/download/v2.0.0/kokoro.onnx&quot;" />
+    <Exec Condition="!Exists('$(OutputPath)kokoro.onnx')" Command="curl -L --fail -o &amp;quot;$(OutputPath)kokoro.onnx&amp;quot; &amp;quot;https://github.com/Lyrcaxis/KokoroSharpBinaries/releases/download/v2.0.0/kokoro.onnx&amp;quot;" />
     <Message Text="kokoro.onnx ready at $(OutputPath)" Importance="high" />
   </Target>
-
   <!-- The KokoroSharp content (voices/ + voices-zh/) and kokoro.onnx land in $(OutputPath), but
        `dotnet publish -o <dir>` does not carry them over: the publish dir must contain them or
        the TTS endpoints stay broken. Copy them explicitly (CI release archives rely on this).
@@ -152,7 +146,6 @@
          (runtimes/win-x64/native/*.lib) — build-time only, junk in the archive. -->
     <Delete Files="$(PublishDir)onnxruntime.lib;$(PublishDir)onnxruntime_providers_shared.lib" Condition="Exists('$(PublishDir)onnxruntime.lib')" />
   </Target>
-
   <!-- Optional Windows voice bridge: when the sibling AIOffice.VoiceAgent.Win build output
        exists, copy its whole output (exe + voices/ + espeak/ + kokoro.onnx + runtime deps)
        into a voiceagent/ subfolder so POST /v1/voice/listen can spawn it. The subfolder is
@@ -165,31 +158,20 @@
     <ItemGroup>
       <_VoiceAgentFiles Include="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\**\*" Exclude="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\logs\**\*" />
     </ItemGroup>
-    <Copy SourceFiles="@(_VoiceAgentFiles)" DestinationFiles="@(_VoiceAgentFiles->'$(OutputPath)voiceagent\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_VoiceAgentFiles)" DestinationFiles="@(_VoiceAgentFiles->'$(OutputPath)voiceagent\%(RecursiveDir)%(Filename)%(Extension)')" />
     <Message Text="VoiceAgent.Win output copied to $(OutputPath)voiceagent\" Importance="high" />
   </Target>
-
   <!-- Speech-to-text agent for the SIP telephony loop: the cross-platform AIOffice.VoiceAgent
        executable (whisper.net) is spawned with the transcribe command to turn the RTP audio of a
        call into text. Copied into its own voiceagent-stt/ subfolder (like VoiceAgent.Win) so its
        dependencies cannot shadow the server's KokoroSharp. kokoro.onnx/voices are excluded: the
        transcribe path never uses TTS, and they would add ~350 MB to the archive. On Linux/macOS
-       the deploy script must place the executable in voiceagent-stt/ alongside the server.
-       The Windows build uses the net10.0-windows TFM (adds the SAPI TTS fallback); Linux/macOS
-       deploy the plain net10.0 output. -->
-  <ItemGroup>
-    <!-- Processing-indicator sound played to the SIP caller while the agent computes (STT/LLM) —
-         a looped "data processing" cue (3 s, 24 kHz mono, from assets/). -->
-    <Content Include="assets\processing-indicator.wav" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
-  <Target Name="CopySttAgentOutput" AfterTargets="Build;Publish" Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\AIOffice.VoiceAgent.exe')">
+       the deploy script must place the executable in voiceagent-stt/ alongside the server. -->
+  <Target Name="CopySttAgentOutput" AfterTargets="Build;Publish" Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\AIOffice.VoiceAgent.exe')">
     <ItemGroup>
-      <_SttFiles Include="..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\**\*"
-                 Exclude="..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\logs\**\*;..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\kokoro.onnx;..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0-windows\voices\**\*" />
+      <_SttFiles Include="..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\**\*" Exclude="..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\logs\**\*;..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\kokoro.onnx;..\AIOffice.VoiceAgent\bin\$(Configuration)\net10.0\voices\**\*" />
     </ItemGroup>
-    <Copy SourceFiles="@(_SttFiles)" DestinationFiles="@(_SttFiles->'$(OutputPath)voiceagent-stt\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_SttFiles)" DestinationFiles="@(_SttFiles->'$(OutputPath)voiceagent-stt\%(RecursiveDir)%(Filename)%(Extension)')" />
     <Message Text="VoiceAgent (STT) output copied to $(OutputPath)voiceagent-stt\" Importance="high" />
   </Target>
-
 </Project>

@@ -1262,6 +1262,7 @@ public static class ConsoleTui
                             $"{("stt_exe_path").PadRight(18)}{ValueOr(GetStr(sip, "stt_exe_path"), "(default)")}",
                             $"{("stt_model").PadRight(18)}{ValueOr(GetStr(sip, "stt_model"), "(small)")}",
                             $"{("stt_quant").PadRight(18)}{ValueOr(GetStr(sip, "stt_quant"), "(fp16)")}",
+                            $"{("stt_device").PadRight(18)}{ValueOr(GetStr(sip, "stt_device"), "(auto)")}",
                             $"{("rtp_port_range").PadRight(18)}{ValueOr(GetStr(sip, "rtp_port_range"), "(default)")}",
                         };
                         await ShowPageUiAsync(Dictionary.PageSipConfig, lines);

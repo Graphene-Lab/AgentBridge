@@ -53,6 +53,11 @@ public static class SipVoiceAgent
     /// <summary>Whisper quantization passed via AIOFFICE_WHISPER_QUANT (e.g. "q8_0", empty = FP16).</summary>
     public static string? SttQuant { get; set; }
 
+    /// <summary>STT accelerator passed via AIOFFICE_WHISPER_DEVICE ("auto"/"cuda"/"vulkan"/"cpu").
+    /// The whisper.net loader probes the GPU runtimes and falls back to CPU automatically; "cpu"
+    /// skips the probe. Empty = the subprocess default ("auto").</summary>
+    public static string? SttDevice { get; set; }
+
     /// <summary>
     /// Starts the persistent subprocess (idempotent) and sends "start" with the language.
     /// The whisper model loads once and stays resident for the whole server lifetime.
@@ -82,6 +87,7 @@ public static class SipVoiceAgent
                 // Model + quantization must be set BEFORE the process starts (read at startup).
                 if (!string.IsNullOrWhiteSpace(SttModel)) psi.Environment["AIOFFICE_WHISPER_MODEL"] = SttModel;
                 if (!string.IsNullOrWhiteSpace(SttQuant)) psi.Environment["AIOFFICE_WHISPER_QUANT"] = SttQuant;
+                if (!string.IsNullOrWhiteSpace(SttDevice)) psi.Environment["AIOFFICE_WHISPER_DEVICE"] = SttDevice;
                 _proc = new Process { StartInfo = psi };
                 if (!_proc.Start())
                 {
