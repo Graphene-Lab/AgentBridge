@@ -268,6 +268,10 @@ public static class SipBridge
                 var caps = _call.Media.AudioStream?.LocalTrack?.Capabilities ?? [];
                 foreach (var f in caps)
                     Log.LogStep($"SIP negotiated audio: pt {f.ID} {f.Name()}");
+                var wideband = caps.Any(f => string.Equals(f.Name(), "opus", StringComparison.OrdinalIgnoreCase) ||
+                                             string.Equals(f.Name(), "G722", StringComparison.OrdinalIgnoreCase));
+                if (!wideband)
+                    Log.LogStep("SIP warning: call negotiated narrowband only (PCMU/PCMA, 8 kHz) — enable G.722/Opus on the client for much better STT accuracy (whisper is trained on 16 kHz; the 300 Hz–3.4 kHz G.711 band cuts the fricative energy)");
                 // The list elements are structs: with no match FirstOrDefault returns the default
                 // struct (ID 0, _isEmpty false, Name()="PCMU") — the final NAME check tells a
                 // real opus entry apart from that default, so the offer PT (111) stays.
@@ -519,15 +523,23 @@ public static class SipBridge
         }
 
         /// <summary>Loads the processing-indicator cue (assets/processing-indicator.wav — 24 kHz
-        /// mono PCM16, deployed with the server) as raw PCM for looping over RTP. Null when the
-        /// asset is missing (the indicator is simply skipped).</summary>
+        /// mono PCM16) as raw PCM for looping over RTP. The cue is an EMBEDDED resource (see
+        /// AgentBridge.csproj): a copied content file proved unreliable on the OneDrive-synced
+        /// bin folder (it vanished, silently disabling the indicator — "asset not found" on real
+        /// calls). Null when the resource is missing (the indicator is simply skipped).</summary>
         private static byte[]? LoadIndicatorPcm()
         {
             try
             {
-                var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "processing-indicator.wav");
-                if (!File.Exists(path)) { Log.LogStep("SIP processing indicator: asset not found (assets/processing-indicator.wav)"); return null; }
-                var bytes = File.ReadAllBytes(path);
+                using var stream = typeof(SipBridge).Assembly.GetManifestResourceStream("AgentBridge.assets.processing-indicator.wav");
+                if (stream == null)
+                {
+                    Log.LogStep("SIP processing indicator: embedded asset missing (AgentBridge.assets.processing-indicator.wav)");
+                    return null;
+                }
+                using var ms = new MemoryStream();
+                stream.CopyTo(ms);
+                var bytes = ms.ToArray();
                 var off = 12;
                 while (off + 8 <= bytes.Length)
                 {
@@ -536,7 +548,7 @@ public static class SipBridge
                     if (id == "data") return NormalizePeak(bytes.AsSpan(off + 8, Math.Min(size, bytes.Length - off - 8)).ToArray());
                     off += 8 + size + (size % 2);
                 }
-                Log.LogStep("SIP processing indicator: no data chunk in the asset WAV");
+                Log.LogStep("SIP processing indicator: no data chunk in the embedded asset");
                 return null;
             }
             catch (Exception ex)
@@ -586,18 +598,18 @@ public static class SipBridge
             _replyStarted = true;    // stop the processing indicator — the real reply is here
             try
             {
-                foreach (var sentence in SplitSentences(text))
+                if (ct.IsCancellationRequested) return;
+                // The WHOLE chunk goes in ONE subprocess speak: the subprocess splits it into
+                // sentences internally and streams each PCM piece as it is synthesized, so the
+                // next sentence renders while the previous plays (no client-side per-sentence
+                // IPC round-trips that would add render gaps).
+                await SipVoiceAgent.SpeakAsync(text, Language, pcm =>
                 {
-                    if (ct.IsCancellationRequested) return;
-                    await SipVoiceAgent.SpeakAsync(sentence, Language, pcm =>
-                    {
-                        if (_firstChunkLogged == 0) { _firstChunkLogged = 1; Log.LogStep($"SIP TTS first-chunk t={DateTime.UtcNow:HH:mm:ss.fff}"); }
-                        _ttsQueue.Writer.TryWrite(new TtsChunk(pcm, false));
-                        Interlocked.Increment(ref _ttsPending);
-                    }, ct);
-                }
-                // Sentences are enqueued back-to-back (the single ordered queue preserves the
-                // order); only the FINAL drain waits, so capture stays paused until all RTP is sent.
+                    if (_firstChunkLogged == 0) { _firstChunkLogged = 1; Log.LogStep($"SIP TTS first-chunk t={DateTime.UtcNow:HH:mm:ss.fff}"); }
+                    _ttsQueue.Writer.TryWrite(new TtsChunk(pcm, false));
+                    Interlocked.Increment(ref _ttsPending);
+                }, ct);
+                // The queue is drained only at the END so capture stays paused until all RTP is sent.
                 while (Volatile.Read(ref _ttsPending) > 0 && !ct.IsCancellationRequested)
                     await Task.Delay(15, ct);
             }
@@ -613,19 +625,25 @@ public static class SipBridge
                 if (Interlocked.Decrement(ref _activeSpeaks) == 0)
                 {
                     if (!ct.IsCancellationRequested) await Task.Delay(PostTtsMuteMs, CancellationToken.None);
-                    if (Volatile.Read(ref _activeSpeaks) == 0) _speaking = false;   // re-check: a new speak may have started during the wait
+                    if (Volatile.Read(ref _activeSpeaks) == 0)
+                    {
+                        _speaking = false;
+                        // The agentic reply is streamed in CHUNKS (the LLM produces the next part
+                        // with seconds of latency in between): re-arm the processing indicator so
+                        // the caller knows the turn is NOT over while the next part is generated.
+                        // Only the FINAL chunk (isLast — or the empty end-of-turn signal) leaves
+                        // it stopped: the cue stopping for good is the "the turn is over" cue.
+                        if (!isLast && !ct.IsCancellationRequested)
+                        {
+                            _processingSince = DateTime.UtcNow;
+                            _replyStarted = false;
+                            EnsureIndicatorLoop();
+                        }
+                    }
                 }
             }
         }
 
-        /// <summary>Splits a reply into sentences (on ".!?"), keeping empty chunks out. Short
-        /// replies stay as one chunk; long ones stream one sentence at a time.</summary>
-        private static IEnumerable<string> SplitSentences(string text)
-        {
-            var sentences = text.Split(['.', '!', '?'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (sentences.Length <= 1) return new[] { text };
-            return sentences;
-        }
     }
 
     /// <summary>Goertzel-based in-band DTMF detector on PCM16, sample-rate agnostic (8 kHz for

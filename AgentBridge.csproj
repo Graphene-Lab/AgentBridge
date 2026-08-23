@@ -62,6 +62,11 @@
          encode/decode through its AudioEncoder wrapper, which we reuse for sending). -->
     <PackageReference Include="SIPSorcery" Version="10.0.15" />
     <PackageReference Include="Concentus" Version="2.2.2" />
+    <!-- The processing-indicator cue (played to the SIP caller while the agent computes) ships
+         as an EMBEDDED resource — a copied content file proved unreliable on the OneDrive-synced
+         bin folder (the file vanished, the indicator silently disabled: "asset not found" on real
+         calls). An embedded resource travels inside the assembly, immune to the deployed file state. -->
+    <EmbeddedResource Include="assets\processing-indicator.wav" LogicalName="AgentBridge.assets.processing-indicator.wav" />
   </ItemGroup>
   <!-- e2e/ hosts standalone tooling (TuiSmoke, run_e2e.ps1) — never part of this
        project. WITHOUT these Remove items the Web SDK's default globbing compiles
@@ -129,7 +134,7 @@
     <MakeDir Directories="$(OutputPath)" />
     <Copy Condition="Exists('..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\kokoro.onnx')" SourceFiles="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\kokoro.onnx" DestinationFiles="$(OutputPath)kokoro.onnx" />
     <Copy Condition="!Exists('$(OutputPath)kokoro.onnx') and Exists('kokoro.onnx')" SourceFiles="kokoro.onnx" DestinationFiles="$(OutputPath)kokoro.onnx" />
-    <Exec Condition="!Exists('$(OutputPath)kokoro.onnx')" Command="curl -L --fail -o &amp;quot;$(OutputPath)kokoro.onnx&amp;quot; &amp;quot;https://github.com/Lyrcaxis/KokoroSharpBinaries/releases/download/v2.0.0/kokoro.onnx&amp;quot;" />
+    <Exec Condition="!Exists('$(OutputPath)kokoro.onnx')" Command="curl -L --fail -o &quot;$(OutputPath)kokoro.onnx&quot; &quot;https://github.com/Lyrcaxis/KokoroSharpBinaries/releases/download/v2.0.0/kokoro.onnx&quot;" />
     <Message Text="kokoro.onnx ready at $(OutputPath)" Importance="high" />
   </Target>
   <!-- The KokoroSharp content (voices/ + voices-zh/) and kokoro.onnx land in $(OutputPath), but

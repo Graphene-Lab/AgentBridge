@@ -194,7 +194,11 @@ file:
    not by the transcript: whisper can take seconds to return, and with background noise the
    utterance may never close at all — arming on the VAD guarantees the caller always gets feedback
    the moment processing starts. While the caller speaks again (VAD `speech`), the cue is paused
-   so it never beeps over their own voice; a 25 s hard cap stops it if STT/LLM stalls. The cue is
+   so it never beeps over their own voice; a 25 s hard cap stops it if STT/LLM stalls. The agent's
+   reply is streamed in chunks (the LLM produces each next part with seconds of latency in
+   between): the cue stops while a reply part plays and **re-arms between parts**, so the caller
+   always knows the turn is still working — the cue stopping for good is the "turn is over"
+   signal. The cue is
    sent through the SAME media path as the replies (never played locally); the TTS queue tags the
    cue pieces and discards them the moment the real reply starts (400 ms pieces → the reply is
    delayed by at most ~400 ms). The asset is normalized to near-full-scale before playback (RTP
