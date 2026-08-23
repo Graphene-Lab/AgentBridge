@@ -373,15 +373,6 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to 'Enter a value'.
-        /// </summary>
-        public static string DlgPromptTitle {
-            get {
-                return ResourceManager.GetString("DlgPromptTitle", resourceCulture);
-            }
-        }
-
-        /// <summary>
         ///   Looks up a localized string similar to 'type to filter or type a provider name · ↑↓ · Enter · Esc cancel'.
         /// </summary>
         public static string DlgProviderPickerHint {

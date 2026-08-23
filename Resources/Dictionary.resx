@@ -393,7 +393,6 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="DlgTelegramConfig" xml:space="preserve"><value>Show config</value></data>
   <data name="DlgTelegramReload" xml:space="preserve"><value>Reload config</value></data>
   <data name="DlgTelegramToggleEnable" xml:space="preserve"><value>Toggle enabled</value></data>
-  <data name="DlgPromptTitle" xml:space="preserve"><value>Enter a value</value></data>
   <data name="DlgPromptHint" xml:space="preserve"><value>Type the value and press Enter (Esc cancels)</value></data>
   <!-- Chat attachments show the file name (not the raw path). -->
   <data name="ChatAttachmentMarker" xml:space="preserve"><value>[attachment: {0}]</value></data>

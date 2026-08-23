@@ -298,7 +298,6 @@ Powered by Terminal.Gui</value></data>
   <data name="DlgTelegramConfig" xml:space="preserve"><value>Показать конфигурацию</value></data>
   <data name="DlgTelegramReload" xml:space="preserve"><value>Перезагрузить конфигурацию</value></data>
   <data name="DlgTelegramToggleEnable" xml:space="preserve"><value>Вкл/выкл</value></data>
-  <data name="DlgPromptTitle" xml:space="preserve"><value>Введите значение</value></data>
   <data name="DlgPromptHint" xml:space="preserve"><value>Введите значение и нажмите Enter (Esc отменяет)</value></data>
   <data name="ChatAttachmentMarker" xml:space="preserve"><value>[вложение: {0}]</value></data>
   <data name="HttpStatusAuth" xml:space="preserve"><value>ошибка аутентификации (HTTP {0})</value></data>

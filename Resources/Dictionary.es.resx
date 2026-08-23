@@ -298,7 +298,6 @@ El área de documentos anterior sigue activa — no se ha cambiado nada.</value>
   <data name="DlgTelegramConfig" xml:space="preserve"><value>Mostrar configuración</value></data>
   <data name="DlgTelegramReload" xml:space="preserve"><value>Recargar configuración</value></data>
   <data name="DlgTelegramToggleEnable" xml:space="preserve"><value>Activar/desactivar</value></data>
-  <data name="DlgPromptTitle" xml:space="preserve"><value>Introduce un valor</value></data>
   <data name="DlgPromptHint" xml:space="preserve"><value>Escribe el valor y pulsa Intro (Esc cancela)</value></data>
   <data name="ChatAttachmentMarker" xml:space="preserve"><value>[adjunto: {0}]</value></data>
   <data name="HttpStatusAuth" xml:space="preserve"><value>error de autenticación (HTTP {0})</value></data>

@@ -280,15 +280,24 @@ app.MapPost("/v1/chat/completions", async (
         var provider = resolvedProvider!;
 
         // Explicit tool list (additive extension, see ChatCompletionRequest.Tools) wins
-        // over the agent set resolved from `model`: unknown names are skipped by the
-        // tool registry, so a request with only unknown tools degrades to no tools.
-        var agentToolNames = request.Tools is { Count: > 0 }
-            ? request.Tools
+        // over the agent set resolved from `model`. A filtered-empty list (whitespace or
+        // unknown names only) falls back to the preset so the agent never runs with no
+        // tools; unknown tool names are skipped by the tool registry.
+        string[] agentToolNames;
+        if (request.Tools is { Count: > 0 })
+        {
+            agentToolNames = request.Tools
                 .Where(t => !string.IsNullOrWhiteSpace(t))
                 .Select(t => t.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray()
-            : ResolveAgentTypes(request.Model);
+                .ToArray();
+            if (agentToolNames.Length == 0)
+                agentToolNames = ResolveAgentTypes(request.Model);
+        }
+        else
+        {
+            agentToolNames = ResolveAgentTypes(request.Model);
+        }
         var attachments = ResolveAttachments(request.FileIds);
         var maxIterations = request.MaxTokens > 0
             ? Math.Clamp(request.MaxTokens.Value / 100, 1, 50)

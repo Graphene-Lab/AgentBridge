@@ -298,7 +298,6 @@ La zone de documents précédente est toujours active — rien n'a été modifi�
   <data name="DlgTelegramConfig" xml:space="preserve"><value>Afficher la configuration</value></data>
   <data name="DlgTelegramReload" xml:space="preserve"><value>Recharger la configuration</value></data>
   <data name="DlgTelegramToggleEnable" xml:space="preserve"><value>Activer/désactiver</value></data>
-  <data name="DlgPromptTitle" xml:space="preserve"><value>Saisir une valeur</value></data>
   <data name="DlgPromptHint" xml:space="preserve"><value>Saisissez la valeur et appuyez sur Entrée (Échap annule)</value></data>
   <data name="ChatAttachmentMarker" xml:space="preserve"><value>[pièce jointe : {0}]</value></data>
   <data name="HttpStatusAuth" xml:space="preserve"><value>échec d'authentification (HTTP {0})</value></data>

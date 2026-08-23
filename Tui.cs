@@ -1072,7 +1072,7 @@ public static class ConsoleTui
             var parts = new List<string> { _connected ? "●" : "○", ShortServerUrl(_serverUrl) };
             if (_provider.Length > 0) parts.Add(_provider);
             if (_modelName.Length > 0 && !string.Equals(_modelName, _provider)) parts.Add(_modelName);
-            var tools = EffectiveTools();
+            var tools = EffectiveLoadedTools();
             if (tools.Length > 0)
                 parts.Add($"{Dictionary.StatusTools}: {string.Join(", ", tools.Select(ToolShortName))}");
             if (_contextWindow > 0)
@@ -1092,6 +1092,21 @@ public static class ConsoleTui
         private string[] EffectiveTools() => _customTools is { Count: > 0 }
             ? _customTools.ToArray()
             : AgentTools.Resolve(_agentSet);
+
+        // The tools shown in the status bar: only the ones actually loaded at runtime
+        // (a preset may name a plugin that is absent from Tools/ on this machine — the
+        // server skips unknown names, so showing them would overstate the agent's tools).
+        private string[] EffectiveLoadedTools()
+        {
+            var loaded = AgentTools.Catalog().Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return EffectiveTools().Where(t => loaded.Contains(t)).ToArray();
+        }
+
+        // What the status page shows as the agent set: the preset id, or "custom" with
+        // the individually enabled tools when the /agent checklist was used.
+        private string AgentSetDisplay() => _customTools is { Count: > 0 }
+            ? $"custom ({string.Join(", ", _customTools.Select(ToolShortName))})"
+            : _agentSet;
 
         // "FileTool" → "File", "EMailTool" → "Email": readable tool names for the UI.
         private static string ToolShortName(string name) =>
@@ -1549,22 +1564,28 @@ public static class ConsoleTui
             allowBtn.Accepted += async (_, _) =>
             {
                 var who = await PromptOnUiThreadAsync(Dictionary.DlgTelegramAllow, "");
-                if (who == null) return;
-                var (error, message) = TelegramBridge.AddAllowedUser(who);
-                if (error == null) AddNote(message);
-                else AddNote(string.Format(Dictionary.NoteTelegramAllowFailed, error));
-                RefreshStatus();
-                _ = RefreshTelegramStatusAsync();
+                if (who != null)
+                {
+                    var (error, message) = TelegramBridge.AddAllowedUser(who);
+                    if (error == null) AddNote(message);
+                    else AddNote(string.Format(Dictionary.NoteTelegramAllowFailed, error));
+                    RefreshStatus();
+                    _ = RefreshTelegramStatusAsync();
+                }
+                codeField.SetFocus();   // the nested prompt refocused the main input — bring focus back into the panel
             };
             disallowBtn.Accepted += async (_, _) =>
             {
                 var who = await PromptOnUiThreadAsync(Dictionary.DlgTelegramDisallow, "");
-                if (who == null) return;
-                var (error, message) = TelegramBridge.RemoveAllowedUser(who);
-                if (error == null) AddNote(message);
-                else AddNote(string.Format(Dictionary.NoteTelegramAllowFailed, error));
-                RefreshStatus();
-                _ = RefreshTelegramStatusAsync();
+                if (who != null)
+                {
+                    var (error, message) = TelegramBridge.RemoveAllowedUser(who);
+                    if (error == null) AddNote(message);
+                    else AddNote(string.Format(Dictionary.NoteTelegramAllowFailed, error));
+                    RefreshStatus();
+                    _ = RefreshTelegramStatusAsync();
+                }
+                codeField.SetFocus();   // the nested prompt refocused the main input — bring focus back into the panel
             };
             configBtn.Accepted += (_, _) => RunCommandByName("telegram", "config");
             reloadBtn.Accepted += (_, _) => RunCommandByName("telegram", "config reload");
@@ -1980,7 +2001,7 @@ public static class ConsoleTui
                 $"{Dictionary.StatusSession.PadRight(18)}{_sessionId}",
                 $"{Dictionary.StatusProvider.PadRight(18)}{_provider}  ({_modelName}, {(_interactionMode.Length > 0 ? _interactionMode : Dictionary.InteractionModeDefault)})",
                 string.Format(Dictionary.StatusContextWindow, _contextWindow, _historyTokens),
-                $"{Dictionary.StatusAgentSet.PadRight(18)}{_agentSet}",
+                $"{Dictionary.StatusAgentSet.PadRight(18)}{AgentSetDisplay()}",
                 $"{Dictionary.StatusFeatures.PadRight(18)}{feats}",
                 $"{Dictionary.StatusAttachments.PadRight(18)}{attached}",
                 "",

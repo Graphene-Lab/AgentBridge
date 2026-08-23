@@ -298,7 +298,6 @@ Der vorherige Dokumentbereich ist weiterhin aktiv — es wurde nichts geändert.
   <data name="DlgTelegramConfig" xml:space="preserve"><value>Konfiguration anzeigen</value></data>
   <data name="DlgTelegramReload" xml:space="preserve"><value>Konfiguration neu laden</value></data>
   <data name="DlgTelegramToggleEnable" xml:space="preserve"><value>Aktiviert umschalten</value></data>
-  <data name="DlgPromptTitle" xml:space="preserve"><value>Wert eingeben</value></data>
   <data name="DlgPromptHint" xml:space="preserve"><value>Wert eingeben und Eingabetaste drücken (Esc bricht ab)</value></data>
   <data name="ChatAttachmentMarker" xml:space="preserve"><value>[Anhang: {0}]</value></data>
   <data name="HttpStatusAuth" xml:space="preserve"><value>Authentifizierung fehlgeschlagen (HTTP {0})</value></data>

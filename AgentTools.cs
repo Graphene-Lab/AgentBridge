@@ -38,12 +38,16 @@ public static class AgentTools
 
     /// <summary>All tools actually available at runtime — core tools plus dynamically loaded
     /// plugins — with their one-line description (class-level XML summary, English, falling
-    /// back to the class name). Used by the TUI tool checklist.</summary>
-    public static (string Name, string Description)[] Catalog()
-        => McpToolRegistry.All()
+    /// back to the class name). Used by the TUI tool checklist. Cached: the registry is
+    /// populated once at startup (ToolPlugins.Host), so the per-open assembly scan of the
+    /// first draft was pure waste.</summary>
+    public static (string Name, string Description)[] Catalog() => _catalog.Value;
+
+    private static readonly Lazy<(string Name, string Description)[]> _catalog = new(() =>
+        McpToolRegistry.All()
             .Select(t => (t.Name, Describe(t.Type)))
             .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+            .ToArray());
 
     private static string Describe(Type type)
     {

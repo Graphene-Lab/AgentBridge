@@ -323,7 +323,6 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="DlgTelegramConfig" xml:space="preserve"><value>Mostra configurazione</value></data>
   <data name="DlgTelegramReload" xml:space="preserve"><value>Ricarica configurazione</value></data>
   <data name="DlgTelegramToggleEnable" xml:space="preserve"><value>Attiva/disattiva abilitato</value></data>
-  <data name="DlgPromptTitle" xml:space="preserve"><value>Inserisci un valore</value></data>
   <data name="DlgPromptHint" xml:space="preserve"><value>Scrivi il valore e premi Invio (Esc annulla)</value></data>
   <data name="ChatAttachmentMarker" xml:space="preserve"><value>[allegato: {0}]</value></data>
   <data name="HttpStatusAuth" xml:space="preserve"><value>autenticazione non riuscita (HTTP {0})</value></data>
