@@ -1,0 +1,1087 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Giraffe AI</title>
+    <meta name="theme-color" content="#6c5ce7">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #13131c;
+            --surface2: #1a1a28;
+            --surface3: #222236;
+            --text: #e0e0f0;
+            --text2: #a0a0c0;
+            --accent: #6c5ce7;
+            --accent2: #a29bfe;
+            --accent3: #00d2ff;
+            --glow: #6c5ce766;
+            --danger: #e74c3c;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --border: #2a2a40;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --radius-xs: 6px;
+            --shadow: 0 8px 40px rgba(0,0,0,0.5);
+            --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --mono: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+        }
+        body.light-mode {
+            --bg: #f5f5f9;
+            --surface: #fff;
+            --surface2: #f0f0f5;
+            --surface3: #e8e8f0;
+            --text: #1a1a2e;
+            --text2: #5a5a7a;
+            --accent: #5a4fcf;
+            --accent2: #4a3db5;
+            --accent3: #0088cc;
+            --glow: #6c5ce740;
+            --danger: #c0392b;
+            --success: #27ae60;
+            --border: #d0d0e0;
+            --shadow: 0 8px 40px rgba(0,0,0,0.1);
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body,html{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased}
+        .bg-orbs{position:fixed;inset:0;pointer-events:none;z-index:0}
+        .bg-orb{position:absolute;border-radius:50%;filter:blur(120px);opacity:.12;animation:orbFloat 18s ease-in-out infinite}
+        .bg-orb:nth-child(1){width:500px;height:500px;background:#6c5ce7;top:-15%;left:-10%;animation-delay:0s}
+        .bg-orb:nth-child(2){width:400px;height:400px;background:#00d2ff;bottom:-20%;right:-8%;animation-delay:-6s;animation-duration:20s}
+        .bg-orb:nth-child(3){width:350px;height:350px;background:#a29bfe;top:40%;left:50%;animation-delay:-12s;animation-duration:22s}
+        @keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}25%{transform:translate(8%,-5%) scale(1.15)}50%{transform:translate(-3%,7%) scale(.9)}75%{transform:translate(-6%,-3%) scale(1.08)}}
+        .grid-overlay{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.03;background-image:linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px);background-size:50px 50px}
+        body.light-mode .grid-overlay{opacity:.06;background-image:linear-gradient(rgba(0,0,0,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.08) 1px,transparent 1px)}
+        .app-container{position:relative;z-index:1;display:flex;height:100vh;width:100%}
+        .sidebar{width:300px;min-width:300px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:var(--transition);z-index:10;position:relative}
+        .sidebar.collapsed{min-width:0;width:0;overflow:hidden;border-right:none}
+        .sidebar-header{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
+        .sidebar-header .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.2em;background:linear-gradient(135deg,var(--accent2),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap}
+        .sidebar-content{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px;position:relative}
+        .sidebar-mascot{position:absolute;bottom:0;left:0;width:100%;height:180px;display:flex;justify-content:center;overflow:hidden;pointer-events:none;opacity:.5;z-index:-1;color:var(--text2)}
+        .sidebar-mascot svg{height:100%;width:auto;display:block}
+        .sidebar-mascot path{fill:currentColor}
+        .sidebar-content::-webkit-scrollbar{width:4px}
+        .sidebar-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+        .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 16px;border-radius:var(--radius-xs);border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:.9em;font-family:var(--font);transition:var(--transition);white-space:nowrap;outline:0;user-select:none}
+        .btn:hover{background:var(--surface3);border-color:var(--accent);box-shadow:0 0 20px var(--glow)}
+        .btn:active{transform:scale(.97)}
+        .btn-accent{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+        .btn-accent:hover{background:#7d6ff0;box-shadow:0 0 30px var(--glow)}
+        .btn-sm{padding:6px 10px;font-size:.78em;border-radius:4px}
+        .btn-icon{width:36px;height:36px;padding:0;border-radius:50%;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;transition:var(--transition);display:inline-flex;align-items:center;justify-content:center}
+        .btn-icon:hover{background:var(--surface3);border-color:var(--accent);box-shadow:0 0 16px var(--glow)}
+        .btn-danger{border-color:var(--danger);color:var(--danger);background:0 0}
+        .btn-danger:hover{background:#e74c3c22;border-color:#e74c3c;box-shadow:0 0 20px #e74c3c44}
+        .provider-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);border:1px solid transparent;background:var(--surface2);position:relative}
+        .provider-item:hover{border-color:var(--border);background:var(--surface3)}
+        .provider-item.active{border-color:var(--accent)!important;background:var(--surface3);box-shadow:0 0 24px var(--glow)}
+        .provider-item .provider-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+        .provider-item .provider-info{flex:1;min-width:0}
+        .provider-item .provider-name{font-weight:600;font-size:.9em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .provider-item .provider-model{font-size:.72em;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .provider-item .provider-actions{display:flex;gap:4px;opacity:0;transition:var(--transition)}
+        .provider-item:hover .provider-actions{opacity:1}
+        .chat-list-item{padding:9px 12px;border-radius:var(--radius-xs);cursor:pointer;font-size:.82em;transition:var(--transition);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text2);border:1px solid transparent}
+        .chat-list-item:hover{background:var(--surface2);color:var(--text)}
+        .chat-list-item.active{background:var(--surface3);color:var(--text);border-color:var(--border)}
+        .sidebar-footer{padding:10px 14px;border-top:1px solid var(--border);font-size:.7em;color:var(--text2);text-align:center}
+        .main-area{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+        .main-header{padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--surface);z-index:5;flex-shrink:0}
+        .main-header .current-provider{font-weight:600;font-size:.95em}
+        .main-header .current-model{font-size:.75em;color:var(--text2)}
+        .main-header .header-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+        .chat-messages{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
+        .chat-messages::-webkit-scrollbar{width:6px}
+        .chat-messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
+        .message{display:flex;gap:12px;max-width:85%;animation:msgIn .35s ease-out}
+        @keyframes msgIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        .message.user{align-self:flex-end;flex-direction:row-reverse}
+        .message.assistant{align-self:flex-start}
+        .message-avatar{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;border:2px solid var(--border)}
+        .message.user .message-avatar{background:var(--accent);border-color:var(--accent);color:#fff}
+        .message.assistant .message-avatar{background:var(--surface3);border-color:var(--accent3);color:var(--accent3)}
+        .message-content{background:var(--surface2);padding:14px 18px;border-radius:var(--radius);line-height:1.55;font-size:.9em;word-break:break-word;position:relative;border:1px solid var(--border)}
+        .message.user .message-content{background:var(--accent);border-color:var(--accent);color:#fff;border-bottom-right-radius:4px}
+        .message.assistant .message-content{border-bottom-left-radius:4px;border-color:#2a2a44}
+        body.light-mode .message.assistant .message-content{border-color:#c0c0d0}
+        .message-content pre{background:#0d0d1a;border-radius:var(--radius-xs);padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:.82em;border:1px solid var(--border);position:relative;margin:10px 0}
+        body.light-mode .message-content pre{background:#e8e8f0;color:#1a1a2e}
+        .message-content code{font-family:var(--mono);font-size:.88em;background:#1a1a3033;padding:2px 6px;border-radius:3px}
+        body.light-mode .message-content code{background:#d0d0e033}
+        .message-content pre code{background:0 0;padding:0;font-size:.82em}
+        .copy-code-btn{position:absolute;top:8px;right:10px;background:var(--surface3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:.7em;padding:4px 8px;border-radius:4px;transition:var(--transition);opacity:0}
+        .message-content pre:hover .copy-code-btn{opacity:1}
+        .copy-code-btn:hover{color:#fff;border-color:var(--accent)}
+        .message-actions{display:flex;gap:6px;margin-top:6px;opacity:0;transition:var(--transition)}
+        .message:hover .message-actions{opacity:1}
+        .message-actions button{font-size:.7em;padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;transition:var(--transition)}
+        .message-actions button:hover{background:var(--surface3);color:#fff}
+        .thinking-block{background:#1a1a30;border-left:3px solid var(--accent3);padding:10px 14px;border-radius:0 var(--radius-xs) var(--radius-xs) 0;margin:8px 0;font-size:.82em;color:#b0b0d0;font-style:italic}
+        body.light-mode .thinking-block{background:#e0e0f0;color:#3a3a5a}
+        .thinking-block summary{cursor:pointer;font-weight:600;color:var(--accent3);font-style:normal;user-select:none}
+        .input-area{padding:14px 20px;border-top:1px solid var(--border);background:var(--surface);display:flex;gap:10px;align-items:flex-end;flex-shrink:0;z-index:5}
+        .input-area textarea{flex:1;resize:none;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);color:var(--text);padding:12px 16px;font-family:var(--font);font-size:.9em;line-height:1.5;min-height:46px;max-height:200px;outline:0;transition:var(--transition)}
+        .input-area textarea:focus{border-color:var(--accent);box-shadow:0 0 20px var(--glow)}
+        .input-area textarea::placeholder{color:#555}
+        body.light-mode .input-area textarea::placeholder{color:#888}
+        .send-btn{width:46px;height:46px;border-radius:50%;background:var(--accent);border:none;color:#fff;cursor:pointer;transition:var(--transition);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+        .send-btn:hover{background:#7d6ff0;box-shadow:0 0 30px var(--glow);transform:scale(1.05)}
+        .send-btn:active{transform:scale(.93)}
+        .send-btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;transform:none}
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        .modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:90%;max-width:620px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow);animation:modalSlide .3s ease}
+        @keyframes modalSlide{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+        .modal::-webkit-scrollbar{width:5px}
+        .modal::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
+        .modal h2{margin-bottom:20px;font-size:1.3em;background:linear-gradient(135deg,var(--accent2),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .modal label{display:block;font-size:.82em;font-weight:600;margin-bottom:4px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+        .modal input,.modal select,.modal textarea{width:100%;padding:10px 14px;border-radius:var(--radius-xs);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font);font-size:.9em;outline:0;transition:var(--transition);margin-bottom:14px}
+        .modal input:focus,.modal select:focus,.modal textarea:focus{border-color:var(--accent);box-shadow:0 0 14px var(--glow)}
+        .modal select option{background:var(--surface2);color:var(--text)}
+        .modal .form-row{display:flex;gap:12px}
+        .modal .form-row>*{flex:1}
+        .modal .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:10px}
+        .toggle-switch{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;margin-bottom:14px}
+        .toggle-switch input{display:none}
+        .toggle-slider{width:46px;height:26px;border-radius:13px;background:var(--surface3);border:1px solid var(--border);position:relative;transition:var(--transition);flex-shrink:0}
+        .toggle-slider::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:2px;left:2px;transition:var(--transition)}
+        .toggle-switch input:checked+.toggle-slider{background:var(--accent);border-color:var(--accent)}
+        .toggle-switch input:checked+.toggle-slider::after{left:22px}
+        .preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+        .preset-card{padding:12px 14px;border-radius:var(--radius-xs);border:1px solid var(--border);cursor:pointer;transition:var(--transition);background:var(--surface2);text-align:center;font-size:.85em;font-weight:500}
+        .preset-card:hover{border-color:var(--accent);background:var(--surface3);box-shadow:0 0 18px var(--glow)}
+        .preset-card .preset-icon{width:36px;height:36px;margin:0 auto 6px}
+        .preset-card .preset-icon svg{width:100%;height:100%}
+        .toast-container{position:fixed;top:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px}
+        .toast{padding:12px 20px;border-radius:var(--radius-xs);background:var(--surface3);border:1px solid var(--border);color:var(--text);font-size:.85em;animation:toastIn .3s ease,toastOut .3s ease 2.5s forwards;box-shadow:var(--shadow);max-width:350px}
+        @keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+        @keyframes toastOut{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}
+        .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text2);text-align:center;padding:40px;gap:12px}
+        .empty-state .empty-icon{width:80px;height:80px;opacity:.5}
+        .empty-state .empty-icon svg{width:100%;height:100%;stroke:var(--accent3)}
+        .empty-state h3{font-weight:600;color:var(--text)}
+        @media (max-width:768px){.sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;width:280px;min-width:280px;box-shadow:var(--shadow)}.sidebar.collapsed{left:-290px;width:280px;min-width:280px}.message{max-width:92%}.modal{width:95%;padding:18px;max-height:90vh}.preset-grid{grid-template-columns:1fr}.modal .form-row{flex-direction:column;gap:0}}
+        .icon-svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+        #installBtn{display:none}
+        #installBtn.visible{display:inline-flex}
+        .attachment-area{display:flex;gap:8px;padding:0 20px 8px;flex-wrap:wrap;flex-shrink:0}
+        .attachment-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:.78em;color:var(--text);transition:var(--transition);max-width:200px}
+        .attachment-chip:hover{border-color:var(--accent);background:var(--surface3)}
+        .attachment-chip .file-icon{width:18px;height:18px;flex-shrink:0;color:var(--accent3)}
+        .attachment-chip .file-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .attachment-chip .remove-file{cursor:pointer;width:18px;height:18px;border-radius:50%;border:none;background:var(--surface3);color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;transition:var(--transition)}
+        .attachment-chip .remove-file:hover{background:var(--danger);color:#fff}
+        .attach-btn{width:38px;height:38px;border-radius:50%;background:var(--surface2);border:1px dashed var(--border);color:var(--text2);cursor:pointer;transition:var(--transition);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2em}
+        .attach-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--surface3)}
+        .attach-btn:disabled{opacity:.4;cursor:not-allowed}
+        .hidden-file-input{display:none}
+        .message-content .attachment-ref{display:inline-block;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;margin:2px 4px;font-size:.82em;color:var(--accent3)}
+    </style>
+</head>
+<body>
+    <div class="bg-orbs">
+        <div class="bg-orb"></div>
+        <div class="bg-orb"></div>
+        <div class="bg-orb"></div>
+    </div>
+    <div class="grid-overlay"></div>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="logo">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <defs><linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="var(--accent2)"/><stop offset="100%" stop-color="var(--accent3)"/></linearGradient></defs>
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="url(#logo-gradient)" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                    <span data-i18n="app-title">Giraffe AI</span>
+                </span>
+                <button class="btn-icon toggle-sidebar-btn" onclick="toggleSidebar()" title="Collapse sidebar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" class="icon-svg"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+            </div>
+            <div class="sidebar-content" id="sidebarContent">
+                <button class="btn btn-accent" style="width:100%" onclick="newChat()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" class="icon-svg" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                    <span data-i18n="new-chat">New Chat</span>
+                </button>
+                <div style="font-size:.7em;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-top:8px;padding:0 4px" data-i18n="providers-heading">Providers</div>
+                <div id="providerList"></div>
+                <button class="btn" style="width:100%;margin-top:4px;border-style:dashed" onclick="openProviderModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" class="icon-svg"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span data-i18n="add-provider">Add Provider</span>
+                </button>
+                <div style="font-size:.7em;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-top:12px;padding:0 4px" data-i18n="chat-history-heading">Chat History</div>
+                <div id="chatHistoryList"></div>
+                <div class="sidebar-mascot">
+                    <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"><g transform="translate(0 400) scale(.1 -.1)"><path d="m1536 3456c-74-28-126-98-126-170 0-42 13-80 45-126 29-42 45-132 45-252 0-76-3-90-22-113l-23-26-65 64c-108 105-243 156-413 157-70 0-81-3-102-25-30-29-32-67-10-170 39-185 144-302 336-374l69-26 3-130c3-141-4-111 105-415 17-47 43-125 58-174 17-54 40-106 61-132l33-44v-453c0-498 0-495 63-541 27-20 43-21 382-24 228-2 368 1 394 8 24 6 51 24 70 45l31 36v460 460l24 32c38 51 63 107 92 208 14 52 44 138 66 192 66 167 82 238 82 365v112l40 11c213 56 356 230 373 451 6 73 4 80-17 103-21 22-32 25-97 25-172 0-317-54-421-157-34-35-65-63-67-63-3 0-14 15-25 33-23 37-26 98-9 227 8 67 17 95 45 140 61 99 43 202-45 265-88 62-224 27-271-71-19-39-21-55-15-102 11-86 7-121-20-180-17-38-29-52-39-49-86 33-213 39-285 13-35-13-47-14-59-4-34 28-46 81-46 199-1 111-2 117-29 152-49 65-136 91-211 63zm111-106c40-24 50-59 35-117-15-56 6-156 49-231 39-69 61-77 136-50 81 30 197 29 276-1 54-21 60-22 82-7 57 37 114 192 100 270-12 69-9 96 15 121 44 47 117 39 145-16 21-40 19-59-12-104-15-22-33-64-40-95-16-65-29-276-19-313 3-15 31-55 62-89 101-114 159-247 170-393 8-102-11-203-65-341-21-55-53-147-71-205-18-57-34-108-37-112-3-5-15 20-27 56-50 148-144 226-314 262-123 26-271 13-376-34-67-29-144-106-177-176-16-33-29-67-29-75s-4-21-9-29c-7-10-17 12-36 75-15 49-46 141-70 204-61 164-76 228-76 334 1 152 51 290 148 410 26 32 57 69 68 83 17 21 20 38 18 126-3 140-25 260-57 306-41 59-28 129 28 151 33 13 48 12 83-10zm-482-475c28-9 71-30 98-47 45-29 127-112 127-129 0-5-15-37-34-71-19-35-39-80-46-100-6-21-17-38-24-38-33 0-137 44-181 78-90 68-145 165-161 280-6 48-5 50 17 54 40 5 151-9 204-27zm1895-10c0-52-37-157-73-207-55-79-154-144-245-163-30-6-33-4-44 27-6 18-28 65-49 105l-38 72 34 44c64 83 180 142 309 155 95 10 106 7 106-33zm-869-964c75-29 141-88 176-159 25-51 28-67 28-162 0-97-2-109-27-152-35-59-88-102-158-130-48-20-74-23-211-23h-155l-76 38c-124 61-177 157-165 299 14 161 102 264 262 305 76 19 256 11 326-16zm-514-627c65-50 151-75 279-81 176-9 299 22 395 98l39 31v-86-86l-53-23c-94-42-147-130-132-219 9-54 64-114 119-130 63-18 66-23 66-104 0-99-22-119-121-112-40 3-45 6-64 44-27 56-130 169-170 188-114 54-235-26-270-179l-11-50-47-3c-39-3-51 1-72 22-25 25-26 30-23 131l3 106 59 24c112 46 181 144 157 225-14 46-45 70-121 95-92 29-100 37-100 101 0 61-2 61 67 8z"/><path d="m1923 2881c-96-46-106-85-43-177 27-40 42-75 46-107 11-81 58-117 114-87 20 11 40 60 40 100 0 15 18 53 40 86 45 66 53 120 23 146-26 23-119 68-140 68-10 0-46-13-80-29z"/><path d="m1654 2706c-34-15-59-63-49-95 7-22 77-83 108-94 51-19 94 42 76 108-20 73-76 107-135 81z"/><path d="m2274 2706c-64-28-85-140-33-179 26-18 28-18 63-2 91 43 120 107 74 159-29 32-64 39-104 22z"/><path d="m1510 2317c-35-27-50-62-50-117 0-70 25-119 73-143 126-63 213 136 106 242-24 25-39 31-72 31-23 0-49-6-57-13zm90-52c26-32-13-81-47-59-35 22-23 74 17 74 10 0 23-7 30-15z"/><path d="m2376 2309c-38-30-56-71-56-129 0-83 42-133 109-133 42 0 80 28 102 76 32 72 18 155-32 191-33 23-91 20-123-5zm94-48c19-36-11-68-51-56-19 6-27 54-12 68 13 14 53 6 63-12z"/><path d="m1787 1763c-12-12-7-63 8-87 22-33 70-52 90-36 38 32-10 130-64 130-15 0-31-3-34-7z"/><path d="m2136 1745c-44-48-41-115 5-115 26 0 76 49 85 84 14 55-48 76-90 31z"/><path d="m1824 1456c-17-44 65-76 188-75 96 0 163 25 163 59 0 21-4 25-30 24-16-1-56-7-87-13-44-9-72-9-115 0-112 22-112 22-119 5z"/></g></svg>
+                </div>
+            </div>
+            <div class="sidebar-footer" data-i18n="sidebar-footer">v1.0 · Local Storage</div>
+        </aside>
+        <main class="main-area">
+            <header class="main-header">
+                <button class="btn-icon toggle-sidebar-btn" onclick="toggleSidebar()" id="toggleSidebarBtn2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" class="icon-svg"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <div>
+                    <div class="current-provider" id="currentProviderName">No Provider Selected</div>
+                    <div class="current-model" id="currentModelName" data-i18n="configure-prompt">Configure a provider to begin</div>
+                </div>
+                <div class="header-actions">
+                    <!-- Token counter & reset -->
+                    <span style="display:flex;align-items:center;gap:6px;margin-right:12px;font-size:0.75em;color:var(--text2);" id="tokenPanel">
+                        <span id="tokenCountDisplay">Tokens: 0</span>
+                        <button id="resetTokenBtn" class="btn btn-sm" style="padding:2px 6px;font-size:0.7em;line-height:1;" onclick="resetTokens()" title="Reset token count">Reset</button>
+                        <span id="tokenSpeedDisplay">-- t/s</span>
+                    </span>
+                    <button class="btn btn-sm" id="installBtn" onclick="installPwa()" title="Install App">
+                        <svg width="14" height="14" viewBox="0 0 24 24" class="icon-svg"><path d="M12 2v8m0 0l-3-3m3 3l3-3"/><rect x="4" y="14" width="16" height="8" rx="2"/></svg>
+                        <span data-i18n="install">Install</span>
+                    </button>
+                    <button class="btn btn-sm" onclick="openProviderModal()" title="Manage Providers">
+                        <svg width="14" height="14" viewBox="0 0 24 24" class="icon-svg"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        <span data-i18n="providers">Providers</span>
+                    </button>
+                    <button class="btn btn-sm" onclick="openSettingsModal()" title="Chat Settings">
+                        <svg width="14" height="14" viewBox="0 0 24 24" class="icon-svg"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                        <span data-i18n="settings">Settings</span>
+                    </button>
+                    <button class="btn btn-sm" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark theme"></button>
+                    <button class="btn btn-sm" id="langCycleBtn" onclick="cycleLanguage()" title="Change language">
+                        <svg width="14" height="14" viewBox="0 0 24 24" class="icon-svg"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        <span id="currentLangCode">EN</span>
+                    </button>
+                </div>
+            </header>
+            <div class="chat-messages" id="chatMessages">
+                <div class="empty-state">
+                    <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                    <h3 data-i18n="welcome-title">Welcome to Giraffe AI</h3>
+                    <p data-i18n="welcome-text">Add a provider to get started, or select one from the sidebar.</p>
+                    <button class="btn btn-accent" onclick="openProviderModal()">+ <span data-i18n="add-provider">Add Provider</span></button>
+                </div>
+            </div>
+            <div class="attachment-area" id="attachmentArea" style="display:none"></div>
+            <div class="input-area">
+                <input type="file" id="fileInput" class="hidden-file-input" multiple accept=".pdf,.docx,.doc,.txt,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.gif,.webp,.md,.json,.xml,.html,.htm,.py,.js,.ts,.java,.cpp,.c,.h,.css,.scss" onchange="handleFileSelect(event)">
+                <button class="attach-btn" id="attachBtn" onclick="document.getElementById('fileInput').click()" title="Attach files" disabled>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                </button>
+                <textarea id="userInput" rows="1" data-i18n-placeholder="type-message-placeholder" placeholder="Type your message... (Shift+Enter for new line)" onkeydown="handleInputKeydown(event)" disabled></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled title="Send message">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+            </div>
+        </main>
+    </div>
+    <div class="modal-overlay" id="providerModalOverlay" style="display:none" onclick="closeProviderModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <h2 id="providerModalTitle" data-i18n="add-provider">Add Provider</h2>
+            <div style="margin-bottom:14px"><label data-i18n="quick-setup">Quick Setup (Pre-configured)</label><div class="preset-grid" id="presetGrid"></div></div>
+            <hr style="border-color:var(--border);margin:16px 0">
+            <input type="hidden" id="providerEditId">
+            <label data-i18n="provider-name">Provider Name</label><input id="providerName" placeholder="e.g., My DeepSeek">
+            <div class="form-row">
+                <div><label data-i18n="api-format">API Format</label><select id="providerFormat"><option value="openai">OpenAI Compatible</option><option value="ollama">Ollama Native</option><option value="anthropic">Anthropic Native</option><option value="gemini">Gemini Native</option></select></div>
+                <div><label data-i18n="model-name">Model Name</label><input id="providerModel" placeholder="e.g., deepseek-chat"></div>
+            </div>
+            <label data-i18n="api-endpoint">API Endpoint URL</label><input id="providerEndpoint" placeholder="https://api.example.com/v1/chat/completions">
+            <label data-i18n="api-key">API Key</label><input type="password" id="providerApiKey" placeholder="sk-...">
+            <div class="form-row">
+                <div><label data-i18n="temperature">Temperature</label><input type="number" id="providerTemp" value="0.7" min="0" max="2" step="0.05"></div>
+                <div><label data-i18n="max-tokens">Max Tokens</label><input type="number" id="providerMaxTokens" value="4096" min="1" max="200000" step="1"></div>
+                <div><label data-i18n="top-p">Top P</label><input type="number" id="providerTopP" value="0.9" min="0" max="1" step="0.05"></div>
+            </div>
+            <label class="toggle-switch" style="display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; margin-bottom:14px; flex-wrap:wrap;"><input type="checkbox" id="providerReasoning"><span class="toggle-slider" style="flex-shrink:0;"></span><span data-i18n="enable-reasoning" style="display:inline; white-space:normal; word-break:break-word;">Enable Reasoning/Thinking (for supported models)</span></label>
+            <label class="toggle-switch" style="display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; margin-bottom:14px; flex-wrap:wrap;"><input type="checkbox" id="providerAttachments" checked><span class="toggle-slider" style="flex-shrink:0;"></span><span style="display:inline; white-space:normal; word-break:break-word;">Allow image/document attachments (text files are always allowed)</span></label>
+            <div class="form-row"><div><label data-i18n="text-limit">Text Char Limit / File</label><input type="number" id="providerTextLimit" value="30000" min="1000" max="2000000" step="500"></div></div>
+            <label data-i18n="system-prompt">System Prompt (optional)</label><textarea id="providerSystemPrompt" rows="3" placeholder="You are a helpful assistant..."></textarea>
+            <div class="form-actions">
+                <button class="btn btn-danger btn-sm" id="deleteProviderBtn" style="display:none;margin-right:auto" onclick="deleteProviderFromModal()"><svg width="14" height="14" viewBox="0 0 24 24" class="icon-svg" stroke="currentColor"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span data-i18n="delete">Delete</span></button>
+                <button class="btn" onclick="closeProviderModal()"><span data-i18n="cancel">Cancel</span></button>
+                <button class="btn btn-accent" onclick="saveProvider()"><svg width="14" height="14" viewBox="0 0 24 24" class="icon-svg" stroke="white"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span data-i18n="save-provider">Save Provider</span></button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="settingsModalOverlay" style="display:none" onclick="closeSettingsModal(event)">
+        <div class="modal" onclick="event.stopPropagation()" style="max-width:480px">
+            <h2 data-i18n="chat-settings">Chat Settings</h2>
+            <label data-i18n="system-prompt-override">System Prompt (overrides provider default)</label><textarea id="settingsSystemPrompt" rows="4" placeholder="Global system prompt..."></textarea>
+            <label data-i18n="temperature-override">Temperature Override</label><input type="number" id="settingsTemp" value="0.7" min="0" max="2" step="0.05">
+            <label data-i18n="max-tokens-override">Max Tokens Override</label><input type="number" id="settingsMaxTokens" value="4096" min="1" max="200000" step="1">
+            <div class="form-actions">
+                <button class="btn" onclick="closeSettingsModal()"><span data-i18n="cancel">Cancel</span></button>
+                <button class="btn btn-accent" onclick="saveSettings()"><svg width="14" height="14" viewBox="0 0 24 24" class="icon-svg" stroke="white"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span data-i18n="save">Save</span></button>
+                <button class="btn btn-danger btn-sm" onclick="clearAllData()"><svg width="14" height="14" viewBox="0 0 24 24" class="icon-svg" stroke="currentColor"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span data-i18n="clear-all-data">Clear All Data</span></button>
+            </div>
+        </div>
+    </div>
+    <div class="toast-container" id="toastContainer"></div>
+    <script>
+    (function(){
+        const L=['en','it','fr','de','es','ru'];
+        const T={'app-title':['Giraffe AI','Giraffe AI','Giraffe AI','Giraffe AI','Giraffe AI','Giraffe AI'],'new-chat':['New Chat','Nuova Chat','Nouveau Chat','Neuer Chat','Nuevo Chat','Новый чат'],'providers-heading':['Providers','Provider','Fournisseurs','Anbieter','Proveedores','Провайдеры'],'add-provider':['Add Provider','Aggiungi Provider','Ajouter un fournisseur','Anbieter hinzufügen','Agregar proveedor','Добавить провайдера'],'edit-provider':['Edit Provider','Modifica Provider','Modifier le fournisseur','Anbieter bearbeiten','Editar proveedor','Редактировать провайдера'],'chat-history-heading':['Chat History','Cronologia Chat','Historique des chats','Chat-Verlauf','Historial de chat','История чатов'],'sidebar-footer':['v1.0 · Local Storage','v1.0 · Memoria locale','v1.0 · Stockage local','v1.0 · Lokaler Speicher','v1.0 · Almacenamiento local','v1.0 · Локальное хранилище'],'configure-prompt':['Configure a provider to begin','Configura un provider per iniziare','Configurez un fournisseur pour commencer','Konfigurieren Sie einen Anbieter, um zu beginnen','Configure un proveedor para comenzar','Настройте провайдера, чтобы начать'],'providers':['Providers','Provider','Fournisseurs','Anbieter','Proveedores','Провайдеры'],'settings':['Settings','Impostazioni','Paramètres','Einstellungen','Configuración','Настройки'],'install':['Install','Installa','Installer','Installieren','Instalar','Установить'],'welcome-title':['Welcome to Giraffe AI','Benvenuto su Giraffe AI','Bienvenue sur Giraffe AI','Willkommen bei Giraffe AI','Bienvenido a Giraffe AI','Добро пожаловать в Giraffe AI'],'welcome-text':['Add a provider to get started, or select one from the sidebar.','Aggiungi un provider per iniziare, o selezionane uno dalla barra laterale.','Ajoutez un fournisseur pour commencer, ou sélectionnez-en un dans la barre latérale.','Fügen Sie einen Anbieter hinzu oder wählen Sie einen aus der Seitenleiste.','Agregue un proveedor para comenzar, o seleccione uno de la barra lateral.','Добавьте провайдера, чтобы начать, или выберите из боковой панели.'],'type-message-placeholder':['Type your message... (Shift+Enter for new line)','Scrivi il tuo messaggio... (Maiusc+Invio per nuova riga)','Tapez votre message... (Maj+Entrée pour nouvelle ligne)','Nachricht eingeben... (Umschalt+Eingabe für neue Zeile)','Escribe tu mensaje... (Mayús+Enter para nueva línea)','Введите сообщение... (Shift+Enter для новой строки)'],'quick-setup':['Quick Setup (Pre-configured)','Configurazione rapida (Pre-configurata)','Configuration rapide (Pré-configurée)','Schnelleinrichtung (Vorkonfiguriert)','Configuración rápida (Preconfigurada)','Быстрая настройка (Предварительно)'],'provider-name':['Provider Name','Nome Provider','Nom du fournisseur','Anbietername','Nombre del proveedor','Имя провайдера'],'api-format':['API Format','Formato API','Format API','API-Format','Formato API','Формат API'],'model-name':['Model Name','Nome Modello','Nom du modèle','Modellname','Nombre del modelo','Имя модели'],'api-endpoint':['API Endpoint URL','URL Endpoint API','URL de l\'endpoint API','API-Endpunkt-URL','URL del endpoint API','URL конечной точки API'],'api-key':['API Key','Chiave API','Clé API','API-Schlüssel','Clave API','API-ключ'],'temperature':['Temperature','Temperatura','Température','Temperatur','Temperatura','Температура'],'max-tokens':['Max Tokens','Token Massimi','Jetons max','Max. Token','Tokens máximos','Макс. токенов'],'top-p':['Top P','Top P','Top P','Top P','Top P','Top P'],'enable-reasoning':['Enable Reasoning/Thinking (for supported models)','Abilita Ragionamento (per modelli supportati)','Activer le raisonnement (pour modèles pris en charge)','Argumentieren/Denken aktivieren (für unterstützte Modelle)','Habilitar razonamiento (para modelos compatibles)','Включить рассуждение (для поддерживаемых моделей)'],'system-prompt':['System Prompt (optional)','Prompt di sistema (opzionale)','Invite système (optionnel)','System-Prompt (optional)','Prompt del sistema (opcional)','Системный промпт (опционально)'],'delete':['Delete','Elimina','Supprimer','Löschen','Eliminar','Удалить'],'cancel':['Cancel','Annulla','Annuler','Abbrechen','Cancelar','Отмена'],'save-provider':['Save Provider','Salva Provider','Enregistrer le fournisseur','Anbieter speichern','Guardar proveedor','Сохранить провайдера'],'chat-settings':['Chat Settings','Impostazioni Chat','Paramètres de chat','Chat-Einstellungen','Configuración de chat','Настройки чата'],'system-prompt-override':['System Prompt (overrides provider default)','Prompt di sistema (sovrascrive il default del provider)','Invite système (remplace le défaut du fournisseur)','System-Prompt (überschreibt Anbieterstandard)','Prompt del sistema (anula el predeterminado del proveedor)','Системный промпт (переопределяет провайдера)'],'temperature-override':['Temperature Override','Sovrascrivi Temperatura','Remplacer la température','Temperatur überschreiben','Anular temperatura','Переопределить температуру'],'max-tokens-override':['Max Tokens Override','Sovrascrivi Token Massimi','Remplacer les jetons max','Max. Token überschreiben','Anular tokens máximos','Переопределить макс. токены'],'save':['Save','Salva','Enregistrer','Speichern','Guardar','Сохранить'],'clear-all-data':['Clear All Data','Cancella tutti i dati','Effacer toutes les données','Alle Daten löschen','Borrar todos los datos','Удалить все данные'],'no-provider-selected':['No Provider Selected','Nessun provider selezionato','Aucun fournisseur sélectionné','Kein Anbieter ausgewählt','Ningún proveedor seleccionado','Провайдер не выбран'],'select-provider':['Select a provider','Seleziona un provider','Sélectionnez un fournisseur','Wählen Sie einen Anbieter','Seleccione un proveedor','Выберите провайдера'],'start-conversation':['Start a conversation','Inizia una conversazione','Démarrer une conversation','Ein Gespräch beginnen','Iniciar una conversación','Начать разговор'],'no-provider-message':['Add or select a provider from the sidebar.','Aggiungi o seleziona un provider dalla barra laterale.','Ajoutez ou sélectionnez un fournisseur dans la barre latérale.','Fügen Sie einen Anbieter hinzu oder wählen Sie einen aus der Seitenleiste.','Agregue o seleccione un proveedor de la barra lateral.','Добавьте или выберите провайдера на боковой панели.'],'no-providers-yet':['No providers yet.<br>Click below to add one.','Nessun provider.<br>Clicca sotto per aggiungerne uno.','Aucun fournisseur.<br>Cliquez ci-dessous pour en ajouter un.','Noch keine Anbieter.<br>Klicken Sie unten, um einen hinzuzufügen.','Aún no hay proveedores.<br>Haga clic abajo para agregar uno.','Провайдеров пока нет.<br>Нажмите ниже, чтобы добавить.'],'no-chats':['No chats yet','Nessuna chat ancora','Aucun chat pour l\'instant','Noch keine Chats','Aún no hay chats','Чатов пока нет'],'untitled-chat':['Untitled Chat','Chat senza titolo','Chat sans titre','Unbenannter Chat','Chat sin título','Безымянный чат'],'reasoning-summary':['🧠 Reasoning (click to expand)','🧠 Ragionamento (clicca per espandere)','🧠 Raisonnement (cliquez pour développer)','🧠 Argumentation (zum Erweitern klicken)','🧠 Razonamiento (clic para expandir)','🧠 Рассуждение (нажмите, чтобы развернуть)'],'copy':['📋 Copy','📋 Copia','📋 Copier','📋 Kopieren','📋 Copiar','📋 Копировать'],'regenerate':['🔄 Regenerate','🔄 Rigenera','🔄 Régénérer','🔄 Neu generieren','🔄 Regenerar','🔄 Пересоздать'],'copied':['📋 Copied to clipboard','📋 Copiato negli appunti','📋 Copié dans le presse-papier','📋 In die Zwischenablage kopiert','📋 Copiado al portapapeles','📋 Скопировано в буфер обмена'],'copy-failed':['⚠ Failed to copy','⚠ Copia fallita','⚠ Échec de la copie','⚠ Kopieren fehlgeschlagen','⚠ Error al copiar','⚠ Не удалось скопировать'],'generation-stopped':['⏹ Generation stopped','⏹ Generazione fermata','⏹ Génération arrêtée','⏹ Generierung gestoppt','⏹ Generación detenida','⏹ Генерация остановлена'],'data-saved':['💾 Data saved','💾 Dati salvati','💾 Données enregistrées','💾 Daten gespeichert','💾 Datos guardados','💾 Данные сохранены'],'provider-saved':['✅ Provider saved successfully!','✅ Provider salvato con successo!','✅ Fournisseur enregistré avec succès !','✅ Anbieter erfolgreich gespeichert!','✅ ¡Proveedor guardado exitosamente!','✅ Провайдер успешно сохранен!'],'provider-deleted':['🗑 Provider deleted.','🗑 Provider eliminato.','🗑 Fournisseur supprimé.','🗑 Anbieter gelöscht.','🗑 Proveedor eliminado.','🗑 Провайдер удален.'],'preset-loaded':['📋 preset loaded. Enter your API key.','📋 preset caricato. Inserisci la tua chiave API.','📋 préréglage chargé. Entrez votre clé API.','📋 Voreinstellung geladen. Geben Sie Ihren API-Schlüssel ein.','📋 preajuste cargado. Ingrese su clave API.','📋 пресет загружен. Введите ваш API-ключ.'],'new-chat-created':['✨ New chat created','✨ Nuova chat creata','✨ Nouveau chat créé','✨ Neuer Chat erstellt','✨ Nuevo chat creado','✨ Новый чат создан'],'settings-saved':['✅ Settings saved','✅ Impostazioni salvate','✅ Paramètres enregistrés','✅ Einstellungen gespeichert','✅ Configuración guardada','✅ Настройки сохранены'],'all-data-cleared':['🗑 All data cleared.','🗑 Tutti i dati cancellati.','🗑 Toutes les données effacées.','🗑 Alle Daten gelöscht.','🗑 Todos los datos borrados.','🗑 Все данные удалены.'],'error-api':['❌ API error','❌ Errore API','❌ Erreur API','❌ API-Fehler','❌ Error de API','❌ Ошибка API'],'stop-generation':['⏹ Generation stopped','⏹ Generazione fermata','⏹ Génération arrêtée','⏹ Generierung gestoppt','⏹ Generación detenida','⏹ Генерация остановлена'],'confirm-delete-provider':['Delete this provider and all its chats? This cannot be undone.','Eliminare questo provider e tutte le sue chat? Non può essere annullato.','Supprimer ce fournisseur et tous ses chats ? Cette action est irréversible.','Diesen Anbieter und alle seine Chats löschen? Dies kann nicht rückgängig gemacht werden.','¿Eliminar este proveedor y todos sus chats? Esta acción no se puede deshacer.','Удалить этого провайдера и все его чаты? Это действие нельзя отменить.'],'confirm-delete-all':['⚠️ This will delete ALL providers, chats, and settings. Are you sure?','⚠️ Questo eliminerà TUTTI i provider, le chat e le impostazioni. Sei sicuro?','⚠️ Cela supprimera TOUS les fournisseurs, chats et paramètres. Êtes-vous sûr ?','⚠️ Dies löscht ALLE Anbieter, Chats und Einstellungen. Sind Sie sicher?','⚠️ Esto eliminará TODOS los proveedores, chats y configuraciones. ¿Está seguro?','⚠️ Это удалит ВСЕХ провайдеров, чаты и настройки. Вы уверены?'],'file-too-large':['File too large: {name}','File troppo grande: {name}','Fichier trop volumineux : {name}','Datei zu groß: {name}','Archivo demasiado grande: {name}','Файл слишком большой: {name}'],'file-type-unsupported':['File type not supported: {name}','Tipo di file non supportato: {name}','Type de fichier non pris en charge : {name}','Dateityp nicht unterstützt: {name}','Tipo de archivo no soportado: {name}','Тип файла не поддерживается: {name}'],'file-already-attached':['File already attached: {name}','File già allegato: {name}','Fichier déjà attaché : {name}','Datei bereits angehängt: {name}','Archivo ya adjuntado: {name}','Файл уже прикреплен: {name}'],'files-attached':['{n} file(s) attached','{n} file allegati','{n} fichier(s) attaché(s)','{n} Datei(en) angehängt','{n} archivo(s) adjuntado(s)','прикреплено файл(ов): {n}'],'uploading-files':['Uploading files...','Caricamento file...','Téléchargement des fichiers...','Dateien werden hochgeladen...','Subiendo archivos...','Загрузка файлов...'],'attachments-disabled':['Attachments (images/documents) are disabled for this provider: {name}','Allegati (immagini/documenti) disabilitati per questo provider: {name}','Pièces jointes (images/documents) désactivées pour ce fournisseur : {name}','Anhänge (Bilder/Dokumente) für diesen Anbieter deaktiviert: {name}','Adjuntos (imágenes/documentos) deshabilitados para este proveedor: {name}','Вложения (изображения/документы) отключены для этого провайдера: {name}'],'text-limit':['Text Char Limit / File','Limite Caratteri / File','Limite de caractères / Fichier','Zeichenlimit / Datei','Límite de caracteres / Archivo','Лимит символов / файл']};
+        let cl=L[0],cli=0;
+        function dt(){const b=(navigator.language||'').split('-')[0].toLowerCase();cli=L.indexOf(b);return cli>=0?L[cli]:L[0]}
+        function _(k){return(T[k]||[])[cli]||(T[k]||[])[0]||k}
+        function ut(){document.querySelectorAll('[data-i18n]').forEach(e=>{const k=e.getAttribute('data-i18n');if(k)e.textContent=_(k)});document.querySelectorAll('[data-i18n-placeholder]').forEach(e=>{const k=e.getAttribute('data-i18n-placeholder');if(k)e.placeholder=_(k)});udt()}
+        function udt(){const p=gAP();$('currentProviderName').textContent=p?p.name:_('no-provider-selected');$('currentModelName').textContent=p?p.model:_('configure-prompt');const ms=gAMs();if(!p||ms.length===0){const es=$('chatMessages').querySelector('.empty-state');if(es){const h3=es.querySelector('h3'),p=es.querySelector('p');if(h3)h3.textContent=p?_('start-conversation'):_('no-provider-selected');if(p)p.textContent=p?_('welcome-text'):_('no-provider-message')}}const i=$('userInput');if(i){const pr=gAP();if(!pr)i.placeholder=_('select-provider');else if(iS)i.placeholder='...';else i.placeholder=_('type-message-placeholder')}}
+        const SK='giraffe_ai_data';
+        let D={providers:[],activeProviderId:null,chats:{},activeChatId:null,settings:{systemPrompt:'',temperature:null,maxTokens:null},theme:'dark',language:L[0],totalTokens:0};
+        let iS=false,aC=null;
+        let pendingAttachments=[];
+        const MAX_FILE_SIZE=20*1024*1024;
+        const ALLOWED_TYPES=['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/msword','text/plain','text/csv','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.ms-excel','image/png','image/jpeg','image/gif','image/webp','text/markdown','application/json','text/xml','application/xml','text/html','text/x-python','text/javascript','text/x-java','text/x-c','text/css'];
+        const TEXTUAL_EXTS=['.txt','.csv','.tsv','.log','.ini','.cfg','.conf','.md','.rst','.tex','.xml','.html','.htm','.css','.js','.ts','.json','.yaml','.yml','.toml','.properties','.env','.sh','.bash','.zsh','.fish','.ps1','.py','.java','.c','.cpp','.h','.hpp','.cs','.rb','.go','.rs','.swift','.kt','.lua','.pl','.pm','.r','.jl','.dart','.groovy','.sql','.vue','.jsx','.tsx','.svelte','.scss','.sass','.less','.coffee','.php','.phtml','.tpl','.xsd','.wsdl','.rss','.atom','.manifest','.webmanifest','.cmake','.gemfile','.rakefile','.vagrantfile','.gitignore','.gitattributes','.editorconfig','.eslintrc','.prettierrc','.babelrc','.npmrc','.yarnrc','.pnpmrc','.lerna.json','.nx.json','.code-workspace','.iml','.ipr','.pom','.gradle','.sbt','.scala','.clj','.edn','.bb','.boot','.nix','.tf','.hcl','.nomad','.consul','.vault','.jinja','.j2','.mustache','.hbs','.handlebars','.ejs','.pug','.haml','.slim','.liquid','.nunjucks','.twig','.doxyfile','.readme','.license','.copying','.authors','.changelog','.news','.history','.todo','.notes','.faq','.bugs','.contributing','.code_of_conduct','.security','.conduct','.governance','.roadmap','.charter','.dockerfile','.makefile'];
+        const TEXTUAL_NAMES=['dockerfile','makefile','gemfile','rakefile','vagrantfile','readme','license','copying','authors','changelog','news','history','todo','notes','faq','bugs','contributing','code_of_conduct','security','conduct','governance','roadmap','charter','doxyfile','terraform','ansible','playbook','requirements','inventory','hosts','group_vars','host_vars','pull_request_template','issue_template'];
+        try{document.getElementById('fileInput').accept=[...TEXTUAL_EXTS,...ALLOWED_TYPES].join(',')}catch(e){}
+        function isTextualFile(fileName){
+            const n=fileName.toLowerCase();
+            const parts=n.split('.');
+            const ext=parts.length>1?'.'+parts[parts.length-1]:'';
+            return TEXTUAL_EXTS.includes(ext)||(parts.length===1&&TEXTUAL_NAMES.includes(n))
+        }
+        function readFileText(file,limit){
+            return new Promise((resolve,reject)=>{
+                const reader=new FileReader();
+                reader.onload=()=>{let t=reader.result;if(t.length>limit)t=t.slice(0,limit)+'\n…[truncated]';resolve(t)};
+                reader.onerror=reject;
+                reader.readAsText(file)
+            })
+        }
+        function lD(){
+            try{
+                const r=localStorage.getItem(SK);
+                if(r){
+                    const p=JSON.parse(r);
+                    D.providers=p.providers||[];
+                    D.activeProviderId=p.activeProviderId||null;
+                    D.chats=p.chats||{};
+                    D.activeChatId=p.activeChatId||null;
+                    D.settings=p.settings||{systemPrompt:'',temperature:null,maxTokens:null};
+                    D.theme=p.theme||'dark';
+                    D.language=p.language||dt();
+                    D.totalTokens=p.totalTokens||0;
+                }else{
+                    D.language=dt()
+                }
+            }catch(e){console.error(e)}
+            D.providers.forEach(p=>{if(!D.chats[p.id])D.chats[p.id]={}});
+            cl=D.language||L[0];
+            cli=L.indexOf(cl);
+            ut();
+            updateTokenDisplay();
+        }
+        function sD(){
+            try{D.language=cl;localStorage.setItem(SK,JSON.stringify(D))}catch(e){st('⚠️ Failed to save data.','error')}
+        }
+        function aT(){
+            const isL=D.theme==='light';
+            document.body.classList.toggle('light-mode',isL);
+            const b=$('themeToggleBtn');
+            if(b)b.innerHTML=isL?
+                `<svg width="16" height="16" viewBox="0 0 24 24" class="icon-svg"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`:
+                `<svg width="16" height="16" viewBox="0 0 24 24" class="icon-svg"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+        }
+        function tT(){D.theme=D.theme==='dark'?'light':'dark';sD();aT()}
+        function cL(){cli=(cli+1)%L.length;cl=L[cli];D.language=cl;sD();ut();rA();$('currentLangCode').textContent=cl.toUpperCase()}
+        function st(m,t=''){const msg=_(m)||m;const c=$('toastContainer');const d=document.createElement('div');d.className='toast';d.textContent=msg;if(t==='error')d.style.borderColor='#e74c3c';if(t==='success')d.style.borderColor='#2ecc71';c.appendChild(d);setTimeout(()=>d.remove(),3000)}
+        function $(id){return document.getElementById(id)}
+        function tS(){$('sidebar').classList.toggle('collapsed')}
+        function gAP(){return D.providers.find(p=>p.id===D.activeProviderId)||null}
+        function gAC(){const p=gAP();if(!p)return null;const c=D.chats[p.id]||{};return c[D.activeChatId]||null}
+        function gAMs(){const c=gAC();return c?c.messages:[]}
+        function eH(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+        function rPL(){
+            const l=$('providerList');
+            l.innerHTML=D.providers.map(p=>{
+                const a=p.id===D.activeProviderId;
+                const col={openai:'#10a37f',deepseek:'#4d6bfe',ollama:'#f0f0f0',anthropic:'#d97757',gemini:'#4285f4',groq:'#f97316',openrouter:'#6366f1',custom:'#a29bfe'};
+                const dc=col[p.template]||col.custom||'#a29bfe';
+                return`<div class="provider-item ${a?'active':''}" onclick="switchProvider('${p.id}')"><div class="provider-dot" style="background:${dc};box-shadow:0 0 8px ${dc};"></div><div class="provider-info"><div class="provider-name">${eH(p.name)}</div><div class="provider-model">${eH(p.model)}</div></div><div class="provider-actions"><button class="btn-icon" style="width:26px;height:26px;font-size:0.7em" onclick="event.stopPropagation();editProvider('${p.id}')"><svg width="12" height="12" viewBox="0 0 24 24" class="icon-svg"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></div>`
+            }).join('');
+            if(D.providers.length===0)l.innerHTML=`<div style="color:var(--text2);font-size:0.8em;text-align:center;padding:20px">${_('no-providers-yet')}</div>`
+        }
+        function rCH(){
+            const l=$('chatHistoryList');
+            const p=gAP();
+            if(!p){l.innerHTML=`<div style="color:var(--text2);font-size:0.75em;text-align:center;padding:10px">${_('select-provider')}</div>`;return}
+            const cs=D.chats[p.id]||{};
+            const e=Object.values(cs).sort((a,b)=>b.createdAt-a.createdAt);
+            l.innerHTML=e.map(c=>{
+                const a=c.id===D.activeChatId;
+                const t=c.title||_('untitled-chat');
+                const d=new Date(c.createdAt).toLocaleDateString(void 0,{month:'short',day:'numeric'});
+                return`<div class="chat-list-item ${a?'active':''}" onclick="switchChat('${c.id}')" title="${eH(t)}">💬 ${eH(t)} <span style="font-size:0.65em;opacity:0.5">${d}</span></div>`
+            }).join('');
+            if(e.length===0)l.innerHTML=`<div style="color:var(--text2);font-size:0.75em;text-align:center;padding:10px">${_('no-chats')}</div>`
+        }
+        function rMsgs(){
+            const c=$('chatMessages');
+            const ms=gAMs();
+            const p=gAP();
+            if(!p||ms.length===0){
+                c.innerHTML=`<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><h3>${p?_('start-conversation'):_('no-provider-selected')}</h3><p>${p?_('welcome-text'):_('no-provider-message')}</p></div>`;
+                return
+            }
+            c.innerHTML=ms.map((m,i)=>rMsg(m,i)).join('');
+            requestAnimationFrame(()=>{c.scrollTop=c.scrollHeight})
+        }
+        function rMsg(m,i){
+            const u=m.role==='user';
+            const av=u?
+                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>':
+                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="16" rx="2"/><path d="M6 6h.01M6 10h.01M6 14h.01"/></svg>';
+            let h=rMD(m.content||'');
+            if(m.thinking&&m.thinking.trim()){
+                const th=rMD(m.thinking);
+                h=`<details class="thinking-block" ${m.thinkingExpanded?'open':''}><summary>${_('reasoning-summary')}</summary><div style="margin-top:6px">${th}</div></details>`+h
+            }
+            const act=!u?`<div class="message-actions"><button onclick="copyMessage(${i})">${_('copy')}</button><button onclick="regenerateMessage(${i})">${_('regenerate')}</button></div>`:
+                `<div class="message-actions"><button onclick="copyMessage(${i})">${_('copy')}</button></div>`;
+            return`<div class="message ${u?'user':'assistant'}"><div class="message-avatar">${av}</div><div><div class="message-content">${h}</div>${act}</div></div>`
+        }
+        function rMD(t){
+            if(!t)return'';
+            let h=eH(t);
+            h=h.replace(/```(\w*)\n([\s\S]*?)```/g,(m,l,c)=>{
+                const ec=eH(c.trim());
+                return`<pre><button class="copy-code-btn" data-code="${ec.replace(/"/g,'&quot;')}">📋 Copy</button><code class="language-${l||'plaintext'}">${ec}</code></pre>`
+            });
+            h=h.replace(/`([^`]+)`/g,'<code>$1</code>');
+            h=h.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+            h=h.replace(/\*([^*]+)\*/g,'<em>$1</em>');
+            h=h.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent3)">$1</a>');
+            h=h.replace(/\n/g,'<br>');
+            return h
+        }
+        function rA(){rPL();rCH();rMsgs();uMH();uIS();udt()}
+        function uMH(){
+            const p=gAP();
+            $('currentProviderName').textContent=p?p.name:_('no-provider-selected');
+            $('currentModelName').textContent=p?p.model:_('configure-prompt')
+        }
+        function uIS(){
+            const p=gAP(),i=$('userInput'),b=$('sendBtn'),ab=$('attachBtn');
+            if(!p){i.disabled=b.disabled=ab.disabled=true;i.placeholder=_('select-provider')}
+            else if(iS){i.disabled=b.disabled=ab.disabled=true;i.placeholder='...'}
+            else{i.disabled=b.disabled=ab.disabled=false;i.placeholder=_('type-message-placeholder')}
+        }
+        function oPM(eid=null){
+            $('providerEditId').value=eid||'';
+            $('providerModalTitle').textContent=eid?_('edit-provider'):_('add-provider');
+            $('deleteProviderBtn').style.display=eid?'inline-flex':'none';
+            if(eid){
+                const p=D.providers.find(pr=>pr.id===eid);
+                if(p){
+                    $('providerName').value=p.name;
+                    $('providerFormat').value=p.format||'openai';
+                    $('providerModel').value=p.model;
+                    $('providerEndpoint').value=p.endpoint;
+                    $('providerApiKey').value=p.apiKey;
+                    $('providerTemp').value=p.temperature??0.7;
+                    $('providerMaxTokens').value=p.maxTokens??4096;
+                    $('providerTopP').value=p.topP??0.9;
+                    $('providerReasoning').checked=p.reasoningEnabled||false;
+                    $('providerSystemPrompt').value=p.systemPrompt||'';
+                    $('providerAttachments').checked=p.attachments!==false;
+                    $('providerTextLimit').value=p.textLimit||30000
+                }
+            }else{
+                $('providerName').value='';
+                $('providerFormat').value='openai';
+                $('providerModel').value='';
+                $('providerEndpoint').value='';
+                $('providerApiKey').value='';
+                $('providerTemp').value='0.7';
+                $('providerMaxTokens').value='4096';
+                $('providerTopP').value='0.9';
+                $('providerReasoning').checked=false;
+                $('providerSystemPrompt').value='';
+                $('providerAttachments').checked=true;
+                $('providerTextLimit').value='30000'
+            }
+            $('providerModalOverlay').style.display='flex';
+            rPG()
+        }
+        function cPM(e){if(e&&e.target!==$('providerModalOverlay'))return;$('providerModalOverlay').style.display='none'}
+        function eP(id){oPM(id)}
+        function sP(){
+            const eid=$('providerEditId').value,nm=$('providerName').value.trim(),f=$('providerFormat').value,m=$('providerModel').value.trim(),ep=$('providerEndpoint').value.trim(),ak=$('providerApiKey').value.trim(),t=parseFloat($('providerTemp').value)||0.7,mt=parseInt($('providerMaxTokens').value)||4096,tp=parseFloat($('providerTopP').value)||0.9,re=$('providerReasoning').checked,sp=$('providerSystemPrompt').value.trim(),atc=$('providerAttachments').checked,tl=parseInt($('providerTextLimit').value)||30000;
+            if(!nm||!m||!ep){st('⚠️ Please fill in Name, Model, and Endpoint.','error');return}
+            const pd={id:eid||gI(),name:nm,format:f,model:m,endpoint:ep,apiKey:ak,temperature:t,maxTokens:mt,topP:tp,reasoningEnabled:re,systemPrompt:sp,attachments:atc,textLimit:tl,template:'custom',createdAt:eid?(D.providers.find(p=>p.id===eid)?.createdAt||Date.now()):Date.now()};
+            if(eid){const idx=D.providers.findIndex(p=>p.id===eid);if(idx>=0){pd.template=D.providers[idx].template;D.providers[idx]=pd}}else{D.providers.push(pd);D.chats[pd.id]={}}
+            if(!D.activeProviderId){D.activeProviderId=pd.id;eAC(pd.id)}
+            sD();rA();cPM();st('provider-saved','success')
+        }
+        function dPFM(){
+            const eid=$('providerEditId').value;
+            if(!eid)return;
+            if(!confirm(_('confirm-delete-provider')))return;
+            D.providers=D.providers.filter(p=>p.id!==eid);
+            delete D.chats[eid];
+            if(D.activeProviderId===eid){D.activeProviderId=D.providers.length>0?D.providers[0].id:null;D.activeChatId=null;if(D.activeProviderId)eAC(D.activeProviderId)}
+            sD();rA();cPM();st('provider-deleted','success')
+        }
+        function aP(tk){
+            const ps=gPs();
+            const p=ps[tk];
+            if(!p)return;
+            $('providerName').value=p.name;
+            $('providerFormat').value=p.format;
+            $('providerModel').value=p.model;
+            $('providerEndpoint').value=p.endpoint;
+            $('providerApiKey').value='';
+            $('providerTemp').value=p.temperature??0.7;
+            $('providerMaxTokens').value=p.maxTokens??4096;
+            $('providerTopP').value=p.topP??0.9;
+            $('providerReasoning').checked=p.reasoningEnabled||false;
+            $('providerSystemPrompt').value=p.systemPrompt||'';
+            $('providerAttachments').checked=p.attachments!==false;
+            $('providerTextLimit').value=p.textLimit||30000;
+            $('providerEditId').setAttribute('data-template',tk);
+            st('preset-loaded','success')
+        }
+        function gPs(){
+            return{
+                'openai-gpt4o':{name:'OpenAI GPT-4o',format:'openai',model:'gpt-4o',endpoint:'https://api.openai.com/v1/chat/completions',temperature:0.7,maxTokens:4096,topP:0.9,reasoningEnabled:false,systemPrompt:'',template:'openai'},
+                'openai-o3':{name:'OpenAI o3-mini',format:'openai',model:'o3-mini',endpoint:'https://api.openai.com/v1/chat/completions',temperature:1,maxTokens:100000,topP:1,reasoningEnabled:true,systemPrompt:'',template:'openai'},
+                'deepseek-chat':{name:'DeepSeek Chat',format:'openai',model:'deepseek-chat',endpoint:'https://api.deepseek.com/v1/chat/completions',temperature:0.7,maxTokens:4096,topP:0.9,reasoningEnabled:false,systemPrompt:'',template:'deepseek'},
+                'deepseek-reasoner':{name:'DeepSeek Reasoner (R1)',format:'openai',model:'deepseek-reasoner',endpoint:'https://api.deepseek.com/v1/chat/completions',temperature:0.7,maxTokens:8192,topP:0.9,reasoningEnabled:true,systemPrompt:'',template:'deepseek'},
+                'ollama-llama':{name:'Ollama (Local)',format:'ollama',model:'llama3.2',endpoint:'http://localhost:11434/api/chat',temperature:0.7,maxTokens:4096,topP:0.9,reasoningEnabled:false,systemPrompt:'',template:'ollama'},
+                'groq-llama':{name:'Groq (Llama 3.3)',format:'openai',model:'llama-3.3-70b-versatile',endpoint:'https://api.groq.com/openai/v1/chat/completions',temperature:0.7,maxTokens:4096,topP:0.9,reasoningEnabled:false,systemPrompt:'',template:'groq'},
+                'openrouter':{name:'OpenRouter',format:'openai',model:'openai/gpt-4o',endpoint:'https://openrouter.ai/api/v1/chat/completions',temperature:0.7,maxTokens:4096,topP:0.9,reasoningEnabled:false,systemPrompt:'',template:'openrouter'},
+                'anthropic-claude':{name:'Anthropic Claude (via OpenRouter)',format:'openai',model:'anthropic/claude-3.5-sonnet',endpoint:'https://openrouter.ai/api/v1/chat/completions',temperature:0.7,maxTokens:4096,topP:0.9,reasoningEnabled:false,systemPrompt:'',template:'anthropic',attachments:true,textLimit:30000},
+                'anthropic-claude-native':{name:'Anthropic Claude (native)',format:'anthropic',model:'claude-3-5-sonnet-20241022',endpoint:'https://api.anthropic.com/v1/messages',temperature:0.7,maxTokens:4096,topP:0.9,reasoningEnabled:false,systemPrompt:'',template:'anthropic',attachments:true,textLimit:30000},
+                'gemini-flash':{name:'Gemini 2.0 Flash',format:'gemini',model:'gemini-2.0-flash',endpoint:'https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent',temperature:0.7,maxTokens:8192,topP:0.9,reasoningEnabled:false,systemPrompt:'',template:'gemini',attachments:true,textLimit:30000}
+            }
+        }
+        function rPG(){
+            const g=$('presetGrid'),ps=gPs();
+            const ic={'openai':'<svg viewBox="0 0 24 24" fill="none" stroke="#10a37f" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/></svg>','deepseek':'<svg viewBox="0 0 24 24" fill="none" stroke="#4d6bfe" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/></svg>','ollama':'<svg viewBox="0 0 24 24" fill="none" stroke="#f0f0f0" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/></svg>','groq':'<svg viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2"><polygon points="13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>','openrouter':'<svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>','anthropic':'<svg viewBox="0 0 24 24" fill="none" stroke="#d97757" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M8 10h8M8 14h4"/></svg>','gemini':'<svg viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="2"><path d="M12 2c1 3.5 3 5.5 6.5 6.5-3.5 1-5.5 3-6.5 6.5-1-3.5-3-5.5-6.5-6.5C8.5 7.5 10.5 5.5 12 2z"/><path d="M18 14c.6 2 1.8 3.2 3.8 3.8-2 .6-3.2 1.8-3.8 3.8-.6-2-1.8-3.2-3.8-3.8 2-.6 3.2-1.8 3.8-3.8z"/></svg>'};
+            g.innerHTML=Object.entries(ps).map(([k,p])=>{
+                const i=ic[p.template]||'<svg viewBox="0 0 24 24" fill="none" stroke="#a29bfe" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
+                return`<div class="preset-card" onclick="applyPreset('${k}')"><div class="preset-icon">${i}</div><div>${eH(p.name)}</div><div style="font-size:0.7em;color:var(--text2)">${eH(p.model)}</div></div>`
+            }).join('')
+        }
+        function gI(){return'id_'+Date.now()+'_'+Math.random().toString(36).slice(2,9)}
+        function eAC(pid){
+            if(!D.chats[pid])D.chats[pid]={};
+            const cs=D.chats[pid];
+            if(D.activeChatId&&cs[D.activeChatId])return;
+            const e=Object.values(cs).sort((a,b)=>b.createdAt-a.createdAt);
+            if(e.length>0)D.activeChatId=e[0].id;
+            else nC(pid)
+        }
+        function nC(pid=null){
+            const p=pid||D.activeProviderId;
+            if(!p){st('⚠️ Select a provider first.','error');return}
+            if(!D.chats[p])D.chats[p]={};
+            const id=gI();
+            D.chats[p][id]={id,title:_('untitled-chat'),messages:[],createdAt:Date.now(),systemPrompt:''};
+            D.activeChatId=id;
+            if(!D.activeProviderId||D.activeProviderId!==p)D.activeProviderId=p;
+            sD();rA();$('userInput').focus();st('new-chat-created','success')
+        }
+        function sPv(pid){if(D.activeProviderId===pid)return;D.activeProviderId=pid;eAC(pid);sD();rA();$('userInput').focus()}
+        function sC(cid){D.activeChatId=cid;sD();rA();$('userInput').focus()}
+        function gACR(){
+            const p=gAP();
+            if(!p)return null;
+            const cs=D.chats[p.id]||{};
+            if(!D.activeChatId||!cs[D.activeChatId]){
+                const id=gI();
+                const c={id,title:_('untitled-chat'),messages:[],createdAt:Date.now(),systemPrompt:''};
+                D.chats[p.id][id]=c;
+                D.activeChatId=id;
+                sD();
+                return c
+            }
+            return cs[D.activeChatId]
+        }
+        function hIK(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sM()}}
+        function handleFileSelect(event){
+            const files=Array.from(event.target.files);
+            const p=gAP();
+            const validFiles=[];
+            for(const file of files){
+                if(file.size>MAX_FILE_SIZE){st(_('file-too-large').replace('{name}',file.name),'error');continue}
+                const ext='.'+file.name.split('.').pop().toLowerCase();
+                const textual=isTextualFile(file.name);
+                if(!textual&&!ALLOWED_TYPES.includes(file.type)){st(_('file-type-unsupported').replace('{name}',file.type||ext),'error');continue}
+                if(!textual&&p&&p.attachments===false){st(_('attachments-disabled').replace('{name}',file.name),'error');continue}
+                if(pendingAttachments.find(a=>a.name===file.name)){st(_('file-already-attached').replace('{name}',file.name),'error');continue}
+                validFiles.push({id:'att_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),name:file.name,size:file.size,type:file.type||'text/plain',fileObject:file,textual})
+            }
+            if(validFiles.length>0){pendingAttachments.push(...validFiles);rAL();st(_('files-attached').replace('{n}',validFiles.length),'success')}
+            event.target.value=''
+        }
+        function rAL(){
+            const area=$('attachmentArea');
+            if(pendingAttachments.length===0){area.style.display='none';area.innerHTML='';return}
+            area.style.display='flex';
+            area.innerHTML=pendingAttachments.map(att=>{
+                const icon=getFileIcon(att.type,att.name);
+                const sizeStr=formatFileSize(att.size);
+                return`<div class="attachment-chip" title="${eH(att.name)} (${sizeStr})"><span class="file-icon">${icon}</span><span class="file-name">${eH(att.name)}</span><button class="remove-file" onclick="removeAttachment('${att.id}')" title="Remove">×</button></div>`
+            }).join('')
+        }
+        function removeAttachment(id){pendingAttachments=pendingAttachments.filter(a=>a.id!==id);rAL()}
+        function getFileIcon(mimeType,fileName){
+            const ext=fileName.split('.').pop().toLowerCase();
+            const icons={'pdf':'📄','docx':'📝','doc':'📝','txt':'📃','md':'📃','csv':'📊','xlsx':'📊','xls':'📊','png':'🖼️','jpg':'🖼️','jpeg':'🖼️','gif':'🖼️','webp':'🖼️','json':'📋','xml':'📋','html':'🌐','htm':'🌐','py':'🐍','js':'📜','ts':'📜','java':'☕','cpp':'⚙️','c':'⚙️','h':'⚙️','css':'🎨','scss':'🎨'};
+            return icons[ext]||'📎'
+        }
+        function formatFileSize(bytes){if(bytes<1024)return bytes+' B';if(bytes<1048576)return(bytes/1024).toFixed(1)+' KB';return(bytes/1048576).toFixed(1)+' MB'}
+        async function uploadFiles(provider){
+            if(pendingAttachments.length===0)return[];
+            const uploadedFiles=[];
+            for(const att of pendingAttachments){
+                try{
+                    if(att.textual){
+                        const limit=provider.textLimit&&provider.textLimit>0?provider.textLimit:30000;
+                        const text=await readFileText(att.fileObject,limit);
+                        uploadedFiles.push({name:att.name,type:att.type,size:att.size,textContent:text,inline:true,textual:true});
+                        continue
+                    }
+                    if(att.type.startsWith('image/')){
+                        const base64=await fileToBase64(att.fileObject);
+                        uploadedFiles.push({name:att.name,type:att.type,size:att.size,base64:base64,inline:true,image:true});
+                        continue
+                    }
+                    const formData=new FormData();formData.append('file',att.fileObject);
+                    const baseEndpoint=provider.endpoint.replace(/\/chat\/completions$/,'').replace(/\/api\/chat$/,'');
+                    const uploadEndpoint=baseEndpoint+'/files';
+                    const headers={};
+                    if(provider.apiKey)headers['Authorization']='Bearer '+provider.apiKey;
+                    const response=await fetch(uploadEndpoint,{method:'POST',headers:headers,body:formData,signal:AbortSignal.timeout(30000)});
+                    if(!response.ok){
+                        if(provider.format==='anthropic'){
+                            const base64=await fileToBase64(att.fileObject);
+                            uploadedFiles.push({name:att.name,type:att.type,size:att.size,base64:base64,inline:true,document:true});
+                            continue
+                        }
+                        throw new Error('Binary attachment "'+att.name+'" is not supported by this provider (no file upload endpoint, HTTP '+response.status+'). Use a text file or enable attachment support.')
+                    }
+                    const data=await response.json();
+                    uploadedFiles.push({file_id:data.id||data.file_id,name:att.name,type:att.type,size:att.size,inline:false,document:true})
+                }catch(err){
+                    if(att.type.startsWith('image/')){
+                        const base64=await fileToBase64(att.fileObject);
+                        uploadedFiles.push({name:att.name,type:att.type,size:att.size,base64:base64,inline:true,image:true});
+                        continue
+                    }
+                    throw err
+                }
+            }
+            return uploadedFiles
+        }
+        function fileToBase64(file){
+            return new Promise((resolve,reject)=>{
+                const reader=new FileReader();
+                reader.onload=()=>{const base64=reader.result.split(',')[1];resolve(base64)};
+                reader.onerror=reject;
+                reader.readAsDataURL(file)
+            })
+        }
+        function buildMessageWithAttachments(userContent,uploadedFiles){
+            if(uploadedFiles.length===0)return userContent;
+            let enrichedContent='';
+            for(const file of uploadedFiles){
+                if(file.textual&&file.textContent){
+                    const ext=file.name.includes('.')?file.name.split('.').pop().toLowerCase():'';
+                    enrichedContent+=`[File: ${file.name}]\n\`\`\`${ext}\n${file.textContent}\n\`\`\`\n`
+                }else if(file.inline){
+                    if(file.type.startsWith('image/')&&file.size<5*1024*1024){enrichedContent+=`[Image: ${file.name}]\n`}
+                    else{enrichedContent+=`[File: ${file.name} (${formatFileSize(file.size)}) - content embedded]\n`}
+                }else{enrichedContent+=`[File: ${file.name} - uploaded as ${file.file_id}]\n`}
+            }
+            enrichedContent+='\n'+userContent;
+            return enrichedContent
+        }
+        function buildAPIMessagesWithFiles(provider,messages,uploadedFiles){
+            const lastMessage=messages[messages.length-1];
+            const hasFiles=uploadedFiles.length>0;
+            if(!hasFiles)return messages;
+            const fmt=provider.format||'openai';
+            const ids=uploadedFiles.filter(f=>f.file_id).map(f=>f.file_id);
+            if(ids.length)messages.fileIds=ids;
+            let textPart='';
+            const images=[];
+            for(const file of uploadedFiles){
+                if(file.textual&&file.textContent){
+                    const ext=file.name.includes('.')?file.name.split('.').pop().toLowerCase():'';
+                    textPart+=`[File: ${file.name}]\n\`\`\`${ext}\n${file.textContent}\n\`\`\`\n`
+                }else if(file.image&&file.base64){
+                    textPart+=`[Image: ${file.name}]\n`;
+                    images.push(file)
+                }else if(file.document&&file.base64){
+                    textPart+=`[Document: ${file.name}]\n`;
+                    images.push(file)
+                }else{textPart+=`[File: ${file.name} - uploaded as ${file.file_id}]\n`}
+            }
+            if(fmt==='ollama'){
+                const nm={...lastMessage,content:textPart+'\n\n'+lastMessage.content};
+                const imgs=images.filter(f=>f.image);
+                if(imgs.length)nm.images=imgs.map(f=>f.base64);
+                messages[messages.length-1]=nm;
+                return messages
+            }
+            if(fmt==='anthropic'){
+                const content=[{type:'text',text:textPart+'\n\n'+lastMessage.content}];
+                for(const f of images){
+                    if(f.image)content.push({type:'image',source:{type:'base64',media_type:f.type,data:f.base64}});
+                    else if(f.document)content.push({type:'document',source:{type:'base64',media_type:f.type,data:f.base64}})
+                }
+                messages[messages.length-1]={...lastMessage,content};
+                return messages
+            }
+            if(fmt==='gemini'){
+                const parts=[{text:textPart+'\n\n'+lastMessage.content}];
+                for(const f of images){
+                    if(f.image)parts.push({inlineData:{mimeType:f.type,data:f.base64}})
+                }
+                messages[messages.length-1]={...lastMessage,content:parts};
+                return messages
+            }
+            const contentArray=[{type:'text',text:textPart+'\n\n'+lastMessage.content}];
+            for(const f of images){
+                if(f.image&&f.base64)contentArray.push({type:'image_url',image_url:{url:`data:${f.type};base64,${f.base64}`,detail:'auto'}})
+            }
+            messages[messages.length-1]={...lastMessage,content:contentArray};
+            return messages
+        }
+        async function sM(){
+            if(iS)return;
+            const i=$('userInput'),c=i.value.trim();
+            if(!c&&pendingAttachments.length===0)return;
+            const p=gAP();
+            if(!p){st('⚠️ No provider selected.','error');return}
+            let uploadedFiles=[];
+            if(pendingAttachments.length>0){
+                st('uploading-files');
+                try{uploadedFiles=await uploadFiles(p)}catch(err){st('⚠️ '+err.message,'error');rAL();return}
+            }
+            i.value='';i.style.height='auto';
+            pendingAttachments=[];rAL();
+            await sendWithFiles(c,uploadedFiles)
+        }
+        async function sendWithFiles(c,uploadedFiles){
+            const p=gAP();
+            if(!p)return;
+            const ch=gACR();
+            if(!ch)return;
+            const enrichedContent=buildMessageWithAttachments(c||'',uploadedFiles);
+            ch.messages.push({role:'user',content:enrichedContent,text:c,timestamp:Date.now(),attachments:uploadedFiles});
+            if(c&&ch.title===_('untitled-chat')&&ch.messages.length===1)ch.title=c.slice(0,50)+(c.length>50?'...':'');
+            sD();rA();uIS();
+            const am={role:'assistant',content:'',thinking:'',thinkingExpanded:false,timestamp:Date.now()};
+            ch.messages.push(am);
+            sD();rA();uIS();
+            let ms=bAM(p,ch);
+            if(uploadedFiles.length>0&&ms.length>0){
+                const lm=ms[ms.length-1];
+                ms=[...ms.slice(0,-1),{role:lm.role,content:c}]
+            }
+            ms=buildAPIMessagesWithFiles(p,ms,uploadedFiles);
+            iS=true;uIS();aC=new AbortController();
+            const startTime=Date.now();
+            try{
+                if(p.format==='ollama')await sO(p,ms,am,ch,startTime);
+                else if(p.format==='anthropic')await sANT(p,ms,am,ch,startTime);
+                else if(p.format==='gemini')await sGM(p,ms,am,ch,startTime);
+                else await sOA(p,ms,am,ch,startTime)
+            }catch(e){
+                if(e.name==='AbortError')am.content+='\n\n⚠️ *[Generation stopped by user]*';
+                else{am.content+=`\n\n⚠️ **Error:** ${eH(e.message)}`;st('error-api','error')}
+            }finally{
+                iS=false;aC=null;
+                const tokenCount=approxTokenCount(am.content);
+                const elapsedSec=(Date.now()-startTime)/1000;
+                const tps=elapsedSec>0?Math.round(tokenCount/elapsedSec):0;
+                D.totalTokens+=tokenCount;
+                updateTokenDisplay(tps);
+                sD();rA();uIS();$('userInput').focus()
+            }
+        }
+        function approxTokenCount(text){return Math.round((text||'').length/4)}
+        function updateTokenDisplay(speed){
+            const countEl=$('tokenCountDisplay');
+            const speedEl=$('tokenSpeedDisplay');
+            if(countEl)countEl.textContent='Tokens: '+Math.round(D.totalTokens||0);
+            if(speedEl)speedEl.textContent=(speed!==undefined&&speed!==null?speed:'--')+' t/s';
+        }
+        function resetTokens(){
+            D.totalTokens=0;
+            sD();
+            updateTokenDisplay('--');
+        }
+        function bAM(p,ch){
+            const sp=D.settings.systemPrompt||p.systemPrompt||'';
+            const m=[];
+            if(sp)m.push({role:'system',content:sp});
+            const hm=ch.messages.slice(0,-1);
+            m.push(...hm.map(m=>({role:m.role,content:m.content})));
+            return m
+        }
+        function reE(ep){
+            ep=ep.replace(/\/+$/,'');
+            try{
+                const u=new URL(ep);
+                if(location.hostname==='localhost'&&location.port==='8000'&&(u.hostname==='127.0.0.1'||u.hostname==='localhost')&&u.pathname.startsWith('/v1/')){
+                    u.hostname=location.hostname;u.port=location.port;return u.href
+                }
+                return ep
+            }catch(e){return ep}
+        }
+        async function sOA(p,ms,am,ch,startTime){
+            const ep=reE(p.endpoint);
+            const h={'Content-Type':'application/json'};
+            if(p.apiKey)h['Authorization']='Bearer '+p.apiKey;
+            if(p.template==='openrouter'&&p.apiKey){h['HTTP-Referer']=location.origin;h['X-Title']='Giraffe AI'}
+            const b={model:p.model,messages:ms,temperature:D.settings.temperature??p.temperature??0.7,max_tokens:D.settings.maxTokens??p.maxTokens??4096,top_p:p.topP??0.9,stream:true};
+            if(ms.fileIds&&ms.fileIds.length)b.file_ids=ms.fileIds;
+            if(p.reasoningEnabled){b.reasoning=true;b.include_reasoning=true}
+            const r=await fetch(ep,{method:'POST',headers:h,body:JSON.stringify(b),signal:aC.signal});
+            if(!r.ok){const t=await r.text();throw new Error(`API error ${r.status}: ${t.slice(0,200)}`)}
+            const reader=r.body.getReader();const d=new TextDecoder();
+            let buf='',fc='',tc='';
+            while(true){
+                const{done,value}=await reader.read();
+                if(done)break;
+                buf+=d.decode(value,{stream:true});
+                const lines=buf.split('\n');buf=lines.pop()||'';
+                for(const l of lines){
+                    const t=l.trim();
+                    if(!t||!t.startsWith('data:'))continue;
+                    const ds=t.slice(5).trim();
+                    if(ds==='[DONE]')continue;
+                    try{
+                        const p=JSON.parse(ds);
+                        const delta=p.choices?.[0]?.delta;
+                        if(delta?.content){fc+=delta.content;am.content=fc}
+                        if(delta?.reasoning_content||delta?.thinking){tc+=(delta.reasoning_content||delta.thinking);am.thinking=tc;am.thinkingExpanded=true}
+                        if(p.choices?.[0]?.message?.reasoning){tc=p.choices[0].message.reasoning;am.thinking=tc;am.thinkingExpanded=true}
+                    }catch{}
+                }
+                sD();rMsgs();$('chatMessages').scrollTop=$('chatMessages').scrollHeight
+            }
+            am.content=fc;am.thinking=tc;am.timestamp=Date.now()
+        }
+        async function sO(p,ms,am,ch,startTime){
+            const ep=reE(p.endpoint);
+            const h={'Content-Type':'application/json'};
+            const b={model:p.model,messages:ms,stream:true,options:{temperature:D.settings.temperature??p.temperature??0.7,num_predict:D.settings.maxTokens??p.maxTokens??4096,top_p:p.topP??0.9}};
+            const r=await fetch(ep,{method:'POST',headers:h,body:JSON.stringify(b),signal:aC.signal});
+            if(!r.ok){const t=await r.text();throw new Error(`Ollama error ${r.status}: ${t.slice(0,200)}`)}
+            const reader=r.body.getReader();const d=new TextDecoder();
+            let buf='',fc='';
+            while(true){
+                const{done,value}=await reader.read();
+                if(done)break;
+                buf+=d.decode(value,{stream:true});
+                const lines=buf.split('\n');buf=lines.pop()||'';
+                for(const l of lines){
+                    const t=l.trim();if(!t)continue;
+                    try{
+                        const p=JSON.parse(t);
+                        if(p.message?.content){fc+=p.message.content;am.content=fc}
+                        if(p.done)break
+                    }catch{}
+                }
+                sD();rMsgs();$('chatMessages').scrollTop=$('chatMessages').scrollHeight
+            }
+            am.content=fc;am.timestamp=Date.now()
+        }
+        async function sANT(p,ms,am,ch,startTime){
+            const ep=reE(p.endpoint);
+            const h={'Content-Type':'application/json','x-api-key':p.apiKey||'','anthropic-version':'2023-06-01'};
+            const sys=ms.find(m=>m.role==='system');
+            const b={model:p.model,max_tokens:D.settings.maxTokens??p.maxTokens??4096,messages:ms.filter(m=>m.role!=='system'),stream:true};
+            if(sys)b.system=sys.content;
+            if(p.temperature!=null)b.temperature=D.settings.temperature??p.temperature??0.7;
+            if(p.topP!=null)b.top_p=p.topP;
+            const r=await fetch(ep,{method:'POST',headers:h,body:JSON.stringify(b),signal:aC.signal});
+            if(!r.ok){const t=await r.text();throw new Error('Anthropic error '+r.status+': '+t.slice(0,200))}
+            const reader=r.body.getReader();const d=new TextDecoder();
+            let buf='',fc='',tc='';
+            while(true){
+                const{done,value}=await reader.read();
+                if(done)break;
+                buf+=d.decode(value,{stream:true});
+                const lines=buf.split('\n');buf=lines.pop()||'';
+                for(const l of lines){
+                    const t=l.trim();
+                    if(!t.startsWith('data:'))continue;
+                    const ds=t.slice(5).trim();
+                    if(ds==='[DONE]')continue;
+                    try{
+                        const ev=JSON.parse(ds);
+                        if(ev.type==='content_block_delta'&&ev.delta){
+                            if(ev.delta.type==='text_delta'&&ev.delta.text){fc+=ev.delta.text;am.content=fc}
+                            if(ev.delta.type==='thinking_delta'&&ev.delta.thinking){tc+=ev.delta.thinking;am.thinking=tc;am.thinkingExpanded=true}
+                        }
+                    }catch{}
+                }
+                sD();rMsgs();$('chatMessages').scrollTop=$('chatMessages').scrollHeight
+            }
+            am.content=fc;am.thinking=tc;am.timestamp=Date.now()
+        }
+        async function sGM(p,ms,am,ch,startTime){
+            const model=encodeURIComponent(p.model);
+            const url='https://generativelanguage.googleapis.com/v1beta/models/'+model+':streamGenerateContent?alt=sse&key='+encodeURIComponent(p.apiKey||'');
+            const contents=ms.filter(m=>m.role!=='system').map(m=>({role:m.role==='assistant'?'model':'user',parts:Array.isArray(m.content)?m.content:[{text:m.content||''}]}));
+            const b={contents:contents,generationConfig:{temperature:D.settings.temperature??p.temperature??0.7,maxOutputTokens:D.settings.maxTokens??p.maxTokens??4096,topP:p.topP??0.9}};
+            const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b),signal:aC.signal});
+            if(!r.ok){const t=await r.text();throw new Error('Gemini error '+r.status+': '+t.slice(0,200))}
+            const reader=r.body.getReader();const d=new TextDecoder();
+            let buf='',fc='';
+            while(true){
+                const{done,value}=await reader.read();
+                if(done)break;
+                buf+=d.decode(value,{stream:true});
+                const lines=buf.split('\n');buf=lines.pop()||'';
+                for(const l of lines){
+                    const t=l.trim();
+                    if(!t.startsWith('data:'))continue;
+                    const ds=t.slice(5).trim();
+                    if(!ds||ds==='[DONE]')continue;
+                    try{
+                        const ev=JSON.parse(ds);
+                        const parts=(ev.candidates&&ev.candidates[0]&&ev.candidates[0].content&&ev.candidates[0].content.parts)||[];
+                        for(const pt of parts){if(pt.text){fc+=pt.text;am.content=fc}}
+                    }catch{}
+                }
+                sD();rMsgs();$('chatMessages').scrollTop=$('chatMessages').scrollHeight
+            }
+            am.content=fc;am.timestamp=Date.now()
+        }
+        function sG(){if(aC)aC.abort()}
+        function cM(i){
+            const ch=gACR();
+            if(!ch)return;
+            const m=ch.messages[i];
+            if(!m)return;
+            navigator.clipboard.writeText(m.content||'').then(()=>{st('copied','success')}).catch(()=>{st('copy-failed','error')})
+        }
+        function rM(i){
+            const ch=gACR();
+            if(!ch||iS)return;
+            const m=ch.messages[i];
+            if(!m||m.role!=='assistant')return;
+            ch.messages=ch.messages.slice(0,i);
+            const ui=ch.messages.map(x=>x.role).lastIndexOf('user');
+            if(ui<0)return;
+            const lu=ch.messages[ui];
+            ch.messages.splice(ui,1);
+            sD();rA();
+            if(lu.attachments&&lu.attachments.length>0)sendWithFiles(lu.text||'',lu.attachments);
+            else{$('userInput').value=lu.content;sM()}
+        }
+        function oSM(){$('settingsSystemPrompt').value=D.settings.systemPrompt||'';$('settingsTemp').value=D.settings.temperature??'';$('settingsMaxTokens').value=D.settings.maxTokens??'';$('settingsModalOverlay').style.display='flex'}
+        function cSM(e){if(e&&e.target!==$('settingsModalOverlay'))return;$('settingsModalOverlay').style.display='none'}
+        function sS(){const tv=$('settingsTemp').value.trim(),mv=$('settingsMaxTokens').value.trim();D.settings.systemPrompt=$('settingsSystemPrompt').value.trim();D.settings.temperature=tv?parseFloat(tv):null;D.settings.maxTokens=mv?parseInt(mv):null;sD();cSM();st('settings-saved','success')}
+        function cAD(){if(!confirm(_('confirm-delete-all')))return;D={providers:[],activeProviderId:null,chats:{},activeChatId:null,settings:{systemPrompt:'',temperature:null,maxTokens:null},theme:'dark',language:cl,totalTokens:0};sD();rA();cSM();aT();updateTokenDisplay('--');st('all-data-cleared','success')}
+        document.addEventListener('keydown',function(e){
+            if(e.key==='Escape'){
+                if(iS){sG();st('stop-generation','success')}
+                $('providerModalOverlay').style.display='none';
+                $('settingsModalOverlay').style.display='none'
+            }
+            if(e.ctrlKey&&e.key==='n'){e.preventDefault();nC()}
+            if(e.ctrlKey&&e.key==='s'){e.preventDefault();sD();st('data-saved','success')}
+        });
+        document.addEventListener('input',function(e){
+            if(e.target.id==='userInput'){e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,200)+'px'}
+        });
+        function init(){
+            lD();
+            // Auto-configure a provider from the ?provider=<url-encoded JSON> query param
+            // (set by the launchers when started with --provider, e.g. from AgentBridge).
+            const urlParams = new URLSearchParams(window.location.search);
+            const providerJson = urlParams.get('provider');
+            if (providerJson) {
+                try {
+                    let cfg;
+                    try { cfg = JSON.parse(providerJson) } catch { cfg = JSON.parse(decodeURIComponent(providerJson)) }
+                    const dup = D.providers.find(p => p.name === cfg.name && p.endpoint === cfg.endpoint && p.format === cfg.format);
+                    if (!dup) {
+                        const np = {
+                            id: cfg.id || ('auto_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
+                            name: cfg.name || 'Auto Provider',
+                            format: cfg.format || 'openai',
+                            model: cfg.model || '',
+                            endpoint: cfg.endpoint || '',
+                            apiKey: cfg.apiKey || '',
+                            temperature: cfg.temperature ?? 0.7,
+                            maxTokens: cfg.maxTokens ?? 4096,
+                            topP: cfg.topP ?? 0.9,
+                            reasoningEnabled: cfg.reasoningEnabled || false,
+                            systemPrompt: cfg.systemPrompt || '',
+                            attachments: cfg.attachments !== false,
+                            textLimit: cfg.textLimit || 30000,
+                            template: 'custom',
+                            createdAt: Date.now()
+                        };
+                        D.providers.push(np);
+                        if (!D.chats[np.id]) D.chats[np.id] = {};
+                        D.activeProviderId = np.id;
+                        eAC(np.id);
+                    } else {
+                        D.activeProviderId = dup.id;
+                        eAC(dup.id);
+                    }
+                    sD();
+                    // Drop the query string so a later refresh does not re-apply it.
+                    const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+                    window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+                } catch (e) {
+                    console.error('Invalid provider auto-config:', e);
+                }
+            }
+            D.providers.forEach(p=>{if(!D.chats[p.id])D.chats[p.id]={}});
+            Object.keys(D.chats).forEach(pid=>{if(!D.providers.find(p=>p.id===pid))delete D.chats[pid]});
+            if(D.activeProviderId&&!D.providers.find(p=>p.id===D.activeProviderId)){
+                D.activeProviderId=D.providers.length>0?D.providers[0].id:null;
+                D.activeChatId=null
+            }
+            if(D.activeProviderId)eAC(D.activeProviderId);
+            cli=L.indexOf(cl);
+            $('currentLangCode').textContent=cl.toUpperCase();
+            aT();ut();sD();rA();
+            if(D.activeProviderId)$('userInput').focus();
+            updateTokenDisplay('--');
+        }
+        window.toggleSidebar=tS;window.switchProvider=sPv;window.switchChat=sC;window.newChat=nC;window.openProviderModal=oPM;window.closeProviderModal=cPM;window.editProvider=eP;window.saveProvider=sP;window.deleteProviderFromModal=dPFM;window.applyPreset=aP;window.sendMessage=sM;window.handleInputKeydown=hIK;window.handleFileSelect=handleFileSelect;window.removeAttachment=removeAttachment;window.copyMessage=cM;window.regenerateMessage=rM;window.openSettingsModal=oSM;window.closeSettingsModal=cSM;window.saveSettings=sS;window.clearAllData=cAD;window.stopGeneration=sG;window.toggleTheme=tT;window.cycleLanguage=cL;window.installPwa=iP;window.resetTokens=resetTokens;
+        init()
+    })();
+    function registerServiceWorker(){
+        if('serviceWorker' in navigator){
+            const swCode=`const CACHE_NAME='giraffe-ai-v1';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(['/','index.html',self.location.href])))});self.addEventListener('fetch',e=>{if(e.request.url.includes('/api/')||e.request.url.includes('/v1/')||e.request.url.includes('localhost'))return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(fr=>caches.open(CACHE_NAME).then(c=>{c.put(e.request,fr.clone());return fr}))))})`;
+            const blob=new Blob([swCode],{type:'application/javascript'});
+            navigator.serviceWorker.register(URL.createObjectURL(blob)).then(()=>console.log('SW registered')).catch(e=>console.log('SW failed',e))
+        }
+    }
+    function createManifest(){
+        const m={name:'Giraffe AI',short_name:'Giraffe AI',description:'Multi-provider AI chat interface',start_url:location.href,display:'standalone',background_color:'#0a0a0f',theme_color:'#6c5ce7',icons:[{src:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>",sizes:'any',type:'image/svg+xml'}]};
+        const blob=new Blob([JSON.stringify(m)],{type:'application/json'});
+        const link=document.createElement('link');link.rel='manifest';link.href=URL.createObjectURL(blob);document.head.appendChild(link)
+    }
+    let deferredPrompt=null;
+    function setupPwaInstall(){
+        window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e;document.getElementById('installBtn').classList.add('visible')});
+        window.addEventListener('appinstalled',()=>{deferredPrompt=null;document.getElementById('installBtn').classList.remove('visible')})
+    }
+    function iP(){
+        if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then((r)=>{if(r.outcome==='accepted')console.log('Installed');deferredPrompt=null;document.getElementById('installBtn').classList.remove('visible')})}
+    }
+    registerServiceWorker();createManifest();setupPwaInstall();
+    </script>
+</body>
+</html>
