@@ -1346,6 +1346,12 @@ public static class SipBridge
                 call = new CallContext { Media = media, Uas = uas, RemoteUri = caller, Phase = CallPhase.Pin, CallId = req.Header.CallId };
                 call.VoiceMedia = new SipVoiceMedia(call);   // used for the announcements too
                 lock (Sync) Call = call;
+                // Ring until the voice subprocess's TTS is ready: answering before the Kokoro
+                // warm-up completes (~7 s after startup, signalled by {"type":"tts-ready"})
+                // would play a SILENT welcome — the first call right after AgentBridge starts
+                // would hear nothing ("first call silent, second works"). Bounded: a broken TTS
+                // still lets the call through (the caller just gets no announcement).
+                await SipVoiceAgent.WaitTtsReadyAsync(TimeSpan.FromSeconds(20));
                 await ua.Answer(uas, media);
                 call.VoiceMedia.Attach();   // RTP capture for the whole call (PIN phase included)
                 call.MediaAttached = true;  // the dialog is up — the watchdog may clear orphans now
