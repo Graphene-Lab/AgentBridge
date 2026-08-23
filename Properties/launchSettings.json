@@ -6,7 +6,8 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "http://localhost:5290"
+      "applicationUrl": "http://localhost:5291",
+      "commandLineArgs": "--Sip:ListenPort 6071"
     }
   }
 }
