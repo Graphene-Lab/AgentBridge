@@ -268,8 +268,8 @@ Powered by Terminal.Gui</value></data>
   <data name="Done" xml:space="preserve"><value>Готово</value></data>
   <data name="NoOutputGenerated" xml:space="preserve"><value>Вывод не сгенерирован</value></data>
 
-  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Добро пожаловать. Введите пятизначный PIN-код.</value></data>
-  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>Код принят. Соединение с агентом.</value></data>
+  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Добро пожаловать. Введите ваш пятизначный код доступа.</value></data>
+  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>Чем я могу вам помочь?</value></data>
   <data name="SipAnnouncePinWrong" xml:space="preserve"><value>Неверный код. Осталось попыток: {0}.</value></data>
   <data name="SipAnnounceLocked" xml:space="preserve"><value>Слишком много попыток. Сервис заблокирован на двадцать четыре часа.</value></data>
   <data name="SipAnnouncePinTimeout" xml:space="preserve"><value>Код не получен. Звонок будет завершён.</value></data>

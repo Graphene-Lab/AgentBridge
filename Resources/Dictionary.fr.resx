@@ -268,8 +268,8 @@ La zone de documents précédente est toujours active — rien n'a été modifi�
   <data name="Done" xml:space="preserve"><value>Terminé</value></data>
   <data name="NoOutputGenerated" xml:space="preserve"><value>Aucune sortie générée</value></data>
 
-  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Bienvenue. Veuillez saisir le code PIN à cinq chiffres.</value></data>
-  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>Code correct. Connexion à l'agent en cours.</value></data>
+  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Bienvenue. Veuillez saisir votre code d'accès à cinq chiffres.</value></data>
+  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>Comment puis-je vous aider ?</value></data>
   <data name="SipAnnouncePinWrong" xml:space="preserve"><value>Code incorrect. Tentatives restantes : {0}.</value></data>
   <data name="SipAnnounceLocked" xml:space="preserve"><value>Trop de tentatives. Le service est bloqué pendant vingt-quatre heures.</value></data>
   <data name="SipAnnouncePinTimeout" xml:space="preserve"><value>Aucun code reçu. La communication va se terminer.</value></data>

@@ -281,8 +281,8 @@ Powered by Terminal.Gui</value></data>
   <data name="StatusSipPin" xml:space="preserve"><value>PIN attempts left</value></data>
   <data name="StatusSipLocked" xml:space="preserve"><value>Locked until</value></data>
   <data name="StatusSipStt" xml:space="preserve"><value>STT · TTS</value></data>
-  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Welcome. Please enter the five digit PIN code.</value></data>
-  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>Code accepted. Connecting you to the agent.</value></data>
+  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Welcome. Please enter your five digit access code.</value></data>
+  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>How can I help you?</value></data>
   <data name="SipAnnouncePinWrong" xml:space="preserve"><value>Wrong code. Attempts left: {0}.</value></data>
   <data name="SipAnnounceLocked" xml:space="preserve"><value>Too many attempts. The service is locked for twenty four hours.</value></data>
   <data name="SipAnnouncePinTimeout" xml:space="preserve"><value>No code received. Ending the call.</value></data>

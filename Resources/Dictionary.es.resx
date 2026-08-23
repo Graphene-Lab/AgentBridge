@@ -268,8 +268,8 @@ El área de documentos anterior sigue activa — no se ha cambiado nada.</value>
   <data name="Done" xml:space="preserve"><value>Hecho</value></data>
   <data name="NoOutputGenerated" xml:space="preserve"><value>No se generó ninguna salida</value></data>
 
-  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Bienvenido. Introduzca el código PIN de cinco dígitos.</value></data>
-  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>Código correcto. Conectando con el agente.</value></data>
+  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Bienvenido. Introduzca su código de acceso de cinco dígitos.</value></data>
+  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>¿Cómo puedo ayudarle?</value></data>
   <data name="SipAnnouncePinWrong" xml:space="preserve"><value>Código incorrecto. Intentos restantes: {0}.</value></data>
   <data name="SipAnnounceLocked" xml:space="preserve"><value>Demasiados intentos. El servicio está bloqueado durante veinticuatro horas.</value></data>
   <data name="SipAnnouncePinTimeout" xml:space="preserve"><value>No se recibió ningún código. La llamada finalizará.</value></data>

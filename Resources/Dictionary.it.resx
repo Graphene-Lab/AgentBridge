@@ -233,8 +233,8 @@ Powered by Terminal.Gui</value></data>
   <data name="StatusSipPin" xml:space="preserve"><value>Tentativi PIN rimasti</value></data>
   <data name="StatusSipLocked" xml:space="preserve"><value>Bloccato fino al</value></data>
   <data name="StatusSipStt" xml:space="preserve"><value>STT · TTS</value></data>
-  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Benvenuto. Inserisci il codice PIN di cinque cifre.</value></data>
-  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>Codice corretto. Collegamento con l'agente in corso.</value></data>
+  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Benvenuto. Inserisci il codice di accesso di cinque cifre.</value></data>
+  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>Come posso aiutarti?</value></data>
   <data name="SipAnnouncePinWrong" xml:space="preserve"><value>Codice errato. Tentativi rimasti: {0}.</value></data>
   <data name="SipAnnounceLocked" xml:space="preserve"><value>Tentativi esauriti. Il servizio è bloccato per ventiquattro ore.</value></data>
   <data name="SipAnnouncePinTimeout" xml:space="preserve"><value>Nessun codice ricevuto. La chiamata verrà terminata.</value></data>

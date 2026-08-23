@@ -268,8 +268,8 @@ Der vorherige Dokumentbereich ist weiterhin aktiv — es wurde nichts geändert.
   <data name="Done" xml:space="preserve"><value>Fertig</value></data>
   <data name="NoOutputGenerated" xml:space="preserve"><value>Keine Ausgabe erzeugt</value></data>
 
-  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Willkommen. Bitte geben Sie den fünfstelligen PIN-Code ein.</value></data>
-  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>Code akzeptiert. Verbindung zum Agenten wird hergestellt.</value></data>
+  <data name="SipAnnounceWelcome" xml:space="preserve"><value>Willkommen. Bitte geben Sie Ihren fünfstelligen Zugangscode ein.</value></data>
+  <data name="SipAnnounceWelcomeOk" xml:space="preserve"><value>Wie kann ich Ihnen helfen?</value></data>
   <data name="SipAnnouncePinWrong" xml:space="preserve"><value>Falscher Code. Verbleibende Versuche: {0}.</value></data>
   <data name="SipAnnounceLocked" xml:space="preserve"><value>Zu viele Versuche. Der Dienst ist für vierundzwanzig Stunden gesperrt.</value></data>
   <data name="SipAnnouncePinTimeout" xml:space="preserve"><value>Kein Code empfangen. Das Gespräch wird beendet.</value></data>
