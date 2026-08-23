@@ -57,7 +57,7 @@ Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichie
   <data name="CmdWeb" xml:space="preserve"><value>Installe (première exécution) et lance le client web Giraffe AI dans le navigateur</value></data>
   <data name="CmdModelSetup" xml:space="preserve"><value>Configure les modèles et fournisseurs LLM (ajouter/modifier/supprimer, modèle actif, clés API)</value></data>
   <data name="CmdModel" xml:space="preserve"><value>Change le fournisseur LLM (menu si aucun nom n'est donné)</value></data>
-  <data name="CmdAgent" xml:space="preserve"><value>Change l'ensemble d'agents (default/web/search/word/spreadsheet/email/multi)</value></data>
+  <data name="CmdAgent" xml:space="preserve"><value>Choisissez les outils de l'agent : sélectionnez un préréglage rapide ou activez des outils individuellement</value></data>
   <data name="CmdVoice" xml:space="preserve"><value>Dicte depuis le micro du serveur dans la saisie (défaut = langue du système)</value></data>
   <data name="CmdTts" xml:space="preserve"><value>Prononce la dernière réponse de l'agent (ou le texte donné) via Kokoro TTS</value></data>
   <data name="CmdFeatures" xml:space="preserve"><value>Affiche ou active/désactive les indicateurs de fonctionnalités de session (voice, tts, ...)</value></data>
@@ -273,4 +273,37 @@ La zone de documents précédente est toujours active — rien n'a été modifi�
   <data name="SipAnnouncePinWrong" xml:space="preserve"><value>Code incorrect. Tentatives restantes : {0}.</value></data>
   <data name="SipAnnounceLocked" xml:space="preserve"><value>Trop de tentatives. Le service est bloqué pendant vingt-quatre heures.</value></data>
   <data name="SipAnnouncePinTimeout" xml:space="preserve"><value>Aucun code reçu. La communication va se terminer.</value></data>
+  <data name="MenuTools" xml:space="preserve"><value>_Outils</value></data>
+  <data name="MenuMedia" xml:space="preserve"><value>_Médias</value></data>
+  <data name="MenuTelegram" xml:space="preserve"><value>_Telegram (/telegram)</value></data>
+  <data name="MenuFiles" xml:space="preserve"><value>_Fichiers (/files)</value></data>
+  <data name="MenuAttach" xml:space="preserve"><value>_Joindre (/attach)</value></data>
+  <data name="MenuVoice" xml:space="preserve"><value>_Voix (/voice)</value></data>
+  <data name="MenuTts" xml:space="preserve"><value>_TTS (/tts)</value></data>
+  <data name="DlgToolsTitle" xml:space="preserve"><value>Outils de l'agent</value></data>
+  <data name="DlgToolsPresets" xml:space="preserve"><value>Préréglages rapides — Entrée applique</value></data>
+  <data name="DlgToolsActive" xml:space="preserve"><value>Outils actifs — Espace active/désactive</value></data>
+  <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ déplacer · Espace activer/désactiver · Entrée appliquer · Échap annuler</value></data>
+  <data name="NoteNoToolsSelected" xml:space="preserve"><value>sélectionnez au moins un outil</value></data>
+  <data name="NoteToolsApplied" xml:space="preserve"><value>outils : {0}</value></data>
+  <data name="DlgPickFileToDelete" xml:space="preserve"><value>Supprimer le fichier</value></data>
+  <data name="StatusTools" xml:space="preserve"><value>outils</value></data>
+  <data name="StatusBarHints" xml:space="preserve"><value>F1 aide · F10 menu · / commandes · @ fichiers · ? raccourcis · Échap fermer · Ctrl+C annuler</value></data>
+  <data name="DlgTelegramTitle" xml:space="preserve"><value>Telegram</value></data>
+  <data name="DlgTelegramHint" xml:space="preserve"><value>La première connexion nécessite le code de vérification — saisissez-le ci-dessous quand la phase est « code ».</value></data>
+  <data name="DlgTelegramLoginLabel" xml:space="preserve"><value>Code de vérification / mot de passe 2FA</value></data>
+  <data name="DlgTelegramSend" xml:space="preserve"><value>Envoyer le code</value></data>
+  <data name="DlgTelegramAllow" xml:space="preserve"><value>Autoriser l'utilisateur…</value></data>
+  <data name="DlgTelegramDisallow" xml:space="preserve"><value>Interdire l'utilisateur…</value></data>
+  <data name="DlgTelegramConfig" xml:space="preserve"><value>Afficher la configuration</value></data>
+  <data name="DlgTelegramReload" xml:space="preserve"><value>Recharger la configuration</value></data>
+  <data name="DlgTelegramToggleEnable" xml:space="preserve"><value>Activer/désactiver</value></data>
+  <data name="DlgPromptTitle" xml:space="preserve"><value>Saisir une valeur</value></data>
+  <data name="DlgPromptHint" xml:space="preserve"><value>Saisissez la valeur et appuyez sur Entrée (Échap annule)</value></data>
+  <data name="ChatAttachmentMarker" xml:space="preserve"><value>[pièce jointe : {0}]</value></data>
+  <data name="HttpStatusAuth" xml:space="preserve"><value>échec d'authentification (HTTP {0})</value></data>
+  <data name="HttpStatusNotFound" xml:space="preserve"><value>endpoint introuvable (HTTP {0})</value></data>
+  <data name="HttpStatusRateLimited" xml:space="preserve"><value>limite de débit atteinte (HTTP {0})</value></data>
+  <data name="HttpStatusServer" xml:space="preserve"><value>erreur serveur (HTTP {0})</value></data>
+  <data name="HttpStatusOther" xml:space="preserve"><value>échec de la requête (HTTP {0})</value></data>
 </root>

@@ -40,9 +40,9 @@ project and get a persistent TUI where:
 | Menus | pickers are drawn inside the TUI layout — **Esc always cancels** (`/model`, `/agent`, `/attach`) with a clean screen, no residue |
 | No voice | `/voice` — dictation from the server microphone (Windows), `/tts` — Kokoro neural TTS speaks the replies and plays the WAV |
 | File completion via `@` | `@` palette of **uploaded** files (server-side `/v1/files`), `/files add <path>` uploads and attaches; attachments ride along as `file_ids` |
-| Status shows context | status bar also shows **history tokens / context window**, agent set, TTS/mic availability, features |
+| Status shows context | status bar also shows **history tokens / context window**, the active **tools** (readable names, e.g. `File, Web, Git`), TTS/mic availability |
 | `/docs` opens docs site | `/docs` opens **this project's** online README; `/help` lists commands, shortcuts, API endpoints and links |
-| — | `/agent` switches the agent tool set, `/features` toggles feature flags, `/health` pings the server, `/retry` resends the last prompt, `/web` opens the auto-connected web client |
+| — | `/agent` opens the tools checklist (presets + individual tools), `/features` toggles feature flags, `/health` pings the server, `/retry` resends the last prompt, `/web` opens the auto-connected web client |
 
 ## Commands (type `/` for the live list)
 
@@ -53,10 +53,10 @@ project and get a persistent TUI where:
 | `/web` | Install (first run) and launch the Giraffe AI web client, auto-connected to this server |
 | `/modelsetup` | Configure LLM models & providers (add/edit/remove, active model, API keys) |
 | `/model [name]` | Switch the LLM provider (menu when no name given; context-window checked) |
-| `/agent [name]` | Switch the agent set (default/web/search/research/word/spreadsheet/email/multi) |
+| `/agent [name]` | Choose the agent tools: quick presets or an individual-tool checklist (Space toggles; see below) |
 | `/voice [lang]` | Dictate from the server microphone into the input |
 | `/tts [text]` | Speak the last agent reply (or the given text) — Kokoro TTS, WAV playback |
-| `/telegram status\|config [set <key> <value>\|reload]\|login-code <code>\|allow\|disallow <user>` | Telegram chat medium: status, config, pending-login code, allow-list (see [Telegram](#telegram-chat)) |
+| `/telegram status\|config [set <key> <value>\|reload]\|login-code <code>\|allow\|disallow <user>` | Telegram chat medium: bare `/telegram` opens the interactive panel (status, login code, allow-list, config), the subcommands cover the same actions (see [Telegram](#telegram-chat)) |
 | `/features [name] [on\|off]` | Show or toggle session feature flags (voice, tts, ...) |
 | `/new` · `/reset` | Start a new session (fresh conversation) |
 | `/clear` | Reset the current session history (keeps the session) |
@@ -87,6 +87,20 @@ detected and re-downloaded automatically.
 - The browser talks straight to this server (`POST /v1/chat/completions`), so CORS is enabled
   and no API key is needed for local use.
 
+## Agent tools
+
+`/agent` (or menu **Tools → Agent & Tools**) opens a checklist dialog:
+
+- **Quick presets** on top — the ready-made combinations (`default-agent`, `web-agent`,
+  `document-agent`, …); Enter applies one immediately and its tools light up below.
+- **Active tools** below — every tool actually loaded at runtime (core tools + the
+  plugins in `Tools/`), each with a one-line description. **Space** toggles a tool;
+  **Enter** applies the marked set as a **custom combination** (sent to the server as
+  the additive `tools` field, which overrides the preset's `model`).
+
+The status bar shows the active tools with readable names (`tools: File, Web, Git`), so
+you always know what the agent can do in this conversation.
+
 ## Telegram chat
 
 `/telegram` turns AgentBridge into a **Telegram chat client** (a userbot): people write to
@@ -95,6 +109,11 @@ the same per-user chat session as the TUI and the HTML client, and the reply —
 any files the agent attaches — comes back into the same chat. Text chat only: the Telegram
 Client API has no audio-call support, so Telegram is **not** a voice medium (see
 [docs/telegram.md](telegram.md)).
+
+**Bare `/telegram`** (or menu **Tools → Telegram**) opens an interactive panel: live
+status plus the first-login code field, allow/disallow user, config, reload and
+enable/disable — no slash-command syntax to remember. The subcommands below drive the
+same actions from the command line:
 
 | Command | What it does |
 |---|---|
@@ -241,4 +260,4 @@ How the app starts — terminal UI, server only, or forced UI — is covered in
 
 ---
 
-See also: [README](../README.md) · [API reference](API.md) · [Architecture](ARCHITECTURE.md)
+See also: [README](../README.md) · [API reference](API.md) · [Architecture](ARCHITECTURE.md) · [Developer guide](TUI-DEVELOPMENT.md) (Terminal.Gui v2, for TUI code changes)

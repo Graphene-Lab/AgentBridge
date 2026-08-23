@@ -19,6 +19,14 @@ using Terminal.Gui.Views;
 // Terminal.Gui.Drawing.Attribute collides with System.Attribute (implicit using).
 using TuiAttribute = Terminal.Gui.Drawing.Attribute;
 
+// ═══════════════════════════════════════════════════════════════════════
+//  Terminal.Gui v2 — LOCAL DEVELOPER GUIDE (READ BEFORE EDITING THIS TUI)
+//  docs/TUI-DEVELOPMENT.md is the offline reference for the pinned package
+//  versions: API cheat-sheet, pitfalls (focus, Invoke, Editor document
+//  mutation, console leak) and cross-platform (Windows/Linux/macOS) rules.
+//  The official API XML docs ship with the NuGet packages (see guide §1).
+// ═══════════════════════════════════════════════════════════════════════
+
 /// <summary>
 /// The Terminal.Gui terminal UI of AgentBridge: a menu bar, an AGENT logo panel, a
 /// streaming chat panel with an input line, a status bar, slash-command and file
@@ -78,6 +86,9 @@ public static class ConsoleTui
         private int _historyTokens;
         private string _sessionId = "";
         private string _agentSet = "default-agent";
+        // Non-null when the user enabled a custom tool combination in the /agent
+        // checklist (overrides the agent-set preset in the chat request via `tools`).
+        private List<string>? _customTools;
         private bool _ttsAvailable, _voiceAvailable;
         private string _ttsDetail = "", _voiceDetail = "";
         private string _statusNote = "";
@@ -159,34 +170,10 @@ public static class ConsoleTui
             new("exit", "", Dictionary.CmdExit, (t, _) => t.ExitAsync(), new[] { "/quit" }),
         };
 
-        private static readonly string[] AgentSets = { "default-agent", "web-agent", "search-agent", "research-agent", "document-agent", "spreadsheet-agent", "email-agent", "multi-agent" };
-
         private const uint SndAsync = 0x0001;
         private const uint SndFilename = 0x00020000;
         [DllImport("winmm.dll", SetLastError = true)]
         private static extern bool PlaySound(string pszSound, IntPtr hmod, uint fdwSound);
-
-        // ── AGENT logo (ASCII art, one color per line) ──
-        private static readonly string[] LogoLines =
-        {
-            " █████╗  ██████╗ ███████╗███╗   ██╗████████╗",
-            "██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝",
-            "███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║",
-            "██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║",
-            "██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║",
-            "╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝",
-        };
-
-        // Qwen Code CLI brand gradient (#4796E4 → #847ACE → #C3677F), top → bottom.
-        private static readonly TuiAttribute[] LogoAttributes =
-        {
-            new TuiAttribute(Color.BrightBlue, Color.Black),
-            new TuiAttribute(Color.BrightBlue, Color.Black),
-            new TuiAttribute(Color.BrightMagenta, Color.Black),
-            new TuiAttribute(Color.BrightMagenta, Color.Black),
-            new TuiAttribute(Color.BrightRed, Color.Black),
-            new TuiAttribute(Color.BrightRed, Color.Black),
-        };
 
         private static readonly (string Keys, string What)[] ShortcutTable =
         {
@@ -233,8 +220,6 @@ public static class ConsoleTui
                 Normal = new TuiAttribute(Color.Gray, Color.Black),
                 Focus = new TuiAttribute(Color.Gray, Color.Black),
             });
-            for (int i = 0; i < LogoAttributes.Length; i++)
-                SchemeManager.AddScheme($"Logo{i}", new Scheme { Normal = LogoAttributes[i] });
 
             BuildUI();
             _history.Add(new Entry
@@ -341,11 +326,21 @@ public static class ConsoleTui
                     new MenuItem(Dictionary.MenuCommands, Key.Empty, () => ShowCommandMenu("")),
                     new MenuItem(Dictionary.MenuRetryLast, Key.Y.WithCtrl, () => RunCommandByName("retry", "")),
                 }),
+                new(Dictionary.MenuTools, new MenuItem[]
+                {
+                    new MenuItem(Dictionary.MenuAgent, Key.Empty, () => RunCommandByName("agent", "")),
+                    new MenuItem(Dictionary.MenuTelegram, Key.Empty, () => RunCommandByName("telegram", "")),
+                    new MenuItem(Dictionary.MenuFiles, Key.Empty, () => RunCommandByName("files", "")),
+                    new MenuItem(Dictionary.MenuAttach, Key.Empty, () => RunCommandByName("attach", "")),
+                }),
+                new(Dictionary.MenuMedia, new MenuItem[]
+                {
+                    new MenuItem(Dictionary.MenuVoice, Key.Empty, () => RunCommandByName("voice", "")),
+                    new MenuItem(Dictionary.MenuTts, Key.Empty, () => RunCommandByName("tts", "")),
+                }),
                 new(Dictionary.MenuSession, new MenuItem[]
                 {
                     new MenuItem(Dictionary.MenuLlmModel, Key.Empty, () => RunCommandByName("model", "")),
-                    new MenuItem(Dictionary.MenuAgent, Key.Empty, () => RunCommandByName("agent", "")),
-                    new MenuItem("Telegram", Key.Empty, () => RunCommandByName("telegram", "")),
                     new MenuItem(Dictionary.MenuStatus, Key.Empty, () => RunCommandByName("status", "")),
                     new MenuItem(Dictionary.MenuHealth, Key.Empty, () => RunCommandByName("health", "")),
                 }),
@@ -372,38 +367,22 @@ public static class ConsoleTui
                 if (key == Key.Esc) key.Handled = true;
             };
 
-            // Content area below the menu bar (the status bar owns the last row).
-            // CanFocus: a plain View defaults to CanFocus=false, which would block
-            // focus for every focusable child below it (the input field).
+            // Content area below the menu bar (status line + StatusBar own the last
+            // two rows). CanFocus: a plain View defaults to CanFocus=false, which
+            // would block focus for every focusable child below it (the input field).
             var contentArea = new View
             {
-                X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 2,
+                X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 3,
                 CanFocus = true,
             };
             _mainWindow.Add(contentArea);
 
-            // Left panel: the AGENT logo.
-            var logoFrame = new FrameView
-            {
-                Title = "AGENT",
-                X = 0, Y = 0, Width = 48, Height = Dim.Fill(),
-            };
-            contentArea.Add(logoFrame);
-            for (int i = 0; i < LogoLines.Length; i++)
-            {
-                logoFrame.Add(new Label
-                {
-                    Text = LogoLines[i],
-                    X = 1, Y = i + 1,
-                    SchemeName = $"Logo{i}",
-                });
-            }
-
-            // Right panel: chat history + input line.
+            // Chat panel: history + input line (full width — the decorative AGENT
+            // logo panel was removed: it wasted 48 columns on every terminal).
             var chatFrame = new FrameView
             {
                 Title = Dictionary.ChatFrameTitle,
-                X = Pos.Right(logoFrame), Y = 0,
+                X = 0, Y = 0,
                 Width = Dim.Fill(), Height = Dim.Fill(),
             };
             contentArea.Add(chatFrame);
@@ -474,13 +453,19 @@ public static class ConsoleTui
                     key.Handled = true;
             };
 
+            // Status line (dynamic state: connection, provider/model, tools, context,
+            // capabilities, notes) above a real StatusBar with the static key hints.
             _statusLabel = new Label
             {
-                X = 0, Y = Pos.AnchorEnd(1), Width = Dim.Fill(), Height = 1,
+                X = 0, Y = Pos.AnchorEnd(2), Width = Dim.Fill(), Height = 1,
                 SchemeName = "Hint",
                 Text = "",
             };
             _mainWindow.Add(_statusLabel);
+            _mainWindow.Add(new StatusBar(new[]
+            {
+                new Shortcut { Title = Dictionary.StatusBarHints },
+            }));
         }
 
         // ── Input field ──
@@ -889,9 +874,13 @@ public static class ConsoleTui
                     throw new InvalidOperationException("no session — server unreachable");
 
                 var attached = SnapshotAttached();
+                // Additive extension: an explicit tool combination (custom checklist
+                // selection) overrides the agent set resolved from `model`.
+                var custom = _customTools is { Count: > 0 } ? _customTools : null;
                 var body = JsonSerializer.Serialize(new
                 {
                     model = _agentSet,
+                    tools = custom,
                     messages = new[] { new { role = "user", content = prompt } },
                     session_id = _sessionId,
                     file_ids = attached.Count > 0 ? attached : (List<string>?)null,
@@ -909,7 +898,7 @@ public static class ConsoleTui
                     var err = await ReadErrorAsync(response);
                     FinishChat(new Entry { Role = "agent", Text = err, Error = true });
                     _lastFailed = true;
-                    _statusNote = $"HTTP {(int)response.StatusCode}";
+                    _statusNote = FriendlyHttp((int)response.StatusCode);
                     return;
                 }
 
@@ -1052,7 +1041,7 @@ public static class ConsoleTui
             if (e.Attachments is { Count: > 0 })
             {
                 foreach (var path in e.Attachments)
-                    sb.Append(string.Format(Dictionary.TelegramAttachmentMarker, path)).Append('\n');
+                    sb.Append(string.Format(Dictionary.ChatAttachmentMarker, Path.GetFileName(path))).Append('\n');
                 sb.Append('\n');
             }
         }
@@ -1072,34 +1061,70 @@ public static class ConsoleTui
             lock (_stateLock) return new List<string>(_attached);
         }
 
-        private string FeaturesSummary()
-        {
-            lock (_stateLock) return string.Join(",", _features.Where(kv => kv.Value).Select(kv => kv.Key));
-        }
-
         // ── Status bar ──
+        // One comprehensible line: connection, provider/model, the active tools,
+        // context usage, capabilities and the transient note. No uuid and no cryptic
+        // abbreviations (sess:, f:, tts:✓) — those told the user nothing.
         private void UpdateStatus()
         {
             if (_statusLabel == null) return;
-            var dot = _connected ? "●" : "○";
-            var sess = _sessionId.Length > 8 ? _sessionId[..8] : (_sessionId.Length == 0 ? "-" : _sessionId);
-            var ctx = _contextWindow > 0 ? $"{_historyTokens:N0}/{_contextWindow:N0}" : "";
-            var feats = FeaturesSummary();
-            var parts = new List<string>
-            {
-                dot, _serverUrl, _provider, _modelName, _agentSet,
-                string.Format(Dictionary.StatusSess, sess), ctx,
-                _ttsAvailable ? "tts:✓" : "tts:✗",
-                _voiceAvailable ? "mic:✓" : "mic:✗",
-                _sipAvailable ? "sip:" + (_sipState.Length > 0 ? _sipState : "✓") : "",
-                _telegramAvailable ? "tg:" + (_telegramState.Length > 0 ? _telegramState : "✓") : "",
-                feats.Length > 0 ? "f:" + feats : "",
-                _chatRunning != 0 ? Dictionary.StatusGeneratingShort : "",
-                _statusNote,
-            };
+            // host:port (not the full URL) tells the user which server they talk to.
+            var parts = new List<string> { _connected ? "●" : "○", ShortServerUrl(_serverUrl) };
+            if (_provider.Length > 0) parts.Add(_provider);
+            if (_modelName.Length > 0 && !string.Equals(_modelName, _provider)) parts.Add(_modelName);
+            var tools = EffectiveTools();
+            if (tools.Length > 0)
+                parts.Add($"{Dictionary.StatusTools}: {string.Join(", ", tools.Select(ToolShortName))}");
+            if (_contextWindow > 0)
+                parts.Add($"ctx {FormatTokens(_historyTokens)}/{FormatTokens(_contextWindow)}");
+            parts.Add($"TTS {(_ttsAvailable ? "✓" : "✗")}");
+            parts.Add($"mic {(_voiceAvailable ? "✓" : "✗")}");
+            if (_sipAvailable && _sipState.Length > 0) parts.Add($"sip: {_sipState}");
+            if (_telegramAvailable && _telegramState.Length > 0) parts.Add($"tg: {_telegramState}");
+            if (_chatRunning != 0) parts.Add(Dictionary.StatusGeneratingShort);
+            if (_statusNote.Length > 0) parts.Add(_statusNote);
             var text = string.Join(" · ", parts.Where(p => p.Length > 0));
             _statusLabel.Text = text.Length > 240 ? text[..240] : text;
         }
+
+        // The tools that will actually run in the chat: the custom checklist selection
+        // when set, otherwise the agent-set preset.
+        private string[] EffectiveTools() => _customTools is { Count: > 0 }
+            ? _customTools.ToArray()
+            : AgentTools.Resolve(_agentSet);
+
+        // "FileTool" → "File", "EMailTool" → "Email": readable tool names for the UI.
+        private static string ToolShortName(string name) =>
+            string.Equals(name, "EMailTool", StringComparison.OrdinalIgnoreCase) ? "Email"
+            : name.EndsWith("Tool", StringComparison.Ordinal) ? name[..^4]
+            : name;
+
+        private static string ShortServerUrl(string url)
+        {
+            try
+            {
+                var u = new Uri(url);
+                return $"{u.Host}:{u.Port}";
+            }
+            catch { return url; }
+        }
+
+        private static string FormatTokens(int n) => n switch
+        {
+            >= 1_000_000 => $"{n / 1_000_000.0:0.#}M",
+            >= 1_000 => $"{n / 1_000.0:0.#}k",
+            _ => n.ToString(),
+        };
+
+        // A note the user can understand instead of a bare HTTP code.
+        private static string FriendlyHttp(int code) => code switch
+        {
+            401 or 403 => string.Format(Dictionary.HttpStatusAuth, code),
+            404 => string.Format(Dictionary.HttpStatusNotFound, code),
+            429 => string.Format(Dictionary.HttpStatusRateLimited, code),
+            >= 500 => string.Format(Dictionary.HttpStatusServer, code),
+            _ => string.Format(Dictionary.HttpStatusOther, code),
+        };
 
         private void OnUpdateStatus(string message) => Ui(() => { _statusNote = message; UpdateStatusUi(); });
 
@@ -1332,6 +1357,13 @@ public static class ConsoleTui
 
         private async Task TelegramAsync(string args)
         {
+            // No arguments → the interactive panel (menu Tools → Telegram): live
+            // status plus login-code / allow / disallow / config / reload / toggle.
+            if (string.IsNullOrWhiteSpace(args))
+            {
+                await ShowTelegramDialogAsync();
+                return;
+            }
             var parts = args.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
             var sub = parts.Length == 0 ? "status" : parts[0].ToLowerInvariant();
             var arg = parts.Length > 1 ? parts[1].Trim() : "";
@@ -1439,6 +1471,183 @@ public static class ConsoleTui
             await RefreshTelegramStatusAsync();
         }
 
+        private Task ShowTelegramDialogAsync()
+        {
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() =>
+            {
+                try { ShowTelegramDialog(); tcs.SetResult(); }
+                catch (Exception ex) { tcs.SetException(ex); }
+            });
+            return tcs.Task;
+        }
+
+        // Interactive Telegram panel: live status plus the actions that used to require
+        // memorising /telegram subcommands (login code, allow/disallow, config, ...).
+        private void ShowTelegramDialog()
+        {
+            var dlg = new Dialog
+            {
+                Title = Dictionary.DlgTelegramTitle,
+                Width = Dim.Percent(80),
+                Height = Dim.Percent(62),
+                SchemeName = "Dark",
+            };
+
+            var status = new Label
+            {
+                X = 1, Y = 0, Width = Dim.Fill() - 2, Height = 4,
+            };
+            void RefreshStatus()
+            {
+                var s = TelegramBridge.Status;
+                var user = s.User == null ? Dictionary.None : $"{s.User.Name} (@{s.User.Username}, id {s.User.Id})";
+                var allowed = s.AllowedUsers is { Count: > 0 } au ? string.Join(", ", au) : "(all)";
+                var err = s.Error is { Length: > 0 } e ? " · " + e : "";
+                status.Text = string.Join("\n",
+                    $"enabled: {(s.Enabled ? Dictionary.On : Dictionary.Off)} · phase: {TelegramPhaseLabel(TelegramBridge.Phase)}",
+                    $"user: {user}",
+                    $"allowed: {allowed}",
+                    $"agent: {s.Agent}{err}");
+            }
+            RefreshStatus();
+
+            var hint = new Label
+            {
+                Text = Dictionary.DlgTelegramHint,
+                X = 1, Y = 4, Width = Dim.Fill() - 2,
+                SchemeName = "Hint",
+            };
+
+            // First login / 2FA: verification code row.
+            var codeLabel = new Label { Text = Dictionary.DlgTelegramLoginLabel, X = 1, Y = 6, Width = 30 };
+            var codeField = new TextField { X = 32, Y = 6, Width = Dim.Fill() - 34 };
+            var sendBtn = new Button { Text = Dictionary.DlgTelegramSend, X = 1, Y = 8 };
+            void SubmitLoginCode(string code)
+            {
+                if (string.IsNullOrWhiteSpace(code)) return;
+                var error = TelegramBridge.SubmitLoginInput(code.Trim());
+                if (error == null) AddNote(Dictionary.NoteTelegramLoginCodeSubmitted);
+                else AddNote(string.Format(Dictionary.NoteTelegramLoginCodeFailed, error));
+                codeField.Text = "";
+                RefreshStatus();
+                _ = RefreshTelegramStatusAsync();
+            }
+            sendBtn.Accepted += (_, _) => SubmitLoginCode(codeField.Text ?? "");
+            codeField.KeyDown += (_, key) =>
+            {
+                if (key == Key.Enter) { key.Handled = true; SubmitLoginCode(codeField.Text ?? ""); }
+            };
+
+            // Actions row.
+            var allowBtn = new Button { Text = Dictionary.DlgTelegramAllow, X = 1, Y = 10 };
+            var disallowBtn = new Button { Text = Dictionary.DlgTelegramDisallow, X = 16, Y = 10 };
+            var configBtn = new Button { Text = Dictionary.DlgTelegramConfig, X = 33, Y = 10 };
+            var reloadBtn = new Button { Text = Dictionary.DlgTelegramReload, X = 47, Y = 10 };
+            var toggleBtn = new Button { Text = Dictionary.DlgTelegramToggleEnable, X = 1, Y = 12 };
+
+            allowBtn.Accepted += async (_, _) =>
+            {
+                var who = await PromptOnUiThreadAsync(Dictionary.DlgTelegramAllow, "");
+                if (who == null) return;
+                var (error, message) = TelegramBridge.AddAllowedUser(who);
+                if (error == null) AddNote(message);
+                else AddNote(string.Format(Dictionary.NoteTelegramAllowFailed, error));
+                RefreshStatus();
+                _ = RefreshTelegramStatusAsync();
+            };
+            disallowBtn.Accepted += async (_, _) =>
+            {
+                var who = await PromptOnUiThreadAsync(Dictionary.DlgTelegramDisallow, "");
+                if (who == null) return;
+                var (error, message) = TelegramBridge.RemoveAllowedUser(who);
+                if (error == null) AddNote(message);
+                else AddNote(string.Format(Dictionary.NoteTelegramAllowFailed, error));
+                RefreshStatus();
+                _ = RefreshTelegramStatusAsync();
+            };
+            configBtn.Accepted += (_, _) => RunCommandByName("telegram", "config");
+            reloadBtn.Accepted += (_, _) => RunCommandByName("telegram", "config reload");
+            toggleBtn.Accepted += async (_, _) =>
+            {
+                var (error, restart, message) = await TelegramBridge.SetConfigAsync("Enabled", TelegramBridge.IsEnabled ? "false" : "true");
+                if (error == null)
+                {
+                    AddNote(message);
+                    if (restart) AddNote(Dictionary.NoteTelegramConfigRestart);
+                }
+                else
+                {
+                    AddNote(string.Format(Dictionary.NoteTelegramConfigFailed, error));
+                }
+                RefreshStatus();
+                _ = RefreshTelegramStatusAsync();
+            };
+
+            dlg.Add(status, hint, codeLabel, codeField, sendBtn, allowBtn, disallowBtn, configBtn, reloadBtn, toggleBtn);
+            var close = new Button { Text = Dictionary.Close };
+            close.Accepted += (_, _) => _app.RequestStop(dlg);
+            dlg.AddButton(close);
+            dlg.Initialized += (_, _) => codeField.SetFocus();
+            _app.Run(dlg);
+            dlg.Dispose();
+            _inputField?.SetFocus();
+        }
+
+        // Modal single-field prompt (e.g. "allow user"); Enter/OK returns the trimmed
+        // value, Esc/Cancel returns null.
+        private string? RunPromptDialog(string title, string label)
+        {
+            var dlg = new Dialog
+            {
+                Title = title,
+                Width = Dim.Percent(60),
+                Height = 9,
+                SchemeName = "Dark",
+            };
+            if (label.Length > 0)
+                dlg.Add(new Label { Text = label, X = 1, Y = 0, Width = Dim.Fill() - 2 });
+            var field = new TextField { X = 1, Y = 1, Width = Dim.Fill() - 2 };
+            var hint = new Label
+            {
+                Text = Dictionary.DlgPromptHint,
+                X = 1, Y = 3, Width = Dim.Fill() - 2,
+                SchemeName = "Hint",
+            };
+            string? result = null;
+            field.KeyDown += (_, key) =>
+            {
+                if (key == Key.Enter)
+                {
+                    key.Handled = true;
+                    result = (field.Text ?? "").Trim();
+                    _app.RequestStop(dlg);
+                }
+            };
+            var ok = new Button { Text = Dictionary.Ok, IsDefault = true };
+            ok.Accepted += (_, _) => { result = (field.Text ?? "").Trim(); _app.RequestStop(dlg); };
+            var cancel = new Button { Text = Dictionary.Cancel };
+            cancel.Accepted += (_, _) => _app.RequestStop(dlg);
+            dlg.Add(field, hint);
+            dlg.AddButton(ok);
+            dlg.AddButton(cancel);
+            dlg.Initialized += (_, _) => field.SetFocus();
+            _app.Run(dlg);
+            dlg.Dispose();
+            return string.IsNullOrEmpty(result) ? null : result;
+        }
+
+        private Task<string?> PromptOnUiThreadAsync(string title, string label)
+        {
+            var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() =>
+            {
+                try { tcs.TrySetResult(RunPromptDialog(title, label)); }
+                catch (Exception ex) { tcs.TrySetException(ex); }
+            });
+            return tcs.Task;
+        }
+
         private async Task SwitchModelAsync(string args)
         {
             string name = args.Trim();
@@ -1486,26 +1695,124 @@ public static class ConsoleTui
             }
         }
 
-        private async Task SwitchAgentAsync(string args)
+        private Task SwitchAgentAsync(string args)
         {
-            string name;
             if (string.IsNullOrWhiteSpace(args.Trim()))
+                return ShowToolsDialogAsync();   // interactive checklist
+            var name = args.Trim().ToLowerInvariant();
+            if (!AgentTools.Presets.Any(p => string.Equals(p.Id, name, StringComparison.OrdinalIgnoreCase)))
             {
-                var pick = await PickOnUiThreadAsync(Dictionary.PickSwitchAgent, AgentSets.ToList());
-                if (pick == null) return;
-                name = pick;
+                AddNote(string.Format(Dictionary.NoteUnknownAgentSet, name,
+                    string.Join(", ", AgentTools.Presets.Select(p => p.Id))));
+                return Task.CompletedTask;
             }
-            else
+            ApplyPreset(name);
+            return Task.CompletedTask;
+        }
+
+        // Applies an agent-set preset: the preset id becomes the chat `model` and any
+        // custom tool combination is cleared (the preset wins).
+        private void ApplyPreset(string id)
+        {
+            _agentSet = id;
+            _customTools = null;
+            AddNote(string.Format(Dictionary.NoteAgentSet, id));
+            UpdateStatusUi();
+        }
+
+        private Task ShowToolsDialogAsync()
+        {
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() =>
             {
-                name = args.Trim().ToLowerInvariant();
-            }
-            if (!AgentSets.Contains(name))
+                try { ShowToolsDialog(); tcs.SetResult(); }
+                catch (Exception ex) { tcs.SetException(ex); }
+            });
+            return tcs.Task;
+        }
+
+        // The /agent tool picker: quick presets on top, an individual-tool checklist
+        // below (Space toggles). Enter on a preset applies it; Enter on the checklist
+        // applies the marked tools as a custom combination (sent as `tools`). The
+        // catalog is DYNAMIC — the plugins loaded at runtime define the available tools.
+        private void ShowToolsDialog()
+        {
+            var catalog = AgentTools.Catalog();
+            var current = EffectiveTools();
+            var dlg = new Dialog
             {
-                AddNote(string.Format(Dictionary.NoteUnknownAgentSet, name, string.Join(", ", AgentSets)));
-                return;
-            }
-            _agentSet = name;
-            AddNote(string.Format(Dictionary.NoteAgentSet, name));
+                Title = Dictionary.DlgToolsTitle,
+                Width = Dim.Percent(80),
+                Height = Dim.Percent(70),
+                SchemeName = "Dark",
+            };
+
+            var presetLabel = new Label { Text = Dictionary.DlgToolsPresets, X = 1, Y = 0, Width = Dim.Fill() - 2 };
+            var presetList = new ListView
+            {
+                X = 1, Y = 1, Width = Dim.Fill() - 2, Height = 6,
+                Source = new ListWrapper<string>(new ObservableCollection<string>(
+                    AgentTools.Presets.Select(p => $"{p.Id} — {string.Join(", ", p.Tools.Select(ToolShortName))}"))),
+            };
+            var toolsLabel = new Label { Text = Dictionary.DlgToolsActive, X = 1, Y = Pos.Bottom(presetList), Width = Dim.Fill() - 2 };
+            var toolNames = catalog.Select(c => c.Name).ToList();
+            var toolList = new ListView
+            {
+                // Fixed heights (not Dim.Fill math): a Fill-based height here collapsed
+                // the list to one row inside the modal dialog (see TUI-DEVELOPMENT.md).
+                X = 1, Y = Pos.Bottom(toolsLabel), Width = Dim.Fill() - 2, Height = 10,
+                ShowMarks = true,
+                Source = new ListWrapper<string>(new ObservableCollection<string>(
+                    catalog.Select(c => $"{c.Name} — {c.Description}"))),
+            };
+            var hint = new Label
+            {
+                Text = Dictionary.DlgToolsHint,
+                X = 1, Y = Pos.Bottom(toolList), Width = Dim.Fill() - 2,
+            };
+            dlg.Add(presetLabel, presetList, toolsLabel, toolList, hint);
+
+            // Reflect the currently active tools in the checklist.
+            for (int i = 0; i < toolNames.Count; i++)
+                toolList.Source.SetMark(i, current.Contains(toolNames[i], StringComparer.OrdinalIgnoreCase));
+
+            // Enter on a preset → mark its tools, apply it, close.
+            presetList.Accepted += (_, e) =>
+            {
+                e.Handled = true;
+                var idx = presetList.SelectedItem ?? 0;
+                if (idx < 0 || idx >= AgentTools.Presets.Length) return;
+                var p = AgentTools.Presets[idx];
+                for (int i = 0; i < toolNames.Count; i++)
+                    toolList.Source.SetMark(i, p.Tools.Contains(toolNames[i], StringComparer.OrdinalIgnoreCase));
+                ApplyPreset(p.Id);
+                _app.RequestStop(dlg);
+            };
+            // Enter on the checklist → apply the marked tools as a custom combination.
+            toolList.Accepted += (_, e) =>
+            {
+                e.Handled = true;
+                var marked = new List<string>();
+                for (int i = 0; i < toolNames.Count; i++)
+                    if (toolList.Source.IsMarked(i)) marked.Add(toolNames[i]);
+                if (marked.Count == 0)
+                {
+                    AddNote(Dictionary.NoteNoToolsSelected);
+                    return;
+                }
+                _agentSet = "default-agent";   // the `tools` field overrides it server-side
+                _customTools = marked;
+                AddNote(string.Format(Dictionary.NoteToolsApplied, string.Join(", ", marked.Select(ToolShortName))));
+                UpdateStatusUi();
+                _app.RequestStop(dlg);
+            };
+            var close = new Button { Text = Dictionary.Close };
+            close.Accepted += (_, _) => _app.RequestStop(dlg);
+            dlg.AddButton(close);
+            dlg.Initialized += (_, _) => presetList.SetFocus();
+            _app.Run(dlg);
+            dlg.Dispose();
+            _inputField?.SetFocus();
         }
 
         private async Task VoiceAsync(string lang)
@@ -1693,7 +2000,8 @@ public static class ConsoleTui
                 lock (_stateLock)
                 {
                     if (_files.Count == 0) { AddNote(Dictionary.NoteNoFiles); return; }
-                    lines = _files.Select(f => $"{f.FileName}  {f.Id} · {f.Status}{(f.Attached ? "  " + Dictionary.NoteAttachedSuffix : "")}").ToList();
+                    // File names only — the internal file-… ids mean nothing to the user.
+                    lines = _files.Select(f => $"{f.FileName} · {f.Status}{(f.Attached ? "  " + Dictionary.NoteAttachedSuffix : "")}").ToList();
                 }
                 await ShowPageUiAsync(Dictionary.PageUploadedFiles, lines);
                 return;
@@ -1733,9 +2041,21 @@ public static class ConsoleTui
                     AddNote(string.Format(Dictionary.NoteUploadFailed, ex.Message));
                 }
             }
-            else if (sub == "rm" && parts.Length == 2)
+            else if (sub == "rm")
             {
-                var id = parts[1].Trim();
+                var id = parts.Length > 1 ? parts[1].Trim() : "";
+                if (id.Length == 0)
+                {
+                    // No cryptic ids in the UI: pick the file by name.
+                    await RefreshFilesAsync();
+                    List<FileRef> files;
+                    lock (_stateLock) files = _files.ToList();
+                    if (files.Count == 0) { AddNote(Dictionary.NoteNoFiles); return; }
+                    var idx = await PickIndexOnUiThreadAsync(Dictionary.DlgPickFileToDelete,
+                        files.Select(f => f.FileName).ToList());
+                    if (idx is not { } i || i < 0 || i >= files.Count) return;
+                    id = files[i].Id;
+                }
                 try
                 {
                     using var resp = await _http.DeleteAsync($"/v1/files/{Uri.EscapeDataString(id)}");
@@ -1772,11 +2092,9 @@ public static class ConsoleTui
             if (string.IsNullOrWhiteSpace(args))
             {
                 if (files.Count == 0) { AddNote(Dictionary.NoteNoFiles); return; }
-                var choices = files.Select(f => $"{f.FileName}  ({f.Id}){(f.Attached ? "  " + Dictionary.AttachMarker : "")}").ToList();
-                var pick = await PickOnUiThreadAsync(Dictionary.DlgToggleAttach, choices);
-                if (pick == null) return;
-                var name = pick[..pick.IndexOf("  (", StringComparison.Ordinal)];
-                ToggleAttach(files.First(x => x.FileName == name));
+                var choices = files.Select(f => $"{f.FileName}{(f.Attached ? "  " + Dictionary.AttachMarker : "")}").ToList();
+                var idx = await PickIndexOnUiThreadAsync(Dictionary.DlgToggleAttach, choices);
+                if (idx is { } i && i >= 0 && i < files.Count) ToggleAttach(files[i]);
                 return;
             }
             var byArg = files.FirstOrDefault(x => x.Id == args.Trim() || x.FileName.Equals(args.Trim(), StringComparison.OrdinalIgnoreCase));
@@ -1947,15 +2265,20 @@ public static class ConsoleTui
             {
                 var bat = Path.Combine(dir, "start.bat");
                 if (!File.Exists(bat)) throw new InvalidOperationException($"missing {bat}");
-                // cmd start: detached window, returns immediately without blocking the TUI.
+                // ⚠️ CONSOLE LEAK (see docs/TUI-DEVELOPMENT.md §8): the launcher must never
+                // share the TUI console — a child writing into the caller's console floods
+                // the screen with raw ANSI (^[[8;30;120t spam). UseShellExecute=true gives
+                // the .bat its OWN console window and detaches its std handles completely.
                 // The JSON travels base64url-encoded (no padding): embedded quotes or '='
                 // would be mangled by the cmd.exe command line (start.bat decodes it
                 // before building the browser URL).
                 var b64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(provider))
                     .TrimEnd('=').Replace('+', '-').Replace('/', '_');
-                Process.Start(new ProcessStartInfo("cmd.exe", $"/c start \"\" \"{bat}\" --provider {b64}")
+                Process.Start(new ProcessStartInfo
                 {
-                    UseShellExecute = false,
+                    FileName = bat,
+                    Arguments = $"--provider {b64}",
+                    UseShellExecute = true,
                     WorkingDirectory = dir,
                 });
             }
@@ -1963,11 +2286,34 @@ public static class ConsoleTui
             {
                 var sh = Path.Combine(dir, "start.sh");
                 if (!File.Exists(sh)) throw new InvalidOperationException($"missing {sh}");
-                Process.Start(new ProcessStartInfo("bash", new[] { sh, "--provider", provider })
+                // Same console-leak rule: the launcher's output must never reach the TUI,
+                // so its std handles are drained to a temp log instead of the terminal.
+                // The drain tasks outlive this method (the launcher runs as a server).
+                var logPath = Path.Combine(Path.GetTempPath(), $"giraffe_{DateTime.Now:yyyyMMddHHmmss}.log");
+                var log = File.Create(logPath);
+                var psi = new ProcessStartInfo("bash", new[] { sh, "--provider", provider })
                 {
                     UseShellExecute = false,
                     WorkingDirectory = dir,
-                });
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+                var proc = Process.Start(psi);
+                if (proc != null)
+                {
+                    _ = Task.Run(() =>
+                    {
+                        // StreamReader.CopyTo needs a TextWriter — drain the raw stream.
+                        try { proc.StandardOutput.BaseStream.CopyTo(log); } catch { }
+                        try { proc.StandardError.BaseStream.CopyTo(log); } catch { }
+                        try { log.Dispose(); } catch { }
+                        try { proc.Dispose(); } catch { }
+                    });
+                }
+                else
+                {
+                    try { log.Dispose(); } catch { }
+                }
             }
         }
 
@@ -2109,6 +2455,54 @@ public static class ConsoleTui
             return result;
         }
 
+        // Like RunPickerDialog but returns the selected INDEX (the caller owns the items),
+        // so the rendered rows never need parsing (e.g. to strip an id from a file name).
+        private int? RunIndexPickerDialog(string title, IReadOnlyList<string> items)
+        {
+            if (items.Count == 0) return null;
+            var dlg = new Dialog
+            {
+                Title = title,
+                Width = Dim.Percent(70),
+                Height = Dim.Percent(60),
+                SchemeName = "Dark",
+            };
+            var list = new ListView
+            {
+                X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 1,
+                Source = new ListWrapper<string>(new ObservableCollection<string>(items)),
+            };
+            var hint = new Label
+            {
+                Text = Dictionary.DlgPickerHint,
+                X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
+            };
+            int? result = null;
+            list.Accepted += (_, e) =>
+            {
+                e.Handled = true;
+                result = list.SelectedItem;
+                _app.RequestStop(dlg);
+            };
+            dlg.Add(list, hint);
+            dlg.Initialized += (_, _) => list.SetFocus();
+            _app.Run(dlg);
+            dlg.Dispose();
+            _inputField?.SetFocus();
+            return result;
+        }
+
+        private Task<int?> PickIndexOnUiThreadAsync(string title, IReadOnlyList<string> items)
+        {
+            var tcs = new TaskCompletionSource<int?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() =>
+            {
+                try { tcs.TrySetResult(RunIndexPickerDialog(title, items)); }
+                catch (Exception ex) { tcs.TrySetException(ex); }
+            });
+            return tcs.Task;
+        }
+
         private Task<string?> PickOnUiThreadAsync(string title, IReadOnlyList<string> items)
         {
             var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -2205,7 +2599,9 @@ public static class ConsoleTui
             return tcs.Task;
         }
 
-        // Full-screen page (help/status): a modal dialog, any key or click closes it.
+        // Full-screen page (help/status): a modal dialog closed by Esc/Close.
+        // The read-only Editor is focusable so ↑↓ / PgUp / PgDn scroll the content
+        // (an unfocusable page had dead arrow keys — see docs/TUI-DEVELOPMENT.md §8).
         private void ShowPage(string title, IReadOnlyList<string> lines)
         {
             var dlg = new Dialog
@@ -2219,7 +2615,7 @@ public static class ConsoleTui
             {
                 ReadOnly = true,
                 WordWrap = false,
-                CanFocus = false,
+                CanFocus = true,   // focusable → ↑↓ / PgUp / PgDn scroll the page
                 X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 2,
                 Document = new TextDocument(string.Join("\n", lines)),
             };
@@ -2230,6 +2626,7 @@ public static class ConsoleTui
             };
             dlg.Add(tv, hint);
             dlg.AddButton(new Button { Text = Dictionary.Close });
+            dlg.Initialized += (_, _) => tv.SetFocus();
             _app.Run(dlg);
             dlg.Dispose();
             _inputField?.SetFocus();
@@ -2354,13 +2751,9 @@ public static class ConsoleTui
                         List<FileRef> files;
                         lock (_stateLock) files = _files.ToList();
                         if (files.Count == 0) { AddNote(Dictionary.NoteNoFiles); return; }
-                        var choices = files.Select(f => $"{f.FileName}  ({f.Id}){(f.Attached ? "  " + Dictionary.AttachMarker : "")}").ToList();
-                        var pick = RunPickerDialog(Dictionary.DlgToggleAttach, choices);
-                        if (pick != null)
-                        {
-                            var name = pick[..pick.IndexOf("  (", StringComparison.Ordinal)];
-                            ToggleAttach(files.First(x => x.FileName == name));
-                        }
+                        var choices = files.Select(f => $"{f.FileName}{(f.Attached ? "  " + Dictionary.AttachMarker : "")}").ToList();
+                        var idx = RunIndexPickerDialog(Dictionary.DlgToggleAttach, choices);
+                        if (idx is { } i && i >= 0 && i < files.Count) ToggleAttach(files[i]);
                     });
                 }
                 catch (Exception ex)

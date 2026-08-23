@@ -105,7 +105,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="CmdWeb" xml:space="preserve"><value>Install (first run) and launch the Giraffe AI web client in the browser</value></data>
   <data name="CmdModelSetup" xml:space="preserve"><value>Configure LLM models &amp; providers (add/edit/remove, active model, API keys)</value></data>
   <data name="CmdModel" xml:space="preserve"><value>Switch the LLM provider (menu when no name given)</value></data>
-  <data name="CmdAgent" xml:space="preserve"><value>Switch the agent set (default/web/search/word/spreadsheet/email/multi)</value></data>
+  <data name="CmdAgent" xml:space="preserve"><value>Choose the agent tools: pick a quick preset or toggle individual tools</value></data>
   <data name="CmdVoice" xml:space="preserve"><value>Dictate from the server microphone into the input (default = system language)</value></data>
   <data name="CmdTts" xml:space="preserve"><value>Speak the last agent reply (or the given text) via Kokoro TTS</value></data>
   <data name="CmdFeatures" xml:space="preserve"><value>Show or toggle session feature flags (voice, tts, ...)</value></data>
@@ -367,4 +367,40 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="NoLlmResponse" xml:space="preserve"><value>LLM returned no response</value></data>
   <data name="Done" xml:space="preserve"><value>Done</value></data>
   <data name="NoOutputGenerated" xml:space="preserve"><value>No output generated</value></data>
+  <!-- Tool checklist (/agent) and Telegram dialog (menu Session → Telegram). -->
+  <data name="MenuTools" xml:space="preserve"><value>_Tools</value></data>
+  <data name="MenuMedia" xml:space="preserve"><value>_Media</value></data>
+  <data name="MenuTelegram" xml:space="preserve"><value>_Telegram (/telegram)</value></data>
+  <data name="MenuFiles" xml:space="preserve"><value>_Files (/files)</value></data>
+  <data name="MenuAttach" xml:space="preserve"><value>_Attach (/attach)</value></data>
+  <data name="MenuVoice" xml:space="preserve"><value>_Voice (/voice)</value></data>
+  <data name="MenuTts" xml:space="preserve"><value>_TTS (/tts)</value></data>
+  <data name="DlgToolsTitle" xml:space="preserve"><value>Agent tools</value></data>
+  <data name="DlgToolsPresets" xml:space="preserve"><value>Quick presets — Enter applies</value></data>
+  <data name="DlgToolsActive" xml:space="preserve"><value>Active tools — Space toggles</value></data>
+  <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ move · Space toggle · Enter apply · Esc cancel</value></data>
+  <data name="NoteNoToolsSelected" xml:space="preserve"><value>select at least one tool</value></data>
+  <data name="NoteToolsApplied" xml:space="preserve"><value>tools: {0}</value></data>
+  <data name="DlgPickFileToDelete" xml:space="preserve"><value>Delete file</value></data>
+  <data name="StatusTools" xml:space="preserve"><value>tools</value></data>
+  <data name="StatusBarHints" xml:space="preserve"><value>F1 help · F10 menu · / commands · @ files · ? shortcuts · Esc close · Ctrl+C cancel</value></data>
+  <data name="DlgTelegramTitle" xml:space="preserve"><value>Telegram</value></data>
+  <data name="DlgTelegramHint" xml:space="preserve"><value>First login needs the verification code — enter it below when the phase is "code".</value></data>
+  <data name="DlgTelegramLoginLabel" xml:space="preserve"><value>Verification code / 2FA password</value></data>
+  <data name="DlgTelegramSend" xml:space="preserve"><value>Send code</value></data>
+  <data name="DlgTelegramAllow" xml:space="preserve"><value>Allow user…</value></data>
+  <data name="DlgTelegramDisallow" xml:space="preserve"><value>Disallow user…</value></data>
+  <data name="DlgTelegramConfig" xml:space="preserve"><value>Show config</value></data>
+  <data name="DlgTelegramReload" xml:space="preserve"><value>Reload config</value></data>
+  <data name="DlgTelegramToggleEnable" xml:space="preserve"><value>Toggle enabled</value></data>
+  <data name="DlgPromptTitle" xml:space="preserve"><value>Enter a value</value></data>
+  <data name="DlgPromptHint" xml:space="preserve"><value>Type the value and press Enter (Esc cancels)</value></data>
+  <!-- Chat attachments show the file name (not the raw path). -->
+  <data name="ChatAttachmentMarker" xml:space="preserve"><value>[attachment: {0}]</value></data>
+  <!-- Friendly HTTP status notes. -->
+  <data name="HttpStatusAuth" xml:space="preserve"><value>authentication failed (HTTP {0})</value></data>
+  <data name="HttpStatusNotFound" xml:space="preserve"><value>endpoint not found (HTTP {0})</value></data>
+  <data name="HttpStatusRateLimited" xml:space="preserve"><value>rate limited (HTTP {0})</value></data>
+  <data name="HttpStatusServer" xml:space="preserve"><value>server error (HTTP {0})</value></data>
+  <data name="HttpStatusOther" xml:space="preserve"><value>request failed (HTTP {0})</value></data>
 </root>

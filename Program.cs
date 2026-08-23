@@ -129,6 +129,8 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     ContentRootPath = AppContext.BaseDirectory
 });
 
+// The TUI (Tui.cs) is built on Terminal.Gui v2 — before changing anything about
+// it, read docs/TUI-DEVELOPMENT.md (local developer guide, offline reference).
 // Terminal UI mode: by default the console opens the Qwen-Code-style TUI (chat +
 // slash commands + voice/model/files/help) while the server keeps answering API
 // calls in the same process — "CLI + API simultaneously". --headless restores the
@@ -242,12 +244,9 @@ var jsonOptions = new JsonSerializerOptions
 };
 
 // Agent-set ids exposed as "models" (each maps to a concrete tool set in
-// ResolveAgentTypes). Keep in sync with the switch in ResolveAgentTypes.
-var agentModelIds = new[]
-{
-    "default-agent", "web-agent", "search-agent", "research-agent",
-    "document-agent", "spreadsheet-agent", "email-agent", "multi-agent"
-};
+// ResolveAgentTypes). Derived from the AgentTools preset table so the API
+// surface and the TUI tool selection can never drift apart.
+var agentModelIds = AgentTools.Presets.Select(p => p.Id).ToArray();
 
 // ─────────────────────────────────────────────────────────────────────
 // POST /v1/chat/completions — OpenAI Chat Completions API
@@ -280,7 +279,16 @@ app.MapPost("/v1/chat/completions", async (
             return Results.BadRequest(new { error = providerError });
         var provider = resolvedProvider!;
 
-        var agentToolNames = ResolveAgentTypes(request.Model);
+        // Explicit tool list (additive extension, see ChatCompletionRequest.Tools) wins
+        // over the agent set resolved from `model`: unknown names are skipped by the
+        // tool registry, so a request with only unknown tools degrades to no tools.
+        var agentToolNames = request.Tools is { Count: > 0 }
+            ? request.Tools
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Select(t => t.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            : ResolveAgentTypes(request.Model);
         var attachments = ResolveAttachments(request.FileIds);
         var maxIterations = request.MaxTokens > 0
             ? Math.Clamp(request.MaxTokens.Value / 100, 1, 50)
@@ -1133,6 +1141,13 @@ public record ChatCompletionRequest
     /// </summary>
     [JsonPropertyName("file_ids")]
     public List<string>? FileIds { get; init; }
+    /// <summary>
+    /// Optional explicit agent-tool names for this request (extension): overrides the
+    /// agent set resolved from <see cref="Model"/> with an arbitrary combination (e.g.
+    /// ["WebTool", "SpreadsheetTool"]). Unknown names are skipped by the tool registry.
+    /// </summary>
+    [JsonPropertyName("tools")]
+    public List<string>? Tools { get; init; }
     /// <summary>
     /// Multi-turn session id (extension): keeps the conversation history across requests.
     /// Omit to keep the historical stateless per-request behaviour. Created sessions are

@@ -37,8 +37,11 @@ internal static class Program
     private static int _pass, _fail;
 
     // Strips ANSI sequences (colors, cursor, OSC) so text matches are reliable.
+    // The OSC alternative must handle BOTH terminations: BEL (\x07) and ST (ESC \)
+    // — Terminal.Gui's window-title OSC ends with ST, and a stray ST byte after a
+    // command name corrupted marker matching (e.g. "/clear" + ESC instead of "/clear ").
     private static readonly System.Text.RegularExpressions.Regex AnsiRe = new(
-        "\x1b\\[[0-9;?]*[ -/]*[@-~]|\x1b\\][^\\x07]*\x07|\x1b[()][A-Za-z0-9]|\x1b[=>]",
+        "\x1b\\[[0-9;?]*[ -/]*[@-~]|\x1b\\][^\\x07\\x1b]*(\\x07|\x1b\\\\)|\x1b[()][A-Za-z0-9]|\x1b[=>]",
         System.Text.RegularExpressions.RegexOptions.Compiled);
 
     internal static string StripAnsi(string s) => AnsiRe.Replace(s, "");
@@ -135,15 +138,16 @@ internal static class Program
         using var conpty = new ConPty(exe, cmdArgs);
         Console.WriteLine($"cmdline   : {cmdArgs}");
 
-        // 1) The UI renders: AGENT logo (block chars), window title, status bar.
-        //    The status bar shows the server URL once the in-process server answers
-        //    /health, which also proves the Terminal.Gui screen is rendering.
+        // 1) The UI renders: window title, status bar and chat panel. The status bar
+        //    shows the server host:port once the in-process server answers /health,
+        //    which also proves the Terminal.Gui screen is rendering. The chat panel
+        //    starts with the welcome history (its system entries render with "·").
         await conpty.WaitForText(baseUrl.Replace("http://", ""), TimeSpan.FromSeconds(20));
         var out0 = conpty.Screen;
-        var uiRendered = out0.Contains("█");
-        Check("logo AGENT rendered (block chars)", out0.Contains("█"));
+        var uiRendered = out0.Contains("·");
+        Check("chat panel rendered (system entries)", out0.Contains("·"));
         Check("window title rendered", out0.Contains("AGENT - AI Chat Console") || out0.Contains("Console chat IA"));
-        Check("status bar shows server url", out0.Contains(baseUrl.Replace("http://", "")));
+        Check("status bar shows server host:port", out0.Contains(baseUrl.Replace("http://", "")));
 
         // If the child did not attach (headless), no point continuing: the retry relaunches.
         if (!uiRendered) return false;
@@ -151,7 +155,9 @@ internal static class Program
         // Locale-independent marker of the provider picker: it lists the providers
         // fetched from /v1/models as "id — name · ctx N". The dialog title (and every
         // other UI string) is localized, so the tests never assert localized text.
-        const string pickerMarker = "ctx ";
+        // "· ctx " (with the bullet) disambiguates the picker rows from the status
+        // bar's context segment ("ctx 0/32k"), which must not leak into these checks.
+        const string pickerMarker = "· ctx ";
         // The slash palette lists command names ("/agent ...") which are NOT translated.
         const string paletteMarker = "/agent ";
 
@@ -165,11 +171,13 @@ internal static class Program
         // 2b) USER REQUEST: the picker must also accept typed text — type a provider
         //     name into its filter field and press Enter (nobody remembers the ids).
         //     The switch must succeed (no "refused"/"rifiutato" note). The FIRST
-        //     /v1/control call lazily loads the TTS engine (kokoro.onnx, seconds), so
-        //     the startup session creation completes only when the status bar shows it
-        //     ("sess:sess-…") — wait for that before typing, else the switch POST
-        //     races the create and 400s with "session_id is required".
-        await conpty.WaitForNewTextAsync("sess:sess-", TimeSpan.FromSeconds(25));
+        //     /v1/control call lazily loads the TTS engine (kokoro.onnx, seconds),
+        //     so the startup session creation completes only when the status bar shows the
+        //     context segment ("ctx N/M") — wait for that before typing, else the switch
+        //     POST races the create and 400s with "session_id is required". The context
+        //     segment "ctx 0/" appears in the status bar only after the session state
+        //     refreshed — WaitForText is timing-independent (accumulated stream).
+        await conpty.WaitForText("ctx 0/", TimeSpan.FromSeconds(25));
         conpty.Mark();
         conpty.Send("Zai\r");
         await Task.Delay(1800);
@@ -177,14 +185,21 @@ internal static class Program
         Check("typed provider name selects and switches (Zai)", afterTyped.Contains("Zai") && !afterTyped.Contains("refused") && !afterTyped.Contains("rifiutato") && !afterTyped.Contains("required"));
         CheckAlive(conpty, "process alive after typed provider name");
 
-        // 2c) Esc closes the picker with no residue.
+        // 2c) Esc closes the picker with no residue. Wait on " · ctx " — the provider
+        //     rows ("id — name · ctx N") — which the palette rows never carry. After
+        //     Esc the picker's row signature " — <name> · ctx " must be gone: history
+        //     lines with a bare " — " or the status bar's " · ctx 0/128k" do not match.
         conpty.Send("/model\r");
-        await conpty.WaitForNewTextAsync(pickerMarker, TimeSpan.FromSeconds(20));
+        await conpty.WaitForNewTextAsync(" · ctx ", TimeSpan.FromSeconds(20));
+        await Task.Delay(400);   // let the dialog finish opening before Esc
         conpty.Mark();
         conpty.Send("\x1b");
         await Task.Delay(800);
         var afterEsc = conpty.ScreenSinceMark();
-        Check("Esc closes picker (no residue)", !afterEsc.Contains(pickerMarker));
+        var residue = System.Text.RegularExpressions.Regex.Match(afterEsc, " — [^ ]+ · ctx ");
+        if (residue.Success)
+            Console.WriteLine($"[diag] picker residue [{residue.Value}]:\n" + (afterEsc.Length > 1200 ? afterEsc[^1200..] : afterEsc));
+        Check("Esc closes picker (no residue)", !residue.Success);
 
         // 2d) List selection: Enter on the list picks the highlighted provider. The
         //     first llm-provider on this machine is ExllamaV2_Llama3b — after the
@@ -239,9 +254,14 @@ internal static class Program
         await Task.Delay(500);
 
         // 4) The palette lists the commands in ALPHABETICAL order (user request).
+        //    Only the fresh frames after "/" are inspected (the accumulated stream
+        //    also carries earlier palette/dialog frames that would break the order).
+        //    Wait for a mid-list row so the ListView finished rendering before capture.
+        conpty.Mark();
         conpty.Send("/");
-        await Task.Delay(800);
-        var palette = conpty.Screen;
+        await conpty.WaitForNewTextAsync("/clear ", TimeSpan.FromSeconds(5));
+        await Task.Delay(300);
+        var palette = conpty.ScreenSinceMark();
         Check("palette opens and lists commands", palette.Contains(paletteMarker));
         var idx = new List<int>
         {
@@ -252,6 +272,13 @@ internal static class Program
             palette.IndexOf("/exit "),
             palette.IndexOf("/features "),
         };
+        if (idx.Any(i => i < 0) || !idx.SequenceEqual(idx.OrderBy(i => i)))
+        {
+            Console.WriteLine($"[diag] palette ({palette.Length} chars):\n" + palette);
+            var raw = conpty.OutputSinceMark();
+            var ci = raw.IndexOf("/clear");
+            Console.WriteLine($"[diag] raw /clear at {ci}: " + (ci >= 0 ? string.Join(",", raw.Skip(Math.Max(0, ci - 6)).Take(20).Select(c => ((int)c).ToString())) : "raw NOT FOUND"));
+        }
         Check("commands sorted alphabetically in palette", idx.All(i => i >= 0) && idx.SequenceEqual(idx.OrderBy(i => i)));
         conpty.Send("\x1b");
         await Task.Delay(500);
@@ -265,7 +292,7 @@ internal static class Program
         {
             ("help", "\x1b"), ("shortcuts", "\x1b"), ("status", "\x1b"),
             ("features", ""), ("clear", ""), ("new", ""), ("retry", ""), ("health", ""),
-            ("files", "\x1b"), ("attach", "\x1b"), ("agent", "\x1b"),
+            ("files", "\x1b"), ("attach", "\x1b"), ("agent", "\x1b"), ("telegram", "\x1b"),
             ("model", "\x1b"), ("modelsetup", "\x1b"),
         })
         {
@@ -283,6 +310,25 @@ internal static class Program
         Check("palette still opens after sweep", conpty.Screen.Contains(paletteMarker));
         conpty.Send("\x1b");
         await Task.Delay(400);
+
+        // 5c) USER REQUEST: /agent opens the TOOLS dialog — untranslated preset ids and
+        //     tool names (API contract) prove the checklist rendered; Esc closes it.
+        conpty.Send("/agent\r");
+        await conpty.WaitForNewTextAsync("default-agent", TimeSpan.FromSeconds(15));
+        var toolsDlg = conpty.ScreenSinceMark();
+        if (!toolsDlg.Contains("default-agent") || !toolsDlg.Contains("FileTool"))
+            Console.WriteLine("[diag] tools dialog screen:\n" + (toolsDlg.Length > 2500 ? toolsDlg[^2500..] : toolsDlg));
+        Check("tools dialog lists presets and tools", toolsDlg.Contains("default-agent") && toolsDlg.Contains("FileTool"));
+        CheckAlive(conpty, "process alive after /agent tools dialog");
+        conpty.Send("\x1b");
+        await Task.Delay(500);
+
+        // 5d) /telegram opens the interactive panel (no crash); Esc closes it.
+        conpty.Send("/telegram\r");
+        await Task.Delay(1500);
+        CheckAlive(conpty, "process alive after /telegram panel");
+        conpty.Send("\x1b");
+        await Task.Delay(500);
 
         // 6) Chat: the user's message appears immediately in the conversation.
         conpty.Mark();

@@ -20,15 +20,15 @@ namespace AgentBridge.Resources {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class Dictionary {
-        
+
         private static global::System.Resources.ResourceManager resourceMan;
-        
+
         private static global::System.Globalization.CultureInfo resourceCulture;
-        
+
         [global::System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal Dictionary() {
         }
-        
+
         /// <summary>
         ///   Returns the cached ResourceManager instance used by this class.
         /// </summary>
@@ -42,7 +42,7 @@ namespace AgentBridge.Resources {
                 return resourceMan;
             }
         }
-        
+
         /// <summary>
         ///   Overrides the current thread's CurrentUICulture property for all
         ///   resource lookups using this strongly typed resource class.
@@ -56,16 +56,43 @@ namespace AgentBridge.Resources {
                 resourceCulture = value;
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'Ok'.
+        ///   Looks up a localized string similar to 'AboutText'.
         /// </summary>
-        public static string Ok {
+        public static string AboutText {
             get {
-                return ResourceManager.GetString("Ok", resourceCulture);
+                return ResourceManager.GetString("AboutText", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'AGENT'.
+        /// </summary>
+        public static string AboutTitle {
+            get {
+                return ResourceManager.GetString("AboutTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '[attached]'.
+        /// </summary>
+        public static string AttachMarker {
+            get {
+                return ResourceManager.GetString("AttachMarker", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'available'.
+        /// </summary>
+        public static string Available {
+            get {
+                return ResourceManager.GetString("Available", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to 'Cancel'.
         /// </summary>
@@ -74,7 +101,25 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("Cancel", resourceCulture);
             }
         }
-        
+
+        /// <summary>
+        ///   Looks up a localized string similar to '[attachment: {0}]'.
+        /// </summary>
+        public static string ChatAttachmentMarker {
+            get {
+                return ResourceManager.GetString("ChatAttachmentMarker", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Chat'.
+        /// </summary>
+        public static string ChatFrameTitle {
+            get {
+                return ResourceManager.GetString("ChatFrameTitle", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to 'Close'.
         /// </summary>
@@ -83,81 +128,684 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("Close", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'On'.
+        ///   Looks up a localized string similar to 'Choose the agent tools: pick a quick preset or toggle individual tools'.
         /// </summary>
-        public static string On {
+        public static string CmdAgent {
             get {
-                return ResourceManager.GetString("On", resourceCulture);
+                return ResourceManager.GetString("CmdAgent", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'Off'.
+        ///   Looks up a localized string similar to 'Toggle a file attachment for the chat (menu when no id)'.
         /// </summary>
-        public static string Off {
+        public static string CmdAttach {
             get {
-                return ResourceManager.GetString("Off", resourceCulture);
+                return ResourceManager.GetString("CmdAttach", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'None'.
+        ///   Looks up a localized string similar to 'Reset the current session history (keeps the session)'.
         /// </summary>
-        public static string None {
+        public static string CmdClear {
             get {
-                return ResourceManager.GetString("None", resourceCulture);
+                return ResourceManager.GetString("CmdClear", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'NoneSet'.
+        ///   Looks up a localized string similar to 'Open the online documentation in your browser'.
         /// </summary>
-        public static string NoneSet {
+        public static string CmdDocs {
             get {
-                return ResourceManager.GetString("NoneSet", resourceCulture);
+                return ResourceManager.GetString("CmdDocs", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'Available'.
+        ///   Looks up a localized string similar to 'Exit the terminal UI (Ctrl+Q, Ctrl+C twice, Ctrl+D)'.
         /// </summary>
-        public static string Available {
+        public static string CmdExit {
             get {
-                return ResourceManager.GetString("Available", resourceCulture);
+                return ResourceManager.GetString("CmdExit", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'Unavailable'.
+        ///   Looks up a localized string similar to 'Show or toggle session feature flags (voice, tts, ...)'.
         /// </summary>
-        public static string Unavailable {
+        public static string CmdFeatures {
             get {
-                return ResourceManager.GetString("Unavailable", resourceCulture);
+                return ResourceManager.GetString("CmdFeatures", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'Connected'.
+        ///   Looks up a localized string similar to 'Upload+attach a file, delete one, or list uploads'.
+        /// </summary>
+        public static string CmdFiles {
+            get {
+                return ResourceManager.GetString("CmdFiles", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Ping the server and report latency'.
+        /// </summary>
+        public static string CmdHealth {
+            get {
+                return ResourceManager.GetString("CmdHealth", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Show help: commands, shortcuts, API endpoints, online docs'.
+        /// </summary>
+        public static string CmdHelp {
+            get {
+                return ResourceManager.GetString("CmdHelp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Switch the LLM provider (menu when no name given)'.
+        /// </summary>
+        public static string CmdModel {
+            get {
+                return ResourceManager.GetString("CmdModel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Configure LLM models & providers (add/edit/remove, active model, API keys)'.
+        /// </summary>
+        public static string CmdModelSetup {
+            get {
+                return ResourceManager.GetString("CmdModelSetup", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Start a new session (fresh conversation, new id)'.
+        /// </summary>
+        public static string CmdNew {
+            get {
+                return ResourceManager.GetString("CmdNew", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Resend the last prompt (also Ctrl+Y)'.
+        /// </summary>
+        public static string CmdRetry {
+            get {
+                return ResourceManager.GetString("CmdRetry", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Show the keyboard shortcuts overlay'.
+        /// </summary>
+        public static string CmdShortcuts {
+            get {
+                return ResourceManager.GetString("CmdShortcuts", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SIP telephony: status, config [set <key> <value>|reload], call <sip-uri>, answer on|off, hangup'.
+        /// </summary>
+        public static string CmdSip {
+            get {
+                return ResourceManager.GetString("CmdSip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Show session state and platform capabilities'.
+        /// </summary>
+        public static string CmdStatus {
+            get {
+                return ResourceManager.GetString("CmdStatus", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Telegram chat medium: status, config [set <key> <value>|reload], login-code <code>, allow|disallow <user>'.
+        /// </summary>
+        public static string CmdTelegram {
+            get {
+                return ResourceManager.GetString("CmdTelegram", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Speak the last agent reply (or the given text) via Kokoro TTS'.
+        /// </summary>
+        public static string CmdTts {
+            get {
+                return ResourceManager.GetString("CmdTts", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Dictate from the server microphone into the input (default = system language)'.
+        /// </summary>
+        public static string CmdVoice {
+            get {
+                return ResourceManager.GetString("CmdVoice", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Install (first run) and launch the Giraffe AI web client in the browser'.
+        /// </summary>
+        public static string CmdWeb {
+            get {
+                return ResourceManager.GetString("CmdWeb", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'connected'.
         /// </summary>
         public static string Connected {
             get {
                 return ResourceManager.GetString("Connected", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'Unreachable'.
+        ///   Looks up a localized string similar to 'type to filter · ↑↓ · Tab completes · Enter runs · Esc closes'.
         /// </summary>
-        public static string Unreachable {
+        public static string DlgCommandsHint {
             get {
-                return ResourceManager.GetString("Unreachable", resourceCulture);
+                return ResourceManager.GetString("DlgCommandsHint", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'InputPlaceholder'.
+        ///   Looks up a localized string similar to 'Available commands'.
+        /// </summary>
+        public static string DlgCommandsTitle {
+            get {
+                return ResourceManager.GetString("DlgCommandsTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '— scroll with ↑↓ / PgUp-PgDn · close with Esc or Enter —'.
+        /// </summary>
+        public static string DlgPageHint {
+            get {
+                return ResourceManager.GetString("DlgPageHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '↑↓ navigate · Enter select · Esc cancel'.
+        /// </summary>
+        public static string DlgPickerHint {
+            get {
+                return ResourceManager.GetString("DlgPickerHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Delete file'.
+        /// </summary>
+        public static string DlgPickFileToDelete {
+            get {
+                return ResourceManager.GetString("DlgPickFileToDelete", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Type the value and press Enter (Esc cancels)'.
+        /// </summary>
+        public static string DlgPromptHint {
+            get {
+                return ResourceManager.GetString("DlgPromptHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Enter a value'.
+        /// </summary>
+        public static string DlgPromptTitle {
+            get {
+                return ResourceManager.GetString("DlgPromptTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'type to filter or type a provider name · ↑↓ · Enter · Esc cancel'.
+        /// </summary>
+        public static string DlgProviderPickerHint {
+            get {
+                return ResourceManager.GetString("DlgProviderPickerHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'type to filter the history · ↑↓ · Enter selects · Esc closes'.
+        /// </summary>
+        public static string DlgReverseHint {
+            get {
+                return ResourceManager.GetString("DlgReverseHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'reverse prompt history'.
+        /// </summary>
+        public static string DlgReverseSearch {
+            get {
+                return ResourceManager.GetString("DlgReverseSearch", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Allow user…'.
+        /// </summary>
+        public static string DlgTelegramAllow {
+            get {
+                return ResourceManager.GetString("DlgTelegramAllow", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Show config'.
+        /// </summary>
+        public static string DlgTelegramConfig {
+            get {
+                return ResourceManager.GetString("DlgTelegramConfig", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Disallow user…'.
+        /// </summary>
+        public static string DlgTelegramDisallow {
+            get {
+                return ResourceManager.GetString("DlgTelegramDisallow", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'First login needs the verification code — enter it below when the phase is "code".'.
+        /// </summary>
+        public static string DlgTelegramHint {
+            get {
+                return ResourceManager.GetString("DlgTelegramHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Verification code / 2FA password'.
+        /// </summary>
+        public static string DlgTelegramLoginLabel {
+            get {
+                return ResourceManager.GetString("DlgTelegramLoginLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Reload config'.
+        /// </summary>
+        public static string DlgTelegramReload {
+            get {
+                return ResourceManager.GetString("DlgTelegramReload", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Send code'.
+        /// </summary>
+        public static string DlgTelegramSend {
+            get {
+                return ResourceManager.GetString("DlgTelegramSend", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Telegram'.
+        /// </summary>
+        public static string DlgTelegramTitle {
+            get {
+                return ResourceManager.GetString("DlgTelegramTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Toggle enabled'.
+        /// </summary>
+        public static string DlgTelegramToggleEnable {
+            get {
+                return ResourceManager.GetString("DlgTelegramToggleEnable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Toggle file attachment'.
+        /// </summary>
+        public static string DlgToggleAttach {
+            get {
+                return ResourceManager.GetString("DlgToggleAttach", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Active tools — Space toggles'.
+        /// </summary>
+        public static string DlgToolsActive {
+            get {
+                return ResourceManager.GetString("DlgToolsActive", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '↑↓ move · Space toggle · Enter apply · Esc cancel'.
+        /// </summary>
+        public static string DlgToolsHint {
+            get {
+                return ResourceManager.GetString("DlgToolsHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Quick presets — Enter applies'.
+        /// </summary>
+        public static string DlgToolsPresets {
+            get {
+                return ResourceManager.GetString("DlgToolsPresets", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Agent tools'.
+        /// </summary>
+        public static string DlgToolsTitle {
+            get {
+                return ResourceManager.GetString("DlgToolsTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Done'.
+        /// </summary>
+        public static string Done {
+            get {
+                return ResourceManager.GetString("Done", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'API (the same server keeps answering while you chat)'.
+        /// </summary>
+        public static string HelpApi {
+            get {
+                return ResourceManager.GetString("HelpApi", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  POST /v1/chat/completions · /v1/control · /v1/audio/speech · /v1/voice/listen'.
+        /// </summary>
+        public static string HelpApi1 {
+            get {
+                return ResourceManager.GetString("HelpApi1", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  GET  /v1/models · /v1/files · /v1/control · /v1/audio/voices · /health'.
+        /// </summary>
+        public static string HelpApi2 {
+            get {
+                return ResourceManager.GetString("HelpApi2", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  POST /v1/files (upload · attach via @)'.
+        /// </summary>
+        public static string HelpApi3 {
+            get {
+                return ResourceManager.GetString("HelpApi3", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'COMMANDS  (type / to open the live list)'.
+        /// </summary>
+        public static string HelpCommands {
+            get {
+                return ResourceManager.GetString("HelpCommands", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'MOUSE  (Terminal.Gui native, cross-platform)'.
+        /// </summary>
+        public static string HelpMouse {
+            get {
+                return ResourceManager.GetString("HelpMouse", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  click input  Position the text cursor'.
+        /// </summary>
+        public static string HelpMouseClickInput {
+            get {
+                return ResourceManager.GetString("HelpMouseClickInput", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  click row    Select a list/dialog row (double-click runs it)'.
+        /// </summary>
+        public static string HelpMouseClickRow {
+            get {
+                return ResourceManager.GetString("HelpMouseClickRow", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  wheel        Scroll the conversation and menus'.
+        /// </summary>
+        public static string HelpMouseWheel {
+            get {
+                return ResourceManager.GetString("HelpMouseWheel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'ONLINE HELP'.
+        /// </summary>
+        public static string HelpOnline {
+            get {
+                return ResourceManager.GetString("HelpOnline", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  README.md → "Terminal UI"'.
+        /// </summary>
+        public static string HelpOnlineReadme {
+            get {
+                return ResourceManager.GetString("HelpOnlineReadme", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  AgentBridge repo/docs: https://github.com/Graphene-Lab/AgentBridge  (/docs opens it)'.
+        /// </summary>
+        public static string HelpOnlineRepo {
+            get {
+                return ResourceManager.GetString("HelpOnlineRepo", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'QUICK START'.
+        /// </summary>
+        public static string HelpQuickStart {
+            get {
+                return ResourceManager.GetString("HelpQuickStart", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  • Type a message and press Enter to talk to the agents (default/web/search/word/spreadsheet/email/multi).'.
+        /// </summary>
+        public static string HelpQuickStart1 {
+            get {
+                return ResourceManager.GetString("HelpQuickStart1", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  • / opens the command palette (filters as you type): /model switches LLM, /files uploads documents, /voice dictates, /tts speaks.'.
+        /// </summary>
+        public static string HelpQuickStart2 {
+            get {
+                return ResourceManager.GetString("HelpQuickStart2", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  • @ opens the uploaded files (attach/detach) · ? shortcuts · F1 this help · F10 the top menu.'.
+        /// </summary>
+        public static string HelpQuickStart3 {
+            get {
+                return ResourceManager.GetString("HelpQuickStart3", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  • The bottom bar shows server, provider, model, session and context.'.
+        /// </summary>
+        public static string HelpQuickStart4 {
+            get {
+                return ResourceManager.GetString("HelpQuickStart4", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'KEYBOARD SHORTCUTS  (press ? on an empty input for the overlay)'.
+        /// </summary>
+        public static string HelpShortcuts {
+            get {
+                return ResourceManager.GetString("HelpShortcuts", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Full help: /help · commands: type /'.
+        /// </summary>
+        public static string HelpShortcutsFooter {
+            get {
+                return ResourceManager.GetString("HelpShortcutsFooter", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'KEYBOARD SHORTCUTS'.
+        /// </summary>
+        public static string HelpShortcutsTitle {
+            get {
+                return ResourceManager.GetString("HelpShortcutsTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '◆ agent'.
+        /// </summary>
+        public static string HistoryAgent {
+            get {
+                return ResourceManager.GetString("HistoryAgent", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '✗ error'.
+        /// </summary>
+        public static string HistoryError {
+            get {
+                return ResourceManager.GetString("HistoryError", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '❯ you'.
+        /// </summary>
+        public static string HistoryYou {
+            get {
+                return ResourceManager.GetString("HistoryYou", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'local host start failed ({0}) — connecting to an existing instance'.
+        /// </summary>
+        public static string HostErrorNote {
+            get {
+                return ResourceManager.GetString("HostErrorNote", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'authentication failed (HTTP {0})'.
+        /// </summary>
+        public static string HttpStatusAuth {
+            get {
+                return ResourceManager.GetString("HttpStatusAuth", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'endpoint not found (HTTP {0})'.
+        /// </summary>
+        public static string HttpStatusNotFound {
+            get {
+                return ResourceManager.GetString("HttpStatusNotFound", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'request failed (HTTP {0})'.
+        /// </summary>
+        public static string HttpStatusOther {
+            get {
+                return ResourceManager.GetString("HttpStatusOther", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'rate limited (HTTP {0})'.
+        /// </summary>
+        public static string HttpStatusRateLimited {
+            get {
+                return ResourceManager.GetString("HttpStatusRateLimited", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'server error (HTTP {0})'.
+        /// </summary>
+        public static string HttpStatusServer {
+            get {
+                return ResourceManager.GetString("HttpStatusServer", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Type a message or / for commands...'.
         /// </summary>
         public static string InputPlaceholder {
             get {
@@ -166,11 +814,2234 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to 'InteractionModeDefault'.
+        ///   Looks up a localized string similar to 'Default'.
         /// </summary>
         public static string InteractionModeDefault {
             get {
                 return ResourceManager.GetString("InteractionModeDefault", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Max iterations ({0}) reached'.
+        /// </summary>
+        public static string MaxIterationsReached {
+            get {
+                return ResourceManager.GetString("MaxIterationsReached", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_About'.
+        /// </summary>
+        public static string MenuAbout {
+            get {
+                return ResourceManager.GetString("MenuAbout", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Agent (/agent)'.
+        /// </summary>
+        public static string MenuAgent {
+            get {
+                return ResourceManager.GetString("MenuAgent", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Attach (/attach)'.
+        /// </summary>
+        public static string MenuAttach {
+            get {
+                return ResourceManager.GetString("MenuAttach", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Auto-Update: {0}'.
+        /// </summary>
+        public static string MenuAutoUpdate {
+            get {
+                return ResourceManager.GetString("MenuAutoUpdate", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Chat'.
+        /// </summary>
+        public static string MenuChat {
+            get {
+                return ResourceManager.GetString("MenuChat", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Clear History'.
+        /// </summary>
+        public static string MenuClearHistory {
+            get {
+                return ResourceManager.GetString("MenuClearHistory", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Commands (/...)'.
+        /// </summary>
+        public static string MenuCommands {
+            get {
+                return ResourceManager.GetString("MenuCommands", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Documentation (/docs)'.
+        /// </summary>
+        public static string MenuDocumentation {
+            get {
+                return ResourceManager.GetString("MenuDocumentation", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Exit'.
+        /// </summary>
+        public static string MenuExit {
+            get {
+                return ResourceManager.GetString("MenuExit", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_File'.
+        /// </summary>
+        public static string MenuFile {
+            get {
+                return ResourceManager.GetString("MenuFile", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Files (/files)'.
+        /// </summary>
+        public static string MenuFiles {
+            get {
+                return ResourceManager.GetString("MenuFiles", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_GUI (/web)'.
+        /// </summary>
+        public static string MenuGui {
+            get {
+                return ResourceManager.GetString("MenuGui", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Health (/health)'.
+        /// </summary>
+        public static string MenuHealth {
+            get {
+                return ResourceManager.GetString("MenuHealth", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Help'.
+        /// </summary>
+        public static string MenuHelp {
+            get {
+                return ResourceManager.GetString("MenuHelp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Help (/help)'.
+        /// </summary>
+        public static string MenuHelpItem {
+            get {
+                return ResourceManager.GetString("MenuHelpItem", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_LLM Model (/model)'.
+        /// </summary>
+        public static string MenuLlmModel {
+            get {
+                return ResourceManager.GetString("MenuLlmModel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Media'.
+        /// </summary>
+        public static string MenuMedia {
+            get {
+                return ResourceManager.GetString("MenuMedia", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Models & Providers (/modelsetup)'.
+        /// </summary>
+        public static string MenuModelsProviders {
+            get {
+                return ResourceManager.GetString("MenuModelsProviders", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_New Chat'.
+        /// </summary>
+        public static string MenuNewChat {
+            get {
+                return ResourceManager.GetString("MenuNewChat", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Retry Last (/retry)'.
+        /// </summary>
+        public static string MenuRetryLast {
+            get {
+                return ResourceManager.GetString("MenuRetryLast", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Session'.
+        /// </summary>
+        public static string MenuSession {
+            get {
+                return ResourceManager.GetString("MenuSession", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Shortcuts (/shortcuts)'.
+        /// </summary>
+        public static string MenuShortcuts {
+            get {
+                return ResourceManager.GetString("MenuShortcuts", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Status (/status)'.
+        /// </summary>
+        public static string MenuStatus {
+            get {
+                return ResourceManager.GetString("MenuStatus", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Telegram (/telegram)'.
+        /// </summary>
+        public static string MenuTelegram {
+            get {
+                return ResourceManager.GetString("MenuTelegram", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Tools'.
+        /// </summary>
+        public static string MenuTools {
+            get {
+                return ResourceManager.GetString("MenuTools", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_TTS (/tts)'.
+        /// </summary>
+        public static string MenuTts {
+            get {
+                return ResourceManager.GetString("MenuTts", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Voice (/voice)'.
+        /// </summary>
+        public static string MenuVoice {
+            get {
+                return ResourceManager.GetString("MenuVoice", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Web'.
+        /// </summary>
+        public static string MenuWeb {
+            get {
+                return ResourceManager.GetString("MenuWeb", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'LLM returned no response'.
+        /// </summary>
+        public static string NoLlmResponse {
+            get {
+                return ResourceManager.GetString("NoLlmResponse", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '(none)'.
+        /// </summary>
+        public static string None {
+            get {
+                return ResourceManager.GetString("None", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '(none set)'.
+        /// </summary>
+        public static string NoneSet {
+            get {
+                return ResourceManager.GetString("NoneSet", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'No output generated'.
+        /// </summary>
+        public static string NoOutputGenerated {
+            get {
+                return ResourceManager.GetString("NoOutputGenerated", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'agent set: {0}'.
+        /// </summary>
+        public static string NoteAgentSet {
+            get {
+                return ResourceManager.GetString("NoteAgentSet", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'already on {0}'.
+        /// </summary>
+        public static string NoteAlreadyOn {
+            get {
+                return ResourceManager.GetString("NoteAlreadyOn", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'attached {0} to the chat'.
+        /// </summary>
+        public static string NoteAttached {
+            get {
+                return ResourceManager.GetString("NoteAttached", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  attached'.
+        /// </summary>
+        public static string NoteAttachedSuffix {
+            get {
+                return ResourceManager.GetString("NoteAttachedSuffix", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '/{0} failed: {1}'.
+        /// </summary>
+        public static string NoteCommandFailed {
+            get {
+                return ResourceManager.GetString("NoteCommandFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'could not load providers'.
+        /// </summary>
+        public static string NoteCouldNotLoadProviders {
+            get {
+                return ResourceManager.GetString("NoteCouldNotLoadProviders", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'could not load providers: {0}'.
+        /// </summary>
+        public static string NoteCouldNotLoadProvidersEx {
+            get {
+                return ResourceManager.GetString("NoteCouldNotLoadProvidersEx", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'could not create session (HTTP {0})'.
+        /// </summary>
+        public static string NoteCreateSessionFailed {
+            get {
+                return ResourceManager.GetString("NoteCreateSessionFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'deleted {0}'.
+        /// </summary>
+        public static string NoteDeleted {
+            get {
+                return ResourceManager.GetString("NoteDeleted", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'delete failed: {0}'.
+        /// </summary>
+        public static string NoteDeleteFailed {
+            get {
+                return ResourceManager.GetString("NoteDeleteFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'delete failed (HTTP {0}): {1}'.
+        /// </summary>
+        public static string NoteDeleteFailedHttp {
+            get {
+                return ResourceManager.GetString("NoteDeleteFailedHttp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'detached {0}'.
+        /// </summary>
+        public static string NoteDetached {
+            get {
+                return ResourceManager.GetString("NoteDetached", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'dictated {0} — press Enter to send'.
+        /// </summary>
+        public static string NoteDictated {
+            get {
+                return ResourceManager.GetString("NoteDictated", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'failed (HTTP {0}): {1}'.
+        /// </summary>
+        public static string NoteFailedHttp {
+            get {
+                return ResourceManager.GetString("NoteFailedHttp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'feature {0} = {1}'.
+        /// </summary>
+        public static string NoteFeatureSet {
+            get {
+                return ResourceManager.GetString("NoteFeatureSet", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'file not found: {0}'.
+        /// </summary>
+        public static string NoteFileNotFound {
+            get {
+                return ResourceManager.GetString("NoteFileNotFound", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'usage: /files add <path> | /files rm <id> | /files'.
+        /// </summary>
+        public static string NoteFilesUsage {
+            get {
+                return ResourceManager.GetString("NoteFilesUsage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'session history cleared'.
+        /// </summary>
+        public static string NoteHistoryCleared {
+            get {
+                return ResourceManager.GetString("NoteHistoryCleared", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'the last reply succeeded — still resending'.
+        /// </summary>
+        public static string NoteLastReplyOk {
+            get {
+                return ResourceManager.GetString("NoteLastReplyOk", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'launching web client from {0}…'.
+        /// </summary>
+        public static string NoteLaunchingWebClient {
+            get {
+                return ResourceManager.GetString("NoteLaunchingWebClient", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'listening… (server microphone) — speak now'.
+        /// </summary>
+        public static string NoteListening {
+            get {
+                return ResourceManager.GetString("NoteListening", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'listening timed out (no speech detected)'.
+        /// </summary>
+        public static string NoteListeningTimeout {
+            get {
+                return ResourceManager.GetString("NoteListeningTimeout", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'could not load files: {0}'.
+        /// </summary>
+        public static string NoteLoadFilesFailed {
+            get {
+                return ResourceManager.GetString("NoteLoadFilesFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'new session {0}'.
+        /// </summary>
+        public static string NoteNewSession {
+            get {
+                return ResourceManager.GetString("NoteNewSession", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'no uploaded files — use /files add <path>'.
+        /// </summary>
+        public static string NoteNoFiles {
+            get {
+                return ResourceManager.GetString("NoteNoFiles", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'no providers reported by the server'.
+        /// </summary>
+        public static string NoteNoProviders {
+            get {
+                return ResourceManager.GetString("NoteNoProviders", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'no speech recognised'.
+        /// </summary>
+        public static string NoteNoSpeech {
+            get {
+                return ResourceManager.GetString("NoteNoSpeech", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'nothing to retry yet'.
+        /// </summary>
+        public static string NoteNothingToRetry {
+            get {
+                return ResourceManager.GetString("NoteNothingToRetry", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'nothing to speak — give text: /tts <text>'.
+        /// </summary>
+        public static string NoteNothingToSpeak {
+            get {
+                return ResourceManager.GetString("NoteNothingToSpeak", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'select at least one tool'.
+        /// </summary>
+        public static string NoteNoToolsSelected {
+            get {
+                return ResourceManager.GetString("NoteNoToolsSelected", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'could not open the browser: {0}'.
+        /// </summary>
+        public static string NoteOpenBrowserFailed {
+            get {
+                return ResourceManager.GetString("NoteOpenBrowserFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'opened {0} in your browser'.
+        /// </summary>
+        public static string NoteOpenedUrl {
+            get {
+                return ResourceManager.GetString("NoteOpenedUrl", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'playback failed — open the file with your media player: {0}'.
+        /// </summary>
+        public static string NotePlaybackFailed {
+            get {
+                return ResourceManager.GetString("NotePlaybackFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'playback is Windows-only here — open the file with your media player'.
+        /// </summary>
+        public static string NotePlaybackWindowsOnly {
+            get {
+                return ResourceManager.GetString("NotePlaybackWindowsOnly", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'provider is now {0}'.
+        /// </summary>
+        public static string NoteProviderNow {
+            get {
+                return ResourceManager.GetString("NoteProviderNow", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'saved {0} ({1:N0} bytes)'.
+        /// </summary>
+        public static string NoteSaved {
+            get {
+                return ResourceManager.GetString("NoteSaved", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'session features: {0}'.
+        /// </summary>
+        public static string NoteSessionFeatures {
+            get {
+                return ResourceManager.GetString("NoteSessionFeatures", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'auto-answer {0}'.
+        /// </summary>
+        public static string NoteSipAnswerChanged {
+            get {
+                return ResourceManager.GetString("NoteSipAnswerChanged", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'call to {0} failed: {1}'.
+        /// </summary>
+        public static string NoteSipCallFailed {
+            get {
+                return ResourceManager.GetString("NoteSipCallFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'calling {0}…'.
+        /// </summary>
+        public static string NoteSipCalling {
+            get {
+                return ResourceManager.GetString("NoteSipCalling", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'call to {0} answered'.
+        /// </summary>
+        public static string NoteSipCallOk {
+            get {
+                return ResourceManager.GetString("NoteSipCallOk", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SIP config error: {0}'.
+        /// </summary>
+        public static string NoteSipConfigFailed {
+            get {
+                return ResourceManager.GetString("NoteSipConfigFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SIP transport restarted to apply the change'.
+        /// </summary>
+        public static string NoteSipConfigRestart {
+            get {
+                return ResourceManager.GetString("NoteSipConfigRestart", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'usage: /sip config | config set <key> <value> | config reload'.
+        /// </summary>
+        public static string NoteSipConfigUsage {
+            get {
+                return ResourceManager.GetString("NoteSipConfigUsage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'call hung up'.
+        /// </summary>
+        public static string NoteSipHangup {
+            get {
+                return ResourceManager.GetString("NoteSipHangup", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SIP unavailable (HTTP {0})'.
+        /// </summary>
+        public static string NoteSipUnavailable {
+            get {
+                return ResourceManager.GetString("NoteSipUnavailable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SIP not enabled — set Sip:Enabled true in appsettings.json'.
+        /// </summary>
+        public static string NoteSipUnavailableCall {
+            get {
+                return ResourceManager.GetString("NoteSipUnavailableCall", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'usage: /sip status | config [set <key> <value>|reload] | call <sip-uri> | answer on|off | hangup'.
+        /// </summary>
+        public static string NoteSipUsage {
+            get {
+                return ResourceManager.GetString("NoteSipUsage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'switching provider to {0}… (some providers take minutes to warm up)'.
+        /// </summary>
+        public static string NoteSwitchingProvider {
+            get {
+                return ResourceManager.GetString("NoteSwitchingProvider", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'switch refused (HTTP {0}): {1}'.
+        /// </summary>
+        public static string NoteSwitchRefused {
+            get {
+                return ResourceManager.GetString("NoteSwitchRefused", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'synthesising…'.
+        /// </summary>
+        public static string NoteSynthesising {
+            get {
+                return ResourceManager.GetString("NoteSynthesising", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Telegram allow-list error: {0}'.
+        /// </summary>
+        public static string NoteTelegramAllowFailed {
+            get {
+                return ResourceManager.GetString("NoteTelegramAllowFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '{0}'.
+        /// </summary>
+        public static string NoteTelegramAllowOk {
+            get {
+                return ResourceManager.GetString("NoteTelegramAllowOk", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Telegram config error: {0}'.
+        /// </summary>
+        public static string NoteTelegramConfigFailed {
+            get {
+                return ResourceManager.GetString("NoteTelegramConfigFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Telegram bridge restarted to apply the change'.
+        /// </summary>
+        public static string NoteTelegramConfigRestart {
+            get {
+                return ResourceManager.GetString("NoteTelegramConfigRestart", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'usage: /telegram config | config set <key> <value> | config reload'.
+        /// </summary>
+        public static string NoteTelegramConfigUsage {
+            get {
+                return ResourceManager.GetString("NoteTelegramConfigUsage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Telegram login code failed: {0}'.
+        /// </summary>
+        public static string NoteTelegramLoginCodeFailed {
+            get {
+                return ResourceManager.GetString("NoteTelegramLoginCodeFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Telegram login code submitted'.
+        /// </summary>
+        public static string NoteTelegramLoginCodeSubmitted {
+            get {
+                return ResourceManager.GetString("NoteTelegramLoginCodeSubmitted", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Telegram login pending — send the code with /telegram login-code <code>'.
+        /// </summary>
+        public static string NoteTelegramLoginPending {
+            get {
+                return ResourceManager.GetString("NoteTelegramLoginPending", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Telegram unavailable (HTTP {0})'.
+        /// </summary>
+        public static string NoteTelegramUnavailable {
+            get {
+                return ResourceManager.GetString("NoteTelegramUnavailable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'usage: /telegram status | config [set <key> <value>|reload] | login-code <code> | allow <user> | disallow <user>'.
+        /// </summary>
+        public static string NoteTelegramUsage {
+            get {
+                return ResourceManager.GetString("NoteTelegramUsage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'tools: {0}'.
+        /// </summary>
+        public static string NoteToolsApplied {
+            get {
+                return ResourceManager.GetString("NoteToolsApplied", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'POST /v1/audio/speech is disabled'.
+        /// </summary>
+        public static string NoteTtsDisabled {
+            get {
+                return ResourceManager.GetString("NoteTtsDisabled", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'tts failed: {0}'.
+        /// </summary>
+        public static string NoteTtsFailed {
+            get {
+                return ResourceManager.GetString("NoteTtsFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'tts failed (HTTP {0}): {1}'.
+        /// </summary>
+        public static string NoteTtsFailedHttp {
+            get {
+                return ResourceManager.GetString("NoteTtsFailedHttp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'tts unavailable: {0}'.
+        /// </summary>
+        public static string NoteTtsUnavailable {
+            get {
+                return ResourceManager.GetString("NoteTtsUnavailable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'unknown agent set '{0}' — {1}'.
+        /// </summary>
+        public static string NoteUnknownAgentSet {
+            get {
+                return ResourceManager.GetString("NoteUnknownAgentSet", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'unknown command /{0} — type / to see the list, or /help'.
+        /// </summary>
+        public static string NoteUnknownCommand {
+            get {
+                return ResourceManager.GetString("NoteUnknownCommand", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'unknown file '{0}' — /files to list'.
+        /// </summary>
+        public static string NoteUnknownFile {
+            get {
+                return ResourceManager.GetString("NoteUnknownFile", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'uploaded + attached {0} ({1})'.
+        /// </summary>
+        public static string NoteUploaded {
+            get {
+                return ResourceManager.GetString("NoteUploaded", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'upload failed: {0}'.
+        /// </summary>
+        public static string NoteUploadFailed {
+            get {
+                return ResourceManager.GetString("NoteUploadFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'upload failed (HTTP {0}): {1}'.
+        /// </summary>
+        public static string NoteUploadFailedHttp {
+            get {
+                return ResourceManager.GetString("NoteUploadFailedHttp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'uploading {0}…'.
+        /// </summary>
+        public static string NoteUploading {
+            get {
+                return ResourceManager.GetString("NoteUploading", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'POST /v1/voice/listen is disabled'.
+        /// </summary>
+        public static string NoteVoiceDisabled {
+            get {
+                return ResourceManager.GetString("NoteVoiceDisabled", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'voice failed: {0}'.
+        /// </summary>
+        public static string NoteVoiceFailed {
+            get {
+                return ResourceManager.GetString("NoteVoiceFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'voice failed (HTTP {0}): {1}'.
+        /// </summary>
+        public static string NoteVoiceFailedHttp {
+            get {
+                return ResourceManager.GetString("NoteVoiceFailedHttp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'voice unavailable: {0}'.
+        /// </summary>
+        public static string NoteVoiceUnavailable {
+            get {
+                return ResourceManager.GetString("NoteVoiceUnavailable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'web client failed: {0}'.
+        /// </summary>
+        public static string NoteWebClientFailed {
+            get {
+                return ResourceManager.GetString("NoteWebClientFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'web client missing or outdated at {0} — downloading {1}…'.
+        /// </summary>
+        public static string NoteWebClientOutdated {
+            get {
+                return ResourceManager.GetString("NoteWebClientOutdated", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Off'.
+        /// </summary>
+        public static string Off {
+            get {
+                return ResourceManager.GetString("Off", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'OK'.
+        /// </summary>
+        public static string Ok {
+            get {
+                return ResourceManager.GetString("Ok", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'On'.
+        /// </summary>
+        public static string On {
+            get {
+                return ResourceManager.GetString("On", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'agent help'.
+        /// </summary>
+        public static string PageAgentHelp {
+            get {
+                return ResourceManager.GetString("PageAgentHelp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'agent status'.
+        /// </summary>
+        public static string PageAgentStatus {
+            get {
+                return ResourceManager.GetString("PageAgentStatus", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'shortcuts'.
+        /// </summary>
+        public static string PageShortcuts {
+            get {
+                return ResourceManager.GetString("PageShortcuts", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SIP config'.
+        /// </summary>
+        public static string PageSipConfig {
+            get {
+                return ResourceManager.GetString("PageSipConfig", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SIP status'.
+        /// </summary>
+        public static string PageSipStatus {
+            get {
+                return ResourceManager.GetString("PageSipStatus", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'uploaded files'.
+        /// </summary>
+        public static string PageUploadedFiles {
+            get {
+                return ResourceManager.GetString("PageUploadedFiles", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Switch agent set'.
+        /// </summary>
+        public static string PickSwitchAgent {
+            get {
+                return ResourceManager.GetString("PickSwitchAgent", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Switch LLM provider'.
+        /// </summary>
+        public static string PickSwitchProvider {
+            get {
+                return ResourceManager.GetString("PickSwitchProvider", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Add provider'.
+        /// </summary>
+        public static string ProviderAddTitle {
+            get {
+                return ResourceManager.GetString("ProviderAddTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'API key'.
+        /// </summary>
+        public static string ProviderApiKey {
+            get {
+                return ResourceManager.GetString("ProviderApiKey", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Base address'.
+        /// </summary>
+        public static string ProviderBaseAddress {
+            get {
+                return ResourceManager.GetString("ProviderBaseAddress", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Base address must be an absolute URL (http://…)'.
+        /// </summary>
+        public static string ProviderBaseAddressInvalid {
+            get {
+                return ResourceManager.GetString("ProviderBaseAddressInvalid", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Context window must be a positive number'.
+        /// </summary>
+        public static string ProviderContextInvalid {
+            get {
+                return ResourceManager.GetString("ProviderContextInvalid", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Context window'.
+        /// </summary>
+        public static string ProviderContextWindow {
+            get {
+                return ResourceManager.GetString("ProviderContextWindow", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Edit provider: {0}'.
+        /// </summary>
+        public static string ProviderEditTitle {
+            get {
+                return ResourceManager.GetString("ProviderEditTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Endpoint path'.
+        /// </summary>
+        public static string ProviderEndpoint {
+            get {
+                return ResourceManager.GetString("ProviderEndpoint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Interaction mode'.
+        /// </summary>
+        public static string ProviderInteractionMode {
+            get {
+                return ResourceManager.GetString("ProviderInteractionMode", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Model'.
+        /// </summary>
+        public static string ProviderModel {
+            get {
+                return ResourceManager.GetString("ProviderModel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Name'.
+        /// </summary>
+        public static string ProviderName {
+            get {
+                return ResourceManager.GetString("ProviderName", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Name is required'.
+        /// </summary>
+        public static string ProviderNameRequired {
+            get {
+                return ResourceManager.GetString("ProviderNameRequired", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Protocol'.
+        /// </summary>
+        public static string ProviderProtocol {
+            get {
+                return ResourceManager.GetString("ProviderProtocol", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Timeout (sec)'.
+        /// </summary>
+        public static string ProviderTimeout {
+            get {
+                return ResourceManager.GetString("ProviderTimeout", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'server: {0} — the API keeps answering in parallel ({0}/v1/chat/completions)'.
+        /// </summary>
+        public static string ServerNote {
+            get {
+                return ResourceManager.GetString("ServerNote", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '← active'.
+        /// </summary>
+        public static string SetupActiveMarker {
+            get {
+                return ResourceManager.GetString("SetupActiveMarker", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Active provider'.
+        /// </summary>
+        public static string SetupActiveProvider {
+            get {
+                return ResourceManager.GetString("SetupActiveProvider", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Add…'.
+        /// </summary>
+        public static string SetupAdd {
+            get {
+                return ResourceManager.GetString("SetupAdd", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'cannot remove '{0}' — not configured or it is the last provider'.
+        /// </summary>
+        public static string SetupCannotRemove {
+            get {
+                return ResourceManager.GetString("SetupCannotRemove", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Configured providers (Add/Edit/Remove apply immediately):'.
+        /// </summary>
+        public static string SetupConfiguredProviders {
+            get {
+                return ResourceManager.GetString("SetupConfiguredProviders", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Documents path'.
+        /// </summary>
+        public static string SetupDocumentsPath {
+            get {
+                return ResourceManager.GetString("SetupDocumentsPath", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Edit…'.
+        /// </summary>
+        public static string SetupEdit {
+            get {
+                return ResourceManager.GetString("SetupEdit", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Email (SMTP)'.
+        /// </summary>
+        public static string SetupEmailTab {
+            get {
+                return ResourceManager.GetString("SetupEmailTab", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'General'.
+        /// </summary>
+        public static string SetupGeneralTab {
+            get {
+                return ResourceManager.GetString("SetupGeneralTab", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'IMAP password'.
+        /// </summary>
+        public static string SetupImapPassword {
+            get {
+                return ResourceManager.GetString("SetupImapPassword", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'IMAP port'.
+        /// </summary>
+        public static string SetupImapPort {
+            get {
+                return ResourceManager.GetString("SetupImapPort", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'IMAP server'.
+        /// </summary>
+        public static string SetupImapServer {
+            get {
+                return ResourceManager.GetString("SetupImapServer", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Mail (IMAP)'.
+        /// </summary>
+        public static string SetupImapTab {
+            get {
+                return ResourceManager.GetString("SetupImapTab", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'IMAP user'.
+        /// </summary>
+        public static string SetupImapUser {
+            get {
+                return ResourceManager.GetString("SetupImapUser", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SetupInvalidDocsPathText'.
+        /// </summary>
+        public static string SetupInvalidDocsPathText {
+            get {
+                return ResourceManager.GetString("SetupInvalidDocsPathText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Invalid documents path'.
+        /// </summary>
+        public static string SetupInvalidDocsPathTitle {
+            get {
+                return ResourceManager.GetString("SetupInvalidDocsPathTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'The IMAP port must be a number (e.g. 993). Fix it and press Save again.'.
+        /// </summary>
+        public static string SetupInvalidImapPortText {
+            get {
+                return ResourceManager.GetString("SetupInvalidImapPortText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Invalid IMAP port'.
+        /// </summary>
+        public static string SetupInvalidImapPortTitle {
+            get {
+                return ResourceManager.GetString("SetupInvalidImapPortTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'The SMTP port must be a number (e.g. 587 or 465). Fix it and press Save again.'.
+        /// </summary>
+        public static string SetupInvalidSmtpPortText {
+            get {
+                return ResourceManager.GetString("SetupInvalidSmtpPortText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Invalid SMTP port'.
+        /// </summary>
+        public static string SetupInvalidSmtpPortTitle {
+            get {
+                return ResourceManager.GetString("SetupInvalidSmtpPortTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'LLM & Providers'.
+        /// </summary>
+        public static string SetupLlmTab {
+            get {
+                return ResourceManager.GetString("SetupLlmTab", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'provider {0} added'.
+        /// </summary>
+        public static string SetupProviderAdded {
+            get {
+                return ResourceManager.GetString("SetupProviderAdded", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'provider {0} already exists'.
+        /// </summary>
+        public static string SetupProviderExists {
+            get {
+                return ResourceManager.GetString("SetupProviderExists", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'provider {0} removed'.
+        /// </summary>
+        public static string SetupProviderRemoved {
+            get {
+                return ResourceManager.GetString("SetupProviderRemoved", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'provider {0} updated'.
+        /// </summary>
+        public static string SetupProviderUpdated {
+            get {
+                return ResourceManager.GetString("SetupProviderUpdated", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Recipient email'.
+        /// </summary>
+        public static string SetupRecipientEmail {
+            get {
+                return ResourceManager.GetString("SetupRecipientEmail", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Remove'.
+        /// </summary>
+        public static string SetupRemove {
+            get {
+                return ResourceManager.GetString("SetupRemove", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Remove '{0}' from the configuration?'.
+        /// </summary>
+        public static string SetupRemoveProviderText {
+            get {
+                return ResourceManager.GetString("SetupRemoveProviderText", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Remove provider'.
+        /// </summary>
+        public static string SetupRemoveProviderTitle {
+            get {
+                return ResourceManager.GetString("SetupRemoveProviderTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Save'.
+        /// </summary>
+        public static string SetupSave {
+            get {
+                return ResourceManager.GetString("SetupSave", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'model setup saved'.
+        /// </summary>
+        public static string SetupSaved {
+            get {
+                return ResourceManager.GetString("SetupSaved", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'model setup saved — {0}'.
+        /// </summary>
+        public static string SetupSavedWithNote {
+            get {
+                return ResourceManager.GetString("SetupSavedWithNote", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'select a provider to edit'.
+        /// </summary>
+        public static string SetupSelectToEdit {
+            get {
+                return ResourceManager.GetString("SetupSelectToEdit", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'select a provider to remove'.
+        /// </summary>
+        public static string SetupSelectToRemove {
+            get {
+                return ResourceManager.GetString("SetupSelectToRemove", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SMTP password'.
+        /// </summary>
+        public static string SetupSmtpPassword {
+            get {
+                return ResourceManager.GetString("SetupSmtpPassword", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SMTP port'.
+        /// </summary>
+        public static string SetupSmtpPort {
+            get {
+                return ResourceManager.GetString("SetupSmtpPort", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SMTP server'.
+        /// </summary>
+        public static string SetupSmtpServer {
+            get {
+                return ResourceManager.GetString("SetupSmtpServer", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SMTP user'.
+        /// </summary>
+        public static string SetupSmtpUser {
+            get {
+                return ResourceManager.GetString("SetupSmtpUser", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Enable step logging (logs/ folder)'.
+        /// </summary>
+        public static string SetupStepLogging {
+            get {
+                return ResourceManager.GetString("SetupStepLogging", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Models & Providers setup'.
+        /// </summary>
+        public static string SetupTitle {
+            get {
+                return ResourceManager.GetString("SetupTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Open the file palette (toggle chat attachments)'.
+        /// </summary>
+        public static string ShortAt {
+            get {
+                return ResourceManager.GetString("ShortAt", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Select all / jump to end of the input'.
+        /// </summary>
+        public static string ShortCtrlAE {
+            get {
+                return ResourceManager.GetString("ShortCtrlAE", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Cancel the reply · clear input · twice: exit'.
+        /// </summary>
+        public static string ShortCtrlC {
+            get {
+                return ResourceManager.GetString("ShortCtrlC", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Exit (empty input)'.
+        /// </summary>
+        public static string ShortCtrlD {
+            get {
+                return ResourceManager.GetString("ShortCtrlD", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Reverse-search prompt history'.
+        /// </summary>
+        public static string ShortCtrlR {
+            get {
+                return ResourceManager.GetString("ShortCtrlR", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Delete to start / to end of the line'.
+        /// </summary>
+        public static string ShortCtrlUK {
+            get {
+                return ResourceManager.GetString("ShortCtrlUK", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Delete the word before the cursor (also Ctrl+Backspace)'.
+        /// </summary>
+        public static string ShortCtrlW {
+            get {
+                return ResourceManager.GetString("ShortCtrlW", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Retry the last prompt'.
+        /// </summary>
+        public static string ShortCtrlY {
+            get {
+                return ResourceManager.GetString("ShortCtrlY", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Send the message (Shift+Enter: new line) / run the selected command'.
+        /// </summary>
+        public static string ShortEnter {
+            get {
+                return ResourceManager.GetString("ShortEnter", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Close dialog · clear input · twice: exit'.
+        /// </summary>
+        public static string ShortEsc {
+            get {
+                return ResourceManager.GetString("ShortEsc", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Show the full help page'.
+        /// </summary>
+        public static string ShortF1 {
+            get {
+                return ResourceManager.GetString("ShortF1", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Activate the menu bar'.
+        /// </summary>
+        public static string ShortF10 {
+            get {
+                return ResourceManager.GetString("ShortF10", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Move the cursor (with Ctrl: by word)'.
+        /// </summary>
+        public static string ShortLeftRight {
+            get {
+                return ResourceManager.GetString("ShortLeftRight", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Scroll the conversation history'.
+        /// </summary>
+        public static string ShortPgUpDn {
+            get {
+                return ResourceManager.GetString("ShortPgUpDn", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Show this shortcuts overlay (empty input)'.
+        /// </summary>
+        public static string ShortQuestion {
+            get {
+                return ResourceManager.GetString("ShortQuestion", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Open the slash-command palette (live, while you type)'.
+        /// </summary>
+        public static string ShortSlash {
+            get {
+                return ResourceManager.GetString("ShortSlash", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Complete the selected command in the palette'.
+        /// </summary>
+        public static string ShortTab {
+            get {
+                return ResourceManager.GetString("ShortTab", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Prompt history at the first/last line (also Ctrl+P / Ctrl+N); otherwise move the caret'.
+        /// </summary>
+        public static string ShortUpDown {
+            get {
+                return ResourceManager.GetString("ShortUpDown", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Too many attempts. The service is locked for twenty four hours.'.
+        /// </summary>
+        public static string SipAnnounceLocked {
+            get {
+                return ResourceManager.GetString("SipAnnounceLocked", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'No code received. Ending the call.'.
+        /// </summary>
+        public static string SipAnnouncePinTimeout {
+            get {
+                return ResourceManager.GetString("SipAnnouncePinTimeout", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Wrong code. Attempts left: {0}.'.
+        /// </summary>
+        public static string SipAnnouncePinWrong {
+            get {
+                return ResourceManager.GetString("SipAnnouncePinWrong", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Welcome. Please enter your five digit access code.'.
+        /// </summary>
+        public static string SipAnnounceWelcome {
+            get {
+                return ResourceManager.GetString("SipAnnounceWelcome", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'How can I help you?'.
+        /// </summary>
+        public static string SipAnnounceWelcomeOk {
+            get {
+                return ResourceManager.GetString("SipAnnounceWelcomeOk", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'call'.
+        /// </summary>
+        public static string SipPhaseConversation {
+            get {
+                return ResourceManager.GetString("SipPhaseConversation", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'end'.
+        /// </summary>
+        public static string SipPhaseEnded {
+            get {
+                return ResourceManager.GetString("SipPhaseEnded", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'pin'.
+        /// </summary>
+        public static string SipPhasePin {
+            get {
+                return ResourceManager.GetString("SipPhasePin", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'ring'.
+        /// </summary>
+        public static string SipPhaseRinging {
+            get {
+                return ResourceManager.GetString("SipPhaseRinging", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Agent set'.
+        /// </summary>
+        public static string StatusAgentSet {
+            get {
+                return ResourceManager.GetString("StatusAgentSet", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Attachments'.
+        /// </summary>
+        public static string StatusAttachments {
+            get {
+                return ResourceManager.GetString("StatusAttachments", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'F1 help · F10 menu · / commands · @ files · ? shortcuts · Esc close · Ctrl+C cancel'.
+        /// </summary>
+        public static string StatusBarHints {
+            get {
+                return ResourceManager.GetString("StatusBarHints", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'cancelled'.
+        /// </summary>
+        public static string StatusCancelled {
+            get {
+                return ResourceManager.GetString("StatusCancelled", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '(cancelled)'.
+        /// </summary>
+        public static string StatusCancelledEntry {
+            get {
+                return ResourceManager.GetString("StatusCancelledEntry", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'cancelling…'.
+        /// </summary>
+        public static string StatusCancelling {
+            get {
+                return ResourceManager.GetString("StatusCancelling", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Capabilities'.
+        /// </summary>
+        public static string StatusCapabilities {
+            get {
+                return ResourceManager.GetString("StatusCapabilities", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Context window {0:N0} tokens · history ≈ {1:N0}'.
+        /// </summary>
+        public static string StatusContextWindow {
+            get {
+                return ResourceManager.GetString("StatusContextWindow", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Press Ctrl+C again to exit'.
+        /// </summary>
+        public static string StatusCtrlCAgain {
+            get {
+                return ResourceManager.GetString("StatusCtrlCAgain", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'error'.
+        /// </summary>
+        public static string StatusError {
+            get {
+                return ResourceManager.GetString("StatusError", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Press Esc again to exit · or Ctrl+C twice'.
+        /// </summary>
+        public static string StatusEscAgain {
+            get {
+                return ResourceManager.GetString("StatusEscAgain", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Features'.
+        /// </summary>
+        public static string StatusFeatures {
+            get {
+                return ResourceManager.GetString("StatusFeatures", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'generating… wait, or Ctrl+C to stop'.
+        /// </summary>
+        public static string StatusGenerating {
+            get {
+                return ResourceManager.GetString("StatusGenerating", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'generating…'.
+        /// </summary>
+        public static string StatusGeneratingShort {
+            get {
+                return ResourceManager.GetString("StatusGeneratingShort", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'prompt history: {0} entries'.
+        /// </summary>
+        public static string StatusPromptHistory {
+            get {
+                return ResourceManager.GetString("StatusPromptHistory", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Provider'.
+        /// </summary>
+        public static string StatusProvider {
+            get {
+                return ResourceManager.GetString("StatusProvider", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'replied in {0:0.0}s'.
+        /// </summary>
+        public static string StatusReplied {
+            get {
+                return ResourceManager.GetString("StatusReplied", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'request failed: {0}'.
+        /// </summary>
+        public static string StatusRequestFailed {
+            get {
+                return ResourceManager.GetString("StatusRequestFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'server healthy · {0} ms'.
+        /// </summary>
+        public static string StatusServerHealthy {
+            get {
+                return ResourceManager.GetString("StatusServerHealthy", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'server returned HTTP {0}'.
+        /// </summary>
+        public static string StatusServerHttp {
+            get {
+                return ResourceManager.GetString("StatusServerHttp", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'server unreachable: {0}'.
+        /// </summary>
+        public static string StatusServerUnreachable {
+            get {
+                return ResourceManager.GetString("StatusServerUnreachable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'server unreachable — starting it headless keeps the API alive'.
+        /// </summary>
+        public static string StatusServerUnreachableHeadless {
+            get {
+                return ResourceManager.GetString("StatusServerUnreachableHeadless", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'sess:{0}'.
+        /// </summary>
+        public static string StatusSess {
+            get {
+                return ResourceManager.GetString("StatusSess", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Session'.
+        /// </summary>
+        public static string StatusSession {
+            get {
+                return ResourceManager.GetString("StatusSession", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'SIP enabled'.
+        /// </summary>
+        public static string StatusSip {
+            get {
+                return ResourceManager.GetString("StatusSip", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Auto-answer'.
+        /// </summary>
+        public static string StatusSipAnswer {
+            get {
+                return ResourceManager.GetString("StatusSipAnswer", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Call'.
+        /// </summary>
+        public static string StatusSipCall {
+            get {
+                return ResourceManager.GetString("StatusSipCall", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Listening'.
+        /// </summary>
+        public static string StatusSipListen {
+            get {
+                return ResourceManager.GetString("StatusSipListen", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Locked until'.
+        /// </summary>
+        public static string StatusSipLocked {
+            get {
+                return ResourceManager.GetString("StatusSipLocked", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'PIN attempts left'.
+        /// </summary>
+        public static string StatusSipPin {
+            get {
+                return ResourceManager.GetString("StatusSipPin", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Registered'.
+        /// </summary>
+        public static string StatusSipRegistered {
+            get {
+                return ResourceManager.GetString("StatusSipRegistered", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'STT · TTS'.
+        /// </summary>
+        public static string StatusSipStt {
+            get {
+                return ResourceManager.GetString("StatusSipStt", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'tools'.
+        /// </summary>
+        public static string StatusTools {
+            get {
+                return ResourceManager.GetString("StatusTools", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '  [attachment: {0}]'.
+        /// </summary>
+        public static string TelegramAttachmentMarker {
+            get {
+                return ResourceManager.GetString("TelegramAttachmentMarker", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'on'.
+        /// </summary>
+        public static string TelegramPhaseConnected {
+            get {
+                return ResourceManager.GetString("TelegramPhaseConnected", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'conn'.
+        /// </summary>
+        public static string TelegramPhaseConnecting {
+            get {
+                return ResourceManager.GetString("TelegramPhaseConnecting", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'off'.
+        /// </summary>
+        public static string TelegramPhaseDisabled {
+            get {
+                return ResourceManager.GetString("TelegramPhaseDisabled", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'err'.
+        /// </summary>
+        public static string TelegramPhaseFailed {
+            get {
+                return ResourceManager.GetString("TelegramPhaseFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'code'.
+        /// </summary>
+        public static string TelegramPhaseLoginPendingCode {
+            get {
+                return ResourceManager.GetString("TelegramPhaseLoginPendingCode", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '2fa'.
+        /// </summary>
+        public static string TelegramPhaseLoginPendingPassword {
+            get {
+                return ResourceManager.GetString("TelegramPhaseLoginPendingPassword", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'unavailable'.
+        /// </summary>
+        public static string Unavailable {
+            get {
+                return ResourceManager.GetString("Unavailable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'unreachable'.
+        /// </summary>
+        public static string Unreachable {
+            get {
+                return ResourceManager.GetString("Unreachable", resourceCulture);
             }
         }
 
@@ -182,2589 +3053,14 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("WelcomeMessage", resourceCulture);
             }
         }
-        
+
         /// <summary>
-        ///   Looks up a localized string similar to 'ServerNote'.
-        /// </summary>
-        public static string ServerNote {
-            get {
-                return ResourceManager.GetString("ServerNote", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HostErrorNote'.
-        /// </summary>
-        public static string HostErrorNote {
-            get {
-                return ResourceManager.GetString("HostErrorNote", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'WindowTitle'.
+        ///   Looks up a localized string similar to 'AGENT - AI Chat Console'.
         /// </summary>
         public static string WindowTitle {
             get {
                 return ResourceManager.GetString("WindowTitle", resourceCulture);
             }
         }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ChatFrameTitle'.
-        /// </summary>
-        public static string ChatFrameTitle {
-            get {
-                return ResourceManager.GetString("ChatFrameTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuFile'.
-        /// </summary>
-        public static string MenuFile {
-            get {
-                return ResourceManager.GetString("MenuFile", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuNewChat'.
-        /// </summary>
-        public static string MenuNewChat {
-            get {
-                return ResourceManager.GetString("MenuNewChat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuModelsProviders'.
-        /// </summary>
-        public static string MenuModelsProviders {
-            get {
-                return ResourceManager.GetString("MenuModelsProviders", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuAutoUpdate'.
-        /// </summary>
-        public static string MenuAutoUpdate {
-            get {
-                return ResourceManager.GetString("MenuAutoUpdate", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuExit'.
-        /// </summary>
-        public static string MenuExit {
-            get {
-                return ResourceManager.GetString("MenuExit", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuChat'.
-        /// </summary>
-        public static string MenuChat {
-            get {
-                return ResourceManager.GetString("MenuChat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuClearHistory'.
-        /// </summary>
-        public static string MenuClearHistory {
-            get {
-                return ResourceManager.GetString("MenuClearHistory", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuCommands'.
-        /// </summary>
-        public static string MenuCommands {
-            get {
-                return ResourceManager.GetString("MenuCommands", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuRetryLast'.
-        /// </summary>
-        public static string MenuRetryLast {
-            get {
-                return ResourceManager.GetString("MenuRetryLast", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuSession'.
-        /// </summary>
-        public static string MenuSession {
-            get {
-                return ResourceManager.GetString("MenuSession", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuLlmModel'.
-        /// </summary>
-        public static string MenuLlmModel {
-            get {
-                return ResourceManager.GetString("MenuLlmModel", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuAgent'.
-        /// </summary>
-        public static string MenuAgent {
-            get {
-                return ResourceManager.GetString("MenuAgent", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuStatus'.
-        /// </summary>
-        public static string MenuStatus {
-            get {
-                return ResourceManager.GetString("MenuStatus", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuHealth'.
-        /// </summary>
-        public static string MenuHealth {
-            get {
-                return ResourceManager.GetString("MenuHealth", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuWeb'.
-        /// </summary>
-        public static string MenuWeb {
-            get {
-                return ResourceManager.GetString("MenuWeb", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuGui'.
-        /// </summary>
-        public static string MenuGui {
-            get {
-                return ResourceManager.GetString("MenuGui", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuHelp'.
-        /// </summary>
-        public static string MenuHelp {
-            get {
-                return ResourceManager.GetString("MenuHelp", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuHelpItem'.
-        /// </summary>
-        public static string MenuHelpItem {
-            get {
-                return ResourceManager.GetString("MenuHelpItem", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuShortcuts'.
-        /// </summary>
-        public static string MenuShortcuts {
-            get {
-                return ResourceManager.GetString("MenuShortcuts", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuDocumentation'.
-        /// </summary>
-        public static string MenuDocumentation {
-            get {
-                return ResourceManager.GetString("MenuDocumentation", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MenuAbout'.
-        /// </summary>
-        public static string MenuAbout {
-            get {
-                return ResourceManager.GetString("MenuAbout", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdHelp'.
-        /// </summary>
-        public static string CmdHelp {
-            get {
-                return ResourceManager.GetString("CmdHelp", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdDocs'.
-        /// </summary>
-        public static string CmdDocs {
-            get {
-                return ResourceManager.GetString("CmdDocs", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdWeb'.
-        /// </summary>
-        public static string CmdWeb {
-            get {
-                return ResourceManager.GetString("CmdWeb", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdModelSetup'.
-        /// </summary>
-        public static string CmdModelSetup {
-            get {
-                return ResourceManager.GetString("CmdModelSetup", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdModel'.
-        /// </summary>
-        public static string CmdModel {
-            get {
-                return ResourceManager.GetString("CmdModel", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdAgent'.
-        /// </summary>
-        public static string CmdAgent {
-            get {
-                return ResourceManager.GetString("CmdAgent", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdVoice'.
-        /// </summary>
-        public static string CmdVoice {
-            get {
-                return ResourceManager.GetString("CmdVoice", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdTts'.
-        /// </summary>
-        public static string CmdTts {
-            get {
-                return ResourceManager.GetString("CmdTts", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdFeatures'.
-        /// </summary>
-        public static string CmdFeatures {
-            get {
-                return ResourceManager.GetString("CmdFeatures", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdNew'.
-        /// </summary>
-        public static string CmdNew {
-            get {
-                return ResourceManager.GetString("CmdNew", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdClear'.
-        /// </summary>
-        public static string CmdClear {
-            get {
-                return ResourceManager.GetString("CmdClear", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdStatus'.
-        /// </summary>
-        public static string CmdStatus {
-            get {
-                return ResourceManager.GetString("CmdStatus", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdFiles'.
-        /// </summary>
-        public static string CmdFiles {
-            get {
-                return ResourceManager.GetString("CmdFiles", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdAttach'.
-        /// </summary>
-        public static string CmdAttach {
-            get {
-                return ResourceManager.GetString("CmdAttach", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdShortcuts'.
-        /// </summary>
-        public static string CmdShortcuts {
-            get {
-                return ResourceManager.GetString("CmdShortcuts", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdSip'.
-        /// </summary>
-        public static string CmdSip {
-            get {
-                return ResourceManager.GetString("CmdSip", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdHealth'.
-        /// </summary>
-        public static string CmdHealth {
-            get {
-                return ResourceManager.GetString("CmdHealth", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdRetry'.
-        /// </summary>
-        public static string CmdRetry {
-            get {
-                return ResourceManager.GetString("CmdRetry", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdExit'.
-        /// </summary>
-        public static string CmdExit {
-            get {
-                return ResourceManager.GetString("CmdExit", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortEnter'.
-        /// </summary>
-        public static string ShortEnter {
-            get {
-                return ResourceManager.GetString("ShortEnter", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortSlash'.
-        /// </summary>
-        public static string ShortSlash {
-            get {
-                return ResourceManager.GetString("ShortSlash", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortAt'.
-        /// </summary>
-        public static string ShortAt {
-            get {
-                return ResourceManager.GetString("ShortAt", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortQuestion'.
-        /// </summary>
-        public static string ShortQuestion {
-            get {
-                return ResourceManager.GetString("ShortQuestion", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortTab'.
-        /// </summary>
-        public static string ShortTab {
-            get {
-                return ResourceManager.GetString("ShortTab", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortEsc'.
-        /// </summary>
-        public static string ShortEsc {
-            get {
-                return ResourceManager.GetString("ShortEsc", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortCtrlC'.
-        /// </summary>
-        public static string ShortCtrlC {
-            get {
-                return ResourceManager.GetString("ShortCtrlC", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortCtrlD'.
-        /// </summary>
-        public static string ShortCtrlD {
-            get {
-                return ResourceManager.GetString("ShortCtrlD", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortCtrlY'.
-        /// </summary>
-        public static string ShortCtrlY {
-            get {
-                return ResourceManager.GetString("ShortCtrlY", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortCtrlR'.
-        /// </summary>
-        public static string ShortCtrlR {
-            get {
-                return ResourceManager.GetString("ShortCtrlR", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortUpDown'.
-        /// </summary>
-        public static string ShortUpDown {
-            get {
-                return ResourceManager.GetString("ShortUpDown", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortLeftRight'.
-        /// </summary>
-        public static string ShortLeftRight {
-            get {
-                return ResourceManager.GetString("ShortLeftRight", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortCtrlAE'.
-        /// </summary>
-        public static string ShortCtrlAE {
-            get {
-                return ResourceManager.GetString("ShortCtrlAE", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortCtrlUK'.
-        /// </summary>
-        public static string ShortCtrlUK {
-            get {
-                return ResourceManager.GetString("ShortCtrlUK", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortCtrlW'.
-        /// </summary>
-        public static string ShortCtrlW {
-            get {
-                return ResourceManager.GetString("ShortCtrlW", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortPgUpDn'.
-        /// </summary>
-        public static string ShortPgUpDn {
-            get {
-                return ResourceManager.GetString("ShortPgUpDn", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortF1'.
-        /// </summary>
-        public static string ShortF1 {
-            get {
-                return ResourceManager.GetString("ShortF1", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ShortF10'.
-        /// </summary>
-        public static string ShortF10 {
-            get {
-                return ResourceManager.GetString("ShortF10", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusEscAgain'.
-        /// </summary>
-        public static string StatusEscAgain {
-            get {
-                return ResourceManager.GetString("StatusEscAgain", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusCtrlCAgain'.
-        /// </summary>
-        public static string StatusCtrlCAgain {
-            get {
-                return ResourceManager.GetString("StatusCtrlCAgain", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusCancelling'.
-        /// </summary>
-        public static string StatusCancelling {
-            get {
-                return ResourceManager.GetString("StatusCancelling", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusGenerating'.
-        /// </summary>
-        public static string StatusGenerating {
-            get {
-                return ResourceManager.GetString("StatusGenerating", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusGeneratingShort'.
-        /// </summary>
-        public static string StatusGeneratingShort {
-            get {
-                return ResourceManager.GetString("StatusGeneratingShort", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusReplied'.
-        /// </summary>
-        public static string StatusReplied {
-            get {
-                return ResourceManager.GetString("StatusReplied", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusCancelled'.
-        /// </summary>
-        public static string StatusCancelled {
-            get {
-                return ResourceManager.GetString("StatusCancelled", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusError'.
-        /// </summary>
-        public static string StatusError {
-            get {
-                return ResourceManager.GetString("StatusError", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusCancelledEntry'.
-        /// </summary>
-        public static string StatusCancelledEntry {
-            get {
-                return ResourceManager.GetString("StatusCancelledEntry", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusRequestFailed'.
-        /// </summary>
-        public static string StatusRequestFailed {
-            get {
-                return ResourceManager.GetString("StatusRequestFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusSess'.
-        /// </summary>
-        public static string StatusSess {
-            get {
-                return ResourceManager.GetString("StatusSess", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusServerUnreachableHeadless'.
-        /// </summary>
-        public static string StatusServerUnreachableHeadless {
-            get {
-                return ResourceManager.GetString("StatusServerUnreachableHeadless", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusServerUnreachable'.
-        /// </summary>
-        public static string StatusServerUnreachable {
-            get {
-                return ResourceManager.GetString("StatusServerUnreachable", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusServerHealthy'.
-        /// </summary>
-        public static string StatusServerHealthy {
-            get {
-                return ResourceManager.GetString("StatusServerHealthy", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusServerHttp'.
-        /// </summary>
-        public static string StatusServerHttp {
-            get {
-                return ResourceManager.GetString("StatusServerHttp", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HistoryYou'.
-        /// </summary>
-        public static string HistoryYou {
-            get {
-                return ResourceManager.GetString("HistoryYou", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HistoryError'.
-        /// </summary>
-        public static string HistoryError {
-            get {
-                return ResourceManager.GetString("HistoryError", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HistoryAgent'.
-        /// </summary>
-        public static string HistoryAgent {
-            get {
-                return ResourceManager.GetString("HistoryAgent", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteUnknownCommand'.
-        /// </summary>
-        public static string NoteUnknownCommand {
-            get {
-                return ResourceManager.GetString("NoteUnknownCommand", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteCommandFailed'.
-        /// </summary>
-        public static string NoteCommandFailed {
-            get {
-                return ResourceManager.GetString("NoteCommandFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteCouldNotLoadProviders'.
-        /// </summary>
-        public static string NoteCouldNotLoadProviders {
-            get {
-                return ResourceManager.GetString("NoteCouldNotLoadProviders", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteCouldNotLoadProvidersEx'.
-        /// </summary>
-        public static string NoteCouldNotLoadProvidersEx {
-            get {
-                return ResourceManager.GetString("NoteCouldNotLoadProvidersEx", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteNoProviders'.
-        /// </summary>
-        public static string NoteNoProviders {
-            get {
-                return ResourceManager.GetString("NoteNoProviders", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'PickSwitchProvider'.
-        /// </summary>
-        public static string PickSwitchProvider {
-            get {
-                return ResourceManager.GetString("PickSwitchProvider", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteAlreadyOn'.
-        /// </summary>
-        public static string NoteAlreadyOn {
-            get {
-                return ResourceManager.GetString("NoteAlreadyOn", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSwitchingProvider'.
-        /// </summary>
-        public static string NoteSwitchingProvider {
-            get {
-                return ResourceManager.GetString("NoteSwitchingProvider", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteProviderNow'.
-        /// </summary>
-        public static string NoteProviderNow {
-            get {
-                return ResourceManager.GetString("NoteProviderNow", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSwitchRefused'.
-        /// </summary>
-        public static string NoteSwitchRefused {
-            get {
-                return ResourceManager.GetString("NoteSwitchRefused", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'PickSwitchAgent'.
-        /// </summary>
-        public static string PickSwitchAgent {
-            get {
-                return ResourceManager.GetString("PickSwitchAgent", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteUnknownAgentSet'.
-        /// </summary>
-        public static string NoteUnknownAgentSet {
-            get {
-                return ResourceManager.GetString("NoteUnknownAgentSet", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteAgentSet'.
-        /// </summary>
-        public static string NoteAgentSet {
-            get {
-                return ResourceManager.GetString("NoteAgentSet", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteVoiceUnavailable'.
-        /// </summary>
-        public static string NoteVoiceUnavailable {
-            get {
-                return ResourceManager.GetString("NoteVoiceUnavailable", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteVoiceDisabled'.
-        /// </summary>
-        public static string NoteVoiceDisabled {
-            get {
-                return ResourceManager.GetString("NoteVoiceDisabled", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteListening'.
-        /// </summary>
-        public static string NoteListening {
-            get {
-                return ResourceManager.GetString("NoteListening", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteNoSpeech'.
-        /// </summary>
-        public static string NoteNoSpeech {
-            get {
-                return ResourceManager.GetString("NoteNoSpeech", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteDictated'.
-        /// </summary>
-        public static string NoteDictated {
-            get {
-                return ResourceManager.GetString("NoteDictated", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteListeningTimeout'.
-        /// </summary>
-        public static string NoteListeningTimeout {
-            get {
-                return ResourceManager.GetString("NoteListeningTimeout", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteVoiceFailedHttp'.
-        /// </summary>
-        public static string NoteVoiceFailedHttp {
-            get {
-                return ResourceManager.GetString("NoteVoiceFailedHttp", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteVoiceFailed'.
-        /// </summary>
-        public static string NoteVoiceFailed {
-            get {
-                return ResourceManager.GetString("NoteVoiceFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTtsUnavailable'.
-        /// </summary>
-        public static string NoteTtsUnavailable {
-            get {
-                return ResourceManager.GetString("NoteTtsUnavailable", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTtsDisabled'.
-        /// </summary>
-        public static string NoteTtsDisabled {
-            get {
-                return ResourceManager.GetString("NoteTtsDisabled", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteNothingToSpeak'.
-        /// </summary>
-        public static string NoteNothingToSpeak {
-            get {
-                return ResourceManager.GetString("NoteNothingToSpeak", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSynthesising'.
-        /// </summary>
-        public static string NoteSynthesising {
-            get {
-                return ResourceManager.GetString("NoteSynthesising", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTtsFailedHttp'.
-        /// </summary>
-        public static string NoteTtsFailedHttp {
-            get {
-                return ResourceManager.GetString("NoteTtsFailedHttp", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSaved'.
-        /// </summary>
-        public static string NoteSaved {
-            get {
-                return ResourceManager.GetString("NoteSaved", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NotePlaybackFailed'.
-        /// </summary>
-        public static string NotePlaybackFailed {
-            get {
-                return ResourceManager.GetString("NotePlaybackFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NotePlaybackWindowsOnly'.
-        /// </summary>
-        public static string NotePlaybackWindowsOnly {
-            get {
-                return ResourceManager.GetString("NotePlaybackWindowsOnly", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTtsFailed'.
-        /// </summary>
-        public static string NoteTtsFailed {
-            get {
-                return ResourceManager.GetString("NoteTtsFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSessionFeatures'.
-        /// </summary>
-        public static string NoteSessionFeatures {
-            get {
-                return ResourceManager.GetString("NoteSessionFeatures", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteFeatureSet'.
-        /// </summary>
-        public static string NoteFeatureSet {
-            get {
-                return ResourceManager.GetString("NoteFeatureSet", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteFailedHttp'.
-        /// </summary>
-        public static string NoteFailedHttp {
-            get {
-                return ResourceManager.GetString("NoteFailedHttp", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteCreateSessionFailed'.
-        /// </summary>
-        public static string NoteCreateSessionFailed {
-            get {
-                return ResourceManager.GetString("NoteCreateSessionFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteNewSession'.
-        /// </summary>
-        public static string NoteNewSession {
-            get {
-                return ResourceManager.GetString("NoteNewSession", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteHistoryCleared'.
-        /// </summary>
-        public static string NoteHistoryCleared {
-            get {
-                return ResourceManager.GetString("NoteHistoryCleared", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteNoFiles'.
-        /// </summary>
-        public static string NoteNoFiles {
-            get {
-                return ResourceManager.GetString("NoteNoFiles", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteAttached'.
-        /// </summary>
-        public static string NoteAttached {
-            get {
-                return ResourceManager.GetString("NoteAttached", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteAttachedSuffix'.
-        /// </summary>
-        public static string NoteAttachedSuffix {
-            get {
-                return ResourceManager.GetString("NoteAttachedSuffix", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'AttachMarker'.
-        /// </summary>
-        public static string AttachMarker {
-            get {
-                return ResourceManager.GetString("AttachMarker", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteDetached'.
-        /// </summary>
-        public static string NoteDetached {
-            get {
-                return ResourceManager.GetString("NoteDetached", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteUploading'.
-        /// </summary>
-        public static string NoteUploading {
-            get {
-                return ResourceManager.GetString("NoteUploading", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteUploaded'.
-        /// </summary>
-        public static string NoteUploaded {
-            get {
-                return ResourceManager.GetString("NoteUploaded", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteUploadFailedHttp'.
-        /// </summary>
-        public static string NoteUploadFailedHttp {
-            get {
-                return ResourceManager.GetString("NoteUploadFailedHttp", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteUploadFailed'.
-        /// </summary>
-        public static string NoteUploadFailed {
-            get {
-                return ResourceManager.GetString("NoteUploadFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteDeleted'.
-        /// </summary>
-        public static string NoteDeleted {
-            get {
-                return ResourceManager.GetString("NoteDeleted", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteDeleteFailedHttp'.
-        /// </summary>
-        public static string NoteDeleteFailedHttp {
-            get {
-                return ResourceManager.GetString("NoteDeleteFailedHttp", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteDeleteFailed'.
-        /// </summary>
-        public static string NoteDeleteFailed {
-            get {
-                return ResourceManager.GetString("NoteDeleteFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteFilesUsage'.
-        /// </summary>
-        public static string NoteFilesUsage {
-            get {
-                return ResourceManager.GetString("NoteFilesUsage", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteUnknownFile'.
-        /// </summary>
-        public static string NoteUnknownFile {
-            get {
-                return ResourceManager.GetString("NoteUnknownFile", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteFileNotFound'.
-        /// </summary>
-        public static string NoteFileNotFound {
-            get {
-                return ResourceManager.GetString("NoteFileNotFound", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteNothingToRetry'.
-        /// </summary>
-        public static string NoteNothingToRetry {
-            get {
-                return ResourceManager.GetString("NoteNothingToRetry", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteLastReplyOk'.
-        /// </summary>
-        public static string NoteLastReplyOk {
-            get {
-                return ResourceManager.GetString("NoteLastReplyOk", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteOpenedUrl'.
-        /// </summary>
-        public static string NoteOpenedUrl {
-            get {
-                return ResourceManager.GetString("NoteOpenedUrl", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteOpenBrowserFailed'.
-        /// </summary>
-        public static string NoteOpenBrowserFailed {
-            get {
-                return ResourceManager.GetString("NoteOpenBrowserFailed", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSipUsage'.
-        /// </summary>
-        public static string NoteSipUsage {
-            get {
-                return ResourceManager.GetString("NoteSipUsage", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSipUnavailable'.
-        /// </summary>
-        public static string NoteSipUnavailable {
-            get {
-                return ResourceManager.GetString("NoteSipUnavailable", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSipUnavailableCall'.
-        /// </summary>
-        public static string NoteSipUnavailableCall {
-            get {
-                return ResourceManager.GetString("NoteSipUnavailableCall", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSipCalling'.
-        /// </summary>
-        public static string NoteSipCalling {
-            get {
-                return ResourceManager.GetString("NoteSipCalling", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSipCallOk'.
-        /// </summary>
-        public static string NoteSipCallOk {
-            get {
-                return ResourceManager.GetString("NoteSipCallOk", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSipCallFailed'.
-        /// </summary>
-        public static string NoteSipCallFailed {
-            get {
-                return ResourceManager.GetString("NoteSipCallFailed", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSipHangup'.
-        /// </summary>
-        public static string NoteSipHangup {
-            get {
-                return ResourceManager.GetString("NoteSipHangup", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSipAnswerChanged'.
-        /// </summary>
-        public static string NoteSipAnswerChanged {
-            get {
-                return ResourceManager.GetString("NoteSipAnswerChanged", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSipConfigFailed'.
-        /// </summary>
-        public static string NoteSipConfigFailed {
-            get {
-                return ResourceManager.GetString("NoteSipConfigFailed", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSipConfigRestart'.
-        /// </summary>
-        public static string NoteSipConfigRestart {
-            get {
-                return ResourceManager.GetString("NoteSipConfigRestart", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteSipConfigUsage'.
-        /// </summary>
-        public static string NoteSipConfigUsage {
-            get {
-                return ResourceManager.GetString("NoteSipConfigUsage", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'SipPhaseRinging'.
-        /// </summary>
-        public static string SipPhaseRinging {
-            get {
-                return ResourceManager.GetString("SipPhaseRinging", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'SipPhasePin'.
-        /// </summary>
-        public static string SipPhasePin {
-            get {
-                return ResourceManager.GetString("SipPhasePin", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'SipPhaseConversation'.
-        /// </summary>
-        public static string SipPhaseConversation {
-            get {
-                return ResourceManager.GetString("SipPhaseConversation", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'SipPhaseEnded'.
-        /// </summary>
-        public static string SipPhaseEnded {
-            get {
-                return ResourceManager.GetString("SipPhaseEnded", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'CmdTelegram'.
-        /// </summary>
-        public static string CmdTelegram {
-            get {
-                return ResourceManager.GetString("CmdTelegram", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTelegramUsage'.
-        /// </summary>
-        public static string NoteTelegramUsage {
-            get {
-                return ResourceManager.GetString("NoteTelegramUsage", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTelegramUnavailable'.
-        /// </summary>
-        public static string NoteTelegramUnavailable {
-            get {
-                return ResourceManager.GetString("NoteTelegramUnavailable", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTelegramConfigUsage'.
-        /// </summary>
-        public static string NoteTelegramConfigUsage {
-            get {
-                return ResourceManager.GetString("NoteTelegramConfigUsage", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTelegramConfigFailed'.
-        /// </summary>
-        public static string NoteTelegramConfigFailed {
-            get {
-                return ResourceManager.GetString("NoteTelegramConfigFailed", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTelegramConfigRestart'.
-        /// </summary>
-        public static string NoteTelegramConfigRestart {
-            get {
-                return ResourceManager.GetString("NoteTelegramConfigRestart", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTelegramLoginPending'.
-        /// </summary>
-        public static string NoteTelegramLoginPending {
-            get {
-                return ResourceManager.GetString("NoteTelegramLoginPending", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTelegramLoginCodeSubmitted'.
-        /// </summary>
-        public static string NoteTelegramLoginCodeSubmitted {
-            get {
-                return ResourceManager.GetString("NoteTelegramLoginCodeSubmitted", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTelegramLoginCodeFailed'.
-        /// </summary>
-        public static string NoteTelegramLoginCodeFailed {
-            get {
-                return ResourceManager.GetString("NoteTelegramLoginCodeFailed", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTelegramAllowOk'.
-        /// </summary>
-        public static string NoteTelegramAllowOk {
-            get {
-                return ResourceManager.GetString("NoteTelegramAllowOk", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteTelegramAllowFailed'.
-        /// </summary>
-        public static string NoteTelegramAllowFailed {
-            get {
-                return ResourceManager.GetString("NoteTelegramAllowFailed", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'TelegramPhaseDisabled'.
-        /// </summary>
-        public static string TelegramPhaseDisabled {
-            get {
-                return ResourceManager.GetString("TelegramPhaseDisabled", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'TelegramPhaseConnecting'.
-        /// </summary>
-        public static string TelegramPhaseConnecting {
-            get {
-                return ResourceManager.GetString("TelegramPhaseConnecting", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'TelegramPhaseLoginPendingCode'.
-        /// </summary>
-        public static string TelegramPhaseLoginPendingCode {
-            get {
-                return ResourceManager.GetString("TelegramPhaseLoginPendingCode", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'TelegramPhaseLoginPendingPassword'.
-        /// </summary>
-        public static string TelegramPhaseLoginPendingPassword {
-            get {
-                return ResourceManager.GetString("TelegramPhaseLoginPendingPassword", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'TelegramPhaseConnected'.
-        /// </summary>
-        public static string TelegramPhaseConnected {
-            get {
-                return ResourceManager.GetString("TelegramPhaseConnected", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'TelegramPhaseFailed'.
-        /// </summary>
-        public static string TelegramPhaseFailed {
-            get {
-                return ResourceManager.GetString("TelegramPhaseFailed", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'TelegramAttachmentMarker'.
-        /// </summary>
-        public static string TelegramAttachmentMarker {
-            get {
-                return ResourceManager.GetString("TelegramAttachmentMarker", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteWebClientOutdated'.
-        /// </summary>
-        public static string NoteWebClientOutdated {
-            get {
-                return ResourceManager.GetString("NoteWebClientOutdated", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteLaunchingWebClient'.
-        /// </summary>
-        public static string NoteLaunchingWebClient {
-            get {
-                return ResourceManager.GetString("NoteLaunchingWebClient", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteWebClientFailed'.
-        /// </summary>
-        public static string NoteWebClientFailed {
-            get {
-                return ResourceManager.GetString("NoteWebClientFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoteLoadFilesFailed'.
-        /// </summary>
-        public static string NoteLoadFilesFailed {
-            get {
-                return ResourceManager.GetString("NoteLoadFilesFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpQuickStart'.
-        /// </summary>
-        public static string HelpQuickStart {
-            get {
-                return ResourceManager.GetString("HelpQuickStart", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpQuickStart1'.
-        /// </summary>
-        public static string HelpQuickStart1 {
-            get {
-                return ResourceManager.GetString("HelpQuickStart1", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpQuickStart2'.
-        /// </summary>
-        public static string HelpQuickStart2 {
-            get {
-                return ResourceManager.GetString("HelpQuickStart2", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpQuickStart3'.
-        /// </summary>
-        public static string HelpQuickStart3 {
-            get {
-                return ResourceManager.GetString("HelpQuickStart3", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpQuickStart4'.
-        /// </summary>
-        public static string HelpQuickStart4 {
-            get {
-                return ResourceManager.GetString("HelpQuickStart4", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpCommands'.
-        /// </summary>
-        public static string HelpCommands {
-            get {
-                return ResourceManager.GetString("HelpCommands", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpShortcuts'.
-        /// </summary>
-        public static string HelpShortcuts {
-            get {
-                return ResourceManager.GetString("HelpShortcuts", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpShortcutsTitle'.
-        /// </summary>
-        public static string HelpShortcutsTitle {
-            get {
-                return ResourceManager.GetString("HelpShortcutsTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpShortcutsFooter'.
-        /// </summary>
-        public static string HelpShortcutsFooter {
-            get {
-                return ResourceManager.GetString("HelpShortcutsFooter", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpMouse'.
-        /// </summary>
-        public static string HelpMouse {
-            get {
-                return ResourceManager.GetString("HelpMouse", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpMouseWheel'.
-        /// </summary>
-        public static string HelpMouseWheel {
-            get {
-                return ResourceManager.GetString("HelpMouseWheel", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpMouseClickInput'.
-        /// </summary>
-        public static string HelpMouseClickInput {
-            get {
-                return ResourceManager.GetString("HelpMouseClickInput", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpMouseClickRow'.
-        /// </summary>
-        public static string HelpMouseClickRow {
-            get {
-                return ResourceManager.GetString("HelpMouseClickRow", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpApi'.
-        /// </summary>
-        public static string HelpApi {
-            get {
-                return ResourceManager.GetString("HelpApi", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpApi1'.
-        /// </summary>
-        public static string HelpApi1 {
-            get {
-                return ResourceManager.GetString("HelpApi1", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpApi2'.
-        /// </summary>
-        public static string HelpApi2 {
-            get {
-                return ResourceManager.GetString("HelpApi2", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpApi3'.
-        /// </summary>
-        public static string HelpApi3 {
-            get {
-                return ResourceManager.GetString("HelpApi3", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpOnline'.
-        /// </summary>
-        public static string HelpOnline {
-            get {
-                return ResourceManager.GetString("HelpOnline", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpOnlineRepo'.
-        /// </summary>
-        public static string HelpOnlineRepo {
-            get {
-                return ResourceManager.GetString("HelpOnlineRepo", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'HelpOnlineReadme'.
-        /// </summary>
-        public static string HelpOnlineReadme {
-            get {
-                return ResourceManager.GetString("HelpOnlineReadme", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'PageAgentHelp'.
-        /// </summary>
-        public static string PageAgentHelp {
-            get {
-                return ResourceManager.GetString("PageAgentHelp", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'PageShortcuts'.
-        /// </summary>
-        public static string PageShortcuts {
-            get {
-                return ResourceManager.GetString("PageShortcuts", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'DlgReverseSearch'.
-        /// </summary>
-        public static string DlgReverseSearch {
-            get {
-                return ResourceManager.GetString("DlgReverseSearch", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'DlgReverseHint'.
-        /// </summary>
-        public static string DlgReverseHint {
-            get {
-                return ResourceManager.GetString("DlgReverseHint", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'DlgPickerHint'.
-        /// </summary>
-        public static string DlgPickerHint {
-            get {
-                return ResourceManager.GetString("DlgPickerHint", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'DlgCommandsTitle'.
-        /// </summary>
-        public static string DlgCommandsTitle {
-            get {
-                return ResourceManager.GetString("DlgCommandsTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'DlgCommandsHint'.
-        /// </summary>
-        public static string DlgCommandsHint {
-            get {
-                return ResourceManager.GetString("DlgCommandsHint", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'DlgProviderPickerHint'.
-        /// </summary>
-        public static string DlgProviderPickerHint {
-            get {
-                return ResourceManager.GetString("DlgProviderPickerHint", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'DlgToggleAttach'.
-        /// </summary>
-        public static string DlgToggleAttach {
-            get {
-                return ResourceManager.GetString("DlgToggleAttach", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'DlgPageHint'.
-        /// </summary>
-        public static string DlgPageHint {
-            get {
-                return ResourceManager.GetString("DlgPageHint", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'PageAgentStatus'.
-        /// </summary>
-        public static string PageAgentStatus {
-            get {
-                return ResourceManager.GetString("PageAgentStatus", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'PageSipStatus'.
-        /// </summary>
-        public static string PageSipStatus {
-            get {
-                return ResourceManager.GetString("PageSipStatus", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'PageSipConfig'.
-        /// </summary>
-        public static string PageSipConfig {
-            get {
-                return ResourceManager.GetString("PageSipConfig", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'PageUploadedFiles'.
-        /// </summary>
-        public static string PageUploadedFiles {
-            get {
-                return ResourceManager.GetString("PageUploadedFiles", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'AboutTitle'.
-        /// </summary>
-        public static string AboutTitle {
-            get {
-                return ResourceManager.GetString("AboutTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'AboutText'.
-        /// </summary>
-        public static string AboutText {
-            get {
-                return ResourceManager.GetString("AboutText", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusSession'.
-        /// </summary>
-        public static string StatusSession {
-            get {
-                return ResourceManager.GetString("StatusSession", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusProvider'.
-        /// </summary>
-        public static string StatusProvider {
-            get {
-                return ResourceManager.GetString("StatusProvider", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusContextWindow'.
-        /// </summary>
-        public static string StatusContextWindow {
-            get {
-                return ResourceManager.GetString("StatusContextWindow", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusAgentSet'.
-        /// </summary>
-        public static string StatusAgentSet {
-            get {
-                return ResourceManager.GetString("StatusAgentSet", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusFeatures'.
-        /// </summary>
-        public static string StatusFeatures {
-            get {
-                return ResourceManager.GetString("StatusFeatures", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusAttachments'.
-        /// </summary>
-        public static string StatusAttachments {
-            get {
-                return ResourceManager.GetString("StatusAttachments", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusCapabilities'.
-        /// </summary>
-        public static string StatusCapabilities {
-            get {
-                return ResourceManager.GetString("StatusCapabilities", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusSip'.
-        /// </summary>
-        public static string StatusSip {
-            get {
-                return ResourceManager.GetString("StatusSip", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusSipListen'.
-        /// </summary>
-        public static string StatusSipListen {
-            get {
-                return ResourceManager.GetString("StatusSipListen", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusSipAnswer'.
-        /// </summary>
-        public static string StatusSipAnswer {
-            get {
-                return ResourceManager.GetString("StatusSipAnswer", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusSipRegistered'.
-        /// </summary>
-        public static string StatusSipRegistered {
-            get {
-                return ResourceManager.GetString("StatusSipRegistered", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusSipCall'.
-        /// </summary>
-        public static string StatusSipCall {
-            get {
-                return ResourceManager.GetString("StatusSipCall", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusSipPin'.
-        /// </summary>
-        public static string StatusSipPin {
-            get {
-                return ResourceManager.GetString("StatusSipPin", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusSipLocked'.
-        /// </summary>
-        public static string StatusSipLocked {
-            get {
-                return ResourceManager.GetString("StatusSipLocked", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusSipStt'.
-        /// </summary>
-        public static string StatusSipStt {
-            get {
-                return ResourceManager.GetString("StatusSipStt", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'SipAnnounceWelcome'.
-        /// </summary>
-        public static string SipAnnounceWelcome {
-            get {
-                return ResourceManager.GetString("SipAnnounceWelcome", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'SipAnnounceWelcomeOk'.
-        /// </summary>
-        public static string SipAnnounceWelcomeOk {
-            get {
-                return ResourceManager.GetString("SipAnnounceWelcomeOk", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'SipAnnouncePinWrong'.
-        /// </summary>
-        public static string SipAnnouncePinWrong {
-            get {
-                return ResourceManager.GetString("SipAnnouncePinWrong", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'SipAnnounceLocked'.
-        /// </summary>
-        public static string SipAnnounceLocked {
-            get {
-                return ResourceManager.GetString("SipAnnounceLocked", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'SipAnnouncePinTimeout'.
-        /// </summary>
-        public static string SipAnnouncePinTimeout {
-            get {
-                return ResourceManager.GetString("SipAnnouncePinTimeout", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'StatusPromptHistory'.
-        /// </summary>
-        public static string StatusPromptHistory {
-            get {
-                return ResourceManager.GetString("StatusPromptHistory", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupTitle'.
-        /// </summary>
-        public static string SetupTitle {
-            get {
-                return ResourceManager.GetString("SetupTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupLlmTab'.
-        /// </summary>
-        public static string SetupLlmTab {
-            get {
-                return ResourceManager.GetString("SetupLlmTab", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupActiveProvider'.
-        /// </summary>
-        public static string SetupActiveProvider {
-            get {
-                return ResourceManager.GetString("SetupActiveProvider", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupActiveMarker'.
-        /// </summary>
-        public static string SetupActiveMarker {
-            get {
-                return ResourceManager.GetString("SetupActiveMarker", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderApiKey'.
-        /// </summary>
-        public static string ProviderApiKey {
-            get {
-                return ResourceManager.GetString("ProviderApiKey", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupConfiguredProviders'.
-        /// </summary>
-        public static string SetupConfiguredProviders {
-            get {
-                return ResourceManager.GetString("SetupConfiguredProviders", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupAdd'.
-        /// </summary>
-        public static string SetupAdd {
-            get {
-                return ResourceManager.GetString("SetupAdd", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupEdit'.
-        /// </summary>
-        public static string SetupEdit {
-            get {
-                return ResourceManager.GetString("SetupEdit", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupRemove'.
-        /// </summary>
-        public static string SetupRemove {
-            get {
-                return ResourceManager.GetString("SetupRemove", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupEmailTab'.
-        /// </summary>
-        public static string SetupEmailTab {
-            get {
-                return ResourceManager.GetString("SetupEmailTab", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupSmtpServer'.
-        /// </summary>
-        public static string SetupSmtpServer {
-            get {
-                return ResourceManager.GetString("SetupSmtpServer", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupSmtpPort'.
-        /// </summary>
-        public static string SetupSmtpPort {
-            get {
-                return ResourceManager.GetString("SetupSmtpPort", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupSmtpUser'.
-        /// </summary>
-        public static string SetupSmtpUser {
-            get {
-                return ResourceManager.GetString("SetupSmtpUser", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupSmtpPassword'.
-        /// </summary>
-        public static string SetupSmtpPassword {
-            get {
-                return ResourceManager.GetString("SetupSmtpPassword", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupRecipientEmail'.
-        /// </summary>
-        public static string SetupRecipientEmail {
-            get {
-                return ResourceManager.GetString("SetupRecipientEmail", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupImapTab'.
-        /// </summary>
-        public static string SetupImapTab {
-            get {
-                return ResourceManager.GetString("SetupImapTab", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupImapServer'.
-        /// </summary>
-        public static string SetupImapServer {
-            get {
-                return ResourceManager.GetString("SetupImapServer", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupImapPort'.
-        /// </summary>
-        public static string SetupImapPort {
-            get {
-                return ResourceManager.GetString("SetupImapPort", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupImapUser'.
-        /// </summary>
-        public static string SetupImapUser {
-            get {
-                return ResourceManager.GetString("SetupImapUser", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupImapPassword'.
-        /// </summary>
-        public static string SetupImapPassword {
-            get {
-                return ResourceManager.GetString("SetupImapPassword", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupGeneralTab'.
-        /// </summary>
-        public static string SetupGeneralTab {
-            get {
-                return ResourceManager.GetString("SetupGeneralTab", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupStepLogging'.
-        /// </summary>
-        public static string SetupStepLogging {
-            get {
-                return ResourceManager.GetString("SetupStepLogging", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupDocumentsPath'.
-        /// </summary>
-        public static string SetupDocumentsPath {
-            get {
-                return ResourceManager.GetString("SetupDocumentsPath", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupSave'.
-        /// </summary>
-        public static string SetupSave {
-            get {
-                return ResourceManager.GetString("SetupSave", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupInvalidSmtpPortTitle'.
-        /// </summary>
-        public static string SetupInvalidSmtpPortTitle {
-            get {
-                return ResourceManager.GetString("SetupInvalidSmtpPortTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupInvalidSmtpPortText'.
-        /// </summary>
-        public static string SetupInvalidSmtpPortText {
-            get {
-                return ResourceManager.GetString("SetupInvalidSmtpPortText", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupInvalidImapPortTitle'.
-        /// </summary>
-        public static string SetupInvalidImapPortTitle {
-            get {
-                return ResourceManager.GetString("SetupInvalidImapPortTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupInvalidImapPortText'.
-        /// </summary>
-        public static string SetupInvalidImapPortText {
-            get {
-                return ResourceManager.GetString("SetupInvalidImapPortText", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupInvalidDocsPathTitle'.
-        /// </summary>
-        public static string SetupInvalidDocsPathTitle {
-            get {
-                return ResourceManager.GetString("SetupInvalidDocsPathTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupInvalidDocsPathText'.
-        /// </summary>
-        public static string SetupInvalidDocsPathText {
-            get {
-                return ResourceManager.GetString("SetupInvalidDocsPathText", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupSaved'.
-        /// </summary>
-        public static string SetupSaved {
-            get {
-                return ResourceManager.GetString("SetupSaved", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupSavedWithNote'.
-        /// </summary>
-        public static string SetupSavedWithNote {
-            get {
-                return ResourceManager.GetString("SetupSavedWithNote", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupProviderAdded'.
-        /// </summary>
-        public static string SetupProviderAdded {
-            get {
-                return ResourceManager.GetString("SetupProviderAdded", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupProviderExists'.
-        /// </summary>
-        public static string SetupProviderExists {
-            get {
-                return ResourceManager.GetString("SetupProviderExists", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupSelectToEdit'.
-        /// </summary>
-        public static string SetupSelectToEdit {
-            get {
-                return ResourceManager.GetString("SetupSelectToEdit", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupProviderUpdated'.
-        /// </summary>
-        public static string SetupProviderUpdated {
-            get {
-                return ResourceManager.GetString("SetupProviderUpdated", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupSelectToRemove'.
-        /// </summary>
-        public static string SetupSelectToRemove {
-            get {
-                return ResourceManager.GetString("SetupSelectToRemove", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupRemoveProviderTitle'.
-        /// </summary>
-        public static string SetupRemoveProviderTitle {
-            get {
-                return ResourceManager.GetString("SetupRemoveProviderTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupRemoveProviderText'.
-        /// </summary>
-        public static string SetupRemoveProviderText {
-            get {
-                return ResourceManager.GetString("SetupRemoveProviderText", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupCannotRemove'.
-        /// </summary>
-        public static string SetupCannotRemove {
-            get {
-                return ResourceManager.GetString("SetupCannotRemove", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'SetupProviderRemoved'.
-        /// </summary>
-        public static string SetupProviderRemoved {
-            get {
-                return ResourceManager.GetString("SetupProviderRemoved", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderAddTitle'.
-        /// </summary>
-        public static string ProviderAddTitle {
-            get {
-                return ResourceManager.GetString("ProviderAddTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderEditTitle'.
-        /// </summary>
-        public static string ProviderEditTitle {
-            get {
-                return ResourceManager.GetString("ProviderEditTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderName'.
-        /// </summary>
-        public static string ProviderName {
-            get {
-                return ResourceManager.GetString("ProviderName", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderProtocol'.
-        /// </summary>
-        public static string ProviderProtocol {
-            get {
-                return ResourceManager.GetString("ProviderProtocol", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderInteractionMode'.
-        /// </summary>
-        public static string ProviderInteractionMode {
-            get {
-                return ResourceManager.GetString("ProviderInteractionMode", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderModel'.
-        /// </summary>
-        public static string ProviderModel {
-            get {
-                return ResourceManager.GetString("ProviderModel", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderBaseAddress'.
-        /// </summary>
-        public static string ProviderBaseAddress {
-            get {
-                return ResourceManager.GetString("ProviderBaseAddress", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderEndpoint'.
-        /// </summary>
-        public static string ProviderEndpoint {
-            get {
-                return ResourceManager.GetString("ProviderEndpoint", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderContextWindow'.
-        /// </summary>
-        public static string ProviderContextWindow {
-            get {
-                return ResourceManager.GetString("ProviderContextWindow", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderTimeout'.
-        /// </summary>
-        public static string ProviderTimeout {
-            get {
-                return ResourceManager.GetString("ProviderTimeout", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderNameRequired'.
-        /// </summary>
-        public static string ProviderNameRequired {
-            get {
-                return ResourceManager.GetString("ProviderNameRequired", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderBaseAddressInvalid'.
-        /// </summary>
-        public static string ProviderBaseAddressInvalid {
-            get {
-                return ResourceManager.GetString("ProviderBaseAddressInvalid", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'ProviderContextInvalid'.
-        /// </summary>
-        public static string ProviderContextInvalid {
-            get {
-                return ResourceManager.GetString("ProviderContextInvalid", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'MaxIterationsReached'.
-        /// </summary>
-        public static string MaxIterationsReached {
-            get {
-                return ResourceManager.GetString("MaxIterationsReached", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoLlmResponse'.
-        /// </summary>
-        public static string NoLlmResponse {
-            get {
-                return ResourceManager.GetString("NoLlmResponse", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'Done'.
-        /// </summary>
-        public static string Done {
-            get {
-                return ResourceManager.GetString("Done", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to 'NoOutputGenerated'.
-        /// </summary>
-        public static string NoOutputGenerated {
-            get {
-                return ResourceManager.GetString("NoOutputGenerated", resourceCulture);
-            }
-        }
-        
     }
 }
