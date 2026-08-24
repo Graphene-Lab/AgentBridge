@@ -2,13 +2,17 @@
 # release gate off (IsPrerelease=false), commits + pushes EVERY project with pending changes
 # (sync-all.ps1, message "Update at HH:mm") and pushes master: the push itself triggers the
 # wait + build + GitHub release (tag auto-created) in release.yml. Afterwards the gate is
-# restored to true locally (NOT pushed: the pushed commit must keep IsPrerelease=false so the
-# release tag points at it).
+# restored to true AND pushed, so nothing is left pending anywhere: local repos end exactly in
+# sync with origin. This is safe because release.yml pins its tag to the gate-off commit
+# (github.sha) and the restore push's own run is skipped by the gate (IsPrerelease=true).
 #
 # With -PreRelease it instead pushes everything keeping IsPrerelease=true: no GitHub release,
 # but all pending changes are still committed and pushed, and the dependency repos still
 # publish today's NuGet packages. The gate is flipped to true first when needed, so the pushed
-# commit can never trigger a release.
+# commit can never trigger a release. Nothing is left pending either.
+#
+# Any failure (sync-all error, failed push) aborts the release, restores the gate to true
+# locally (no push — a retry must start from the gate-off state) and rethrows the real error.
 #
 # Usage:  powershell -File release.ps1 [-Message "<empty-commit message>"] [-PreRelease]
 #   -Message: commit message used for the empty trigger commit when the gate is already off
@@ -32,6 +36,10 @@ $ErrorActionPreference = 'Stop'
 # progress, "remote: warning: Deleting a non-existent ref.", "Updated tag ...").
 # $LASTEXITCODE is the source of truth for git failures — not stderr.
 $PSNativeCommandUseErrorActionPreference = $false
+# Every push made by this script is "internal": sync-all has already synced the dependency
+# tree (or it was clean), so the pre-push hook's nested sync would be redundant and could
+# fail the push. The hook keeps running for plain manual pushes, which is its purpose.
+$env:SYNC_ALL_ACTIVE = '1'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $csprojPath = Join-Path $root 'AgentBridge.csproj'
 $gateRegex = '<IsPrerelease>\s*(true|false)\s*</IsPrerelease>'
@@ -44,13 +52,17 @@ function Set-IsPrerelease([string]$value, [switch]$Push) {
     Push-Location $root
     try {
         git add AgentBridge.csproj
+        if ($LASTEXITCODE -ne 0) { throw "git add failed (exit $LASTEXITCODE)" }
         git diff --cached --quiet HEAD -- AgentBridge.csproj
         if ($LASTEXITCODE -ne 0) {
-            git commit -m "chore: IsPrerelease=$value" | Out-Null
+            # Commit ONLY the csproj (-- <path>): a bare "git commit" would sweep unrelated
+            # staged changes into the gate commit — they belong in the sync commit instead.
+            git commit -m "chore: IsPrerelease=$value" -- AgentBridge.csproj | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "git commit failed (exit $LASTEXITCODE)" }
         }
         if ($Push) {
             git push origin master
-            if ($LASTEXITCODE -ne 0) { throw "git push failed" }
+            if ($LASTEXITCODE -ne 0) { throw "git push failed (exit $LASTEXITCODE)" }
         }
     } finally {
         Pop-Location
@@ -62,7 +74,7 @@ function Invoke-SyncAll {
     Push-Location $root
     try {
         & (Join-Path $root 'sync-all.ps1') -Message $syncMsg
-        if ($LASTEXITCODE -ne 0) { throw "sync-all failed" }
+        if ($LASTEXITCODE -ne 0) { throw "sync-all failed — fix the FAILED repos listed above and re-run" }
     } finally {
         Pop-Location
     }
@@ -95,18 +107,19 @@ try {
     try {
         if ((git rev-parse origin/master).Trim() -eq $originBefore) {
             git commit --allow-empty -m $Message | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "git commit failed (exit $LASTEXITCODE)" }
             git push origin master
-            if ($LASTEXITCODE -ne 0) { throw "git push failed" }
+            if ($LASTEXITCODE -ne 0) { throw "git push failed (exit $LASTEXITCODE)" }
         }
     } finally {
         Pop-Location
     }
-} finally {
-    # Restore the gate afterwards — locally only, so the pushed commit keeps IsPrerelease=false.
-    try {
-        Set-IsPrerelease 'true'
-    } catch {
-        Write-Warning "could not restore IsPrerelease=true — set it manually: $_"
-    }
+    # Success: restore the gate and push it too — the button must leave nothing pending.
+    Set-IsPrerelease 'true' -Push
+} catch {
+    # Failure: restore the gate locally only (no push — a retry must start from the gate-off
+    # state) and rethrow the real error so the terminal shows the actual cause.
+    try { Set-IsPrerelease 'true' } catch { Write-Warning "could not restore IsPrerelease=true — set it manually: $_" }
+    throw
 }
 Write-Host "Done. Release runs in GitHub Actions (https://github.com/Graphene-Lab/AgentBridge/actions)."

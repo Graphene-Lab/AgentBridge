@@ -7,6 +7,20 @@
 if [ -n "$SYNC_ALL_ACTIVE" ]; then exit 0; fi
 if [ -n "$1" ] && [ "$1" != "origin" ]; then exit 0; fi
 
+# Visual Studio may execute hooks with a reduced PATH. Add common Windows Git/PowerShell locations.
+add_to_path_if_dir() {
+  if [ -d "$1" ]; then
+    PATH="$1:$PATH"
+  fi
+}
+
+add_to_path_if_dir "/c/Program Files/Git/cmd"
+add_to_path_if_dir "/c/Program Files/Git/bin"
+add_to_path_if_dir "/mingw64/bin"
+add_to_path_if_dir "/usr/bin"
+add_to_path_if_dir "/c/Windows/System32"
+export PATH
+
 master=0
 while read -r _ _ remote_ref _; do
   case "$remote_ref" in refs/heads/master) master=1 ;; esac
@@ -14,8 +28,35 @@ done
 
 if [ "$master" != "1" ]; then exit 0; fi
 
-repo_root=$(git rev-parse --show-toplevel)
+# Resolve repository root without invoking git (git may be unavailable in VS hook PATH).
+hook_dir=$(cd "$(dirname "$0")" && pwd)
+repo_root=$(cd "$hook_dir/../.." && pwd)
+
+sync_script="$repo_root/sync-all.ps1"
+if [ ! -f "$sync_script" ]; then
+  echo "pre-push: sync script not found: $sync_script" >&2
+  exit 1
+fi
+
+# Prefer powershell.exe on Windows; fallback to powershell/pwsh if available.
+ps_cmd=""
+if command -v powershell.exe >/dev/null 2>&1; then
+  ps_cmd="powershell.exe"
+elif [ -x "/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe" ]; then
+  ps_cmd="/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+elif command -v powershell >/dev/null 2>&1; then
+  ps_cmd="powershell"
+elif command -v pwsh >/dev/null 2>&1; then
+  ps_cmd="pwsh"
+fi
+
+if [ -z "$ps_cmd" ]; then
+  echo "pre-push: PowerShell not found in PATH." >&2
+  exit 1
+fi
+
 echo "pre-push: syncing dependency repos (code-only — no NuGet publish on plain pushes)..."
 # -SkipSelf: sync only the dependency repos — AgentBridge itself is pushed by this git push
 # (pushing it here too would make the original push fail with a stale-ref lock error).
-powershell -NoProfile -ExecutionPolicy Bypass -File "$repo_root/sync-all.ps1" -Message "pre-push sync" -SkipSelf
+# sync-all exits 1 on any failure, which aborts this push: a partial sync is never silent.
+"$ps_cmd" -NoProfile -ExecutionPolicy Bypass -File "$sync_script" -Message "pre-push sync" -SkipSelf

@@ -108,15 +108,16 @@ Set `IsPrerelease=true` while iterating and to `false` only when the test cycles
 the version works. The gate is the switch: pushing master with `IsPrerelease=false` in the
 committed csproj triggers the release automatically (release.yml); the workflow pins the tag
 `v1.yy.MM.dd` to the triggering commit. No tag push needed. The status-bar button runs
-`release.ps1`, which only flips the gate to `false`, pushes master and restores the gate to
-`true` afterwards (equivalent to doing it by hand).
+`release.ps1`, which flips the gate to `false`, pushes master (the release trigger), then
+flips the gate back to `true` and pushes that too — nothing stays pending locally. The
+restore push's own run is skipped by the gate, and `release.yml` pins the tag to the
+triggering commit (`github.sha`), so that later push cannot move it.
 
 **A prerelease push publishes nothing.** With `IsPrerelease=true`, pushing `master` produces
 no GitHub release (`release.yml` runs but the gate skips the build) and no NuGet update: the
-dependency repos' `publish.yml` still runs on the push and attempts the push, but
-`--skip-duplicate` skips the already-published date version
-(same-day freeze), ending with "Package ... already exists at feed". Real publishes only
-come from the next date's push with the gate off.
+dependency repos' `publish.yml` triggers only on `v*` tag pushes, so a plain master push does
+not even run it. Real publishes only come from pushing a `v*` date tag per dependency repo
+(see "The dependency packages") or from the next date's release with the gate off.
 
 ## Dependency model: dual reference
 
@@ -152,9 +153,9 @@ Consequences:
 | `Graphene.ReverseMarkdown` | Graphene-Lab/ReverseMarkdown | fork of the MIT library → renamed id + Andrea Bruno License 1.4 |
 | `UISupportGeneric` | Graphene-Lab/UISupportGeneric | predates this pipeline |
 
-All are versioned `1.yy.MM.dd` and published on every master push. The **wait list** in
-`release.yml` ("Wait for dependency packages on NuGet") must contain every package
-AgentBridge depends on, in **lowercase**.
+All are versioned `1.yy.MM.dd` and published on a `v*` tag push (per-repo `publish.yml`). The
+**wait list** in `release.yml` ("Wait for dependency packages on NuGet") must contain every
+package AgentBridge depends on, in **lowercase**.
 
 ## Adding a new dependency project
 

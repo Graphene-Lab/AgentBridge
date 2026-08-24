@@ -61,22 +61,25 @@ The "Push AgentBridge" status-bar button does exactly this with one click (no co
 it opens a Release / PreRelease menu. In both modes `release.ps1` first commits **every
 project with pending changes** (AgentBridge + all dependency repos, via `sync-all.ps1`, commit
 message `"Update at HH:mm"`) and pushes them. **Release** then flips the gate to `false`
-(pushing the release trigger) and restores the gate to `true` locally afterwards.
-**PreRelease** instead keeps the gate on (flipping it first if needed), so all changes are
-committed and pushed and the dependency NuGet packages publish, but no GitHub release is
-created.
+(pushing the release trigger) and pushes the gate restore to `true` afterwards — nothing is
+left pending: the local repos end exactly in sync with origin (release.yml pins its tag to the
+gate-off commit, and the restore push's own run is skipped by the gate). **PreRelease** keeps
+the gate on (flipping it first if needed), so all changes are committed and pushed and no
+GitHub release is created. Both modes fail loudly: `sync-all.ps1` lists the failing repos as
+`FAILED:` lines and aborts, so a partial sync is never mistaken for a clean one.
 
 **The push itself (always runs):** a `pre-push` hook (installed via `install-hooks.ps1`, template
 in `hooks/pre-push`) runs `sync-all.ps1` automatically whenever AgentBridge master is pushed to
-origin — so a plain `git push` updates the dependency NuGet packages before/while the release
-workflow waits for them. The hook is skipped for tags, other branches/remotes, and re-entrant
-pushes (guard: `SYNC_ALL_ACTIVE`).
+origin — so a plain `git push` syncs the dependency repos (commits + pushes their pending
+changes) before/while the release workflow waits for their packages. The hook is skipped for
+tags, other branches/remotes, and re-entrant pushes (guard: `SYNC_ALL_ACTIVE`); a failing
+nested sync aborts the push.
 
 **Manually (equivalent steps):**
 1. `powershell -File sync-all.ps1 -Message "<commit message>"` — commits and pushes
    AgentBridge plus every repo it depends on (recursively via ProjectReference; new
    dependency repos are discovered automatically).
-2. Each dependency repo's `.github/workflows/publish.yml` (trigger: push to master) packs and
+2. Each dependency repo's `.github/workflows/publish.yml` (trigger: `v*` tag push) packs and
    pushes its NuGet package (`1.*` floating version, `--skip-duplicate` — idempotent).
 3. Push master with `IsPrerelease=false` in the committed csproj → `release.yml` releases
    automatically (it first waits until today's version of every dependency package is visible

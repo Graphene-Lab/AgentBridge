@@ -4,7 +4,7 @@ name: Build and Release AgentBridge
 # (in the pushed commit) triggers the wait for the dependency NuGet packages, the build of the
 # 5 platform archives and the GitHub release — the tag v1.yy.MM.dd is created on the fly. No
 # tag push and no release.ps1 invocation are needed anymore. With IsPrerelease=true, or when
-# today's tag already exists, the run is skipped. See docs/RELEASING.md.
+# today's tag already exists, the run is skipped. See docs-dev/RELEASING.md.
 on:
   push:
     branches: [master]
