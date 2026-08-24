@@ -401,4 +401,4 @@ Full reference (architecture, security, NAT/firewall, deployment): **[docs/sip.m
 ---
 
 *Related docs: [Terminal UI reference](TUI.md) · [HTTP API reference](API.md) ·
-[Architecture](ARCHITECTURE.md) · [Releases pipeline](RELEASING.md) (developers).*
+[Architecture](../docs-dev/ARCHITECTURE.md) · [Releases pipeline](../docs-dev/RELEASING.md) (developers, not shipped).*

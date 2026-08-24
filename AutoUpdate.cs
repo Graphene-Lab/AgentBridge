@@ -35,7 +35,7 @@ public static class AutoUpdate
     public static event Action<string>? OnStatus;
 
     // The toggle lives in the OS app-data folder (never in the app folder), so updates
-    // cannot touch it — same tier as setup.json (see RELEASING.md, storage tiers).
+    // cannot touch it — same tier as setup.json (see docs-dev/RELEASING.md, storage tiers).
     private static string StatePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "agent", StateFile);
 
@@ -164,7 +164,7 @@ public static class AutoUpdate
         using (var gz = new GZipStream(File.OpenRead(archive), CompressionMode.Decompress))
             TarFile.ExtractToDirectory(gz, extract, overwriteFiles: true);
 
-        // Protected (see RELEASING.md): the user's server config, provider list and Telegram
+        // Protected (see docs-dev/RELEASING.md): the user's server config, provider list and Telegram
         // config are never overwritten. Everything else in the archive is distribution content.
         File.Delete(Path.Combine(extract, "appsettings.json"));
         File.Delete(Path.Combine(extract, "providers.json"));

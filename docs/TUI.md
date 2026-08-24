@@ -256,8 +256,8 @@ up automatically.
 ## Launch modes
 
 How the app starts — terminal UI, server only, or forced UI — is covered in
-[docs/ARCHITECTURE.md](ARCHITECTURE.md#launch-modes).
+[docs-dev/ARCHITECTURE.md](../docs-dev/ARCHITECTURE.md#launch-modes).
 
 ---
 
-See also: [README](../README.md) · [API reference](API.md) · [Architecture](ARCHITECTURE.md) · [Developer guide](TUI-DEVELOPMENT.md) (Terminal.Gui v2, for TUI code changes)
+See also: [README](../README.md) · [API reference](API.md) · [Architecture](../docs-dev/ARCHITECTURE.md) · [Developer guide](../docs-dev/TUI-DEVELOPMENT.md) (Terminal.Gui v2, for TUI code changes — developers, not shipped)

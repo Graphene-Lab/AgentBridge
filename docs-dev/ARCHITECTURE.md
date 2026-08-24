@@ -107,7 +107,7 @@ between all instances on the machine — the SIP PIN lockout state is machine-wi
 | `SkipIndexingOnStartup` | `true` / `false` | Skip the DocumentsPath index build/refresh + file watcher at startup (debug/dev). |
 | `AutoUpdate:Enabled` | `true` / `false` | Automatic update check at startup (default `true`). Overridden by the CLI `--no-update` flag and the TUI **File → Auto-Update** menu — see [autoupdate.md](autoupdate.md). |
 | `Voice:ExePath` | path | Path to `AIOffice.VoiceAgent.Win.exe` for `POST /v1/voice/listen`. Empty (default) = look next to the server executable. |
-| `Sip:*` | see [sip.md](sip.md) | SIP telephony: auto-answer + PIN gate, outgoing calls, voice conversation over RTP (whisper STT + Kokoro TTS). |
+| `Sip:*` | see [sip.md](../docs/sip.md) | SIP telephony: auto-answer + PIN gate, outgoing calls, voice conversation over RTP (whisper STT + Kokoro TTS). |
 | `Urls` | e.g. `http://localhost:5290` | Kestrel listening address. |
 
 Every key is overridable from the command line (`--LLM:Provider Zai`, `--SkipIndexingOnStartup true`, `--Voice:ExePath ...`, `--Sip:Enabled true`); run `--help` for the list.
@@ -127,7 +127,7 @@ from `appsettings.json`, and **excluded from updates** (same whitelist as
 `appsettings.json` and `providers.json`, see
 [RELEASING.md](RELEASING.md#what-an-update-must-never-touch--the-file-storage-tiers)).
 Keys: `Enabled`, `ApiId`, `ApiHash`, `PhoneNumber`, `SessionPath`, `AllowedUsers`,
-`Agent` (see [docs/telegram.md](telegram.md)). When `Enabled=true` the bridge **starts in
+`Agent` (see [docs/telegram.md](../docs/telegram.md)). When `Enabled=true` the bridge **starts in
 the background at boot** — a pending first login (verification code / 2FA password) never
 blocks the boot; the TUI `/telegram` command drives status, config, the pending-login code
 and the allow-list **in-process** (the bridge exposes **no HTTP endpoints** — Telegram is a
@@ -276,4 +276,4 @@ dotnet run --project e2e\TuiSmoke        # 8 checks; exit 0 = all pass
 
 ---
 
-See also: [README](../README.md) · [Terminal UI](TUI.md) · [API reference](API.md)
+See also: [README](../README.md) · [Terminal UI](../docs/TUI.md) · [API reference](../docs/API.md)

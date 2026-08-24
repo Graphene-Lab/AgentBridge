@@ -8,7 +8,7 @@
 //  AgentHarness.McpToolRegistry (plugin names are unique by definition), so
 //  no project needs a compile-time dependency on a plugin. Core tools live in
 //  the AIOrchestrator assembly; plugin tools are loaded dynamically from the
-//  Tools/ folder (see ToolPlugins). See AIOrchestrator/ARCHITECTURE.md —
+//  Tools/ folder (see ToolPlugins). See AIOrchestrator/docs-dev/ARCHITECTURE.md —
 //  "Agent Architecture".
 // ═══════════════════════════════════════════════════════════════════════
 using AIOrchestrator;
@@ -29,11 +29,11 @@ public static class AgentTools
         ("web-agent", new[] { "FileTool", "WebTool" }),
         ("search-agent", new[] { "FileTool" }),
         ("research-agent", new[] { "FileTool" }),
-        ("document-agent", new[] { "DocumentTool", "GitTool" }),
-        ("spreadsheet-agent", new[] { "SpreadsheetTool", "GitTool" }),
+        ("document-files", new[] { "FileTool", "DocumentTool", "GitTool" }),
+        ("spreadsheet-files", new[] { "FileTool", "SpreadsheetTool", "GitTool" }),
         ("email-agent", new[] { "EMailTool" }),
-        ("office-agent", new[] { "FileTool", "OfficeTool", "GitTool" }),
-        ("multi-agent", new[] { "FileTool", "WebTool", "DocumentTool", "SpreadsheetTool", "EMailTool", "GitTool" }),
+        ("office-files", new[] { "FileTool", "OfficeTool", "GitTool" }),
+        ("multi-files", new[] { "FileTool", "WebTool", "DocumentTool", "SpreadsheetTool", "EMailTool", "GitTool" }),
     };
 
     /// <summary>All tools actually available at runtime — core tools plus dynamically loaded

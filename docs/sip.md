@@ -119,7 +119,7 @@ The status bar shows a `sip:` segment (✓ idle, `ring`, `pin`, `call`) refreshe
 ## Configuring from the TUI
 
 The single source of truth is the `Sip` section of `appsettings.json` (a runtime file:
-updates never overwrite it — see RELEASING.md). `/sip config` reads it through the server,
+updates never overwrite it — see docs-dev/RELEASING.md (developers, not shipped)). `/sip config` reads it through the server,
 `/sip config set` writes it back, so TUI edits and manual JSON edits converge on the same
 file:
 

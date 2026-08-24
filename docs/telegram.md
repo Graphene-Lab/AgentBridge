@@ -48,7 +48,7 @@ Telegram user ⇄ private chat message (text + files) ⇄ WTelegramClient (userb
 
 Telegram configuration lives in its own file, **`telegram.json` next to the executable**
 — separate from `appsettings.json` on purpose, and never overwritten by updates (see
-RELEASING.md "what an update must never touch", same protection as `providers.json`).
+[autoupdate.md](autoupdate.md) "the file storage tiers", same protection as `providers.json`).
 You can edit it by hand, from the TUI (`/telegram`), or with the guided setup scripts
 (`scripts/setup-telegram.bat` on Windows, `scripts/setup-telegram.sh` on Linux/macOS —
 English prompts, they create or update `telegram.json`).

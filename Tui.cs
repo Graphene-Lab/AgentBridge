@@ -21,7 +21,7 @@ using TuiAttribute = Terminal.Gui.Drawing.Attribute;
 
 // ═══════════════════════════════════════════════════════════════════════
 //  Terminal.Gui v2 — LOCAL DEVELOPER GUIDE (READ BEFORE EDITING THIS TUI)
-//  docs/TUI-DEVELOPMENT.md is the offline reference for the pinned package
+//  docs-dev/TUI-DEVELOPMENT.md is the offline reference for the pinned package
 //  versions: API cheat-sheet, pitfalls (focus, Invoke, Editor document
 //  mutation, console leak) and cross-platform (Windows/Linux/macOS) rules.
 //  The official API XML docs ship with the NuGet packages (see guide §1).
@@ -348,13 +348,14 @@ public static class ConsoleTui
             {
                 new(Dictionary.MenuFile, new MenuItem[]
                 {
-                    new MenuItem(Dictionary.MenuNewChat, Key.Empty, () => RunCommandByName("new", "")),
-                    new MenuItem(Dictionary.MenuModelsProviders, Key.Empty, () => RunCommandByName("modelsetup", "")),
-                    autoUpdateItem,
+                    new MenuItem(Dictionary.MenuFiles, Key.Empty, () => RunCommandByName("files", "")),
+                    new MenuItem(Dictionary.MenuAttach, Key.Empty, () => RunCommandByName("attach", "")),
                     new MenuItem(Dictionary.MenuExit, Key.Q.WithCtrl, () => RequestExit()),
                 }),
                 new(Dictionary.MenuChat, new MenuItem[]
                 {
+                    new MenuItem(Dictionary.MenuNewChat, Key.N.WithCtrl, () => RunCommandByName("new", "")),
+                    new MenuItem(Dictionary.MenuModelsProviders, Key.Empty, () => RunCommandByName("modelsetup", "")),
                     new MenuItem(Dictionary.MenuClearHistory, Key.L.WithCtrl, () => RunCommandByName("clear", "")),
                     new MenuItem(Dictionary.MenuCommands, Key.Empty, () => ShowCommandMenu("")),
                     new MenuItem(Dictionary.MenuRetryLast, Key.Y.WithCtrl, () => RunCommandByName("retry", "")),
@@ -363,13 +364,6 @@ public static class ConsoleTui
                 {
                     new MenuItem(Dictionary.MenuAgent, Key.Empty, () => RunCommandByName("agent", "")),
                     new MenuItem(Dictionary.MenuTelegram, Key.Empty, () => RunCommandByName("telegram", "")),
-                    new MenuItem(Dictionary.MenuFiles, Key.Empty, () => RunCommandByName("files", "")),
-                    new MenuItem(Dictionary.MenuAttach, Key.Empty, () => RunCommandByName("attach", "")),
-                }),
-                new(Dictionary.MenuMedia, new MenuItem[]
-                {
-                    new MenuItem(Dictionary.MenuVoice, Key.Empty, () => RunCommandByName("voice", "")),
-                    new MenuItem(Dictionary.MenuTts, Key.Empty, () => RunCommandByName("tts", "")),
                 }),
                 new(Dictionary.MenuSession, new MenuItem[]
                 {
@@ -377,12 +371,18 @@ public static class ConsoleTui
                     new MenuItem(Dictionary.MenuStatus, Key.Empty, () => RunCommandByName("status", "")),
                     new MenuItem(Dictionary.MenuHealth, Key.Empty, () => RunCommandByName("health", "")),
                 }),
+                new(Dictionary.MenuMedia, new MenuItem[]
+                {
+                    new MenuItem(Dictionary.MenuVoice, Key.Empty, () => RunCommandByName("voice", "")),
+                    new MenuItem(Dictionary.MenuTts, Key.Empty, () => RunCommandByName("tts", "")),
+                }),
                 new(Dictionary.MenuWeb, new MenuItem[]
                 {
                     new MenuItem(Dictionary.MenuGui, Key.Empty, () => RunCommandByName("web", "")),
                 }),
                 new(Dictionary.MenuHelp, new MenuItem[]
                 {
+                    autoUpdateItem,
                     new MenuItem(Dictionary.MenuHelpItem, Key.F1, () => RunCommandByName("help", "")),
                     new MenuItem(Dictionary.MenuShortcuts, Key.Empty, () => RunCommandByName("shortcuts", "")),
                     new MenuItem(Dictionary.MenuDocumentation, Key.Empty, () => RunCommandByName("docs", "")),
@@ -1813,10 +1813,9 @@ public static class ConsoleTui
             return tcs.Task;
         }
 
-        // The /agent tool picker: quick presets on top, an individual-tool checklist
-        // below (Space toggles). Enter on a preset applies it; Enter on the checklist
-        // applies the marked tools as a custom combination (sent as `tools`). The
-        // catalog is DYNAMIC — the plugins loaded at runtime define the available tools.
+        // The /agent tool picker: an individual-tool checklist. Space toggles each row
+        // independently; the marked tools become the custom combination (sent as `tools`).
+        // The state is saved after the dialog closes by ANY means (Close button, Esc, ...).
         private void ShowToolsDialog()
         {
             var catalog = AgentTools.Catalog();
@@ -1829,70 +1828,51 @@ public static class ConsoleTui
                 SchemeName = "Dark",
             };
 
-            var presetLabel = new Label { Text = Dictionary.DlgToolsPresets, X = 1, Y = 0, Width = Dim.Fill() - 2 };
-            var presetList = new ListView
-            {
-                X = 1, Y = 1, Width = Dim.Fill() - 2, Height = 6,
-                Source = new ListWrapper<string>(new ObservableCollection<string>(
-                    AgentTools.Presets.Select(p => $"{p.Id} — {string.Join(", ", p.Tools.Select(ToolShortName))}"))),
-            };
-            var toolsLabel = new Label { Text = Dictionary.DlgToolsActive, X = 1, Y = Pos.Bottom(presetList), Width = Dim.Fill() - 2 };
             var toolNames = catalog.Select(c => c.Name).ToList();
+            var source = new ListWrapper<string>(new ObservableCollection<string>(
+                catalog.Select(c => $"{c.Name} — {c.Description}")));
             var toolList = new ListView
             {
-                // Fixed heights (not Dim.Fill math): a Fill-based height here collapsed
-                // the list to one row inside the modal dialog (see TUI-DEVELOPMENT.md).
-                X = 1, Y = Pos.Bottom(toolsLabel), Width = Dim.Fill() - 2, Height = 10,
+                X = 1, Y = 1, Width = Dim.Fill() - 2, Height = Dim.Fill() - 3,
                 ShowMarks = true,
-                Source = new ListWrapper<string>(new ObservableCollection<string>(
-                    catalog.Select(c => $"{c.Name} — {c.Description}"))),
+                MarkMultiple = true,   // independent checkboxes — SPACE toggles each row independently
+                Source = source,
             };
             var hint = new Label
             {
-                Text = Dictionary.DlgToolsHint,
+                Text = "Space su tool → toggle | Chiudi/Esc salva automaticamente",
                 X = 1, Y = Pos.Bottom(toolList), Width = Dim.Fill() - 2,
             };
-            dlg.Add(presetLabel, presetList, toolsLabel, toolList, hint);
+            dlg.Add(toolList, hint);
 
             // Reflect the currently active tools in the checklist.
             for (int i = 0; i < toolNames.Count; i++)
-                toolList.Source.SetMark(i, current.Contains(toolNames[i], StringComparer.OrdinalIgnoreCase));
+                source.SetMark(i, current.Contains(toolNames[i], StringComparer.OrdinalIgnoreCase));
 
-            // Enter on a preset → mark its tools, apply it, close.
-            presetList.Accepted += (_, e) =>
-            {
-                e.Handled = true;
-                var idx = presetList.SelectedItem ?? 0;
-                if (idx < 0 || idx >= AgentTools.Presets.Length) return;
-                var p = AgentTools.Presets[idx];
-                for (int i = 0; i < toolNames.Count; i++)
-                    toolList.Source.SetMark(i, p.Tools.Contains(toolNames[i], StringComparer.OrdinalIgnoreCase));
-                ApplyPreset(p.Id);
-                _app.RequestStop(dlg);
-            };
-            // Enter on the checklist → apply the marked tools as a custom combination.
-            toolList.Accepted += (_, e) =>
-            {
-                e.Handled = true;
-                var marked = new List<string>();
-                for (int i = 0; i < toolNames.Count; i++)
-                    if (toolList.Source.IsMarked(i)) marked.Add(toolNames[i]);
-                if (marked.Count == 0)
-                {
-                    AddNote(Dictionary.NoteNoToolsSelected);
-                    return;
-                }
-                _agentSet = "default-agent";   // the `tools` field overrides it server-side
-                _customTools = marked;
-                AddNote(string.Format(Dictionary.NoteToolsApplied, string.Join(", ", marked.Select(ToolShortName))));
-                UpdateStatusUi();
-                _app.RequestStop(dlg);
-            };
+            // The Close button only closes the dialog — the checkbox state is saved below
+            // right after Run returns, whatever path closed the dialog (button, Esc, ...).
             var close = new Button { Text = Dictionary.Close };
             close.Accepted += (_, _) => _app.RequestStop(dlg);
             dlg.AddButton(close);
-            dlg.Initialized += (_, _) => presetList.SetFocus();
+            dlg.Initialized += (_, _) => toolList.SetFocus();
             _app.Run(dlg);
+
+            // Save the checkbox state on ANY close path.
+            var marked = new List<string>();
+            for (int i = 0; i < toolNames.Count; i++)
+                if (source.IsMarked(i)) marked.Add(toolNames[i]);
+            if (marked.Count > 0)
+            {
+                _agentSet = "default-agent";   // the `tools` field overrides it server-side
+                _customTools = marked;
+                AddNote(string.Format(Dictionary.NoteToolsApplied, string.Join(", ", marked.Select(ToolShortName))));
+            }
+            else
+            {
+                _customTools = null;
+            }
+            UpdateStatusUi();
+
             dlg.Dispose();
             _inputField?.SetFocus();
         }
@@ -2347,7 +2327,7 @@ public static class ConsoleTui
             {
                 var bat = Path.Combine(dir, "start.bat");
                 if (!File.Exists(bat)) throw new InvalidOperationException($"missing {bat}");
-                // ⚠️ CONSOLE LEAK (see docs/TUI-DEVELOPMENT.md §8): the launcher must never
+                // ⚠️ CONSOLE LEAK (see docs-dev/TUI-DEVELOPMENT.md §8): the launcher must never
                 // share the TUI console — a child writing into the caller's console floods
                 // the screen with raw ANSI (^[[8;30;120t spam). UseShellExecute=true gives
                 // the .bat its OWN console window and detaches its std handles completely.
@@ -2683,7 +2663,7 @@ public static class ConsoleTui
 
         // Full-screen page (help/status): a modal dialog closed by Esc/Close.
         // The read-only Editor is focusable so ↑↓ / PgUp / PgDn scroll the content
-        // (an unfocusable page had dead arrow keys — see docs/TUI-DEVELOPMENT.md §8).
+        // (an unfocusable page had dead arrow keys — see docs-dev/TUI-DEVELOPMENT.md §8).
         private void ShowPage(string title, IReadOnlyList<string> lines)
         {
             var dlg = new Dialog
@@ -2775,6 +2755,8 @@ public static class ConsoleTui
                     {
                         var cmd = visible[Math.Max(0, list.SelectedItem ?? 0)];
                         filter.Text = "/" + cmd.Name + (cmd.Args.Length > 0 ? " " : "");
+                        // Move cursor to end of the completed text so the user can keep typing.
+                        filter.InsertionPoint = filter.Text.Length;
                     }
                 }
             };

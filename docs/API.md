@@ -156,7 +156,7 @@ curl http://localhost:5290/v1/audio/speech \
 - `response_format` accepts `wav` (default); others → `400`. `model` is accepted for
   compatibility and ignored.
 - **501 `tts_unavailable`** when the model assets are missing (see
-  [Build / assets](ARCHITECTURE.md#build--assets)).
+  [Build / assets](../docs-dev/ARCHITECTURE.md#build--assets)).
 
 ## Voice speech — `POST /v1/voice/listen` (proprietary, Windows)
 
@@ -251,4 +251,4 @@ Without a session id it returns what this platform can do right now:
 
 ---
 
-See also: [README](../README.md) · [Terminal UI](TUI.md) · [Architecture](ARCHITECTURE.md)
+See also: [README](../README.md) · [Terminal UI](TUI.md) · [Architecture](../docs-dev/ARCHITECTURE.md) (developers, not shipped)

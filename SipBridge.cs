@@ -169,7 +169,7 @@ public static class SipBridge
     /// The SIP media endpoint: implements <see cref="IAudioMedia"/> so the WHOLE conversation is
     /// driven by <see cref="VoiceConversation.RunConversationAsync"/> — the medium is a mere I/O
     /// channel: RTP audio in (G.711 → VAD → whisper → <see cref="SpeechReceived"/>) and Kokoro TTS
-    /// out (raw PCM → RTP). No conversation logic lives here (see AIOrchestrator/ARCHITECTURE.md).
+    /// out (raw PCM → RTP). No conversation logic lives here (see AIOrchestrator/docs-dev/ARCHITECTURE.md).
     /// </summary>
     private sealed class SipVoiceMedia : IAudioMedia
     {
@@ -585,7 +585,7 @@ public static class SipBridge
 
         /// <summary>Renders speakable text to the caller: the persistent voice subprocess renders
         /// Kokoro/SAPI PCM (streamed sentence by sentence) → raw PCM → RTP. Media is I/O only —
-        /// no TTS engine lives here (see ARCHITECTURE.md).</summary>
+        /// no TTS engine lives here (see docs-dev/ARCHITECTURE.md).</summary>
         public async Task SpeakAsync(string text, bool isLast, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(text)) { _replyStarted = true; return; }   // empty turn → stop the indicator
@@ -1640,7 +1640,7 @@ public static class SipBridge
         call.AgentSession.Orchestrator.AgentProgress += OnAgentProgress;
         // The whole conversation (RTP speech in → whisper → agent → Kokoro → RTP out) runs in the
         // SHARED media loop: the medium (SipVoiceMedia) is a mere I/O channel, the logic lives in
-        // VoiceConversation.RunConversationAsync (see AIOrchestrator/ARCHITECTURE.md → "Media as I/O").
+        // VoiceConversation.RunConversationAsync (see AIOrchestrator/docs-dev/ARCHITECTURE.md → "Media as I/O").
         call.VoiceMedia ??= new SipVoiceMedia(call);
         call.Loop = Task.Run(() => VoiceConversation.RunConversationAsync(
             call.VoiceMedia, call.AgentSession.Orchestrator, AgentTools.Resolve(Cfg.Agent),

@@ -19,7 +19,7 @@ if (args.Contains("--enable-log"))
 // ═══════════════════════════════════════════════════════════════════════
 //  AgentBridge — OpenAI-compatible HTTP server for AgentHarness
 //
-//  Architecture (see AIOrchestrator/ARCHITECTURE.md):
+//  Architecture (see AIOrchestrator/docs-dev/ARCHITECTURE.md):
 //    Standalone clients (e.g. Giraffe AI) → HTTP endpoints → AgentHarness
 //    → LLM + agent tools. The server hosts the AIOrchestrator library (which is
 //    not directly executable) and exposes its chat pipeline as standard
@@ -130,7 +130,7 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 });
 
 // The TUI (Tui.cs) is built on Terminal.Gui v2 — before changing anything about
-// it, read docs/TUI-DEVELOPMENT.md (local developer guide, offline reference).
+// it, read docs-dev/TUI-DEVELOPMENT.md (local developer guide, offline reference).
 // Terminal UI mode: by default the console opens the Qwen-Code-style TUI (chat +
 // slash commands + voice/model/files/help) while the server keeps answering API
 // calls in the same process — "CLI + API simultaneously". --headless restores the
@@ -141,6 +141,13 @@ var forceTui = args.Contains("--tui");
 var forceHeadless = args.Contains("--headless") || args.Contains("--no-gui");
 var interactive = !Console.IsInputRedirected && !Console.IsOutputRedirected && !Console.IsErrorRedirected;
 var useTui = forceTui || (!forceHeadless && interactive);
+
+// Suppress library/console output when the TUI is active — SIPSorcery (SIP),
+// WTelegramClient (Telegram) and other third-party libraries write directly to
+// Console.Out, which would garble the Terminal.Gui screen.  In DEBUG builds we
+// keep the real writer so --headless / test harnesses still see output.
+if (useTui)
+    Console.SetOut(Environment.GetCommandLineArgs().Any(a => a.Contains("DEBUG")) ? Console.Out : TextWriter.Null);
 
 // The TUI needs a real console (cursor control, key input): forcing it on a
 // redirected console would crash on the console APIs, so fall back to server-only.
@@ -452,7 +459,7 @@ app.MapPost("/v1/chat/completions", async (
 // ─────────────────────────────────────────────────────────────────────
 // POST /v1/files — multipart upload + server-side Markdown conversion
 // ─────────────────────────────────────────────────────────────────────
-// Architectural model (see AIOrchestrator/ARCHITECTURE.md — "AgentBridge"):
+// Architectural model (see AIOrchestrator/docs-dev/ARCHITECTURE.md — "AgentBridge"):
 // this endpoint mirrors the OpenAI Files API "upload once, reference later" pattern.
 //  - The multipart shape (form field `file` + `purpose`) matches the OpenAI upload call.
 //  - The response carries the OpenAI metadata schema (id, object, bytes, created_at,
@@ -980,7 +987,7 @@ static string ExtractTextContent(object? content)
 }
 
 // Maps the OpenAI "model" name to the real agent tool names in AIOrchestrator
-// (see AIOrchestrator/ARCHITECTURE.md — "Agent Architecture"): each "model" id exposed
+// (see AIOrchestrator/docs-dev/ARCHITECTURE.md — "Agent Architecture"): each "model" id exposed
 // by /v1/models corresponds to a concrete set of BaseAgentTool names that
 // AgentHarness.ExecuteAction resolves to live instances as tools. Shared with the SIP
 // telephony loop (AgentTools) so the two paths resolve the same agent sets.

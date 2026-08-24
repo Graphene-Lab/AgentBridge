@@ -208,5 +208,5 @@ the new repo is pushed by the pre-push hook without any script edit.
 - **SIP STT missing on Linux/macOS**: `CopySttAgentOutput` (the `voiceagent-stt/` folder with
   the whisper-based `AIOffice.VoiceAgent`) runs only when the sibling repo exists on the build
   machine — the CI archives never contain it. Deploy it manually next to the binary
-  (see [sip.md](sip.md) → "Deploying the speech-to-text executable"); without it the SIP
+  (see [sip.md](../docs/sip.md) → "Deploying the speech-to-text executable"); without it the SIP
   signalling and PIN gate keep working, only the speech recognition is unavailable.

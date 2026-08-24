@@ -37,7 +37,7 @@ updater and exit immediately" (never wait for the updater from the app).
 ## The file storage tiers (what an update may touch)
 
 The update mechanism respects the three tiers defined in
-[RELEASING.md](RELEASING.md#what-an-update-must-never-touch--the-file-storage-tiers):
+[RELEASING.md](../docs-dev/RELEASING.md#what-an-update-must-never-touch--the-file-storage-tiers):
 
 | Tier | Rule |
 |---|---|

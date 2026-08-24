@@ -1,7 +1,33 @@
 # AgentBridge — notes for coding agents
 
 > The full release/NuGet mechanism (diagrams, pitfalls, integration checklist) is in
-> **[docs/RELEASING.md](docs/RELEASING.md)** — read it before touching the release pipeline.
+> **[docs-dev/RELEASING.md](docs-dev/RELEASING.md)** — read it before touching the release pipeline.
+
+## Documentation: two types (READ BEFORE WRITING A GUIDE)
+
+AgentBridge has **two distinct documentation sets** — they are physically separated and
+treated differently by the build:
+
+| Folder | Audience | Shipped? |
+|---|---|---|
+| `docs/` | **End users** of the distributed app (manual, TUI/API references, telegram, sip, autoupdate, installers, `sip-entry/`) | **YES** — copied to the build/publish output and into every release archive (`docs/` next to the executable) |
+| `docs-dev/` | **Developers** working on the repository (architecture, release pipeline, TUI internals) | **NO** — repository only, never shipped |
+
+Rules:
+
+- **A guide read by the end user of the distributed app goes in `docs/`.** It is copied to
+  the destination automatically by `AgentBridge.csproj` (the `None` items with
+  `CopyToOutputDirectory` at the bottom of the file) — no extra step needed. That is the
+  whole point: **if a guide is not in `docs/`, it never reaches the people who install the
+  app.**
+- **A document for developers only goes in `docs-dev/`.** Architecture, release pipeline,
+  TUI-internals, tooling. It stays in the repository and must NOT be referenced by shipped
+  user guides as a required read (a shipped `docs/` guide may link to a `docs-dev/` guide
+  only as an optional "(developers, not shipped)" note).
+- **`media/` is README showcase only** (demo gifs/mp4, screenshots used by the repository
+  README) — never shipped.
+- Before writing any guide, ask: *who reads this — the person who installs the app, or the
+  developer who maintains the code?* User → `docs/`. Developer → `docs-dev/`.
 
 ## Release gate: IsPrerelease flag
 
@@ -22,7 +48,7 @@ official propagation time), then builds anyway with a warning for any package no
 today (that repo simply had no push — only changed repos publish; for an unchanged repo the
 latest available version is identical to today's). There is nothing to check during the wait:
 either the build starts immediately or it starts after at most 30 minutes. See
-docs/RELEASING.md "How the release wait works".
+docs-dev/RELEASING.md "How the release wait works".
 
 ## Release pipeline
 
@@ -86,7 +112,7 @@ binary needed) plus the linux-arm64 `libonnxruntime.so` from `Microsoft.ML.OnnxR
 ## Adding a new dependency project (quick checklist)
 
 When AgentBridge (or a dependency) gains a new project dependency, make it part of the
-automatic update + release system (full details in docs/RELEASING.md):
+automatic update + release system (full details in docs-dev/RELEASING.md):
 
 1. csproj: date-based `<Version>`, package metadata (`PackageId`, `Description`,
    `PackageReadmeFile`, `PackageLicenseFile`, `PackageRequireLicenseAcceptance`,

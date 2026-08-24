@@ -7,7 +7,7 @@ using AIOrchestrator;
 // ═══════════════════════════════════════════════════════════════════════
 //  SipVoiceAgent — persistent subprocess bridge to AIOffice.VoiceAgent (--pipe-audio).
 //
-//  Architectural rule (see ARCHITECTURE.md "Media as I/O"): the media never re-implements
+//  Architectural rule (see docs-dev/ARCHITECTURE.md "Media as I/O"): the media never re-implements
 //  speech engines. VAD, whisper STT and Kokoro/SAPI TTS all live in the subprocess; this
 //  class is the SIP medium's transport to it:
 //    stdin:  {"cmd":"start","lang":…} | {"cmd":"audio","b64":…} | {"cmd":"speak","text":…,"render":true}

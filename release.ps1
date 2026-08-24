@@ -19,7 +19,7 @@
 # Pending changes in every project (AgentBridge + all dependency repos) are committed
 # automatically with "Update at HH:mm" via sync-all.ps1 in both modes.
 #
-# Full mechanism: docs/RELEASING.md.
+# Full mechanism: docs-dev/RELEASING.md.
 
 param(
     [string]$Message = "sync",
