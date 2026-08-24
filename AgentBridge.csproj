@@ -105,6 +105,17 @@
       <Generator>PublicResXFileCodeGenerator</Generator>
     </EmbeddedResource>
   </ItemGroup>
+  <!-- User documentation + setup scripts: docs/ is the END-USER documentation and ships
+       next to the executable (bin output, publish output and therefore every release
+       archive). The DEVELOPER documentation lives in docs-dev/ and is deliberately NOT
+       included here — it stays in the repository only. media/ (README demo assets) is
+       also excluded. The user-facing setup scripts (setup-telegram.*, sip-config.*) ship
+       alongside in scripts/. Keep this list in sync with AGENTS.md "Documentation: two
+       types". -->
+  <ItemGroup>
+    <None Include="docs\**\*" CopyToOutputDirectory="PreserveNewest" TargetPath="docs/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="scripts\setup-telegram.bat;scripts\setup-telegram.sh;scripts\sip-config.bat;scripts\sip-config.ps1;scripts\sip-config.sh" CopyToOutputDirectory="PreserveNewest" TargetPath="scripts/%(Filename)%(Extension)" />
+  </ItemGroup>
   <!-- Ship the tool plugins into Tools/<Plugin>/ (dll + xml, no AIOrchestrator copy) so the
        dynamic ToolPluginHost loader can pick them up at startup. Sibling build outputs on dev
        machines (same pattern as AIOffice's BuildToolPlugins); skipped when the sibling repos
