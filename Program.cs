@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using AIOrchestrator;
 using UISupportGeneric;
 using AgentBridge.Resources;
+using Terminal.Gui.Input;
 
 AppDomain.CurrentDomain.UnhandledException += AIOrchestrator.Utility.UnhandledException; //it catches application errors in order to prepare a log of the events that cause the crash
 
@@ -926,7 +927,38 @@ if (useTui)
     }
     try
     {
+#if DEBUG
+        // ── Puppet-mode TCP listener (port 5291) — DEBUG BUILDS ONLY ──
+        // Accepts JSON commands on localhost:5291 and injects them into
+        // Terminal.Gui's event loop via PuppetMode (Tui.cs), which marshals
+        // every call onto the UI thread with Application.Invoke. The release
+        // binary has no puppet surface at all: this listener never starts.
+        PuppetMode.Enabled = true;
+        var puppetCts = new CancellationTokenSource();
+        var puppetTask = Task.Run(async () =>
+        {
+            using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 5291);
+            listener.Start();
+            Console.WriteLine("[Puppet] TCP listener started on localhost:5291");
+            Log.LogStep("Puppet TCP listener started on localhost:5291", monitor: true);
+            while (!puppetCts.Token.IsCancellationRequested)
+            {
+                try
+                {
+                    var tcpClient = await listener.AcceptTcpClientAsync(puppetCts.Token);
+                    _ = Task.Run(async () => HandlePuppetClientAsync(tcpClient, puppetCts.Token));
+                }
+                catch (OperationCanceledException) { break; }
+                catch { /* best-effort */ }
+            }
+        });
+
         await ConsoleTui.RunAsync(tuiUrl, hostError);
+        puppetCts.Cancel();
+        try { await puppetTask; } catch { }
+#else
+        await ConsoleTui.RunAsync(tuiUrl, hostError);
+#endif
     }
     finally
     {
@@ -1122,6 +1154,168 @@ object SessionState(ActiveSession session)
         capabilities = BuildCapabilities()
     };
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// PUPPET MODE TCP HANDLER — debug-only: injects keyboard/mouse events and
+// returns screen captures over localhost:5291. All work is marshalled onto
+// the Terminal.Gui main loop by PuppetMode (Tui.cs). One JSON command per
+// connection, read until EOF:
+//   {"type":"capture"}                                  → current screen as text
+//   {"type":"key","key":"<name>"}                       → key press (enter, f10, ctrl+c, ...)
+//   {"type":"text","text":"<string>"}                   → text typed character by character
+//   {"type":"mouse","x":N,"y":N,"flags":"<name>"}       → mouse click (LeftButtonClicked, ...)
+// ─────────────────────────────────────────────────────────────────────
+#if DEBUG
+static async Task HandlePuppetClientAsync(System.Net.Sockets.TcpClient client, CancellationToken ct)
+{
+    try
+    {
+        using var stream = client.GetStream();
+        using var reader = new StreamReader(stream);
+        var body = await reader.ReadToEndAsync(ct);
+        string result;
+        if (string.IsNullOrWhiteSpace(body))
+            result = "{\"error\":\"empty body\"}";
+        else
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            var type = root.GetProperty("type").GetString()?.ToLowerInvariant() ?? "";
+            Log.LogStep($"Puppet cmd: {type}");
+            result = type switch
+            {
+                "capture" => root.TryGetProperty("grid", out var g) && g.ValueKind == JsonValueKind.True
+                    ? GridCapture(PuppetMode.ANSI_Tui_Capture())
+                    : PuppetMode.ANSI_Tui_Capture(),
+                "hit" => root.TryGetProperty("x", out var hx) && root.TryGetProperty("y", out var hy)
+                    ? PuppetMode.HitTest(hx.GetInt32(), hy.GetInt32())
+                    : "{\"error\":\"x and y required\"}",
+                "key" => HandlePuppetKey(root),
+                "text" => HandlePuppetText(root),
+                "mouse" => HandlePuppetMouse(root),
+                _ => $"{{\"error\":\"unknown type: {type}\"}}",
+            };
+            Log.LogStep($"Puppet resp({type}): {(result.Length > 120 ? result[..120] + "…" : result)}");
+        }
+        var response = System.Text.Encoding.UTF8.GetBytes(result);
+        await stream.WriteAsync(response, ct);
+    }
+    catch (Exception ex)
+    {
+        try
+        {
+            Log.LogStep($"Puppet error: {ex.Message}");
+            var error = System.Text.Encoding.UTF8.GetBytes($"{{\"error\":\"{EscapeJson(ex.Message)}\"}}");
+            await client.GetStream().WriteAsync(error, ct);
+        }
+        catch { }
+    }
+    finally
+    {
+        client.Close();
+    }
+}
+
+static string HandlePuppetKey(JsonElement root)
+{
+    try
+    {
+        var name = root.GetProperty("key").GetString() ?? "";
+        if (!TryParsePuppetKey(name, out var k))
+            return $"{{\"error\":\"unknown key: {name}\"}}";
+        PuppetMode.InjectKey(k);
+        return "{\"ok\":true}";
+    }
+    catch (Exception ex) { return $"{{\"error\":\"{EscapeJson(ex.Message)}\"}}"; }
+}
+
+static string HandlePuppetText(JsonElement root)
+{
+    try
+    {
+        PuppetMode.InjectText(root.GetProperty("text").GetString() ?? "");
+        return "{\"ok\":true}";
+    }
+    catch (Exception ex) { return $"{{\"error\":\"{EscapeJson(ex.Message)}\"}}"; }
+}
+
+static string HandlePuppetMouse(JsonElement root)
+{
+    try
+    {
+        var x = root.GetProperty("x").GetInt32();
+        var y = root.GetProperty("y").GetInt32();
+        var flagsStr = root.GetProperty("flags").GetString() ?? "LeftButtonClicked";
+        if (!Enum.TryParse<MouseFlags>(flagsStr, out var flags))
+            return $"{{\"error\":\"unknown flags: {flagsStr}\"}}";
+        PuppetMode.InjectMouse(x, y, flags);
+        return "{\"ok\":true}";
+    }
+    catch (Exception ex) { return $"{{\"error\":\"{EscapeJson(ex.Message)}\"}}"; }
+}
+
+// Documented key names first (deterministic), then fall back to Key.TryParse
+// for free-form forms like "ctrl+o", "alt+enter", "ctrl+shift+a".
+static bool TryParsePuppetKey(string name, out Key key)
+{
+    switch (name.ToLowerInvariant())
+    {
+        case "enter": key = Key.Enter; return true;
+        case "escape" or "esc": key = Key.Esc; return true;
+        case "tab": key = Key.Tab; return true;
+        case "backspace": key = Key.Backspace; return true;
+        case "delete" or "del": key = Key.Delete; return true;
+        case "space": key = Key.Space; return true;
+        case "printscreen": key = Key.PrintScreen; return true;
+        case "cursorup" or "up": key = Key.CursorUp; return true;
+        case "cursordown" or "down": key = Key.CursorDown; return true;
+        case "cursorleft" or "left": key = Key.CursorLeft; return true;
+        case "cursorright" or "right": key = Key.CursorRight; return true;
+        case "pageup" or "pgup": key = Key.PageUp; return true;
+        case "pagedown" or "pgdn": key = Key.PageDown; return true;
+        case "home": key = Key.Home; return true;
+        case "end": key = Key.End; return true;
+        case "f1": key = Key.F1; return true;
+        case "f2": key = Key.F2; return true;
+        case "f3": key = Key.F3; return true;
+        case "f4": key = Key.F4; return true;
+        case "f5": key = Key.F5; return true;
+        case "f6": key = Key.F6; return true;
+        case "f7": key = Key.F7; return true;
+        case "f8": key = Key.F8; return true;
+        case "f9": key = Key.F9; return true;
+        case "f10": key = Key.F10; return true;
+        case "f11": key = Key.F11; return true;
+        case "f12": key = Key.F12; return true;
+    }
+    return Key.TryParse(name, out key);
+}
+
+static string EscapeJson(string text) =>
+    text.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", " ").Replace("\n", " ");
+
+// Adds a coordinate grid to the capture so mouse coordinates can be read exactly:
+// two header rows (column tens + units) and each screen row prefixed with its
+// 0-based row number. Mouse x/y in {"type":"mouse"} map directly to these cells.
+static string GridCapture(string text)
+{
+    var lines = text.TrimEnd('\n').Split('\n');
+    var width = lines.Max(l => l.Length);
+    var sb = new StringBuilder();
+    var tens = "     ";
+    var units = "     ";
+    for (int c = 0; c < width; c++)
+    {
+        tens += c % 100 / 10 == 0 && c % 10 == 0 ? ((c / 100) % 10).ToString() : (c % 10 == 0 ? ((c / 10) % 10).ToString() : " ");
+        units += (c % 10).ToString();
+    }
+    sb.AppendLine(tens);
+    sb.AppendLine(units);
+    for (int r = 0; r < lines.Length; r++)
+        sb.AppendLine($"{r:D4} {lines[r]}");
+    return sb.ToString();
+}
+#endif
 
 // ─────────────────────────────────────────────────────────────────────
 // DTOs

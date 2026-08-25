@@ -241,6 +241,24 @@ repo actually uses (they are the verified, working subset).
 ### Tabs
 - `Tabs` container: add tab pages (a `View` with a `Title` acts as a tab
   page). Used by the models/providers setup dialog.
+- **The selected tab is the focused SubView** — the doc states: *"The selected
+  tab is determined by focus — whichever SubView has focus is drawn on top and
+  reported as the `Value`. Set `Value` programmatically to switch tabs."*
+- **Tab headers have NO mouse handler in v2.4.17** (verified): a click on a tab
+  header selects nothing.
+- **Focus traversal does NOT reach the other pages** (verified): `OnSubViewAdding`
+  forces `CanFocus=false` on the tab pages during Add and the Tabs has no
+  `NextTabGroup` implementation — pressing Tab cycles only inside the current
+  page, and F6 does nothing. So the TUI binds the framework's documented TabGroup
+  keys **Ctrl+PageDown / Ctrl+PageUp** in `KeyDownNotHandled` (they bubble up from
+  the focused control before the Dialog sees them) and switches `tabs.Value`.
+  This is a REAL user gesture — the puppet tests it with the generic
+  `{"type":"key","key":"Ctrl+PageDown"}`. The dialog shows a hint line under the
+  pages with the actual shortcut.
+- ⚠️ When the dialog must host the hint plus the pages, give the `Tabs` a
+  `Height = Dim.Fill() - 1` and place the hint at `Pos.Bottom(tabs)`, otherwise
+  the hint overlaps the last content row; a fixed `Dim.Percent(78)` dialog height
+  keeps the page content (e.g. the LLM tab's Add/Edit/Remove buttons) visible.
 
 ### Editor (Terminal.Gui.Editor) — chat log + prompt input
 
@@ -279,6 +297,7 @@ The two Editor roles in `Tui.cs`:
 | 6 | **Web-client launch dirties the console** | After `/web`, the screen fills with `^[[8;30;120t` spam | See box below |
 | 7 | **`Dim.Fill()`-based heights collapse in stacked dialog layouts** | A ListView with `Height = Dim.Fill() - 7` inside a modal dialog rendered **1 row** (the Fill math resolved against the dialog's content box, went negative and clamped) | Use **fixed heights** for stacked lists in a dialog (preset list + tool list in `ShowToolsDialog`); `Dim.Fill() - n` is safe only for a single list against a tall dialog (picker pattern) |
 | 8 | **Editing `Dictionary.*.resx` from the CLI does not regenerate `Dictionary.Designer.cs`** | New `Dictionary.X` members are missing → compile errors CS0117 | The VS custom tool only runs in the IDE; from the CLI run `scripts/regenerate-dictionary-designer.ps1` (replicates StronglyTypedResourceBuilder output, UTF-8 no BOM) |
+| 9 | **`KeyBindings.Add(Key.Enter, …)` on a `ListView` throws** | "A binding for Enter exists ([Accept], Key=Enter)" — the ListView already binds Enter → `Accept` by default; re-adding it breaks the dialog mid-construction | Do NOT add it; subscribe to `list.Accepted` only — it fires through the default binding once the list has focus |
 
 ### 6 — Web client launch: the `ESC[8;30;120t` console leak
 

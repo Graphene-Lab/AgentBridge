@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
@@ -234,6 +234,8 @@ public static class ConsoleTui
             _hostError = hostError;
             _http.BaseAddress = new Uri(serverUrl);
             _app = Application.Create().Init();
+            PuppetMode._app = _app;  // Share instance with PuppetMode (debug-only control surface)
+            if (PuppetMode.Enabled) PuppetMode.StartPump();
             // Surface auto-update progress in the status bar (fires from background tasks).
             AutoUpdate.OnStatus += OnUpdateStatus;
 
@@ -341,17 +343,12 @@ public static class ConsoleTui
             autoUpdateItem = new MenuItem(string.Format(Dictionary.MenuAutoUpdate, AutoUpdate.Enabled ? Dictionary.On : Dictionary.Off), Key.Empty, () =>
             {
                 AutoUpdate.Toggle();
+                Log.LogStep($"TUI AutoUpdate toggled: {AutoUpdate.Enabled}", monitor: true);
                 autoUpdateItem.Title = string.Format(Dictionary.MenuAutoUpdate, AutoUpdate.Enabled ? Dictionary.On : Dictionary.Off);
             });
 
             var menu = new MenuBar(new MenuBarItem[]
             {
-                new(Dictionary.MenuFile, new MenuItem[]
-                {
-                    new MenuItem(Dictionary.MenuFiles, Key.Empty, () => RunCommandByName("files", "")),
-                    new MenuItem(Dictionary.MenuAttach, Key.Empty, () => RunCommandByName("attach", "")),
-                    new MenuItem(Dictionary.MenuExit, Key.Q.WithCtrl, () => RequestExit()),
-                }),
                 new(Dictionary.MenuChat, new MenuItem[]
                 {
                     new MenuItem(Dictionary.MenuNewChat, Key.N.WithCtrl, () => RunCommandByName("new", "")),
@@ -359,6 +356,12 @@ public static class ConsoleTui
                     new MenuItem(Dictionary.MenuClearHistory, Key.L.WithCtrl, () => RunCommandByName("clear", "")),
                     new MenuItem(Dictionary.MenuCommands, Key.Empty, () => ShowCommandMenu("")),
                     new MenuItem(Dictionary.MenuRetryLast, Key.Y.WithCtrl, () => RunCommandByName("retry", "")),
+                    new MenuItem(Dictionary.MenuExit, Key.Q.WithCtrl, () => RequestExit()),
+                }),
+                new(Dictionary.MenuFile, new MenuItem[]
+                {
+                    new MenuItem(Dictionary.MenuFiles, Key.Empty, () => RunCommandByName("files", "")),
+                    new MenuItem(Dictionary.MenuAttach, Key.Empty, () => RunCommandByName("attach", "")),
                 }),
                 new(Dictionary.MenuTools, new MenuItem[]
                 {
@@ -386,6 +389,7 @@ public static class ConsoleTui
                     new MenuItem(Dictionary.MenuHelpItem, Key.F1, () => RunCommandByName("help", "")),
                     new MenuItem(Dictionary.MenuShortcuts, Key.Empty, () => RunCommandByName("shortcuts", "")),
                     new MenuItem(Dictionary.MenuDocumentation, Key.Empty, () => RunCommandByName("docs", "")),
+                    new MenuItem(Dictionary.MenuIssues, Key.Empty, () => OpenIssuesAsync()),
                     new MenuItem(Dictionary.MenuAbout, Key.Empty, () => ShowAbout()),
                 }),
             });
@@ -398,6 +402,12 @@ public static class ConsoleTui
             _mainWindow.KeyDown += (_, key) =>
             {
                 if (key == Key.Esc) key.Handled = true;
+                // Puppet mode only: PrintScreen dumps the current screen to a file.
+                else if (PuppetMode.Enabled && key == Key.PrintScreen)
+                {
+                    key.Handled = true;
+                    PuppetCapture();
+                }
             };
 
             // Content area below the menu bar (status line + StatusBar own the last
@@ -794,6 +804,7 @@ public static class ConsoleTui
         private void CollapseBanner()
         {
             if (!_bannerVisible || _asciiBanner == null || _chatView == null) return;
+            Log.LogStep("TUI banner collapsed (first chat message)", monitor: true);
             _bannerVisible = false;
             _asciiBanner.SuperView?.Remove(_asciiBanner);
             _chatView.Y = 0;
@@ -814,6 +825,7 @@ public static class ConsoleTui
         // ── Spinner ──
         private void StartSpinner()
         {
+            Log.LogStep("TUI spinner started");
             _spinnerActive = true;
             _spinnerIndex = 0;
             if (_spinnerLabel != null)
@@ -822,6 +834,7 @@ public static class ConsoleTui
 
         private void StopSpinner()
         {
+            Log.LogStep("TUI spinner stopped");
             _spinnerActive = false;
             if (_spinnerLabel != null)
                 _spinnerLabel.Text = " ";
@@ -895,9 +908,11 @@ public static class ConsoleTui
 
             if (text[0] == '/')
             {
+                Log.LogStep($"TUI submit: {text}");
                 RunCommandLine(text);
                 return;
             }
+            Log.LogStep($"TUI submit (chat): {(text.Length > 100 ? text[..100] + "…" : text)}", monitor: true);
             CollapseBanner();   // the conversation starts: the ASCII-art banner gives way
             _promptHistory.Add(text);
             if (_promptHistory.Count > 200) _promptHistory.RemoveAt(0);
@@ -1037,6 +1052,7 @@ public static class ConsoleTui
                 }
                 Ui(() => { StopSpinner(); RefreshHistory(); UpdateStatus(); });
                 _ = Task.Run(RefreshSessionStateAsync);
+                Log.LogStep($"TUI chat finished: {sw.ElapsedMilliseconds} ms, reply {( _pending?.Text?.Length ?? 0)} chars, status: {_statusNote}");
             }
         }
 
@@ -1206,6 +1222,23 @@ public static class ConsoleTui
 
         private void UpdateStatusUi() => Ui(UpdateStatus);
 
+        // Puppet mode (PrintScreen): dumps the current screen to a timestamped file
+        // next to the executable so an agent tester can read it later.
+        private void PuppetCapture()
+        {
+            try
+            {
+                var dir = Path.Combine(AppContext.BaseDirectory, "tui-screenshots");
+                Directory.CreateDirectory(dir);
+                var file = Path.Combine(dir, $"puppet-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+                File.WriteAllText(file, PuppetMode.ANSI_Tui_Capture());
+                _statusNote = $"Puppet capture → {file}";
+                Log.LogStep($"TUI PuppetCapture (PrintScreen) → {file}", monitor: true);
+            }
+            catch (Exception ex) { _statusNote = $"Puppet capture failed: {ex.Message}"; }
+            UpdateStatusUi();
+        }
+
         // ── Commands ──
         private void RunCommandLine(string text)
         {
@@ -1235,18 +1268,22 @@ public static class ConsoleTui
         // every command has identical error handling and state refresh.
         private void RunCommandByName(string name, string args)
         {
+            Log.LogStep($"TUI menu command: {name} {args}".TrimEnd(), monitor: true);
             var cmd = Commands.FirstOrDefault(c => c.Name == name);
             if (cmd != null) _ = RunCommandAsync(cmd, args);
         }
 
         private async Task RunCommandAsync(CliCommand cmd, string args)
         {
+            Log.LogStep($"TUI running command: {cmd.Name} {(args.Length > 0 ? args : "")}".TrimEnd());
             try
             {
                 await cmd.Run(this, args);
+                Log.LogStep($"TUI command completed: {cmd.Name}");
             }
             catch (Exception ex)
             {
+                Log.LogStep($"TUI command FAILED: {cmd.Name}: {ex.Message}");
                 AddNote(string.Format(Dictionary.NoteCommandFailed, cmd.Name, ex.Message));
             }
             await RefreshSessionStateAsync();
@@ -1259,7 +1296,11 @@ public static class ConsoleTui
             return Task.CompletedTask;
         }
 
-        private void RequestExit() => _app.RequestStop(_mainWindow);
+        private void RequestExit()
+        {
+            Log.LogStep("TUI exit requested", monitor: true);
+            _app.RequestStop(_mainWindow);
+        }
 
         private async Task HealthAsync()
         {
@@ -1562,11 +1603,14 @@ public static class ConsoleTui
         // memorising /telegram subcommands (login code, allow/disallow, config, ...).
         private void ShowTelegramDialog()
         {
+            Log.LogStep("TUI /telegram panel opened", monitor: true);
             var dlg = new Dialog
             {
                 Title = Dictionary.DlgTelegramTitle,
                 Width = Dim.Percent(80),
-                Height = Dim.Percent(62),
+                Height = Dim.Percent(70),   // 62% was too short once the action buttons
+                                            // spanned two rows (2+2): rows 10/12/14 overflowed
+                                            // the drawn area and the last buttons were invisible.
                 SchemeName = "Dark",
             };
 
@@ -1602,6 +1646,7 @@ public static class ConsoleTui
             void SubmitLoginCode(string code)
             {
                 if (string.IsNullOrWhiteSpace(code)) return;
+                Log.LogStep("TUI /telegram: invio codice di verifica", monitor: true);
                 var error = TelegramBridge.SubmitLoginInput(code.Trim());
                 if (error == null) AddNote(Dictionary.NoteTelegramLoginCodeSubmitted);
                 else AddNote(string.Format(Dictionary.NoteTelegramLoginCodeFailed, error));
@@ -1615,15 +1660,20 @@ public static class ConsoleTui
                 if (key == Key.Enter) { key.Handled = true; SubmitLoginCode(codeField.Text ?? ""); }
             };
 
-            // Actions row.
+            // Buttons lay out SEQUENTIALLY (Pos.Right) so the auto-width text can never
+            // overlap the next button — fixed X coordinates broke once the localized
+            // labels grew longer than the gaps (seen live: "Consenti utente…" drawn over
+            // "Blocca utente…"). The four action buttons span TWO rows (2+2) because a
+            // single row (~89 cols with the Italian labels) overflows the 80%-width panel.
             var allowBtn = new Button { Text = Dictionary.DlgTelegramAllow, X = 1, Y = 10 };
-            var disallowBtn = new Button { Text = Dictionary.DlgTelegramDisallow, X = 16, Y = 10 };
-            var configBtn = new Button { Text = Dictionary.DlgTelegramConfig, X = 33, Y = 10 };
-            var reloadBtn = new Button { Text = Dictionary.DlgTelegramReload, X = 47, Y = 10 };
-            var toggleBtn = new Button { Text = Dictionary.DlgTelegramToggleEnable, X = 1, Y = 12 };
+            var disallowBtn = new Button { Text = Dictionary.DlgTelegramDisallow, X = Pos.Right(allowBtn) + 1, Y = 10 };
+            var configBtn = new Button { Text = Dictionary.DlgTelegramConfig, X = 1, Y = 12 };
+            var reloadBtn = new Button { Text = Dictionary.DlgTelegramReload, X = Pos.Right(configBtn) + 1, Y = 12 };
+            var toggleBtn = new Button { Text = Dictionary.DlgTelegramToggleEnable, X = 1, Y = 14 };
 
             allowBtn.Accepted += async (_, _) =>
             {
+                Log.LogStep("TUI /telegram: Consenti utente", monitor: true);
                 var who = await PromptOnUiThreadAsync(Dictionary.DlgTelegramAllow, "");
                 if (who != null)
                 {
@@ -1637,6 +1687,7 @@ public static class ConsoleTui
             };
             disallowBtn.Accepted += async (_, _) =>
             {
+                Log.LogStep("TUI /telegram: Blocca utente", monitor: true);
                 var who = await PromptOnUiThreadAsync(Dictionary.DlgTelegramDisallow, "");
                 if (who != null)
                 {
@@ -1648,10 +1699,11 @@ public static class ConsoleTui
                 }
                 codeField.SetFocus();   // the nested prompt refocused the main input — bring focus back into the panel
             };
-            configBtn.Accepted += (_, _) => RunCommandByName("telegram", "config");
-            reloadBtn.Accepted += (_, _) => RunCommandByName("telegram", "config reload");
+            configBtn.Accepted += (_, _) => { Log.LogStep("TUI /telegram: Mostra configurazione"); RunCommandByName("telegram", "config"); };
+            reloadBtn.Accepted += (_, _) => { Log.LogStep("TUI /telegram: Ricarica configurazione", monitor: true); RunCommandByName("telegram", "config reload"); };
             toggleBtn.Accepted += async (_, _) =>
             {
+                Log.LogStep("TUI /telegram: toggle abilitazione", monitor: true);
                 var (error, restart, message) = await TelegramBridge.SetConfigAsync("Enabled", TelegramBridge.IsEnabled ? "false" : "true");
                 if (error == null)
                 {
@@ -1668,10 +1720,11 @@ public static class ConsoleTui
 
             dlg.Add(status, hint, codeLabel, codeField, sendBtn, allowBtn, disallowBtn, configBtn, reloadBtn, toggleBtn);
             var close = new Button { Text = Dictionary.Close };
-            close.Accepted += (_, _) => _app.RequestStop(dlg);
+            close.Accepted += (_, _) => { Log.LogStep("TUI /telegram panel closed"); _app.RequestStop(dlg); };
             dlg.AddButton(close);
             dlg.Initialized += (_, _) => codeField.SetFocus();
             _app.Run(dlg);
+            Log.LogStep("TUI /telegram panel closed", monitor: true);
             dlg.Dispose();
             _inputField?.SetFocus();
         }
@@ -1818,6 +1871,7 @@ public static class ConsoleTui
         // The state is saved after the dialog closes by ANY means (Close button, Esc, ...).
         private void ShowToolsDialog()
         {
+            Log.LogStep("TUI /agent tools dialog opened", monitor: true);
             var catalog = AgentTools.Catalog();
             var current = EffectiveTools();
             var dlg = new Dialog
@@ -1866,11 +1920,13 @@ public static class ConsoleTui
                 _agentSet = "default-agent";   // the `tools` field overrides it server-side
                 _customTools = marked;
                 AddNote(string.Format(Dictionary.NoteToolsApplied, string.Join(", ", marked.Select(ToolShortName))));
+                Log.LogStep($"TUI /agent tools applied: {string.Join(", ", marked)}", monitor: true);
             }
             else
             {
                 _customTools = null;
             }
+            Log.LogStep("TUI /agent tools dialog closed");
             UpdateStatusUi();
 
             dlg.Dispose();
@@ -2218,14 +2274,32 @@ public static class ConsoleTui
             const string url = "https://github.com/Graphene-Lab/AgentBridge";
             try
             {
+                Log.LogStep($"TUI Docs: opening {url}", monitor: true);
                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
                 AddNote(string.Format(Dictionary.NoteOpenedUrl, url));
             }
             catch (Exception ex)
             {
+                Log.LogStep($"TUI Docs FAILED: {ex.Message}");
                 AddNote(string.Format(Dictionary.NoteOpenBrowserFailed, ex.Message));
             }
             return Task.CompletedTask;
+        }
+
+        private void OpenIssuesAsync()
+        {
+            const string url = "https://github.com/Graphene-Lab/AgentBridge/issues";
+            try
+            {
+                Log.LogStep($"TUI OpenIssues: opening {url}", monitor: true);
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                AddNote(string.Format(Dictionary.NoteOpenedUrl, url));
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"TUI OpenIssues FAILED: {ex.Message}");
+                AddNote(string.Format(Dictionary.NoteOpenBrowserFailed, ex.Message));
+            }
         }
 
         // ── Web client (Giraffe AI) ──
@@ -2496,6 +2570,7 @@ public static class ConsoleTui
             {
                 X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 1,
                 Source = new ListWrapper<string>(new ObservableCollection<string>(items)),
+                SelectedItem = 0,
             };
             var hint = new Label
             {
@@ -2503,6 +2578,21 @@ public static class ConsoleTui
                 X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
             };
             string? result = null;
+            // In v2.4.17 the ListView does NOT raise Accepted from the keyboard: its default
+            // key bindings are only movement keys, and the inherited Enter→Accept command is
+            // not handled by the list, so it bubbles to the Dialog which closes with no result.
+            // Handle Enter here (the same pattern the provider picker uses on its filter) so
+            // the hint "Enter selects" matches the behaviour; Accepted stays for mouse
+            // double-click.
+            list.KeyDown += (_, key) =>
+            {
+                if (key == Key.Enter)
+                {
+                    key.Handled = true;
+                    result = items[Math.Max(0, list.SelectedItem ?? 0)];
+                    _app.RequestStop(dlg);
+                }
+            };
             list.Accepted += (_, e) =>
             {
                 e.Handled = true;
@@ -2533,13 +2623,32 @@ public static class ConsoleTui
             {
                 X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 1,
                 Source = new ListWrapper<string>(new ObservableCollection<string>(items)),
+                // A picker must have a usable initial selection: with SelectedItem = null an
+                // immediate Enter closes the dialog with no result. Start on the first row so
+                // Enter selects out of the box.
+                SelectedItem = 0,
             };
             var hint = new Label
             {
                 Text = Dictionary.DlgPickerHint,
                 X = 0, Y = Pos.Bottom(list), Width = Dim.Fill(),
             };
+            // In v2.4.17 the ListView does NOT raise Accepted from the keyboard: its default
+            // key bindings are only movement keys, and the inherited Enter→Accept command is
+            // not handled by the list, so it bubbles to the Dialog which closes with no result.
+            // Handle Enter here so the hint "Enter selects" matches the behaviour; Accepted
+            // stays for mouse double-click. Do NOT call KeyBindings.Add(Key.Enter, …) — the
+            // binding already exists and re-adding it throws "A binding for Enter exists".
             int? result = null;
+            list.KeyDown += (_, key) =>
+            {
+                if (key == Key.Enter)
+                {
+                    key.Handled = true;
+                    result = list.SelectedItem;
+                    _app.RequestStop(dlg);
+                }
+            };
             list.Accepted += (_, e) =>
             {
                 e.Handled = true;
@@ -2606,7 +2715,13 @@ public static class ConsoleTui
                         p.Id.StartsWith(f, StringComparison.OrdinalIgnoreCase)
                         || (f.Length > 0 && p.Display.Contains(f, StringComparison.OrdinalIgnoreCase)))
                     .ToList();
-                list.Source = new ListWrapper<string>(new ObservableCollection<string>(visible.Select(p => p.Display)));
+                // The currently active provider is marked with a bullet so the picker
+                // always shows what is in use (not just what could be selected). The
+                // non-active rows get the same leading width ("● " = 2 cells) so every
+                // provider name starts at the same column.
+                list.Source = new ListWrapper<string>(new ObservableCollection<string>(
+                    visible.Select(p => string.Equals(p.Id, _provider, StringComparison.OrdinalIgnoreCase)
+                        ? $"● {p.Display}" : $"  {p.Display}")));
                 ClampSelection(list, visible.Count);
             }
             string? result = null;
@@ -2666,6 +2781,7 @@ public static class ConsoleTui
         // (an unfocusable page had dead arrow keys — see docs-dev/TUI-DEVELOPMENT.md §8).
         private void ShowPage(string title, IReadOnlyList<string> lines)
         {
+            Log.LogStep($"TUI page opened: {title} ({lines.Count} righe)", monitor: true);
             var dlg = new Dialog
             {
                 Title = title,
@@ -2690,6 +2806,7 @@ public static class ConsoleTui
             dlg.AddButton(new Button { Text = Dictionary.Close });
             dlg.Initialized += (_, _) => tv.SetFocus();
             _app.Run(dlg);
+            Log.LogStep($"TUI page closed: {title}");
             dlg.Dispose();
             _inputField?.SetFocus();
         }
@@ -2709,6 +2826,7 @@ public static class ConsoleTui
         // Enter runs the selected command (or the typed command line), Esc cancels.
         private void ShowCommandMenu(string initial)
         {
+            Log.LogStep($"TUI command palette opened (initial: '{initial}')", monitor: true);
             var dlg = new Dialog
             {
                 Title = Dictionary.DlgCommandsTitle,
@@ -2805,6 +2923,7 @@ public static class ConsoleTui
         // The "@" live palette: uploaded files, Enter toggles the attachment.
         private void ShowFilesDialog()
         {
+            Log.LogStep("TUI @ files palette opened", monitor: true);
             _ = Task.Run(async () =>
             {
                 try
@@ -2817,7 +2936,11 @@ public static class ConsoleTui
                         if (files.Count == 0) { AddNote(Dictionary.NoteNoFiles); return; }
                         var choices = files.Select(f => $"{f.FileName}{(f.Attached ? "  " + Dictionary.AttachMarker : "")}").ToList();
                         var idx = RunIndexPickerDialog(Dictionary.DlgToggleAttach, choices);
-                        if (idx is { } i && i >= 0 && i < files.Count) ToggleAttach(files[i]);
+                        if (idx is { } i && i >= 0 && i < files.Count)
+                        {
+                            Log.LogStep($"TUI @ files: toggle allegato '{files[i].FileName}'", monitor: true);
+                            ToggleAttach(files[i]);
+                        }
                     });
                 }
                 catch (Exception ex)
@@ -2831,6 +2954,7 @@ public static class ConsoleTui
         {
             Ui(() =>
             {
+                Log.LogStep("TUI About dialog opened", monitor: true);
                 // A real About window: the AGENT ASCII art (same gradient as the startup
                 // banner), the tagline and the © copyright with the project name.
                 var dlg = new Dialog
@@ -2876,17 +3000,45 @@ public static class ConsoleTui
 
         private void ShowModelSetupDialog()
         {
+            Log.LogStep("TUI ModelSetup dialog opened", monitor: true);
             var dlg = new Dialog
             {
                 Title = Dictionary.SetupTitle,
                 Width = Dim.Percent(80),
-                Height = Dim.Percent(70),
+                // 78% (up from 70%): the tab hint line below the pages eats one row of the
+                // Tabs viewport, and with 70% the LLM tab's action buttons (Add/Edit/Remove
+                // at content row 12) fell out of the visible area. The extra height restores
+                // the same internal room the dialog had before the hint was added.
+                Height = Dim.Percent(78),
                 SchemeName = "Dark",
             };
 
             var tabs = new Tabs
             {
-                X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill(),
+                X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 1,
+            };
+            // The Tabs headers have no mouse handler and the tab pages are not reachable by
+            // focus traversal in v2.4.17 (OnSubViewAdding forces CanFocus=false during Add and
+            // there is no NextTabGroup implementation): pressing Tab cycles only inside the
+            // current page. Give the user real keyboard navigation — Ctrl+PageDown/Up are the
+            // framework's documented TabGroup keys — by switching Value when an unhandled key
+            // bubbles up from the focused control (KeyDownNotHandled runs before the Dialog).
+            tabs.KeyDownNotHandled += (_, key) =>
+            {
+                if (key == Key.PageDown.WithCtrl)
+                {
+                    key.Handled = true;
+                    var cur = tabs.TabCollection.ToList();
+                    var i = cur.IndexOf(tabs.Value);
+                    tabs.Value = cur[Math.Min(cur.Count - 1, i + 1)];
+                }
+                else if (key == Key.PageUp.WithCtrl)
+                {
+                    key.Handled = true;
+                    var cur = tabs.TabCollection.ToList();
+                    var i = cur.IndexOf(tabs.Value);
+                    tabs.Value = cur[Math.Max(0, i - 1)];
+                }
             };
 
             // ── LLM / Providers tab ──
@@ -2897,37 +3049,64 @@ public static class ConsoleTui
                 providerDropdown.X = 17; providerDropdown.Y = 0; providerDropdown.Width = 46;
                 llmTab.Add(new Label { Text = Dictionary.SetupActiveProvider, X = 1, Y = 0, Width = 15 }, providerDropdown);
 
+                // Active model indicator shown right below the provider dropdown.
+                var activeModelLabel = new Label
+                {
+                    Text = "",
+                    X = 1, Y = 1, Width = 62,
+                    SchemeName = "Hint",
+                };
+                llmTab.Add(activeModelLabel);
+
                 // API keys are set per-provider in the Add/Edit dialog below (providers.json);
                 // local providers (localhost/127.0.0.1 endpoint) simply leave the field empty.
-                int y = 2;
+                int y = 3;
                 llmTab.Add(new Label { Text = Dictionary.SetupConfiguredProviders, X = 1, Y = y, Width = Dim.Fill() });
                 y++;
                 providersList.X = 1; providersList.Y = y; providersList.Width = 62; providersList.Height = 6;
                 llmTab.Add(providersList);
                 y += 7;
                 var addBtn = new Button { Text = Dictionary.SetupAdd, X = 1, Y = y };
-                var editBtn = new Button { Text = Dictionary.SetupEdit, X = 9, Y = y };
-                var removeBtn = new Button { Text = Dictionary.SetupRemove, X = 17, Y = y };
+                var editBtn = new Button { Text = Dictionary.SetupEdit, X = Pos.Right(addBtn) + 1, Y = y };
+                var removeBtn = new Button { Text = Dictionary.SetupRemove, X = Pos.Right(editBtn) + 1, Y = y };
                 llmTab.Add(addBtn, editBtn, removeBtn);
 
-                // The dropdown re-marks the active provider in the list below it.
+                // The dropdown re-marks the active provider in the list below it,
+                // and updates the active-model indicator shown above the list.
                 providerDropdown.ValueChanged += (_, _) => RefreshProviderList();
                 void RefreshProviderList()
                 {
                     providersList.Source = new ListWrapper<string>(new ObservableCollection<string>(
                         ProviderConfigs.All.Select(p => p.ProviderName == providerDropdown.Text
                             ? $"{p.ProviderName}  {Dictionary.SetupActiveMarker}" : p.ProviderName)));
+                    // Active model: the REAL session model when the dropdown shows the active
+                    // provider (the provider's configured ModelName is often empty even though
+                    // a concrete model is in use — the session knows the truth); otherwise the
+                    // selected provider's configured model as a preview of what would activate.
+                    var sel = ProviderConfigs.All.FirstOrDefault(p => p.ProviderName == providerDropdown.Text);
+                    if (sel != null && string.Equals(sel.ProviderName, _provider, StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(_modelName))
+                        activeModelLabel.Text = string.Format(Dictionary.SetupActiveModel, _modelName);
+                    else if (sel != null && !string.IsNullOrWhiteSpace(sel.ModelName))
+                        activeModelLabel.Text = string.Format(Dictionary.SetupActiveModel, sel.ModelName);
+                    else
+                        activeModelLabel.Text = Dictionary.SetupActiveModelDefault;
                 }
                 // Full refresh after a provider was added/edited/removed (dropdown included).
                 void RefreshProviders()
                 {
                     var names = ProviderConfigs.All.Select(p => p.ProviderName).ToList();
                     providerDropdown.Source = new ListWrapper<string>(new ObservableCollection<string>(names));
-                    if (!names.Contains(providerDropdown.Text))
-                        providerDropdown.Text = ProviderConfigs.Default.ProviderName;
+                    // Show the CURRENT active provider on open; fall back to the default only
+                    // when the active one is not configured anymore (e.g. it was removed).
+                    if (string.IsNullOrWhiteSpace(providerDropdown.Text)
+                        || !names.Contains(providerDropdown.Text, StringComparer.OrdinalIgnoreCase))
+                        providerDropdown.Text = names.Contains(_provider, StringComparer.OrdinalIgnoreCase)
+                            ? _provider
+                            : ProviderConfigs.Default.ProviderName;
                     RefreshProviderList();
                 }
-                RefreshProviderList();
+                RefreshProviders();
 
                 string? SelectedProviderName()
                 {
@@ -2937,6 +3116,7 @@ public static class ConsoleTui
 
                 addBtn.Accepted += (_, _) =>
                 {
+                    Log.LogStep("TUI ModelSetup: Add provider button", monitor: true);
                     var cfg = ShowProviderDialog(null);
                     if (cfg == null) return;
                     if (ProviderConfigs.Add(cfg, persist: true))
@@ -2949,6 +3129,7 @@ public static class ConsoleTui
                 {
                     var name = SelectedProviderName();
                     if (name == null) { AddNote(Dictionary.SetupSelectToEdit); return; }
+                    Log.LogStep($"TUI ModelSetup: Edit provider '{name}'", monitor: true);
                     var cfg = ShowProviderDialog(ProviderConfigs.Get(name));
                     if (cfg == null) return;
                     ProviderConfigs.Upsert(cfg, persist: true);
@@ -2962,6 +3143,7 @@ public static class ConsoleTui
                     if (MessageBox.Query(_app, Dictionary.SetupRemoveProviderTitle,
                             string.Format(Dictionary.SetupRemoveProviderText, name), Dictionary.Cancel, Dictionary.SetupRemove) != 1)
                         return;
+                    Log.LogStep($"TUI ModelSetup: Remove provider '{name}'", monitor: true);
                     if (!ProviderConfigs.Remove(name, persist: true))
                     {
                         AddNote(string.Format(Dictionary.SetupCannotRemove, name));
@@ -3045,17 +3227,23 @@ public static class ConsoleTui
                     _ = SwitchModelAsync(chosen);   // same path as /model (HTTP /v1/control)
 
                 AddNote(pathNote == null ? Dictionary.SetupSaved : string.Format(Dictionary.SetupSavedWithNote, pathNote));
+                Log.LogStep($"TUI ModelSetup saved (provider: {providerDropdown.Text})", monitor: true);
                 _app.RequestStop(dlg);
             };
             var close = new Button { Text = Dictionary.Close };
-            close.Accepted += (_, _) => _app.RequestStop(dlg);
+            close.Accepted += (_, _) => { Log.LogStep("TUI ModelSetup dialog closed (Cancel)"); _app.RequestStop(dlg); };
             dlg.AddButton(save);
             dlg.AddButton(close);
 
             tabs.Add(llmTab, emailTab, imapTab, generalTab);
             dlg.Add(tabs);
+            // The Tabs headers have no mouse handler in v2.4.17 — the user switches pages
+            // with the keyboard (Tab/F6 = TabStop/TabGroup navigation). The hint makes the
+            // shortcut discoverable instead of leaving the user to guess.
+            dlg.Add(new Label { Text = Dictionary.SetupTabsHint, X = 1, Y = Pos.Bottom(tabs), SchemeName = "Hint" });
             dlg.Initialized += (_, _) => providerDropdown.SetFocus();
             _app.Run(dlg);
+            Log.LogStep("TUI ModelSetup dialog closed", monitor: true);
             dlg.Dispose();
             _inputField?.SetFocus();
         }
@@ -3144,10 +3332,11 @@ public static class ConsoleTui
                     ContextWindow = ctx,
                     Timeout = TimeSpan.FromSeconds(secs),
                 };
+                Log.LogStep($"TUI Provider dialog OK: {providerName} ({proto})", monitor: true);
                 _app.RequestStop(dlg);
             };
             var cancel = new Button { Text = Dictionary.Cancel };
-            cancel.Accepted += (_, _) => _app.RequestStop(dlg);
+            cancel.Accepted += (_, _) => { Log.LogStep("TUI Provider dialog cancelled"); _app.RequestStop(dlg); };
             dlg.AddButton(ok);
             dlg.AddButton(cancel);
             dlg.Initialized += (_, _) => nameField.SetFocus();
@@ -3323,5 +3512,182 @@ public static class ConsoleTui
             e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
         private static string ValueOr(string? value, string fallback) =>
             string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PUPPET MODE — automated-testing control surface (debug builds only)
+//
+//  Lets an external tester (agent/script) read the current TUI screen as
+//  plain text and inject keyboard/mouse input, always marshalled onto the
+//  Terminal.Gui main loop via IApplication.Invoke so no UI-thread race can
+//  occur. Program.cs starts a localhost TCP listener that drives these
+//  methods (see docs-dev/PUPPET-MODE-GUIDE.md).
+// ═══════════════════════════════════════════════════════════════════════
+public static class PuppetMode
+{
+    /// <summary>Reference to the running Terminal.Gui application, set by <see cref="ConsoleTui"/>.</summary>
+    internal static IApplication? _app;
+
+    /// <summary>
+    /// True once the puppet TCP listener is active. Only ever set in DEBUG builds
+    /// (Program.cs); the release binary has no puppet surface at all.
+    /// </summary>
+    public static bool Enabled { get; internal set; }
+
+    // ── Pump design (thread-safety) ──
+    // The puppet TCP handlers run on background threads. They must NEVER call
+    // Application.Invoke/TimedEvents.Add directly: Terminal.Gui v2.4.17 holds the
+    // TimedEvents lock across the whole callback run, and a modal dialog opened from
+    // an injected key runs its nested RunLoop INSIDE that callback — so the lock is
+    // held for the dialog's entire lifetime and every background Invoke would block
+    // forever (seen live: all puppet handlers stuck in Monitor.Enter_Slowpath).
+    // Instead the handlers only ENQUEUE work; a recurring timer registered on the UI
+    // thread (StartPump) drains the queue and refreshes the capture snapshot.
+    private static readonly System.Collections.Concurrent.ConcurrentQueue<Action> _injections = new();
+    private static readonly System.Collections.Concurrent.ConcurrentQueue<(System.Drawing.Point Pos, TaskCompletionSource<string> Tcs)> _hitTests = new();
+    private static string _snapshot = "(puppet mode: waiting for the first capture)";
+
+    /// <summary>
+    /// Registers the puppet pump timer. Must be called on the Terminal.Gui UI thread
+    /// (done by <see cref="ConsoleTui"/>'s constructor); the timer runs even while a
+    /// modal dialog is open because the nested RunLoop re-enters TimedEvents on the
+    /// same thread.
+    /// </summary>
+    internal static void StartPump()
+    {
+        if (_app == null) return;
+        try
+        {
+            _app.AddTimeout(TimeSpan.FromMilliseconds(250), Pump);
+            Log.LogStep("Puppet pump started (250ms)", monitor: true);
+        }
+        catch (Exception ex) { Log.LogStep($"Puppet pump start failed: {ex.Message}"); }
+    }
+
+    // Runs on the UI thread every 250 ms: executes queued injections and keeps the
+    // screen snapshot fresh. The timer is RE-ARMED FIRST on purpose: dispatching a
+    // key can synchronously open a modal dialog (menu item → _app.Run(dlg)), which
+    // blocks this callback inside the dialog's nested RunLoop for its whole
+    // lifetime. Because the timer is already re-armed, it keeps firing inside that
+    // nested loop (TimedEvents is re-entrant on the same thread), so queued
+    // injections and the snapshot stay live while the dialog is open.
+    private static bool Pump()
+    {
+        try { _app?.AddTimeout(TimeSpan.FromMilliseconds(250), Pump); }
+        catch { /* keep pumping */ }
+
+        try
+        {
+            int n = 0;
+            while (_injections.TryDequeue(out var action))
+            {
+                n++;
+                try { action(); }
+                catch (Exception ex) { Log.LogStep($"Puppet injection failed: {ex.Message}"); }
+            }
+            if (n > 0) Log.LogStep($"Puppet pump: executed {n} queued injection(s)");
+
+            // Hit-test requests are resolved on the UI thread too (same queue discipline:
+            // no Application.Invoke from background threads — that deadlocks with dialogs).
+            while (_hitTests.TryDequeue(out var h))
+            {
+                try { h.Tcs.SetResult(HitTestNow(h.Pos)); }
+                catch (Exception ex) { h.Tcs.SetResult($"(hit-test error: {ex.Message})"); }
+            }
+
+            var top = _app?.TopRunnableView;
+            if (top != null)
+                _snapshot = _app!.Driver.ToString();
+        }
+        catch { /* keep the pump alive */ }
+        return false;   // already re-armed above
+    }
+
+    private static string HitTestNow(System.Drawing.Point pos)
+    {
+        var top = _app?.TopRunnableView;
+        if (top == null) return "(no Terminal.Gui window visible)";
+        var views = top.GetViewsUnderLocation(pos, ViewportSettingsFlags.TransparentMouse);
+        var sb = new StringBuilder();
+        int i = 0;
+        foreach (var v in views)
+            sb.AppendLine($"{i++}: {v?.GetType().Name} \"{v?.Title}\" {v?.Frame}");
+        return sb.Length == 0 ? "(no view under this point)" : sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Returns the latest screen capture (plain text). The snapshot is refreshed by
+    /// the pump on the UI thread, so this never blocks — at most ~250 ms stale.
+    /// </summary>
+    public static string ANSI_Tui_Capture()
+    {
+        if (_app == null) return "(puppet mode not initialized)";
+        return _snapshot;
+    }
+
+    /// <summary>Queues a key-down for the keyboard pipeline, with the matching key-up
+    /// ~200 ms later (executed on the UI thread).</summary>
+    /// <remarks>
+    /// A real key press holds for ~100–300 ms between down and up; controls that
+    /// activate on the press→release gesture (buttons, list Accept) can miss an
+    /// immediate Down+Up pair fired in the same pump tick. The KeyUp is scheduled
+    /// from the UI thread (safe — no TimedEvents.Add from background threads).
+    /// </remarks>
+    public static void InjectKey(Key key)
+    {
+        if (_app == null) return;
+        _injections.Enqueue(() =>
+        {
+            _app!.Keyboard.RaiseKeyDownEvent(key);
+            _app.AddTimeout(TimeSpan.FromMilliseconds(200), () =>
+            {
+                _app.Keyboard.RaiseKeyUpEvent(key);
+                return false;   // one-shot
+            });
+        });
+    }
+
+    /// <summary>Queues text injection, one character at a time (executed on the UI thread).</summary>
+    public static void InjectText(string text)
+    {
+        if (_app == null || string.IsNullOrEmpty(text)) return;
+        foreach (var ch in text)
+            _injections.Enqueue(() =>
+            {
+                var key = (Key)ch;
+                _app!.Keyboard.RaiseKeyDownEvent(key);
+                _app.Keyboard.RaiseKeyUpEvent(key);
+            });
+    }
+
+    /// <summary>Queues a mouse event at terminal-relative coordinates (executed on the UI thread).</summary>
+    public static void InjectMouse(int x, int y, MouseFlags flags)
+    {
+        if (_app == null) return;
+        _injections.Enqueue(() =>
+        {
+            // Only ScreenPosition is set: the mouse router resolves View and the
+            // view-relative Position itself from the screen coordinates.
+            _app!.Mouse.RaiseMouseEvent(new Mouse
+            {
+                ScreenPosition = new System.Drawing.Point(x, y),
+                Flags = flags,
+            });
+        });
+    }
+
+    /// <summary>
+    /// Hit-tests a screen coordinate and returns the views stacked under it (deepest
+    /// last), so a tester can see exactly which control will receive a mouse event
+    /// before sending it. Resolved by the pump on the UI thread (never blocks on the
+    /// TimedEvents lock — see the pump design note above).
+    /// </summary>
+    public static string HitTest(int x, int y)
+    {
+        if (_app == null) return "(puppet mode not initialized)";
+        var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _hitTests.Enqueue((new System.Drawing.Point(x, y), tcs));
+        return tcs.Task.GetAwaiter().GetResult();
     }
 }

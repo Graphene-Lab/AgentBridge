@@ -100,6 +100,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="MenuShortcuts" xml:space="preserve"><value>_Shortcuts (/shortcuts)</value></data>
   <data name="MenuDocumentation" xml:space="preserve"><value>_Documentation (/docs)</value></data>
   <data name="MenuAbout" xml:space="preserve"><value>_About</value></data>
+  <data name="MenuIssues" xml:space="preserve"><value>_Report Issues…</value></data>
   <data name="CmdHelp" xml:space="preserve"><value>Show help: commands, shortcuts, API endpoints, online docs</value></data>
   <data name="CmdDocs" xml:space="preserve"><value>Open the online documentation in your browser</value></data>
   <data name="CmdWeb" xml:space="preserve"><value>Install (first run) and launch the Giraffe AI web client in the browser</value></data>
@@ -310,6 +311,8 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupLlmTab" xml:space="preserve"><value>LLM &amp; Providers</value></data>
   <data name="SetupActiveProvider" xml:space="preserve"><value>Active provider</value></data>
   <data name="SetupActiveMarker" xml:space="preserve"><value>← active</value></data>
+  <data name="SetupActiveModel" xml:space="preserve"><value>Active model: {0}</value></data>
+  <data name="SetupActiveModelDefault" xml:space="preserve"><value>Active model: (default)</value></data>
   <data name="SetupConfiguredProviders" xml:space="preserve"><value>Configured providers (Add/Edit/Remove apply immediately):</value></data>
   <data name="SetupAdd" xml:space="preserve"><value>Add…</value></data>
   <data name="SetupEdit" xml:space="preserve"><value>Edit…</value></data>
@@ -326,6 +329,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupImapUser" xml:space="preserve"><value>IMAP user</value></data>
   <data name="SetupImapPassword" xml:space="preserve"><value>IMAP password</value></data>
   <data name="SetupGeneralTab" xml:space="preserve"><value>General</value></data>
+  <data name="SetupTabsHint" xml:space="preserve"><value>Ctrl+PageDown / Ctrl+PageUp switches page · ↑↓ move within a page</value></data>
   <data name="SetupStepLogging" xml:space="preserve"><value>Enable step logging (logs/ folder)</value></data>
   <data name="SetupDocumentsPath" xml:space="preserve"><value>Documents path</value></data>
   <data name="SetupSave" xml:space="preserve"><value>Save</value></data>

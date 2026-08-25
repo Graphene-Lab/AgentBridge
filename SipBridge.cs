@@ -982,18 +982,26 @@ public static class SipBridge
 
     /// <summary>Sets one SIP config key, persists the whole "Sip" section back to
     /// appsettings.json and applies the change. Returns an error message, whether a transport
-    /// restart was needed/applied, and a human-readable outcome.</summary>
+    /// restart was needed/applied, and a human-readable outcome.
+    /// The key is matched case-insensitively ignoring underscores, so both the property name
+    /// ("IndicatorDelaySeconds") and the snake_case name shown by GET /v1/sip/config
+    /// ("indicator_delay_seconds") are accepted.</summary>
     public static async Task<(string? Error, bool RestartRequired, string Message)> SetConfigAsync(string key, string? value)
     {
-        var prop = typeof(SipConfig).GetProperty(key, System.Reflection.BindingFlags.IgnoreCase |
-            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+        // Normalize: strip underscores, lowercase — "indicator_delay_seconds" == "IndicatorDelaySeconds".
+        static string Normalize(string s) => string.Concat(s.Where(c => c != '_')).ToLowerInvariant();
+        var normalized = Normalize(key);
+        var prop = typeof(SipConfig).GetProperties()
+            .FirstOrDefault(p => Normalize(p.Name) == normalized);
         if (prop == null) return ($"unknown SIP config key: {key}", false, "");
 
         object? parsed;
         try { parsed = ParseConfigValue(prop.PropertyType, value); }
         catch (Exception ex) { return ($"invalid value for {key}: {ex.Message}", false, ""); }
 
-        var restarting = RestartKeys.Contains(key);
+        // Restart/gate checks use the canonical property name so both key spellings behave alike.
+        var canonical = prop.Name;
+        var restarting = RestartKeys.Contains(canonical);
         CallContext? call;
         lock (Sync) call = Call;
         if (restarting && call != null)
@@ -1007,7 +1015,7 @@ public static class SipBridge
             prop.SetValue(Cfg, previous);   // roll back the in-memory change
             return (persistError, false, "");
         }
-        if (GateKeys.Contains(key)) ApplyRuntime();
+        if (GateKeys.Contains(canonical)) ApplyRuntime();
 
         if (!restarting) return (null, false, $"{key} set to {DisplayValue(key, parsed)} — active from the next call");
         var restartError = await RestartTransportAsync();

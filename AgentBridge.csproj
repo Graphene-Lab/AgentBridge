@@ -79,15 +79,20 @@
          (same lesson as the processing-indicator.wav). Loaded once by ConsoleTui. -->
     <EmbeddedResource Include="AGRNT_ascii_art.txt" LogicalName="AgentBridge.assets.agent-ascii-art.txt" />
   </ItemGroup>
-  <!-- e2e/ hosts standalone tooling (TuiSmoke, run_e2e.ps1) — never part of this
-       project. WITHOUT these Remove items the Web SDK's default globbing compiles
-       e2e/TuiSmoke/Program.cs into AgentBridge (duplicate `Program` with the
-       top-level statements) and every build FAILS silently. Keep them. -->
+  <!-- e2e/ hosts standalone tooling (TuiSmoke, run_e2e.ps1) and tools/ hosts standalone
+       developer tooling (ConsolePuppetInjector) — never part of this project. WITHOUT these
+       Remove items the Web SDK's default globbing compiles their Program.cs AND obj-generated
+       AssemblyInfo files into AgentBridge (duplicate `Program` with the top-level statements,
+       duplicate assembly attributes → CS0579) and every build FAILS silently. Keep them. -->
   <ItemGroup>
     <Compile Remove="e2e\**" />
     <Content Remove="e2e\**" />
     <None Remove="e2e\**" />
     <EmbeddedResource Remove="e2e\**" />
+    <Compile Remove="tools\**" />
+    <Content Remove="tools\**" />
+    <None Remove="tools\**" />
+    <EmbeddedResource Remove="tools\**" />
   </ItemGroup>
   <!-- Localized UI strings (EN neutral + it/fr/es/de/ru satellites) — see Resources/Dictionary.*.resx.
        The satellite files are picked up automatically by the SDK; the neutral file drives the

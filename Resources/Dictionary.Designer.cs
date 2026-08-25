@@ -967,6 +967,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to '_Report Issues…'.
+        /// </summary>
+        public static string MenuIssues {
+            get {
+                return ResourceManager.GetString("MenuIssues", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to '_LLM Model (/model)'.
         /// </summary>
         public static string MenuLlmModel {
@@ -2074,6 +2083,24 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Active model: {0}'.
+        /// </summary>
+        public static string SetupActiveModel {
+            get {
+                return ResourceManager.GetString("SetupActiveModel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Active model: (default)'.
+        /// </summary>
+        public static string SetupActiveModelDefault {
+            get {
+                return ResourceManager.GetString("SetupActiveModelDefault", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Active provider'.
         /// </summary>
         public static string SetupActiveProvider {
@@ -2412,6 +2439,15 @@ namespace AgentBridge.Resources {
         public static string SetupStepLogging {
             get {
                 return ResourceManager.GetString("SetupStepLogging", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Ctrl+PageDown / Ctrl+PageUp switches page · ↑↓ move within a page'.
+        /// </summary>
+        public static string SetupTabsHint {
+            get {
+                return ResourceManager.GetString("SetupTabsHint", resourceCulture);
             }
         }
 

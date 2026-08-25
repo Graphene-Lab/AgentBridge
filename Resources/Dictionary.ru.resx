@@ -52,6 +52,7 @@
   <data name="MenuShortcuts" xml:space="preserve"><value>_Сочетания (/shortcuts)</value></data>
   <data name="MenuDocumentation" xml:space="preserve"><value>_Документация (/docs)</value></data>
   <data name="MenuAbout" xml:space="preserve"><value>_О программе</value></data>
+  <data name="MenuIssues" xml:space="preserve"><value>_Сообщить о проблеме…</value></data>
   <data name="CmdHelp" xml:space="preserve"><value>Показать справку: команды, сочетания, конечные точки API, онлайн-документация</value></data>
   <data name="CmdDocs" xml:space="preserve"><value>Открыть онлайн-документацию в браузере</value></data>
   <data name="CmdWeb" xml:space="preserve"><value>Установить (при первом запуске) и запустить веб-клиент Giraffe AI в браузере</value></data>
@@ -213,6 +214,8 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupLlmTab" xml:space="preserve"><value>LLM и провайдеры</value></data>
   <data name="SetupActiveProvider" xml:space="preserve"><value>Активный провайдер</value></data>
   <data name="SetupActiveMarker" xml:space="preserve"><value>← активен</value></data>
+  <data name="SetupActiveModel" xml:space="preserve"><value>Активная модель: {0}</value></data>
+  <data name="SetupActiveModelDefault" xml:space="preserve"><value>Активная модель: (по умолчанию)</value></data>
   <data name="ProviderApiKey" xml:space="preserve"><value>Ключ API</value></data>
   <data name="SetupConfiguredProviders" xml:space="preserve"><value>Настроенные провайдеры (Добавить/Изменить/Удалить применяются сразу):</value></data>
   <data name="SetupAdd" xml:space="preserve"><value>Добавить…</value></data>
