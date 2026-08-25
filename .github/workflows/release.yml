@@ -150,38 +150,32 @@ jobs:
       #
       # Tool plugins (Graphene.DocumentTool, Graphene.SpreadsheetTool) are loaded DYNAMICALLY
       # from Tools/ by ToolPluginHost (byte-loaded, never referenced): the single-file publish
-      # cannot bundle them. Fetch the published packages and ship each plugin's assembly +
-      # XML docs into publish/Tools/<Plugin>/. (Graphene.OfficeTool is intentionally NOT
-      # fetched here — it is not part of the NuGet release set.)
+      # cannot bundle them. Fetch each plugin's self-contained release zip (plugin + non-host
+      # deps, minus the AIOrchestrator graph — produced by the plugin repos' standard
+      # plugin-release.yml) from its PUBLIC GitHub release and ship it into publish/Tools/<Plugin>/.
+      # NuGet is not part of the plugin deployment channel. (Graphene.OfficeTool is intentionally
+      # NOT shipped here — it is not part of the plugin release set.)
       - name: Fetch tool plugins into Tools/
         shell: bash
-        env:
-          VERSION: ${{ needs.check-version.outputs.version }}
         run: |
-          NVER=$(printf '%s' "$VERSION" | awk -F. '{for(i=1;i<=NF;i++){gsub(/^0+/,"",$i); if($i=="")$i=0; printf "%s%s",(i>1?".":""),$i} print ""}')
           mkdir -p /tmp/plugins publish/Tools
-          for entry in "graphene.documenttool:DocumentTool" "graphene.spreadsheettool:SpreadsheetTool"; do
-            id="${entry%%:*}"; tool="${entry##*:}"
-            pver="$NVER"
-            # Fall back to the latest published version when today's is not out yet
-            # (only changed repos publish today's date-versioned package).
-            if ! curl -fsSI "https://api.nuget.org/v3-flatcontainer/$id/$NVER/$id.$NVER.nupkg" >/dev/null 2>&1; then
-              pver=$(curl -fsS "https://api.nuget.org/v3-flatcontainer/$id/index.json" | grep -oE '"[0-9]+(\.[0-9]+)+"' | tr -d '"' | sort -V | tail -n1)
-            fi
-            nupkg="/tmp/plugins/$id.$pver.nupkg"
-            if [ -z "$pver" ] || ! curl -fsSL -o "$nupkg" "https://api.nuget.org/v3-flatcontainer/$id/$pver/$id.$pver.nupkg"; then
-              echo "::warning::plugin package $id (fallback $pver) not found; tool '$tool' will be missing from Tools/"
+          for tool in DocumentTool SpreadsheetTool; do
+            # Latest release tag via the /releases/latest redirect (no API call, no rate limit).
+            tag=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/Graphene-Lab/$tool/releases/latest" \
+                  | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1)
+            if [ -z "$tag" ]; then
+              echo "::warning::$tool has no GitHub release yet — tool will be missing from Tools/"
               continue
             fi
-            tmp="/tmp/plugins/$tool"
-            mkdir -p "$tmp"
-            if command -v unzip >/dev/null 2>&1; then
-              unzip -qo "$nupkg" "lib/net10.0/*" -d "$tmp"
-            else
-              powershell -Command "Expand-Archive -Path '$nupkg' -DestinationPath '$tmp' -Force"
+            ver="${tag#v}"
+            zip="$tool-$ver.zip"
+            if ! curl -fsSL -o "/tmp/plugins/$zip" "https://github.com/Graphene-Lab/$tool/releases/download/$tag/$zip"; then
+              echo "::warning::cannot download $zip for $tool — tool will be missing from Tools/"
+              continue
             fi
+            (cd /tmp/plugins && unzip -qo "$zip")
             mkdir -p "publish/Tools/$tool"
-            cp "$tmp"/lib/net10.0/$tool.dll "$tmp"/lib/net10.0/$tool.xml "publish/Tools/$tool/"
+            cp -r "/tmp/plugins/$tool/." "publish/Tools/$tool/"
           done
           find publish/Tools -type f 2>/dev/null | sort || true
 

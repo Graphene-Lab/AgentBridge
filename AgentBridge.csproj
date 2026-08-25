@@ -121,28 +121,35 @@
     <None Include="docs\**\*" CopyToOutputDirectory="PreserveNewest" TargetPath="docs/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="scripts\setup-telegram.bat;scripts\setup-telegram.sh;scripts\sip-config.bat;scripts\sip-config.ps1;scripts\sip-config.sh" CopyToOutputDirectory="PreserveNewest" TargetPath="scripts/%(Filename)%(Extension)" />
   </ItemGroup>
-  <!-- Ship the tool plugins into Tools/<Plugin>/ (dll + xml, no AIOrchestrator copy) so the
-       dynamic ToolPluginHost loader can pick them up at startup. Sibling build outputs on dev
-       machines (same pattern as AIOffice's BuildToolPlugins); skipped when the sibling repos
-       are absent — CI/standalone deploys must place the plugin outputs in Tools/ next to the
-       executable (the single-file publish cannot bundle byte-loaded plugin assemblies). -->
+  <!-- Ship the tool plugins into Tools/<Plugin>/ so the dynamic ToolPluginHost loader can pick
+       them up at startup. Sibling build outputs on dev machines (same pattern as AIOffice's
+       BuildToolPlugins); skipped when the sibling repos are absent — CI/standalone deploys fetch
+       the plugin release zips from GitHub Releases (see .github/workflows/release.yml).
+       NON-HOST DEPENDENCIES RULE (AGENT_TOOLS_GUIDE §8): the plugins are built with
+       CopyLocalLockFileAssemblies=true (full closure in their bin) and ONLY the files the host
+       bin does NOT already provide are copied — AIOrchestrator and its graph stay with the host,
+       the plugin's unique deps (e.g. HtmlToOpenXml/AngleSharp for OfficeSupportTool) travel with
+       it. The Exists(%(Filename)) condition implements the "closure minus host bin" filter
+       mechanically — no per-plugin dependency lists to maintain. -->
   <Target Name="ShipToolPlugins" AfterTargets="Build">
-    <MSBuild Projects="..\WordTool\DocumentTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=" Condition="Exists('..\WordTool\DocumentTool.csproj')" />
-    <MSBuild Projects="..\SpreadsheetTool\SpreadsheetTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=" Condition="Exists('..\SpreadsheetTool\SpreadsheetTool.csproj')" />
-    <MSBuild Projects="..\OfficeTool\OfficeTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=" Condition="Exists('..\OfficeTool\OfficeTool.csproj')" />
+    <MSBuild Projects="..\WordTool\DocumentTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" Condition="Exists('..\WordTool\DocumentTool.csproj')" />
+    <MSBuild Projects="..\SpreadsheetTool\SpreadsheetTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" Condition="Exists('..\SpreadsheetTool\SpreadsheetTool.csproj')" />
+    <MSBuild Projects="..\OfficeTool\OfficeTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" Condition="Exists('..\OfficeTool\OfficeTool.csproj')" />
+    <MSBuild Projects="..\OfficeSupportTool\OfficeSupportTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" Condition="Exists('..\OfficeSupportTool\OfficeSupportTool.csproj')" />
     <ItemGroup>
-      <_DocumentToolPlugin Include="..\WordTool\bin\$(Configuration)\net10.0\DocumentTool.*" Condition="Exists('..\WordTool\bin\$(Configuration)\net10.0\DocumentTool.dll')" />
-      <_SpreadsheetToolPlugin Include="..\SpreadsheetTool\bin\$(Configuration)\net10.0\SpreadsheetTool.*" Condition="Exists('..\SpreadsheetTool\bin\$(Configuration)\net10.0\SpreadsheetTool.dll')" />
-      <_OfficeToolPlugin Include="..\OfficeTool\bin\$(Configuration)\net10.0\OfficeTool.*" Condition="Exists('..\OfficeTool\bin\$(Configuration)\net10.0\OfficeTool.dll')" />
-      <!-- OfficeTool references the vendored OfficeCLI engine (ExternalDependencies/officecli)
-           as a separate library: the engine dll must travel with the adapter into the plugin
-           folder or the ToolPluginHost dependency resolution fails at runtime. -->
-      <_OfficeToolEngine Include="..\OfficeTool\bin\$(Configuration)\net10.0\officecli.dll" Condition="Exists('..\OfficeTool\bin\$(Configuration)\net10.0\officecli.dll')" />
+      <_DocumentToolBin Include="..\WordTool\bin\$(Configuration)\net10.0\**\*" Condition="Exists('..\WordTool\bin\$(Configuration)\net10.0\DocumentTool.dll')" />
+      <_SpreadsheetToolBin Include="..\SpreadsheetTool\bin\$(Configuration)\net10.0\**\*" Condition="Exists('..\SpreadsheetTool\bin\$(Configuration)\net10.0\SpreadsheetTool.dll')" />
+      <_OfficeToolBin Include="..\OfficeTool\bin\$(Configuration)\net10.0\**\*" Condition="Exists('..\OfficeTool\bin\$(Configuration)\net10.0\OfficeTool.dll')" />
+      <_OfficeSupportToolBin Include="..\OfficeSupportTool\bin\$(Configuration)\net10.0\**\*" Condition="Exists('..\OfficeSupportTool\bin\$(Configuration)\net10.0\OfficeSupportTool.dll')" />
+      <_DocumentToolUnique Include="@(_DocumentToolBin)" Condition="!Exists('$(OutputPath)%(Filename)%(Extension)')" />
+      <_SpreadsheetToolUnique Include="@(_SpreadsheetToolBin)" Condition="!Exists('$(OutputPath)%(Filename)%(Extension)')" />
+      <_OfficeToolUnique Include="@(_OfficeToolBin)" Condition="!Exists('$(OutputPath)%(Filename)%(Extension)')" />
+      <_OfficeSupportToolUnique Include="@(_OfficeSupportToolBin)" Condition="!Exists('$(OutputPath)%(Filename)%(Extension)')" />
     </ItemGroup>
-    <Copy SourceFiles="@(_DocumentToolPlugin)" DestinationFolder="$(OutputPath)Tools\DocumentTool" />
-    <Copy SourceFiles="@(_SpreadsheetToolPlugin)" DestinationFolder="$(OutputPath)Tools\SpreadsheetTool" />
-    <Copy SourceFiles="@(_OfficeToolPlugin)" DestinationFolder="$(OutputPath)Tools\OfficeTool" />
-    <Copy SourceFiles="@(_OfficeToolEngine)" DestinationFolder="$(OutputPath)Tools\OfficeTool" />
+    <Copy SourceFiles="@(_DocumentToolUnique)" DestinationFiles="@(_DocumentToolUnique->'$(OutputPath)Tools\DocumentTool\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_SpreadsheetToolUnique)" DestinationFiles="@(_SpreadsheetToolUnique->'$(OutputPath)Tools\SpreadsheetTool\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_OfficeToolUnique)" DestinationFiles="@(_OfficeToolUnique->'$(OutputPath)Tools\OfficeTool\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_OfficeSupportToolUnique)" DestinationFiles="@(_OfficeSupportToolUnique->'$(OutputPath)Tools\OfficeSupportTool\%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
   <!-- Copies the tool plugins into a publish output (same rationale as AIOffice's
        CopyToolPluginsToPublish): the Content-item registration drops files outside the
