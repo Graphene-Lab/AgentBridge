@@ -52,7 +52,8 @@ internal static class Program
             "context-invoice.md",
             "Create an invoice for our company ACME S.p.A. using the data in the attached file 'context-invoice.md' " +
             "(the file contains all the data: seller, customer, line items, payment details). " +
-            "Save the document as 'invoice-INV-2026-0417.docx'.",
+            "Write the ENTIRE document in ENGLISH — all headings, labels and legal text must be in English " +
+            "(company and person names stay as-is). Save the document as 'invoice-INV-2026-0417.docx'.",
             "INV-2026-0417"
         ),
         (
@@ -60,7 +61,9 @@ internal static class Program
             "context-contract.md",
             "Create an employment contract for the new employee Giulia Verdi using the data in the attached " +
             "file 'context-contract.md' (the file contains all the data: employer, employee, position, " +
-            "remuneration, leave, clauses). Save the document as 'employment-contract-Giulia-Verdi.docx'.",
+            "remuneration, leave, clauses). Write the ENTIRE document in ENGLISH — all headings, labels and " +
+            "legal text must be in English (company and person names stay as-is). " +
+            "Save the document as 'employment-contract-Giulia-Verdi.docx'.",
             "Giulia Verdi"
         ),
     };
