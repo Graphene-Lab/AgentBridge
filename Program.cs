@@ -172,8 +172,8 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 var startupProvider = builder.Configuration["LLM:Provider"] ?? "DeepSeekBridge";
 if (!ProviderConfigs.TryGet(startupProvider, out _))
 {
-    Console.WriteLine($"Unknown LLM provider '{startupProvider}' — using '{ProviderConfigs.DefaultProviderName}'.");
-    startupProvider = ProviderConfigs.DefaultProviderName;
+    Console.WriteLine($"Unknown LLM provider '{startupProvider}' — using the first configured provider.");
+    startupProvider = ProviderConfigs.Default.ProviderName;
 }
 
 // Anonymization flag from appsettings "LLM:Anonymize" (default false). Overridable from the
