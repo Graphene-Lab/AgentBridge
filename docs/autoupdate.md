@@ -9,6 +9,12 @@ in `Program.cs` and one menu item in `Tui.cs`.
 At **startup** the app asks GitHub for the latest release. When the released version is
 **newer** than the running one — and auto-update is enabled — it:
 
+0. **refreshes the tool plugins first** (`PluginUpdater`): every loaded plugin is
+   checked against its repo's GitHub release and, when a newer self-contained zip
+   exists, installed into `Tools/<Plugin>/` before the app archive is applied (the
+   archive also carries the plugins — this covers plugin releases that landed between
+   two app releases). When agents are executing the refresh is refused and the whole
+   update is retried after 30 minutes (`ScheduleRetryIn`);
 1. downloads the platform archive (`agentbridge-<rid>.tar.gz`) to `%TEMP%`;
 2. extracts it to a temp folder;
 3. spawns the **new** executable from the temp extract as an updater process

@@ -124,9 +124,30 @@ public static class AutoUpdate
             Log.LogStep($"AutoUpdate: {current} → {tag}, downloading", monitor: true);
             Status($"Update {tag} available — applying, the app will restart");
 
-            // PluginUpdater-based plugin refresh is omitted: the class is not part of the
-            // published Graphene.AIOrchestrator package yet. Restore this block once the
-            // package ships PluginUpdater.
+            // Plugin refresh first: the plugin repos publish self-contained zips to their
+            // GitHub releases; refresh the plugins BEFORE the app archive is applied. The
+            // archive also carries the plugins (belt-and-braces) — this covers plugin
+            // releases that landed between two app releases. When agents are executing the
+            // refresh is refused (AgentBusyException): postpone the whole update and retry
+            // later — the running process keeps the old byte-loaded types until the restart
+            // anyway, and the updater would wait for this process to exit regardless.
+            try
+            {
+                var pluginUpdates = await PluginUpdater.UpdatePluginsAsync(AgentBridge.ToolPlugins.Host);
+                if (pluginUpdates.Count > 0)
+                    Status($"{pluginUpdates.Count} plugin(s) updated — applied on restart");
+            }
+            catch (PluginUpdater.AgentBusyException)
+            {
+                Log.LogStep("AutoUpdate: agents are executing — postponing the update");
+                ScheduleRetryIn(TimeSpan.FromMinutes(30));
+                return;
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"AutoUpdate: plugin refresh failed — {ex.Message}");
+            }
+
             await ApplyAsync(rid, tag);
         }
         catch (Exception ex)
