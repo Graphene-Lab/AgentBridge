@@ -122,6 +122,26 @@ try {
     } finally {
         Pop-Location
     }
+    # GitHub has intermittently failed to create push-triggered runs of release.yml after a
+    # workflow-file change (2026-08-26: five clean pushes produced no run at all, while
+    # workflow_dispatch always worked). Wait for the release run of the gate-off commit to
+    # materialize; if it does not within ~2 minutes, trigger it via workflow_dispatch — the
+    # same release path, provably reliable. The dispatch reads the gate from master HEAD,
+    # still the gate-off commit at this point (the restore push below comes afterwards).
+    $triggerSha = (git rev-parse origin/master).Trim()
+    $runSeen = $false
+    for ($i = 0; $i -lt 20 -and -not $runSeen; $i++) {
+        try {
+            $runs = gh run list --repo Graphene-Lab/AgentBridge --workflow=release.yml --json headSha 2>$null | ConvertFrom-Json
+            $runSeen = [bool]($runs | Where-Object { $_.headSha -eq $triggerSha })
+        } catch { }
+        if (-not $runSeen) { Start-Sleep -Seconds 6 }
+    }
+    if (-not $runSeen) {
+        Write-Host "release run not created by the push within 2 min — falling back to workflow_dispatch"
+        gh workflow run release.yml --repo Graphene-Lab/AgentBridge
+        if ($LASTEXITCODE -ne 0) { throw "gh workflow run failed (exit $LASTEXITCODE) — the release may not have started" }
+    }
     # Success: restore the gate and push it too — the button must leave nothing pending.
     # The restore commit carries [skip ci] so it creates NO workflow run: the release.yml run
     # of the gate-off commit stays the only one in the queue (a second run seconds later
