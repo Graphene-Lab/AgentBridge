@@ -146,7 +146,7 @@ jobs:
           for i in $(seq 1 60); do
             missing=""
             for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric; do
-              if curl -fsS "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" | grep -q "\"$NVER\""; then
+              if curl -fsS --max-time 20 "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" | grep -q "\"$NVER\""; then
                 echo "$pkg $NVER available (attempt $i)"
               else
                 missing="$missing $pkg"
