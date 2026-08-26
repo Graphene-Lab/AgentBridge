@@ -131,8 +131,11 @@
        them up at startup. PLUGIN DISCOVERY IS DYNAMIC: any sibling *Tool repo whose csproj
        name ends with "Tool" is a plugin (DocumentTool, SpreadsheetTool, OfficeTool,
        OfficeSupportTool, ... future ones) — no fixed list to maintain; adding a new plugin
-       repo just works. Skipped when the sibling repos are absent — CI/standalone deploys fetch
-       the plugin release zips from GitHub Releases (see .github/workflows/release.yml).
+       repo just works. Skipped when the sibling repos are absent (empty item → the target
+       Conditions are false) — CI/standalone deploys fetch the plugin release zips from GitHub
+       Releases (see .github/workflows/release.yml). The item is declared OUTSIDE the targets
+       because MSBuild evaluates a target's Condition before its body: an in-body item would
+       make the Condition always false.
        The plugin's OWN files (assembly, pdb, xml, deps.json) are ALWAYS refreshed, so a
        changed plugin never stays stale in the host bin. The extra dependencies travel with the
        plugin ONLY when the host bin does not already provide them (NON-HOST DEPENDENCIES RULE,
@@ -140,16 +143,16 @@
        unique deps (e.g. HtmlToOpenXml/AngleSharp for OfficeSupportTool) travel with it
        automatically — the Exists(%(Filename)) condition implements the "closure minus host
        bin" filter mechanically, no per-plugin dependency lists to maintain. -->
-  <Target Name="ShipToolPlugins" AfterTargets="Build">
-    <ItemGroup>
-      <_PluginProject Include="..\*Tool\*Tool.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <_PluginProject Include="..\*Tool\*Tool.csproj" />
+  </ItemGroup>
+  <Target Name="ShipToolPlugins" AfterTargets="Build" Condition="'@(_PluginProject)' != ''">
     <MSBuild Projects="@(_PluginProject)" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" />
   </Target>
 
   <!-- Runs the shipping helper once per discovered plugin (the MSBuild task batches on the
        per-project metadata Dir/Name, so each plugin lands in its own Tools/<Plugin>/ folder). -->
-  <Target Name="ShipOnePlugin" AfterTargets="ShipToolPlugins">
+  <Target Name="ShipOnePlugin" AfterTargets="ShipToolPlugins" Condition="'@(_PluginProject)' != ''">
     <ItemGroup>
       <_PluginJob Include="@(_PluginProject)">
         <Dir>%(RootDir)%(Directory)</Dir>
