@@ -13,6 +13,17 @@ on:
 permissions:
   contents: write
 
+# Serializes runs of this workflow per branch: with cancel-in-progress: false a NEW run (the
+# gate-restore push, a manual push during the build) never cancels the QUEUED or RUNNING
+# release run. The back-to-back double push of release.ps1 raced GitHub's Actions queue on
+# 2026-08-26: the runs were created in inverted order and the gate-off (release) run was
+# failed while still queued — no release was produced. The restore commit carries [skip ci]
+# (release.ps1) so it creates no run at all; this group is the structural guard for every
+# other quick double push.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   # Release gate: when IsPrerelease=true in AgentBridge.csproj the version carries a
   # "-prerelease" suffix and no GitHub release is created. See AGENTS.md.
@@ -107,6 +118,10 @@ jobs:
       # after the window, packages still missing (only changed repos publish today) are
       # reported with a warning and the build proceeds — the floating 1.* restore picks the
       # latest available version, which for an unchanged repo is identical to today's version.
+      # The list is ONLY the packages the build actually restores (the Graphene.AIOrchestrator
+      # closure): the tool plugins (DocumentTool, SpreadsheetTool, OfficeTool,
+      # PresentationTool, OfficeSupportTool) are NOT build dependencies — they are fetched as
+      # self-contained zips from their own GitHub Releases below, never from NuGet.
       - name: Wait for dependency packages on NuGet
         shell: bash
         env:
@@ -116,7 +131,7 @@ jobs:
           echo "Waiting for dependency packages at version $NVER ..."
           for i in $(seq 1 60); do
             missing=""
-            for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric graphene.documenttool graphene.spreadsheettool; do
+            for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric; do
               if curl -fsS "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" | grep -q "\"$NVER\""; then
                 echo "$pkg $NVER available (attempt $i)"
               else
@@ -148,18 +163,22 @@ jobs:
       # onnxruntime engine is included per-RID by the Microsoft.ML.OnnxRuntime
       # package (libonnxruntime.so / onnxruntime.dll).
       #
-      # Tool plugins (Graphene.DocumentTool, Graphene.SpreadsheetTool) are loaded DYNAMICALLY
-      # from Tools/ by ToolPluginHost (byte-loaded, never referenced): the single-file publish
+      # Tool plugins (Graphene.DocumentTool, Graphene.SpreadsheetTool, Graphene.OfficeTool,
+      # Graphene.PresentationTool, Graphene.OfficeSupportTool) are loaded DYNAMICALLY from
+      # Tools/ by ToolPluginHost (byte-loaded, never referenced): the single-file publish
       # cannot bundle them. Fetch each plugin's self-contained release zip (plugin + non-host
       # deps, minus the AIOrchestrator graph — produced by the plugin repos' standard
       # plugin-release.yml) from its PUBLIC GitHub release and ship it into publish/Tools/<Plugin>/.
-      # NuGet is not part of the plugin deployment channel. (Graphene.OfficeTool is intentionally
-      # NOT shipped here — it is not part of the plugin release set.)
+      # Each payload's assets/ (OfficeSupportTool templates, PresentationTool bg/js, icons) is
+      # merged into publish/assets/ — the plugins resolve host-level assets from
+      # AppContext.BaseDirectory\assets (same convention as the ShipWithAssets dev target and
+      # PluginUpdater.MergeHostAssets at update time). NuGet is not part of the plugin
+      # deployment channel.
       - name: Fetch tool plugins into Tools/
         shell: bash
         run: |
-          mkdir -p /tmp/plugins publish/Tools
-          for tool in DocumentTool SpreadsheetTool; do
+          mkdir -p /tmp/plugins publish/Tools publish/assets
+          for tool in DocumentTool SpreadsheetTool OfficeTool PresentationTool OfficeSupportTool; do
             # Latest release tag via the /releases/latest redirect (no API call, no rate limit).
             tag=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/Graphene-Lab/$tool/releases/latest" \
                   | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1)
@@ -176,6 +195,9 @@ jobs:
             (cd /tmp/plugins && unzip -qo "$zip")
             mkdir -p "publish/Tools/$tool"
             cp -r "/tmp/plugins/$tool/." "publish/Tools/$tool/"
+            if [ -d "/tmp/plugins/$tool/assets" ]; then
+              cp -r "/tmp/plugins/$tool/assets/." "publish/assets/"
+            fi
           done
           find publish/Tools -type f 2>/dev/null | sort || true
 

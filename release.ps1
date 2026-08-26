@@ -4,7 +4,8 @@
 # wait + build + GitHub release (tag auto-created) in release.yml. Afterwards the gate is
 # restored to true AND pushed, so nothing is left pending anywhere: local repos end exactly in
 # sync with origin. This is safe because release.yml pins its tag to the gate-off commit
-# (github.sha) and the restore push's own run is skipped by the gate (IsPrerelease=true).
+# (github.sha) and the restore commit carries [skip ci], so it creates no workflow run at all
+# (no second run racing the release run in GitHub's queue — see Set-IsPrerelease).
 #
 # With -PreRelease it instead pushes everything keeping IsPrerelease=true: no GitHub release,
 # but all pending changes are still committed and pushed, and the dependency repos still
@@ -46,7 +47,7 @@ $gateRegex = '<IsPrerelease>\s*(true|false)\s*</IsPrerelease>'
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $syncMsg = "Update at $(Get-Date -Format HH:mm)"
 
-function Set-IsPrerelease([string]$value, [switch]$Push) {
+function Set-IsPrerelease([string]$value, [switch]$Push, [switch]$SkipCi) {
     $content = [regex]::Replace([System.IO.File]::ReadAllText($csprojPath), $gateRegex, "<IsPrerelease>$value</IsPrerelease>", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     [System.IO.File]::WriteAllText($csprojPath, $content, $utf8NoBom)
     Push-Location $root
@@ -57,7 +58,14 @@ function Set-IsPrerelease([string]$value, [switch]$Push) {
         if ($LASTEXITCODE -ne 0) {
             # Commit ONLY the csproj (-- <path>): a bare "git commit" would sweep unrelated
             # staged changes into the gate commit — they belong in the sync commit instead.
-            git commit -m "chore: IsPrerelease=$value" -- AgentBridge.csproj | Out-Null
+            # The RESTORE commit (gate back on) carries [skip ci]: the release.yml run of the
+            # gate-off commit must be the ONLY run in the queue. A second run created seconds
+            # later (the restore push) raced GitHub's queue on 2026-08-26 — the runs were
+            # created in inverted order and the gate-off run was failed while queued, so the
+            # release never happened. [skip ci] makes the restore push create NO run at all.
+            $msg = "chore: IsPrerelease=$value"
+            if ($SkipCi) { $msg += " [skip ci]" }
+            git commit -m $msg -- AgentBridge.csproj | Out-Null
             if ($LASTEXITCODE -ne 0) { throw "git commit failed (exit $LASTEXITCODE)" }
         }
         if ($Push) {
@@ -115,7 +123,11 @@ try {
         Pop-Location
     }
     # Success: restore the gate and push it too — the button must leave nothing pending.
-    Set-IsPrerelease 'true' -Push
+    # The restore commit carries [skip ci] so it creates NO workflow run: the release.yml run
+    # of the gate-off commit stays the only one in the queue (a second run seconds later
+    # raced GitHub's queue on 2026-08-26 — the runs were created in inverted order and the
+    # gate-off run was failed while queued, so the release never happened).
+    Set-IsPrerelease 'true' -Push -SkipCi
 } catch {
     # Failure: restore the gate locally only (no push — a retry must start from the gate-off
     # state) and rethrow the real error so the terminal shows the actual cause.

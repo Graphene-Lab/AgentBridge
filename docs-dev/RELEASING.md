@@ -155,7 +155,34 @@ Consequences:
 
 All are versioned `1.yy.MM.dd` and published on a `v*` tag push (per-repo `publish.yml`). The
 **wait list** in `release.yml` ("Wait for dependency packages on NuGet") must contain every
-package AgentBridge depends on, in **lowercase**.
+package AgentBridge depends on, in **lowercase** — and NOTHING else (the tool plugins are not
+build dependencies, see below).
+
+### Tool plugins — GitHub Releases channel (not NuGet)
+
+The agent-tool plugins (`DocumentTool`, `SpreadsheetTool`, `OfficeTool`, `PresentationTool`,
+`OfficeSupportTool`) are **not** build dependencies and are **not** in the NuGet wait list.
+They are loaded dynamically from `Tools/` by `ToolPluginHost` (byte-loaded, never referenced)
+and ship in the release archives as **self-contained zips from their own GitHub Releases**:
+
+- every plugin repo (`Graphene-Lab/<Tool>`, PUBLIC) publishes a `<Tool>-<version>.zip` on each
+  `v*` tag via its standard `plugin-release.yml` (plugin dll + xml + assets + unique deps,
+  minus the AIOrchestrator graph);
+- `release.yml` fetches the **latest** release zip of each plugin into `publish/Tools/<Tool>/`
+  and merges each payload's `assets/` into the host `assets/` (the plugins resolve host-level
+  assets from `AppContext.BaseDirectory\assets`);
+- the plugins' NuGet packages (`Graphene.DocumentTool`, …) exist for **third-party consumers
+  only** — the AgentBridge build and release never use them.
+
+Consequences:
+
+- Plugin and host releases are **independent**: a new plugin version is published by tagging
+  the plugin repo (`git tag v1.yy.MM.dd && git push origin v1.yy.MM.dd`), and the next
+  AgentBridge release ships it automatically (no NuGet wait, no version coordination).
+- A plugin with **no release yet** is skipped with a `::warning::` in the fetch step — the
+  tool is simply missing from `Tools/` until its repo publishes one.
+- The AgentBridge release gate (`IsPrerelease`) controls the host release only; it has no
+  effect on plugin publishing.
 
 ## Adding a new dependency project
 
