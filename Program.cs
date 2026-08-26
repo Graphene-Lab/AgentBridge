@@ -490,6 +490,8 @@ app.MapPost("/v1/files", async (IFormFile file, [FromQuery] string purpose = "as
     var fileId = $"file-{Guid.NewGuid():N}";
     var attachment = new FileAttachment(file.FileName, content);
     var markdown = AgentHarness.ConvertAttachmentToMarkdown(attachment);
+    Log.LogStep($"POST /v1/files: '{file.FileName}' ({file.Length} bytes) → " +
+        (string.IsNullOrEmpty(markdown) ? "no markdown (unsupported/empty/unreadable)" : $"converted ({markdown.Length} chars)"));
 
     FileCache.Store(new CachedFile
     {
