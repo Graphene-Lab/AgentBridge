@@ -17,6 +17,12 @@
          Date-based auto version, same scheme as UISupportBlazor/UISupportGeneric
          (1.yy.MM.dd, e.g. 1.26.08.09). -->
     <IsPrerelease>true</IsPrerelease>
+    <!-- NuGet wait marker (release.ps1 / release.yml): true = the release build must wait for
+         today's core dependency packages on nuget.org (a core repo changed today and its
+         package is still propagating); false = no core repo changed since its last tag, so the
+         wait is skipped. Default true (conservative: a manual gate-off push without
+         release.ps1 still waits). -->
+    <NuGetWait>true</NuGetWait>
     <!-- Naiad (transitive dep of Graphene.AIOrchestrator) SponsorCheck: the property is
          required when building Release; set in every project consuming the package. -->
     <Papyrine_SponsorshipLicenseIgnored>true</Papyrine_SponsorshipLicenseIgnored>

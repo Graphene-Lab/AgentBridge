@@ -12,8 +12,9 @@
 # publish today's NuGet packages. The gate is flipped to true first when needed, so the pushed
 # commit can never trigger a release. Nothing is left pending either.
 #
-# Any failure (sync-all error, failed push) aborts the release, restores the gate to true
-# locally (no push — a retry must start from the gate-off state) and rethrows the real error.
+# Any failure (sync-all error, failed push, missing core-repo tag) aborts the release,
+# restores the gate to true locally (no push — a retry must start from the gate-off state)
+# and rethrows the real error.
 #
 # Usage:  powershell -File release.ps1 [-Message "<empty-commit message>"] [-PreRelease]
 #   -Message: commit message used for the empty trigger commit when the gate is already off
@@ -44,6 +45,7 @@ $env:SYNC_ALL_ACTIVE = '1'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $csprojPath = Join-Path $root 'AgentBridge.csproj'
 $gateRegex = '<IsPrerelease>\s*(true|false)\s*</IsPrerelease>'
+$nugetWaitRegex = '<NuGetWait>\s*(true|false)\s*</NuGetWait>'
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $syncMsg = "Update at $(Get-Date -Format HH:mm)"
 
@@ -88,6 +90,96 @@ function Invoke-SyncAll {
     }
 }
 
+# The AgentBridge build restores Graphene.AIOrchestrator + its transitive deps from NuGet
+# (the CI is public, the sibling repos are private). Those packages are date-versioned and
+# published ONLY on a v* tag push of their repo (publish.yml). The 30-min NuGet wait in
+# release.yml is therefore needed ONLY when a core repo changed since its last tag AND its
+# today's package is still propagating on nuget.org. Assert-CorePackagesReady computes that:
+# a changed core repo REQUIRES a pushed today-tag — otherwise the release would silently ship
+# the previous engine — and the resulting $script:needsNuGetWait becomes the <NuGetWait>
+# marker shipped inside the gate-off commit (read by release.yml).
+$script:coreRepos = @(
+    @{ Dir = 'AIOrchestrator';   Pkg = 'graphene.aiorchestrator' },
+    @{ Dir = 'UISupportGeneric'; Pkg = 'uisupportgeneric' },
+    @{ Dir = 'AllToMarkdown';    Pkg = 'alltomarkdown' },
+    @{ Dir = 'MermaidRendering'; Pkg = 'mermaidrendering' },
+    @{ Dir = 'ReverseMarkdown';  Pkg = 'graphene.reversemarkdown' }
+)
+
+function Get-TodayVersion {
+    # 1.yy.MM.dd and its NuGet-normalized form (leading zeros stripped per segment).
+    $raw = '1.' + (Get-Date -Format 'yyyy.MM.dd')
+    $norm = (($raw -split '\.') | ForEach-Object { [string][int]$_ }) -join '.'
+    return @{ Raw = $raw; Norm = $norm }
+}
+
+function Test-PackageVisible([string]$pkg, [string]$ver) {
+    try {
+        $idx = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 20 "https://api.nuget.org/v3-flatcontainer/$pkg/index.json").Content
+        return $idx.Contains('"' + $ver + '"')
+    } catch {
+        return $false
+    }
+}
+
+function Assert-CorePackagesReady {
+    $v = Get-TodayVersion
+    $script:needsNuGetWait = $false
+    $waiting = @()
+    foreach ($r in $script:coreRepos) {
+        $dir = Join-Path $root "..\$($r.Dir)"
+        Push-Location $dir
+        try {
+            $lastTag = (git describe --tags --abbrev=0 2>$null | Out-String).Trim()
+            $changed = $false
+            if ($lastTag) {
+                $ahead = (git rev-list --count "$lastTag..HEAD" 2>$null | Out-String).Trim()
+                if ($ahead -match '^\d+$' -and [int]$ahead -gt 0) { $changed = $true }
+            } else {
+                $changed = $true
+            }
+            if (-not $changed) {
+                $dirty = @(git status --porcelain)
+                if ($dirty.Count -gt 0) { $changed = $true }
+            }
+            if (-not $changed) {
+                Write-Host "core OK (unchanged since $lastTag): $($r.Dir)"
+                continue
+            }
+            # Changed since its last publish → today's tag is mandatory, otherwise the
+            # release would silently ship the previous engine (the wait cannot help: a
+            # changed-but-untagged repo never publishes today's package).
+            $tagLocal = (git tag --list "v$($v.Raw)" | Out-String).Trim()
+            if (-not $tagLocal) {
+                throw "core repo $($r.Dir) changed since $lastTag but has no v$($v.Raw) tag — run: git -C `"$dir`" tag v$($v.Raw) && git -C `"$dir`" push origin v$($v.Raw)"
+            }
+            $tagRemote = git ls-remote origin "refs/tags/v$($v.Raw)" 2>$null | Select-String -Quiet "refs/tags/v$($v.Raw)"
+            if (-not $tagRemote) {
+                throw "core repo $($r.Dir): tag v$($v.Raw) exists locally but is NOT pushed — run: git -C `"$dir`" push origin v$($v.Raw)"
+            }
+            if (Test-PackageVisible $r.Pkg $v.Norm) {
+                Write-Host "core OK (package $($v.Norm) visible on nuget.org): $($r.Dir)"
+            } else {
+                $script:needsNuGetWait = $true
+                $waiting += $r.Dir
+                Write-Host "core WAIT (package $($v.Norm) still propagating): $($r.Dir)"
+            }
+        } finally {
+            Pop-Location
+        }
+    }
+    if ($script:needsNuGetWait) {
+        Write-Host "NuGet wait needed for: $($waiting -join ', ')"
+    } else {
+        Write-Host "No NuGet wait needed — release will skip the 30-min dependency wait."
+    }
+}
+
+function Set-NuGetWait([string]$value) {
+    $content = [regex]::Replace([System.IO.File]::ReadAllText($csprojPath), $nugetWaitRegex, "<NuGetWait>$value</NuGetWait>", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    [System.IO.File]::WriteAllText($csprojPath, $content, $utf8NoBom)
+}
+
 # PreRelease: push the current state WITHOUT releasing. The pushed commit must keep
 # IsPrerelease=true (release.yml would skip the GitHub release) — flip it first if the working
 # copy has it false, then commit + push everything (sync-all: deps publish today's NuGet).
@@ -103,6 +195,11 @@ if ($PreRelease) {
 try {
     Write-Host "=== Release: IsPrerelease=false + commit/push all pending changes (release trigger) ==="
     $originBefore = (git rev-parse origin/master).Trim()
+    # Pre-flight: every core repo changed since its last tag must carry today's tag (pushed),
+    # otherwise the release would silently ship the previous engine. Also computes whether the
+    # NuGet wait is needed at all (<NuGetWait> marker shipped in the gate-off commit).
+    Assert-CorePackagesReady
+    Set-NuGetWait $(if ($script:needsNuGetWait) { 'true' } else { 'false' })
     Set-IsPrerelease 'false'
     Invoke-SyncAll
     # sync-all pushed master whenever anything changed (the "chore: IsPrerelease=false" commit
@@ -146,12 +243,15 @@ try {
     # The restore commit carries [skip ci] so it creates NO workflow run: the release.yml run
     # of the gate-off commit stays the only one in the queue (a second run seconds later
     # raced GitHub's queue on 2026-08-26 — the runs were created in inverted order and the
-    # gate-off run was failed while queued, so the release never happened).
+    # gate-off run was failed while queued, so the release never happened). The NuGetWait
+    # marker is reset to its conservative default (true) so a manual gate-off push without
+    # release.ps1 still waits.
+    Set-NuGetWait 'true'
     Set-IsPrerelease 'true' -Push -SkipCi
 } catch {
     # Failure: restore the gate locally only (no push — a retry must start from the gate-off
     # state) and rethrow the real error so the terminal shows the actual cause.
-    try { Set-IsPrerelease 'true' } catch { Write-Warning "could not restore IsPrerelease=true — set it manually: $_" }
+    try { Set-NuGetWait 'true'; Set-IsPrerelease 'true' } catch { Write-Warning "could not restore IsPrerelease=true — set it manually: $_" }
     throw
 }
 Write-Host "Done. Release runs in GitHub Actions (https://github.com/Graphene-Lab/AgentBridge/actions)."

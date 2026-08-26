@@ -68,23 +68,38 @@ OS state. The automatic updater enforces these rules — see [autoupdate.md](aut
 
 ## How the release wait works (why you can just wait)
 
-Only the dependency repos that were actually **pushed** publish today's version: `sync-all.ps1`
-commits a repo only when it has changes, so an unchanged repo keeps its previous day's package
-(the content is identical — a date-versioned re-publish would not differ).
+The wait exists ONLY to guarantee that a release ships today's version of a core dependency
+that CHANGED today: the floating `1.*` restore would otherwise pick the latest available
+package — i.e. the previous engine when a repo changed but its today's package is still
+propagating.
 
-The wait step in `release.yml` (mirrored by `release.ps1`) therefore uses a **global 30-minute
-window** (nuget.org's official propagation time), not a per-package timeout:
+**The wait is now conditional.** Before releasing, `release.ps1` runs a pre-flight check
+(`Assert-CorePackagesReady`) over the 5 core repos:
 
-- every cycle (30 s in the workflow) it checks **all** packages at today's version;
-- it stops as soon as every one is visible — usually a few minutes, often less;
-- after the 30-minute window, any package still missing means *that repo had no publish
-  today*: it is reported with a `::warning::` and the build **proceeds** with the latest
-  available version (the floating `1.*` restore picks it; for an unchanged repo it is
-  identical to today's version).
+- a core repo **unchanged since its last tag** (no commits, no pending changes) → nothing to
+  publish, no wait needed for it;
+- a core repo **changed since its last tag** → it MUST carry today's pushed tag
+  `v1.yy.MM.dd` — otherwise `release.ps1` **aborts** with the exact command to run (a release
+  without it would silently ship the stale engine; the wait cannot help, because a
+  changed-but-untagged repo never publishes today's package);
+- with the tag in place: if today's package is **already visible** on nuget.org → no wait;
+  if it is **still propagating** → the `<NuGetWait>` marker is set.
 
-Consequence: after tagging `v1.yy.MM.dd` there is **nothing to monitor** — either all
-packages are visible and the build starts immediately, or it waits at most 30 minutes and
-then builds anyway. The release cannot fail on missing packages anymore.
+The marker travels inside the gate-off commit (`<NuGetWait>true|false</NuGetWait>` in
+AgentBridge.csproj): `release.yml` runs the 30-minute wait step **only when it is true**.
+The push trigger and `workflow_dispatch` behave identically. A manual gate-off push without
+release.ps1 leaves the marker at its conservative default (`true`).
+
+When the wait does run, it uses a **global 30-minute window** (nuget.org's official
+propagation time): every cycle (30 s) it checks **all** packages at today's version and stops
+as soon as every one is visible; after the window, packages still missing are reported with a
+`::warning::` and the build **proceeds** with the latest available version (for an unchanged
+repo identical to today's version).
+
+Consequence: a release on a day when **no core repo changed** skips the wait entirely
+(fast); when a core repo changed and was tagged, the wait resolves in a few minutes; the only
+"blocking" case is a changed core repo without a tag — a clear abort with instructions, never
+a silent stale release.
 
 ## Version scheme and the prerelease flag
 

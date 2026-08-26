@@ -32,6 +32,7 @@ jobs:
     outputs:
       version: ${{ steps.ver.outputs.version }}
       do_release: ${{ steps.gate.outputs.do_release }}
+      need_nuget_wait: ${{ steps.nuget.outputs.need_nuget_wait }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,6 +72,16 @@ jobs:
           else
             echo "do_release=true" >> "$GITHUB_OUTPUT"
           fi
+      # NuGetWait marker (set by release.ps1 from its core-repo pre-check): false means no
+      # core repo changed since its last tag → the 30-min dependency wait is skipped entirely
+      # (release.ps1 aborts the release if a changed core repo has no today-tag, so a missing
+      # marker can never silently ship a stale engine).
+      - name: Read NuGet wait marker
+        id: nuget
+        shell: bash
+        run: |
+          WAIT=$(dotnet msbuild AgentBridge/AgentBridge.csproj -getProperty:NuGetWait -nologo | grep -oE 'true|false' | head -n1)
+          echo "need_nuget_wait=${WAIT:-true}" >> "$GITHUB_OUTPUT"
 
   build:
     needs: check-version
@@ -112,17 +123,20 @@ jobs:
           dotnet-version: '10.0.x'
 
       # The dependency NuGet packages are date-versioned (1.yy.MM.dd) and published by each
-      # repo's publish.yml when sync-all.ps1 pushed them; nuget.org propagation is not
-      # instant (official figures: up to 30 minutes). A GLOBAL 30-minute window from the start
-      # of the wait: each cycle checks ALL packages and ends as soon as every one is visible;
-      # after the window, packages still missing (only changed repos publish today) are
-      # reported with a warning and the build proceeds — the floating 1.* restore picks the
-      # latest available version, which for an unchanged repo is identical to today's version.
+      # repo's publish.yml when a v* tag is pushed; nuget.org propagation is not instant
+      # (official figures: up to 30 minutes). The wait runs ONLY when release.ps1 detected a
+      # changed core repo whose today's package is still propagating (<NuGetWait> marker):
+      # with no core change the wait would burn 30 minutes for packages that will never exist.
+      # The 30-minute window checks ALL packages each cycle and ends as soon as every one is
+      # visible; after the window, packages still missing are reported with a warning and the
+      # build proceeds (the floating 1.* restore picks the latest available version, which for
+      # an unchanged repo is identical to today's version).
       # The list is ONLY the packages the build actually restores (the Graphene.AIOrchestrator
       # closure): the tool plugins (DocumentTool, SpreadsheetTool, OfficeTool,
       # PresentationTool, OfficeSupportTool) are NOT build dependencies — they are fetched as
       # self-contained zips from their own GitHub Releases below, never from NuGet.
       - name: Wait for dependency packages on NuGet
+        if: needs.check-version.outputs.need_nuget_wait == 'true'
         shell: bash
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
