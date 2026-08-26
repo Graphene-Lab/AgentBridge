@@ -108,7 +108,7 @@ $script:coreRepos = @(
 
 function Get-TodayVersion {
     # 1.yy.MM.dd and its NuGet-normalized form (leading zeros stripped per segment).
-    $raw = '1.' + (Get-Date -Format 'yyyy.MM.dd')
+    $raw = '1.' + (Get-Date -Format 'yy.MM.dd')
     $norm = (($raw -split '\.') | ForEach-Object { [string][int]$_ }) -join '.'
     return @{ Raw = $raw; Norm = $norm }
 }
