@@ -422,6 +422,24 @@ internal static class Program
             var maxR = used.Max(p => p.R);
             var maxC = used.Max(p => p.C);
 
+            // Primary-table detection: agents sometimes duplicate the same block at different
+            // offsets (set_range replayed on A1, E1, I1...). Render only the FIRST widest run
+            // of contiguous non-empty columns, so the PNG shows ONE table, not the duplicates.
+            var colCounts = new int[maxC + 1];
+            foreach (var p in used) colCounts[p.C]++;
+            var groups = new List<(int Start, int End)>();
+            for (int c = 0; c <= maxC;)
+            {
+                if (colCounts[c] == 0) { c++; continue; }
+                int s = c;
+                while (c <= maxC && colCounts[c] > 0) c++;
+                groups.Add((s, c - 1));
+            }
+            var primary = groups.OrderByDescending(g => g.End - g.Start + 1).ThenBy(g => g.Start).First();
+            int cMin = primary.Start, cMax = primary.End;
+            var usedRows = used.Where(p => p.C >= cMin && p.C <= cMax).ToList();
+            if (usedRows.Count > 0) maxR = usedRows.Max(p => p.R);
+
             const int margin = 50;
             // Title.
             using (var titleFont = new Font("Segoe UI", 34, FontStyle.Bold))
@@ -435,15 +453,15 @@ internal static class Program
             var tableBottom = tableTop + tableHeight;
             var headerHeight = 56;
             var rowHeight = 46;
-            var nCols = maxC + 1;
+            var nCols = cMax - cMin + 1;
             var colWidth = (Width - 2 * margin) / nCols;
 
             // Header row.
-            for (int c = 0; c < nCols; c++)
+            for (int cc = 0; cc < nCols; cc++)
             {
-                var cell = sheet.Get(0, c);
+                var cell = sheet.Get(0, cMin + cc);
                 var fill = cell != null ? styles.FillColors[cell.StyleIndex] : "";
-                var rect = new Rectangle(margin + c * colWidth, tableTop, colWidth, headerHeight);
+                var rect = new Rectangle(margin + cc * colWidth, tableTop, colWidth, headerHeight);
                 using var brush = fill.Length == 6 ? new SolidBrush(ColorTranslator.FromHtml("#" + fill)) : new SolidBrush(Color.FromArgb(220, 228, 240));
                 g.FillRectangle(brush, rect);
                 g.DrawRectangle(Pens.Silver, rect);
@@ -456,10 +474,10 @@ internal static class Program
             {
                 var y = tableTop + headerHeight + (r - 1) * rowHeight;
                 if (y + rowHeight > tableBottom) break;
-                for (int c = 0; c < nCols; c++)
+                for (int cc = 0; cc < nCols; cc++)
                 {
-                    var cell = sheet.Get(r, c);
-                    var rect = new Rectangle(margin + c * colWidth, y, colWidth, rowHeight);
+                    var cell = sheet.Get(r, cMin + cc);
+                    var rect = new Rectangle(margin + cc * colWidth, y, colWidth, rowHeight);
                     g.DrawRectangle(Pens.Silver, rect);
                     if (cell == null) continue;
                     var isNumber = IsNumeric(cell, doc);
@@ -470,8 +488,8 @@ internal static class Program
                 }
             }
 
-            // ── Chart ──
-            var chart = BuildChart(sheet, doc, maxR, maxC);
+            // ── Chart (from the primary table columns) ──
+            var chart = BuildChart(sheet, doc, maxR, cMin, cMax);
             if (chart != null)
                 DrawChart(g, chart.Value, margin, tableBottom + 40, Width - 2 * margin, Height - tableBottom - 120);
 
@@ -502,11 +520,11 @@ internal static class Program
             return (c.R * 299 + c.G * 587 + c.B * 114) / 1000 < 160 ? Color.White : Color.Black;
         }
 
-        // Chart data: categories = first column text values, series = numeric columns.
+        // Chart data: categories = first column of the primary table, series = numeric columns.
         private static (List<string> Categories, List<(string Name, double[] Values)> Series)? BuildChart(
-            Sheet sheet, XlsxDoc doc, int maxR, int maxC)
+            Sheet sheet, XlsxDoc doc, int maxR, int cMin, int cMax)
         {
-            var catCol = 0;
+            var catCol = cMin;
             var categories = new List<string>();
             for (int r = 1; r <= maxR; r++)
             {
@@ -518,7 +536,7 @@ internal static class Program
             if (categories.Count < 2) return null;
 
             var series = new List<(string, double[])>();
-            for (int c = 1; c <= maxC; c++)
+            for (int c = cMin + 1; c <= cMax; c++)
             {
                 var name = Resolve(sheet.Get(0, c), doc) ?? $"Col {c + 1}";
                 var values = new List<double>();
