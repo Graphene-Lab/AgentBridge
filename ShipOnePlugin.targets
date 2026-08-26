@@ -1,0 +1,32 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- Helper for the dynamic plugin shipping (BuildToolPlugins/ShipToolPlugins): runs once per
+       discovered plugin, invoked by the host csproj through the MSBuild task with
+       PluginDir / PluginName / Configuration / OutputPath properties.
+       The plugin's OWN files (assembly, pdb, xml, deps.json) are ALWAYS refreshed; the extra
+       dependencies are copied ONLY when the host bin does not already provide them
+       (NON-HOST DEPENDENCIES RULE, AGENT_TOOLS_GUIDE §8). -->
+
+  <Target Name="Ship">
+    <ItemGroup>
+      <_MainFiles Include="$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).dll" />
+      <_MainFiles Include="$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).pdb" />
+      <_MainFiles Include="$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).deps.json" />
+      <_MainFiles Include="$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).xml" />
+      <_DepsFiles Include="$(PluginDir)bin\$(Configuration)\net10.0\**\*"
+                  Exclude="$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).dll;$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).pdb;$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).deps.json;$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).xml;$(PluginDir)bin\$(Configuration)\net10.0\assets\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_MainFiles)" DestinationFolder="$(OutputPath)Tools\$(PluginName)\" />
+    <Copy SourceFiles="@(_DepsFiles)" DestinationFolder="$(OutputPath)Tools\$(PluginName)\" Condition="!Exists('$(OutputPath)%(Filename)%(Extension)')" />
+  </Target>
+
+  <!-- Same as Ship plus the host-level assets (PresentationTool bg/js, OfficeSupportTool
+       templates) copied at the app root. -->
+  <Target Name="ShipWithAssets" DependsOnTargets="Ship">
+    <ItemGroup>
+      <_AssetsFiles Include="$(PluginDir)bin\$(Configuration)\net10.0\assets\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AssetsFiles)" DestinationFolder="$(OutputPath)assets\%(RecursiveDir)" />
+  </Target>
+
+</Project>

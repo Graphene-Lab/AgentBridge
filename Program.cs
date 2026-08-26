@@ -187,7 +187,21 @@ var anonymize = builder.Configuration.GetValue<bool>("LLM:Anonymize");
 // searches are needed, to skip the multi-minute full index on large folders. MUST be set
 // before Setup.Load() below — Setup.RagDocumentProcessor is created lazily on first use,
 // so this early assignment is what the processor sees (see Setup.SkipIndexingOnStartup).
-Setup.SkipIndexingOnStartup = builder.Configuration.GetValue<bool>("SkipIndexingOnStartup");
+// The CLI flag is read DIRECTLY from args (not only from the command-line configuration
+// provider, which may not surface it): "--SkipIndexingOnStartup true" / "=true" / bare flag.
+var skipIndexing = false;
+for (int i = 0; i < args.Length; i++)
+{
+    if (!args[i].StartsWith("--SkipIndexingOnStartup", StringComparison.OrdinalIgnoreCase)) continue;
+    if (args[i].Contains('='))
+        bool.TryParse(args[i].Split('=', 2)[1], out skipIndexing);
+    else if (i + 1 < args.Length && bool.TryParse(args[i + 1], out var v))
+        skipIndexing = v;
+    else
+        skipIndexing = true;
+    break;
+}
+Setup.SkipIndexingOnStartup = skipIndexing || builder.Configuration.GetValue<bool>("SkipIndexingOnStartup");
 
 // This host has no settings UI of its own: load credentials persisted by the previous
 // run (Setup.Save) from %LocalAppData%\{app}\setup.json — SMTP/IMAP for EMailTool.

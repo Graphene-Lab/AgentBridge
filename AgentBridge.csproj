@@ -122,37 +122,36 @@
     <None Include="scripts\setup-telegram.bat;scripts\setup-telegram.sh;scripts\sip-config.bat;scripts\sip-config.ps1;scripts\sip-config.sh" CopyToOutputDirectory="PreserveNewest" TargetPath="scripts/%(Filename)%(Extension)" />
   </ItemGroup>
   <!-- Ship the tool plugins into Tools/<Plugin>/ so the dynamic ToolPluginHost loader can pick
-       them up at startup. Sibling build outputs on dev machines (same pattern as AIOffice's
-       BuildToolPlugins); skipped when the sibling repos are absent — CI/standalone deploys fetch
+       them up at startup. PLUGIN DISCOVERY IS DYNAMIC: any sibling *Tool repo whose csproj
+       name ends with "Tool" is a plugin (DocumentTool, SpreadsheetTool, OfficeTool,
+       OfficeSupportTool, ... future ones) — no fixed list to maintain; adding a new plugin
+       repo just works. Skipped when the sibling repos are absent — CI/standalone deploys fetch
        the plugin release zips from GitHub Releases (see .github/workflows/release.yml).
-       NON-HOST DEPENDENCIES RULE (AGENT_TOOLS_GUIDE §8): the plugins are built with
-       CopyLocalLockFileAssemblies=true (full closure in their bin) and ONLY the files the host
-       bin does NOT already provide are copied — AIOrchestrator and its graph stay with the host,
-       the plugin's unique deps (e.g. HtmlToOpenXml/AngleSharp for OfficeSupportTool) travel with
-       it. The Exists(%(Filename)) condition implements the "closure minus host bin" filter
-       mechanically — no per-plugin dependency lists to maintain. -->
+       The plugin's OWN files (assembly, pdb, xml, deps.json) are ALWAYS refreshed, so a
+       changed plugin never stays stale in the host bin. The extra dependencies travel with the
+       plugin ONLY when the host bin does not already provide them (NON-HOST DEPENDENCIES RULE,
+       AGENT_TOOLS_GUIDE §8): AIOrchestrator and its graph stay with the host, the plugin's
+       unique deps (e.g. HtmlToOpenXml/AngleSharp for OfficeSupportTool) travel with it
+       automatically — the Exists(%(Filename)) condition implements the "closure minus host
+       bin" filter mechanically, no per-plugin dependency lists to maintain. -->
   <Target Name="ShipToolPlugins" AfterTargets="Build">
-    <MSBuild Projects="..\WordTool\DocumentTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" Condition="Exists('..\WordTool\DocumentTool.csproj')" />
-    <MSBuild Projects="..\SpreadsheetTool\SpreadsheetTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" Condition="Exists('..\SpreadsheetTool\SpreadsheetTool.csproj')" />
-    <MSBuild Projects="..\OfficeTool\OfficeTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" Condition="Exists('..\OfficeTool\OfficeTool.csproj')" />
-    <MSBuild Projects="..\OfficeSupportTool\OfficeSupportTool.csproj" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" Condition="Exists('..\OfficeSupportTool\OfficeSupportTool.csproj')" />
     <ItemGroup>
-      <_DocumentToolBin Include="..\WordTool\bin\$(Configuration)\net10.0\**\*" Condition="Exists('..\WordTool\bin\$(Configuration)\net10.0\DocumentTool.dll')" />
-      <_SpreadsheetToolBin Include="..\SpreadsheetTool\bin\$(Configuration)\net10.0\**\*" Condition="Exists('..\SpreadsheetTool\bin\$(Configuration)\net10.0\SpreadsheetTool.dll')" />
-      <_OfficeToolBin Include="..\OfficeTool\bin\$(Configuration)\net10.0\**\*" Condition="Exists('..\OfficeTool\bin\$(Configuration)\net10.0\OfficeTool.dll')" />
-      <_OfficeSupportToolBin Include="..\OfficeSupportTool\bin\$(Configuration)\net10.0\**\*" Condition="Exists('..\OfficeSupportTool\bin\$(Configuration)\net10.0\OfficeSupportTool.dll')" />
-      <!-- The plugin's OWN assembly must always be refreshed (its code changes are why we
-           rebuild); the !Exists filter applies ONLY to the extra dependencies, so a changed
-           plugin never stays stale in the host bin. -->
-      <_DocumentToolUnique Include="@(_DocumentToolBin)" Condition="$([System.String]::Copy('%(Filename)%(Extension)').Equals('DocumentTool.dll')) or !Exists('$(OutputPath)%(Filename)%(Extension)')" />
-      <_SpreadsheetToolUnique Include="@(_SpreadsheetToolBin)" Condition="$([System.String]::Copy('%(Filename)%(Extension)').Equals('SpreadsheetTool.dll')) or !Exists('$(OutputPath)%(Filename)%(Extension)')" />
-      <_OfficeToolUnique Include="@(_OfficeToolBin)" Condition="$([System.String]::Copy('%(Filename)%(Extension)').Equals('OfficeTool.dll')) or !Exists('$(OutputPath)%(Filename)%(Extension)')" />
-      <_OfficeSupportToolUnique Include="@(_OfficeSupportToolBin)" Condition="$([System.String]::Copy('%(Filename)%(Extension)').Equals('OfficeSupportTool.dll')) or !Exists('$(OutputPath)%(Filename)%(Extension)')" />
+      <_PluginProject Include="..\*Tool\*Tool.csproj" />
     </ItemGroup>
-    <Copy SourceFiles="@(_DocumentToolUnique)" DestinationFiles="@(_DocumentToolUnique->'$(OutputPath)Tools\DocumentTool\%(RecursiveDir)%(Filename)%(Extension)')" />
-    <Copy SourceFiles="@(_SpreadsheetToolUnique)" DestinationFiles="@(_SpreadsheetToolUnique->'$(OutputPath)Tools\SpreadsheetTool\%(RecursiveDir)%(Filename)%(Extension)')" />
-    <Copy SourceFiles="@(_OfficeToolUnique)" DestinationFiles="@(_OfficeToolUnique->'$(OutputPath)Tools\OfficeTool\%(RecursiveDir)%(Filename)%(Extension)')" />
-    <Copy SourceFiles="@(_OfficeSupportToolUnique)" DestinationFiles="@(_OfficeSupportToolUnique->'$(OutputPath)Tools\OfficeSupportTool\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <MSBuild Projects="@(_PluginProject)" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" />
+  </Target>
+
+  <!-- Runs the shipping helper once per discovered plugin (the MSBuild task batches on the
+       per-project metadata Dir/Name, so each plugin lands in its own Tools/<Plugin>/ folder). -->
+  <Target Name="ShipOnePlugin" AfterTargets="ShipToolPlugins">
+    <ItemGroup>
+      <_PluginJob Include="@(_PluginProject)">
+        <Dir>%(RootDir)%(Directory)</Dir>
+        <Name>%(Filename)</Name>
+      </_PluginJob>
+    </ItemGroup>
+    <MSBuild Projects="$(MSBuildThisFileDirectory)ShipOnePlugin.targets" Targets="Ship"
+             Properties="PluginDir=%(_PluginJob.Dir);PluginName=%(_PluginJob.Name);Configuration=$(Configuration);OutputPath=$(OutputPath)" />
   </Target>
   <!-- Copies the tool plugins into a publish output (same rationale as AIOffice's
        CopyToolPluginsToPublish): the Content-item registration drops files outside the
