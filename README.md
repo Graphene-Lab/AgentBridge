@@ -8,6 +8,8 @@ AgentBridge is a self-hosted server that runs AI agents with two interfaces in a
 Chat in the terminal while scripts, bots, and apps use the same agents on the same port:
 same process, same conversations, no bridges, no synchronization.
 
+![Replace humans in offices](media/agent-bridge-poster.png)
+
 > **Why teams choose this architecture**  
 > AgentBridge is built on the AIOrchestrator library model: one runtime, one agent core, and one consistent operational flow across terminal and API. The result is faster execution, lower integration overhead, and stronger control than traditional multi-server MCP setups. Read the white paper: [Why the AIOrchestrator Library Model Outperforms Traditional MCP Deployments](docs/AIORCHESTRATOR-WHITEPAPER.md).
 
