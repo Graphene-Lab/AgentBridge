@@ -141,10 +141,13 @@
       <_SpreadsheetToolBin Include="..\SpreadsheetTool\bin\$(Configuration)\net10.0\**\*" Condition="Exists('..\SpreadsheetTool\bin\$(Configuration)\net10.0\SpreadsheetTool.dll')" />
       <_OfficeToolBin Include="..\OfficeTool\bin\$(Configuration)\net10.0\**\*" Condition="Exists('..\OfficeTool\bin\$(Configuration)\net10.0\OfficeTool.dll')" />
       <_OfficeSupportToolBin Include="..\OfficeSupportTool\bin\$(Configuration)\net10.0\**\*" Condition="Exists('..\OfficeSupportTool\bin\$(Configuration)\net10.0\OfficeSupportTool.dll')" />
-      <_DocumentToolUnique Include="@(_DocumentToolBin)" Condition="!Exists('$(OutputPath)%(Filename)%(Extension)')" />
-      <_SpreadsheetToolUnique Include="@(_SpreadsheetToolBin)" Condition="!Exists('$(OutputPath)%(Filename)%(Extension)')" />
-      <_OfficeToolUnique Include="@(_OfficeToolBin)" Condition="!Exists('$(OutputPath)%(Filename)%(Extension)')" />
-      <_OfficeSupportToolUnique Include="@(_OfficeSupportToolBin)" Condition="!Exists('$(OutputPath)%(Filename)%(Extension)')" />
+      <!-- The plugin's OWN assembly must always be refreshed (its code changes are why we
+           rebuild); the !Exists filter applies ONLY to the extra dependencies, so a changed
+           plugin never stays stale in the host bin. -->
+      <_DocumentToolUnique Include="@(_DocumentToolBin)" Condition="$([System.String]::Copy('%(Filename)%(Extension)').Equals('DocumentTool.dll')) or !Exists('$(OutputPath)%(Filename)%(Extension)')" />
+      <_SpreadsheetToolUnique Include="@(_SpreadsheetToolBin)" Condition="$([System.String]::Copy('%(Filename)%(Extension)').Equals('SpreadsheetTool.dll')) or !Exists('$(OutputPath)%(Filename)%(Extension)')" />
+      <_OfficeToolUnique Include="@(_OfficeToolBin)" Condition="$([System.String]::Copy('%(Filename)%(Extension)').Equals('OfficeTool.dll')) or !Exists('$(OutputPath)%(Filename)%(Extension)')" />
+      <_OfficeSupportToolUnique Include="@(_OfficeSupportToolBin)" Condition="$([System.String]::Copy('%(Filename)%(Extension)').Equals('OfficeSupportTool.dll')) or !Exists('$(OutputPath)%(Filename)%(Extension)')" />
     </ItemGroup>
     <Copy SourceFiles="@(_DocumentToolUnique)" DestinationFiles="@(_DocumentToolUnique->'$(OutputPath)Tools\DocumentTool\%(RecursiveDir)%(Filename)%(Extension)')" />
     <Copy SourceFiles="@(_SpreadsheetToolUnique)" DestinationFiles="@(_SpreadsheetToolUnique->'$(OutputPath)Tools\SpreadsheetTool\%(RecursiveDir)%(Filename)%(Extension)')" />
