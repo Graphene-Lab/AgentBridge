@@ -383,11 +383,12 @@ internal static class Program
         var f = fmt.Trim();
         var first = f.IndexOfAny(new[] { '#', '0', '?' });
         if (first < 0) return f.Trim('"');
+        // Numeric core runs from the FIRST to the LAST placeholder; everything before is a
+        // literal prefix, everything after a literal suffix (e.g. "$#,##0.00" → "$" + core).
+        var lastPlaceholder = f.LastIndexOfAny(new[] { '#', '0', '?' });
         var prefix = f[..first].Trim('"');
-        var last = f.Length - 1;
-        while (last >= first && (f[last] is '#' or '0' or '?' or ',' or '.')) last--;
-        var suffix = f[(last + 1)..].Trim('"');
-        var core = f[first..(last + 1)];
+        var core = f[first..(lastPlaceholder + 1)];
+        var suffix = f[(lastPlaceholder + 1)..].Trim('"');
         var dot = core.IndexOf('.');
         var decimals = dot >= 0 ? core[(dot + 1)..].TakeWhile(c => c is '0' or '#').Count() : 0;
         var grouping = core.Contains(',');
@@ -521,16 +522,20 @@ internal static class Program
         }
 
         // Chart data: categories = first column of the primary table, series = numeric columns.
+        // The Total row (if present) is excluded from BOTH categories and values, so it does not
+        // scale the Y axis and dwarf the monthly bars.
         private static (List<string> Categories, List<(string Name, double[] Values)> Series)? BuildChart(
             Sheet sheet, XlsxDoc doc, int maxR, int cMin, int cMax)
         {
             var catCol = cMin;
+            var dataRows = new List<int>();
             var categories = new List<string>();
             for (int r = 1; r <= maxR; r++)
             {
                 var cell = sheet.Get(r, catCol);
                 var v = cell != null ? Resolve(cell, doc) : null;
                 if (string.IsNullOrWhiteSpace(v) || v!.Equals("Total", StringComparison.OrdinalIgnoreCase)) continue;
+                dataRows.Add(r);
                 categories.Add(v!);
             }
             if (categories.Count < 2) return null;
@@ -539,16 +544,12 @@ internal static class Program
             for (int c = cMin + 1; c <= cMax; c++)
             {
                 var name = Resolve(sheet.Get(0, c), doc) ?? $"Col {c + 1}";
-                var values = new List<double>();
-                for (int r = 1; r <= maxR; r++)
-                {
-                    var cell = sheet.Get(r, c);
-                    var n = cell != null ? ResolveNumber(cell, doc) : null;
-                    values.Add(n ?? double.NaN);
-                }
+                var values = dataRows
+                    .Select(r => ResolveNumber(sheet.Get(r, c), doc) ?? double.NaN)
+                    .ToArray();
                 var real = values.Where(v => !double.IsNaN(v)).ToList();
                 if (real.Count >= 2 && real.Any(v => v != 0))
-                    series.Add((name, values.ToArray()));
+                    series.Add((name, values));
             }
             if (series.Count == 0) return null;
             return (categories, series);
