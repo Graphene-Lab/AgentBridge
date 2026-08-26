@@ -16,7 +16,7 @@
          off triggers release.yml automatically (tag v1.yy.MM.dd created by the workflow).
          Date-based auto version, same scheme as UISupportBlazor/UISupportGeneric
          (1.yy.MM.dd, e.g. 1.26.08.09). -->
-    <IsPrerelease>true</IsPrerelease>
+    <IsPrerelease>false</IsPrerelease>
     <!-- NuGet wait marker (release.ps1 / release.yml): true = the release build must wait for
          today's core dependency packages on nuget.org (a core repo changed today and its
          package is still propagating); false = no core repo changed since its last tag, so the
