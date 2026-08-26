@@ -50,7 +50,7 @@ project and get a persistent TUI where:
 |---|---|
 | `/help` · `/?` | Full help: commands, shortcuts, API endpoints, online docs |
 | `/docs` | Open the online documentation in the browser |
-| `/web` | Install (first run) and launch the Giraffe AI web client, auto-connected to this server |
+| `/web` | Launch the Giraffe AI web client (auto-installed/updated), auto-connected to this server |
 | `/modelsetup` | Configure LLM models & providers (add/edit/remove, active model, API keys) |
 | `/model [name]` | Switch the LLM provider (menu when no name given; context-window checked) |
 | `/agent [name]` | Choose the agent tools: quick presets or an individual-tool checklist (Space toggles; see below) |
@@ -70,17 +70,17 @@ project and get a persistent TUI where:
 
 ## Web GUI
 
-`/web` (or the menu **Web → GUI**) opens the agents in your browser. On first use it
-downloads the [Giraffe AI](https://github.com/Graphene-Lab/GiraffeAI) client — a single
-static `index.html` plus its own launcher — and extracts it into a `GiraffeAIWebClient`
-folder next to the working directory. Then it runs the platform launcher
-(`start.bat` / `start.sh`), which serves the client on `http://localhost:8000` and opens the
-browser.
+`/web` (or the menu **Web → GUI**) opens the agents in your browser. The
+[Giraffe AI](https://github.com/Graphene-Lab/GiraffeAI) client — a single static
+`index.html` plus its own launcher — is **not part of this repository**: on startup the
+server installs it next to the executable (`GiraffeAIWebClient\` folder, from the client's
+latest GitHub release) and keeps it at that latest version. Then `/web` runs the platform
+launcher (`start.bat` / `start.sh`), which serves the client on `http://localhost:8000` and
+opens the browser.
 
 The launch passes `--provider` with this server's endpoint, so the client **registers the
 AgentBridge provider (if not already present) and selects it immediately** — no manual
-configuration, just start typing. A client installed before `--provider` support existed is
-detected and re-downloaded automatically.
+configuration, just start typing.
 
 - The first download needs an internet connection (GitHub); afterwards the client is fully local.
 - The client runs in its own launcher window/process and keeps serving after the TUI exits.

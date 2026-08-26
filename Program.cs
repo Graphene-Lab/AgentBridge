@@ -897,6 +897,13 @@ if (AutoUpdate.Enabled)
     _ = Task.Run(async () => { try { await AutoUpdate.CheckAndApplyAsync(); } catch (Exception ex) { Log.LogStep($"AutoUpdate: {ex.Message}"); } });
 
 // ─────────────────────────────────────────────────────────────────────
+// Web client (Giraffe AI): installed on first run next to the executable and kept at
+// the latest GitHub release — background and best-effort (see WebClientUpdater.cs).
+// The TUI /web command joins this same task before launching the client.
+// ─────────────────────────────────────────────────────────────────────
+_ = WebClientUpdater.Startup;
+
+// ─────────────────────────────────────────────────────────────────────
 // Launch mode: terminal UI (default, interactive console) or plain server.
 // The TUI runs the HTTP server in the same process: the API keeps answering
 // while you chat — that is the "CLI + API simultaneously" requirement.

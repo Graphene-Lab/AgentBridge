@@ -1,6 +1,5 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -119,13 +118,8 @@ public static class ConsoleTui
         // see Resources/Dictionary.*.resx. Command names (/help, /model...) are NOT translated.
         private static string PlaceholderText => Dictionary.InputPlaceholder;
 
-        // Web GUI (Giraffe AI): a static chat client served by its own launcher. First run
-        // downloads the repo zip from GitHub and extracts it into a GiraffeAIWebClient folder.
-        private const string WebClientZipUrl = "https://github.com/Graphene-Lab/GiraffeAI/archive/refs/heads/main.zip";
-        private const string WebClientDirName = "GiraffeAIWebClient";
-        // Marker the installed index.html must contain: clients installed before --provider
-        // auto-config (urlParams.get('provider')) cannot auto-connect and are re-downloaded.
-        private const string WebClientMarker = "urlParams.get('provider')";
+        // Web GUI (Giraffe AI): a static chat client served by its own launcher, installed
+        // and kept up to date next to the executable by WebClientUpdater (see that file).
 
         private sealed class Entry
         {
@@ -2303,20 +2297,22 @@ public static class ConsoleTui
         }
 
         // ── Web client (Giraffe AI) ──
-        // The web GUI is a tiny static app (single index.html + its own launcher) hosted on
-        // GitHub. First use downloads the repo zip into a GiraffeAIWebClient folder next to
-        // the working directory, then the platform launcher (start.bat / start.sh) serves it
-        // on http://localhost:8000 and opens the browser. Connectivity failures surface as
-        // friendly notes instead of crashing the UI.
+        // The web GUI is a tiny static app (single index.html + its own launcher) installed
+        // next to the executable by WebClientUpdater (startup keeps it at the latest GitHub
+        // release). /web joins that startup task, retries the install when it failed (e.g.
+        // the machine was offline at boot), then the platform launcher (start.bat /
+        // start.sh) serves it on http://localhost:8000 and opens the browser. Connectivity
+        // failures surface as friendly notes instead of crashing the UI.
         private async Task LaunchWebClientAsync()
         {
-            var dir = Path.Combine(Environment.CurrentDirectory, WebClientDirName);
+            var dir = WebClientUpdater.ClientDir;
             try
             {
-                if (!IsWebClientCurrent(dir))
+                await WebClientUpdater.Startup.WaitAsync(TimeSpan.FromSeconds(120));
+                if (!WebClientUpdater.IsInstalled)
                 {
-                    AddNote(string.Format(Dictionary.NoteWebClientOutdated, dir, WebClientZipUrl));
-                    await InstallWebClientAsync(dir);
+                    AddNote(string.Format(Dictionary.NoteWebClientOutdated, dir, WebClientUpdater.Repo));
+                    await WebClientUpdater.EnsureAsync();
                 }
                 AddNote(string.Format(Dictionary.NoteLaunchingWebClient, dir));
                 LaunchWebClientProcess(dir);
@@ -2324,64 +2320,6 @@ public static class ConsoleTui
             catch (Exception ex)
             {
                 AddNote(string.Format(Dictionary.NoteWebClientFailed, ex.Message));
-            }
-        }
-
-        // A valid install has an index.html carrying the --provider auto-config marker.
-        private static bool IsWebClientCurrent(string dir)
-        {
-            try
-            {
-                var index = Path.Combine(dir, "index.html");
-                return File.Exists(index) && File.ReadAllText(index).Contains(WebClientMarker);
-            }
-            catch { return false; }
-        }
-
-        private async Task InstallWebClientAsync(string dir)
-        {
-            if (Directory.Exists(dir) && !IsWebClientCurrent(dir))
-                Directory.Delete(dir, true);   // stale/partial install from a previous run
-
-            var tmpZip = Path.Combine(Path.GetTempPath(), $"giraffe_{Guid.NewGuid():N}.zip");
-            var tmpDir = Path.Combine(Path.GetTempPath(), $"giraffe_{Guid.NewGuid():N}");
-            try
-            {
-                try
-                {
-                    using var resp = await _http.GetAsync(WebClientZipUrl, HttpCompletionOption.ResponseHeadersRead)
-                        .WaitAsync(TimeSpan.FromSeconds(60));
-                    if (!resp.IsSuccessStatusCode)
-                        throw new InvalidOperationException($"download failed (HTTP {(int)resp.StatusCode})");
-                    await using (var fs = File.Create(tmpZip))
-                        await resp.Content.CopyToAsync(fs);
-                }
-                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-                {
-                    throw new InvalidOperationException(
-                        $"no internet connection or GitHub unreachable ({ex.Message})");
-                }
-
-                Directory.CreateDirectory(tmpDir);
-                ZipFile.ExtractToDirectory(tmpZip, tmpDir);
-
-                // The GitHub archive wraps everything in a GiraffeAI-main/ root folder:
-                // hoist its contents into the target directory.
-                var root = Directory.GetDirectories(tmpDir).FirstOrDefault() ?? tmpDir;
-                Directory.CreateDirectory(dir);
-                foreach (var item in Directory.GetFileSystemEntries(root))
-                {
-                    var target = Path.Combine(dir, Path.GetFileName(item));
-                    if (Directory.Exists(item)) Directory.Move(item, target);
-                    else File.Move(item, target);
-                }
-                if (!File.Exists(Path.Combine(dir, "index.html")))
-                    throw new InvalidOperationException("the downloaded archive did not contain index.html");
-            }
-            finally
-            {
-                try { if (File.Exists(tmpZip)) File.Delete(tmpZip); } catch { }
-                try { if (Directory.Exists(tmpDir)) Directory.Delete(tmpDir, true); } catch { }
             }
         }
 

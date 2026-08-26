@@ -147,8 +147,9 @@ Think of the documents area as your company's brain. It is a simple folder on di
 - **Multilingual UI** — the terminal UI runs in the system language when supported
   (English, Italian, French, Spanish, German, Russian) and falls back to English otherwise;
   system messages from the orchestrator are localised too (see [docs/TUI.md](docs/TUI.md#localisation)).
-- **Open the web GUI in one keystroke** — `/web` (menu **Web → GUI**) downloads on first run
-  and launches the Giraffe AI web client in the browser, already connected to this server.
+- **Open the web GUI in one keystroke** — `/web` (menu **Web → GUI**) launches the Giraffe AI
+  web client in the browser, already connected to this server (the client installs itself next
+  to the executable on first run from its latest GitHub release and stays up to date).
 - **Expose the agents as a local OpenAI server** — point any OpenAI client at
   `http://localhost:5290/v1` and it drives the agents without modification (see the
   [manual](docs/MANUAL.md#connecting-a-client-to-localhost)).

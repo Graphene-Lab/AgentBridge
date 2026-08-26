@@ -281,7 +281,7 @@ see [section 6](#6-connect-a-client-to-localhost)):
 | `/health` | **Server health + latency** | ping the server |
 | `/retry` | **Resend the last prompt** | also `Ctrl+Y` |
 | `/docs` | **Open the online docs** | in the browser |
-| `/web` | **Launch the web GUI (Giraffe AI)** | installs the client on first run and auto-connects it to this server (see [section 6](#6-connect-a-client-to-localhost)) |
+| `/web` | **Launch the web GUI (Giraffe AI)** | auto-installed/updated next to the executable and auto-connected to this server (see [section 6](#6-connect-a-client-to-localhost)) |
 | `/modelsetup` | **Configure models & providers** | add/edit/remove providers (including the per-provider API key), active model, email (SMTP), mail reading (IMAP), logging, documents path |
 | `/exit` · `/quit` | **Exit** | also `Ctrl+C` twice, or `Ctrl+D` |
 
@@ -317,13 +317,14 @@ the SDK's normal chat methods.
 
 ### The built-in web client (Giraffe AI)
 
-The quickest client is the one bundled with the TUI: **`/web`** (menu **Web → GUI**)
-downloads the [Giraffe AI](https://github.com/Graphene-Lab/GiraffeAI) web client on first
-use, extracts it into a `GiraffeAIWebClient` folder next to the working directory and opens
-it in the browser at `http://localhost:8000`. The launch passes `--provider` with this
-server's endpoint, so the client comes up with the **AgentBridge provider already registered
-and selected** — just start typing. A client installed before this auto-connect feature
-existed is re-downloaded automatically; the first download needs internet access.
+The quickest client is the one bundled with the server: **`/web`** (menu **Web → GUI**)
+launches the [Giraffe AI](https://github.com/Graphene-Lab/GiraffeAI) web client in the
+browser at `http://localhost:8000`. The client is **not part of this repository**: on
+startup the server installs it next to the executable (a `GiraffeAIWebClient` folder, from
+the client's latest GitHub release) and keeps it at that latest version — the same release
+zip drives both the first installation and the updates. The launch passes `--provider` with
+this server's endpoint, so the client comes up with the **AgentBridge provider already
+registered and selected** — just start typing. The first download needs internet access.
 
 ### Endpoint summary
 

@@ -183,8 +183,10 @@ summary:
   whitelist). All other `.json` files in the archive are distribution content and must be
   overwritten. The automatic updater implements these rules — see [autoupdate.md](autoupdate.md).
 
-Ephemeral runtime files (TTS WAVs, the Giraffe web GUI download) go to the OS temp folder
-(`%TEMP%`) and are never part of an update.
+Ephemeral runtime files (TTS WAVs) go to the OS temp folder (`%TEMP%`) and are never part of
+an update. The Giraffe web GUI client is installed next to the executable (a
+`GiraffeAIWebClient` folder, not in the source tree) from the client's GitHub release and
+kept at the latest version — see [WebClientUpdater.cs](../WebClientUpdater.cs).
 
 ## Build / assets
 
