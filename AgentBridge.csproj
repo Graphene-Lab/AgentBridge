@@ -149,7 +149,6 @@
   <Target Name="ShipToolPlugins" AfterTargets="Build" Condition="'@(_PluginProject)' != ''">
     <MSBuild Projects="@(_PluginProject)" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" />
   </Target>
-
   <!-- Runs the shipping helper once per discovered plugin (the MSBuild task batches on the
        per-project metadata Dir/Name, so each plugin lands in its own Tools/<Plugin>/ folder). -->
   <Target Name="ShipOnePlugin" AfterTargets="ShipToolPlugins" Condition="'@(_PluginProject)' != ''">
@@ -159,8 +158,7 @@
         <Name>%(Filename)</Name>
       </_PluginJob>
     </ItemGroup>
-    <MSBuild Projects="$(MSBuildThisFileDirectory)ShipOnePlugin.targets" Targets="Ship"
-             Properties="PluginDir=%(_PluginJob.Dir);PluginName=%(_PluginJob.Name);Configuration=$(Configuration);OutputPath=$(OutputPath)" />
+    <MSBuild Projects="$(MSBuildThisFileDirectory)ShipOnePlugin.targets" Targets="Ship" Properties="PluginDir=%(_PluginJob.Dir);PluginName=%(_PluginJob.Name);Configuration=$(Configuration);OutputPath=$(OutputPath)" />
   </Target>
   <!-- Copies the tool plugins into a publish output (same rationale as AIOffice's
        CopyToolPluginsToPublish): the Content-item registration drops files outside the
