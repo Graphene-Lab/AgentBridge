@@ -143,7 +143,20 @@ function Assert-CorePackagesReady {
                 if ($dirty.Count -gt 0) { $changed = $true }
             }
             if (-not $changed) {
-                Write-Host "core OK (unchanged since $lastTag): $($r.Dir)"
+                # A today-tag at HEAD means today's package was just published and may still be
+                # propagating (2026-08-27: the floating 1.* restore resolved the previous
+                # version → CS0117). Verify visibility even though the repo is unchanged.
+                if ($lastTag -eq "v$($v.Raw)") {
+                    if (Test-PackageVisible $r.Pkg $v.Norm) {
+                        Write-Host "core OK (package $($v.Norm) visible on nuget.org): $($r.Dir)"
+                    } else {
+                        $script:needsNuGetWait = $true
+                        $waiting += $r.Dir
+                        Write-Host "core WAIT (package $($v.Norm) still propagating): $($r.Dir)"
+                    }
+                } else {
+                    Write-Host "core OK (unchanged since $lastTag): $($r.Dir)"
+                }
                 continue
             }
             # Changed since its last publish → today's tag is mandatory, otherwise the
