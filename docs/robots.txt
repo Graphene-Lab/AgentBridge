@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# AI agents are explicitly welcome: llms.txt is the LLM-friendly index of this site.
+Sitemap: https://graphenelab.it/AgentBridge/sitemap.xml

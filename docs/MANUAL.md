@@ -1,5 +1,14 @@
 # AgentBridge — user manual
 
+> **AgentBridge in one paragraph:** a self-hosted server that runs AI agents with two
+> interfaces in a single process — a full-screen chat terminal (TUI) and a standard HTTP
+> API compatible with OpenAI, plus a native MCP connector. It automates office work
+> (documents, spreadsheets, email, presentations, web research) while your data stays on
+> your machine inside an application-level sandbox. Self-contained archives (~460 MB, no
+> .NET needed) run on Windows x64, Linux x64/ARM64 and macOS (Intel / Apple Silicon), and
+> work with local models (Ollama, ExLlamaV2) or cloud providers (DeepSeek, Z.ai, Gemini,
+> Anthropic) with GDPR-ready anonymization.
+
 A step-by-step guide for running AgentBridge: install it, configure the JSON files, use
 the terminal UI, and connect a client to the local server.
 

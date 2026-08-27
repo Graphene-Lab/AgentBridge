@@ -1,0 +1,28 @@
+# AgentBridge
+
+> AgentBridge is a self-hosted server that runs AI agents with two interfaces in a single process: a full-screen chat terminal (TUI) and a standard HTTP API compatible with OpenAI, plus a native MCP connector. It automates office work (documents, spreadsheets, email, presentations, web research) while your data stays on your machine inside an application-level sandbox. Self-contained archives (~460 MB, no .NET needed) run on Windows x64, Linux x64/ARM64 and macOS (Intel / Apple Silicon), and work with local models (Ollama, ExLlamaV2) or cloud providers (DeepSeek, Z.ai, Gemini, Anthropic) with GDPR-ready anonymization. Reachable 24/7 via SIP phone and Telegram.
+
+## User documentation
+
+- [User manual](https://graphenelab.it/AgentBridge/MANUAL.md): install, configure the JSON files, use the terminal UI, connect a client to localhost — start here
+- [Terminal UI reference](https://graphenelab.it/AgentBridge/TUI.md): every command, shortcut and mouse action
+- [HTTP API reference](https://graphenelab.it/AgentBridge/API.md): all endpoints — chat, sessions, LLM switching, TTS, voice, files, MCP connector
+- [Telegram chat](https://graphenelab.it/AgentBridge/telegram.md): connect the agents to Telegram — config, first login, allow-list, attachments
+- [SIP telephony](https://graphenelab.it/AgentBridge/sip.md): phone-gate the agents — config, PIN/allow-list security, NAT/trunk, STT deployment
+- [Auto-update](https://graphenelab.it/AgentBridge/autoupdate.md): how the automatic update works and what it never touches
+- [AIOrchestrator white paper](https://graphenelab.it/AgentBridge/AIORCHESTRATOR-WHITEPAPER.md): why the AIOrchestrator library model outperforms MCP deployments
+
+## Download
+
+- [Download for your OS](https://graphenelab.it/AgentBridge/download/): auto-detect page with direct archive links
+- [Windows installer](https://graphenelab.it/AgentBridge/install.ps1): one-line PowerShell install
+- [Linux/macOS installer](https://graphenelab.it/AgentBridge/install.sh): one-line shell install
+
+## Source code
+
+- [GitHub repository](https://github.com/Graphene-Lab/AgentBridge): source, issues and releases
+- [README](https://raw.githubusercontent.com/Graphene-Lab/AgentBridge/master/README.md): overview, features and FAQ
+
+## Optional
+
+- [Andrea Bruno License 1.4](https://github.com/Graphene-Lab/AgentBridge/blob/master/LICENSE.md): license and terms of use

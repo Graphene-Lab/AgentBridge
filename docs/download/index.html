@@ -3,7 +3,72 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Download AgentBridge for your OS</title>
+<title>Download AgentBridge for your OS — self-hosted AI agent server</title>
+<meta name="description" content="Download AgentBridge: a self-hosted AI agent server for office automation. Terminal chat, OpenAI-compatible API and native MCP in one process. Windows, Linux and macOS. No .NET needed, Kokoro TTS included, privacy-first.">
+<link rel="canonical" href="https://graphenelab.it/AgentBridge/download/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://graphenelab.it/AgentBridge/download/">
+<meta property="og:title" content="Download AgentBridge for your OS">
+<meta property="og:description" content="Self-hosted AI agent server: terminal chat, OpenAI-compatible API and native MCP in one process. Office automation, privacy-first, no .NET needed.">
+<meta property="og:site_name" content="AgentBridge">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Download AgentBridge for your OS">
+<meta name="twitter:description" content="Self-hosted AI agent server: terminal chat, OpenAI-compatible API and native MCP in one process. Office automation, privacy-first, no .NET needed.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "AgentBridge",
+  "alternateName": "Agent Bridge",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Windows 10+, Linux x64/ARM64, macOS 12+ (Intel / Apple Silicon)",
+  "description": "Self-hosted server that runs AI agents with a full-screen terminal chat and a standard OpenAI-compatible HTTP API (plus a native MCP connector). Office automation with documents, spreadsheets, email, Telegram and SIP voice; privacy-first and GDPR-ready.",
+  "url": "https://graphenelab.it/AgentBridge/download/",
+  "sameAs": ["https://github.com/Graphene-Lab/AgentBridge"],
+  "downloadUrl": "https://github.com/Graphene-Lab/AgentBridge/releases/latest",
+  "installUrl": "https://graphenelab.it/AgentBridge/install.ps1",
+  "releaseNotes": "https://github.com/Graphene-Lab/AgentBridge/releases",
+  "license": "https://github.com/Graphene-Lab/AgentBridge/blob/master/LICENSE.md",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "EUR",
+    "description": "Free download; free for personal use under the Andrea Bruno License 1.4"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Which platforms does AgentBridge support?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Windows 64-bit, Linux x64, Linux ARM64 (Raspberry Pi etc.), macOS Intel and macOS Apple Silicon. Each archive is self-contained (~460 MB) and needs no .NET installation."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does AgentBridge work offline?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. With a local model (Ollama, ExLlamaV2 or a local bridge) nothing leaves your machine. With a cloud provider, only the model call leaves — optionally protected by GDPR-ready anonymization."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is AgentBridge free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The download is free and the source is released for personal use under the Andrea Bruno License 1.4; commercial use of the code requires a royalty agreement with the author."
+      }
+    }
+  ]
+}
+</script>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -23,6 +88,12 @@
   .links { display: grid; gap: 8px; }
   .links a { color: #58a6ff; text-decoration: none; }
   .links a:hover { text-decoration: underline; }
+  .desc { margin-top: 32px; color: #c9d1d9; font-size: .95rem; line-height: 1.5; text-align: left; }
+  .faq { margin-top: 24px; text-align: left; }
+  .faq h2 { font-size: 1.1rem; margin: 0 0 12px; }
+  .faq details { margin-bottom: 8px; }
+  .faq summary { color: #58a6ff; cursor: pointer; font-weight: 600; }
+  .faq p { color: #c9d1d9; font-size: .92rem; line-height: 1.5; margin: 6px 0 0; }
   .foot { margin-top: 32px; color: #8b949e; font-size: .85rem; }
 </style>
 </head>
@@ -32,7 +103,44 @@
     <p class="sub" id="status">Detecting your platform&hellip;</p>
     <a class="btn" id="download" href="https://github.com/Graphene-Lab/AgentBridge/releases/latest">Download for your OS</a>
     <p class="note" id="note">Your download will start automatically in a moment.<br>If it does not start, pick your platform below.</p>
-    <div class="links" id="links"></div>
+    <div class="links" id="links">
+      <a href="https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-win-x64.tar.gz">Download for Windows 64-bit</a>
+      <a href="https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-linux-x64.tar.gz">Download for Linux 64-bit</a>
+      <a href="https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-linux-arm64.tar.gz">Download for Linux ARM64 (Raspberry Pi, etc.)</a>
+      <a href="https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-osx-x64.tar.gz">Download for macOS Intel</a>
+      <a href="https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-osx-arm64.tar.gz">Download for macOS Apple Silicon</a>
+      <a href="https://github.com/Graphene-Lab/AgentBridge/releases/latest">All releases &#8594;</a>
+    </div>
+    <div class="desc">
+      <p><strong>AgentBridge</strong> is a self-hosted server that runs AI agents with two
+      interfaces in a single process: a full-screen chat terminal (TUI) and a standard HTTP
+      API compatible with OpenAI, plus a native MCP connector. It automates office work —
+      documents, spreadsheets, email, presentations, web research — while keeping your data
+      on your machine inside an application-level sandbox. Runs on Windows, Linux and macOS;
+      works with local models (Ollama, ExLlamaV2) or cloud providers (DeepSeek, Z.ai, Gemini,
+      Anthropic) with GDPR-ready anonymization. Reachable 24/7 via SIP phone and Telegram.</p>
+    </div>
+    <div class="faq">
+      <h2>Frequently asked questions</h2>
+      <details>
+        <summary>Which platforms does AgentBridge support?</summary>
+        <p>Windows 64-bit, Linux x64, Linux ARM64 (Raspberry Pi, etc.), macOS Intel and macOS
+        Apple Silicon. Each archive is self-contained (~460 MB) and needs no .NET installation;
+        the Kokoro TTS voices are included.</p>
+      </details>
+      <details>
+        <summary>Does AgentBridge work offline?</summary>
+        <p>Yes. With a local model (Ollama, ExLlamaV2 or a local bridge) nothing leaves your
+        machine. With a cloud provider, only the model call leaves — optionally protected by
+        GDPR-ready anonymization.</p>
+      </details>
+      <details>
+        <summary>Is AgentBridge free?</summary>
+        <p>The download is free and the source is released for personal use under the Andrea
+        Bruno License 1.4; commercial use of the code requires a royalty agreement with the
+        author.</p>
+      </details>
+    </div>
     <p class="foot">Archives are self-contained (~460 MB): no .NET installation needed, Kokoro TTS voices included.</p>
   </div>
 
@@ -69,7 +177,6 @@
     var dl = document.getElementById("download");
     var status = document.getElementById("status");
     var note = document.getElementById("note");
-    var links = document.getElementById("links");
 
     if (!asset) {
       status.textContent = "Could not detect your platform automatically.";
@@ -81,24 +188,11 @@
       dl.textContent = "Download for " + (label ? label.join(" ") : "your OS");
       setTimeout(function () { window.location.href = dl.href; }, 1500);
     }
-
-    ["agentbridge-win-x64.tar.gz", "agentbridge-linux-x64.tar.gz",
-     "agentbridge-linux-arm64.tar.gz", "agentbridge-osx-x64.tar.gz",
-     "agentbridge-osx-arm64.tar.gz"].forEach(function (a) {
-      var el = document.createElement("a");
-      el.href = BASE + "/" + a;
-      el.textContent = "Download for " + LABELS[a].join(" ");
-      links.appendChild(el);
-    });
-    var all = document.createElement("a");
-    all.href = "https://github.com/Graphene-Lab/AgentBridge/releases/latest";
-    all.textContent = "All releases \u2192";
-    links.appendChild(all);
   });
 })();
 </script>
 <noscript>
-  <p>Download AgentBridge: <a href="https://github.com/Graphene-Lab/AgentBridge/releases/latest">open the latest release</a>.</p>
+  <p>Download AgentBridge for Windows, Linux or macOS: <a href="https://github.com/Graphene-Lab/AgentBridge/releases/latest">open the latest release</a>.</p>
 </noscript>
 </body>
 </html>

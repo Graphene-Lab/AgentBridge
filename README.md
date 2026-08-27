@@ -8,6 +8,12 @@ AgentBridge is a self-hosted server that runs AI agents with two interfaces in a
 Chat in the terminal while scripts, bots, and apps use the same agents on the same port:
 same process, same conversations, no bridges, no synchronization.
 
+**At a glance** — self-contained, ~460 MB per archive (no .NET installation needed, Kokoro
+TTS voices included) · 5 platforms: Windows x64, Linux x64/ARM64, macOS Intel/Apple
+Silicon · terminal UI in 6 languages · OpenAI-compatible API **and** native MCP ·
+deterministic memory · application-level sandbox · GDPR-ready anonymization · reachable
+24/7 via SIP phone and Telegram.
+
 ![Replace humans in offices](media/agent-bridge-poster.png)
 
 > **Why teams choose this architecture**  
@@ -80,7 +86,7 @@ An Excel spreadsheet (data table + chart, single A4 page) created by the agent o
 
 Agent Bridge is a tool that allows you to connect to your preferred AI, transforming it into your personal assistant: a tireless worker capable of handling office tasks such as drafting complex documents, working with spreadsheets, interacting with email, and performing internet-based activities—all while having full awareness of your company's knowledge base: clients, documents, products, and everything stored in your archive.
 
-Agent Bridge positions itself as a cloud platform for businesses or private individuals seeking AI solutions. Everything uploaded to the cloud area becomes part of the AI's knowledge, enabling it, with full understanding of your documents and data, to work as a tireless employee and carry out office work. The product fits within the enterprise segment, capable of storing and managing even several terabytes of data, and can generate PDF documents with a level of detail and precision that is unmatched.
+Agent Bridge positions itself as an enterprise-grade AI automation platform for businesses or private individuals seeking AI solutions. It runs on your own hardware — a laptop, a mini PC, or a dedicated AI box — and the knowledge base it reads is a plain folder on disk, not a cloud upload: everything you already store there becomes part of the AI's understanding, enabling it to work as a tireless employee and carry out office work. The product fits within the enterprise segment, capable of indexing and managing even several terabytes of data — while your files never leave your machine — and can generate PDF documents with a level of detail and precision that is unmatched.
 
 Our **Agentic AI** is designed to be installed on standalone devices, such as mini PCs and dedicated AI hardware, effectively transforming them into truly autonomous agents. An agentic system, in fact, is not simply meant to execute a task on command but is built to pursue a complex objective with full autonomy, and its key characteristics go well beyond running a single instruction. First and foremost, it possesses planning and reasoning capabilities: when faced with a request like "organize a trip to Tokyo," the system does not merely react but breaks the goal down into a series of logical sub-goals, such as booking a flight, selecting a hotel, and creating a coherent itinerary. This planning phase is then put into action through the active use of external tools: the agent is capable of calling APIs, executing code, searching the internet, and interacting with databases or other applications to independently gather information and take action. To manage this level of complexity, the system maintains a structured memory, both short-term and long-term, of the actions taken and the information collected, allowing it to adapt its plan along the way. Its operation is based on a continuous loop of execution and feedback: it performs an action, observes the result – for instance, an error during a flight search – evaluates whether this result is bringing it closer to the final goal, and accordingly adjusts its next step. This cycle of action, observation, and adaptation continues until the objective is fully achieved. Our hardware support strategy targets a range of devices, starting with high-performance processors like the **16-core AMD Ryzen AI Max+ 395**, the **12-core AMD Ryzen AI 9 HX 370**, the **NVIDIA GB10 Grace Blackwell Superchip**, the **14-core Arm-based NVIDIA Jetson T5000**, and the **20-core NVIDIA RTX Spark**. For the entry-level segment, we maintain compatibility with ARM-based technology, specifically supporting the **Rockchip RK3588**, **Rockchip RK3576**, **Qualcomm Snapdragon 865**, **Qualcomm Snapdragon X2 Elite**, **MediaTek Genio 420**, and **MediaTek Genio 360** chipsets.
 
@@ -146,7 +152,7 @@ Think of the documents area as your company's brain. It is a simple folder on di
 
 | Product | Target Audience | Key Strength | Main Integrations |
 | :--- | :--- | :--- | :--- |
-| **Agent Bridge** | Businesses and individuals | Cloud platform for "all-in-one" AI assistant | Preferred AI, company archives |
+| **Agent Bridge** | Businesses and individuals | Self-hosted all-in-one AI agent platform | Preferred AI, company archives |
 | **Claude for Small Business** | Small businesses | Ready-to-use workflows for operational tasks | QuickBooks, PayPal, HubSpot, Canva, DocuSign |
 | **Microsoft Scout** | Microsoft 365 companies | Autonomous, proactive AI agent always active | Outlook, Teams, SharePoint, OneDrive |
 | **Nono CoWork** | Power users and developers | Proactive agent always active on VPS | Email, synced folders, Telegram |
@@ -275,6 +281,31 @@ sequenceDiagram
 **Your data stays yours.** Agents run on your machine inside an application-level sandbox;
 only the model call leaves it — and only when you pick a cloud provider. With local models,
 nothing leaves at all.
+
+## FAQ
+
+- **What is AgentBridge?** A self-hosted server that runs AI agents behind a full-screen
+  terminal chat and a standard OpenAI-compatible HTTP API — one process, your machine,
+  your agents, plus a native MCP connector for standard MCP clients.
+- **Is AgentBridge free?** The download is free and the source is released as open source
+  for personal use under the [Andrea Bruno License 1.4](LICENSE.md); commercial use of the
+  code requires a royalty agreement with the author.
+- **Which LLMs does it support?** DeepSeek, Z.ai, Gemini, Anthropic and any
+  OpenAI-compatible endpoint — plus local models via Ollama, ExLlamaV2 or a local bridge,
+  switchable on the fly.
+- **Does it work offline?** Yes — with a local model, nothing leaves your machine at all.
+- **Do my documents leave my machine?** No. The documents area is a plain local folder the
+  agent reads; only the model call leaves the machine, and only when you pick a cloud
+  provider. A GDPR-ready anonymization switch strips names and identifiers before any
+  external call and restores them in the reply.
+- **How is it different from an MCP server?** It exposes a native MCP connector and goes
+  further: tools run in-process as compiled .NET plugins inside an application-level
+  sandbox, with no separate servers, interpreters or HTTP hops.
+- **What hardware does it need?** From a Raspberry Pi / Rockchip RK3588-class device up to
+  a Ryzen AI Max+ 395, NVIDIA GB10 or Jetson — see the
+  [hardware section](#agent-bridge-your-ai-assistant-for-office-work).
+- **Do I need to install .NET?** No — every archive is self-contained (~460 MB) and
+  already includes the Kokoro TTS voices and model.
 
 ---
 
