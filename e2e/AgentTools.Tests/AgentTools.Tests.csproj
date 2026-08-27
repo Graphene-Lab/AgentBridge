@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>AgentTools.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <!-- References the host project so AgentTools (and the AIOrchestrator core tools) load in-process;
+       plugin assemblies are not loaded, so the catalog contains only core tools — the class-B
+       default-OFF rule is asserted via AgentTools.IsEnabled, not via the catalog. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\AgentBridge.csproj" />
+  </ItemGroup>
+
+</Project>

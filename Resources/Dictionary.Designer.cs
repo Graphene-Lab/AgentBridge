@@ -508,7 +508,25 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to '↑↓ move · Space toggle · Enter apply · Esc cancel'.
+        ///   Looks up a localized string similar to 'Core (always on): {0}'.
+        /// </summary>
+        public static string DlgToolsCore {
+            get {
+                return ResourceManager.GetString("DlgToolsCore", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Core (always on): none — disabled in tools.json'.
+        /// </summary>
+        public static string DlgToolsCoreNone {
+            get {
+                return ResourceManager.GetString("DlgToolsCoreNone", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '↑↓ move · Space toggle · Close/Esc saves automatically'.
         /// </summary>
         public static string DlgToolsHint {
             get {

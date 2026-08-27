@@ -195,8 +195,9 @@ Think of the documents area as your company's brain. It is a simple folder on di
   See [docs/telegram.md](docs/telegram.md).
 - **Upload-and-attach files** — documents and images converted to Markdown server-side,
   attached to chat requests as `file_ids`.
-- **Agents with tools** — web, search, research, Word, spreadsheet, email and multi-agent
-  sets; pick the right tools per chat with `/agent` or the API `model` field.
+- **Agents with tools** — web, search, research, document, spreadsheet, office, email and
+  multi-files sets; pick the right tools per chat with `/agent` or the API `model` field
+  (any custom tool combination via the additive `tools` field).
 - **One conversation everywhere** — messages from the terminal go through the exact same
   endpoint any client uses, so you can chat in the TUI while a script keeps driving the
   agents on the same port, simultaneously.

@@ -91,14 +91,23 @@ configuration, just start typing.
 
 ## Agent tools
 
-`/agent` (or menu **Tools → Agent & Tools**) opens a checklist dialog:
+`/agent [name]` switches to a preset — full ids: `default-agent`, `web-agent`,
+`search-agent`, `research-agent`, `document-files`, `spreadsheet-files`, `email-agent`,
+`office-files`, `multi-files`, `all-files`. Bare `/agent` (or menu **Tools → Agent & Tools**)
+opens the tool checklist dialog:
 
-- **Quick presets** on top — the ready-made combinations (`default-agent`, `web-agent`,
-  `document-agent`, …); Enter applies one immediately and its tools light up below.
-- **Active tools** below — every tool actually loaded at runtime (core tools + the
-  plugins in `Tools/`), each with a one-line description. **Space** toggles a tool;
-  **Enter** applies the marked set as a **custom combination** (sent to the server as
-  the additive `tools` field, which overrides the preset's `model`).
+- **Core (always on)** — the first line lists the locked core tools (`FileTool`, `GitTool`):
+  always active, not toggleable; the only way to change their status is `tools.json`
+  (see [MANUAL.md](MANUAL.md) — the picker always reflects the effective state).
+- **Active tools** below — every non-core tool actually loaded at runtime (core tools +
+  the plugins in `Tools/`), each with a one-line description. **Space** toggles a tool;
+  **Close/Esc** saves the marked set as a **custom combination** (sent to the server as
+  the additive `tools` field, which overrides the preset's `model`). The enabled core
+  tools are always part of the combination.
+
+`all-files` is the dynamic all-in-one agent: every loaded tool the per-tool config leaves
+enabled (class-A plugins ON by default; class-B `OfficeTool` OFF unless enabled in
+`tools.json`).
 
 The status bar shows the active tools with readable names (`tools: File, Web, Git`), so
 you always know what the agent can do in this conversation.

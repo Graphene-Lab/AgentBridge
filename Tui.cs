@@ -1827,10 +1827,10 @@ public static class ConsoleTui
             if (string.IsNullOrWhiteSpace(args.Trim()))
                 return ShowToolsDialogAsync();   // interactive checklist
             var name = args.Trim().ToLowerInvariant();
-            if (!AgentTools.Presets.Any(p => string.Equals(p.Id, name, StringComparison.OrdinalIgnoreCase)))
+            if (!AgentTools.AllIds.Any(id => string.Equals(id, name, StringComparison.OrdinalIgnoreCase)))
             {
                 AddNote(string.Format(Dictionary.NoteUnknownAgentSet, name,
-                    string.Join(", ", AgentTools.Presets.Select(p => p.Id))));
+                    string.Join(", ", AgentTools.AllIds)));
                 return Task.CompletedTask;
             }
             ApplyPreset(name);
@@ -1860,6 +1860,8 @@ public static class ConsoleTui
 
         // The /agent tool picker: an individual-tool checklist. Space toggles each row
         // independently; the marked tools become the custom combination (sent as `tools`).
+        // Core tools are LOCKED: shown as a read-only line above the list (reflecting
+        // tools.json), never toggleable — the custom combination always includes them.
         // The state is saved after the dialog closes by ANY means (Close button, Esc, ...).
         private void ShowToolsDialog()
         {
@@ -1874,24 +1876,36 @@ public static class ConsoleTui
                 SchemeName = "Dark",
             };
 
-            var toolNames = catalog.Select(c => c.Name).ToList();
+            // The picker must never contradict the effective state: a core tool the config
+            // disabled is not listed either (see docs-dev/ARCHITECTURE.md, "Agent sets & tool policy").
+            var coreEnabled = AgentTools.CoreTools.Where(AgentTools.IsEnabled).ToArray();
+            var toggleable = catalog.Where(c => !AgentTools.CoreTools.Contains(c.Name)).ToList();
+            var coreLabel = new Label
+            {
+                Text = coreEnabled.Length > 0
+                    ? string.Format(Dictionary.DlgToolsCore, string.Join(", ", coreEnabled))
+                    : Dictionary.DlgToolsCoreNone,
+                X = 1, Y = 1, Width = Dim.Fill() - 2,
+            };
+
+            var toolNames = toggleable.Select(c => c.Name).ToList();
             var source = new ListWrapper<string>(new ObservableCollection<string>(
-                catalog.Select(c => $"{c.Name} — {c.Description}")));
+                toggleable.Select(c => $"{c.Name} — {c.Description}")));
             var toolList = new ListView
             {
-                X = 1, Y = 1, Width = Dim.Fill() - 2, Height = Dim.Fill() - 3,
+                X = 1, Y = 2, Width = Dim.Fill() - 2, Height = Dim.Fill() - 4,
                 ShowMarks = true,
                 MarkMultiple = true,   // independent checkboxes — SPACE toggles each row independently
                 Source = source,
             };
             var hint = new Label
             {
-                Text = "Space su tool → toggle | Chiudi/Esc salva automaticamente",
+                Text = Dictionary.DlgToolsHint,
                 X = 1, Y = Pos.Bottom(toolList), Width = Dim.Fill() - 2,
             };
-            dlg.Add(toolList, hint);
+            dlg.Add(coreLabel, toolList, hint);
 
-            // Reflect the currently active tools in the checklist.
+            // Reflect the currently active tools in the checklist (non-core rows only).
             for (int i = 0; i < toolNames.Count; i++)
                 source.SetMark(i, current.Contains(toolNames[i], StringComparer.OrdinalIgnoreCase));
 
@@ -1903,10 +1917,13 @@ public static class ConsoleTui
             dlg.Initialized += (_, _) => toolList.SetFocus();
             _app.Run(dlg);
 
-            // Save the checkbox state on ANY close path.
+            // Save the checkbox state on ANY close path. The enabled core tools are always
+            // included (locked, non-toggleable) — a custom combination can never drop them.
             var marked = new List<string>();
             for (int i = 0; i < toolNames.Count; i++)
                 if (source.IsMarked(i)) marked.Add(toolNames[i]);
+            foreach (var core in coreEnabled)
+                if (!marked.Contains(core)) marked.Add(core);
             if (marked.Count > 0)
             {
                 _agentSet = "default-agent";   // the `tools` field overrides it server-side

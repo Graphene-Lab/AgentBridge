@@ -100,13 +100,22 @@ curl -N http://localhost:5290/v1/chat/completions \
 
 | Field | Meaning |
 |---|---|
-| `model` | Agent set: `default-agent`, `web-agent`, `search-agent`, `document-agent`, `spreadsheet-agent`, `email-agent`, `multi-agent`. |
+| `model` | Agent set (see `GET /v1/models`): `default-agent`, `web-agent`, `search-agent`, `research-agent`, `document-files`, `spreadsheet-files`, `email-agent`, `office-files`, `multi-files`, `all-files`. |
+| `tools` | **Extension** — explicit tool-name list (e.g. `["FileTool", "OfficeTool", "EMailTool"]`) that overrides the preset from `model`. Unknown names are skipped; an empty list falls back to the preset. The core tools (`FileTool`, `GitTool`) are always part of the presets and of the TUI custom combinations — the TUI cannot remove them; the only way to change their status is `tools.json` (see below). |
 | `messages` | OpenAI messages; the last `user` message is the prompt. |
 | `file_ids` | Optional ids from `POST /v1/files` — attached as context (Markdown, server-side). |
 | `max_tokens` | Roughly maps to agent loop iterations (`max_tokens / 100`, clamped 1–50). |
 | `stream` | `true` → SSE chunks; `false` (default) → single JSON response with `usage`. |
 | `session_id` | **Extension** — multi-turn session id (see [Sessions](#sessions-multi-turn-memory)). |
 | `llm_provider` | **Extension** — LLM provider for this request (see [LLM switching](#llm-switching-the-pilot-endpoint)). |
+
+> **Per-tool configuration (`tools.json`).** A JSON file next to the executable overrides a
+> tool's default status — `{"tools": {"OfficeTool": true}}` enables the class-B `OfficeTool`
+> (default OFF), `{"tools": {"FileTool": false}}` disables a core tool. The rule is
+> **"unspecified ⇒ ON"**: a tool with no explicit entry uses its default (class-A tools ON,
+> class-B tools OFF). An absent file means all defaults. The file is never overwritten by
+> updates (same pattern as `telegram.json`). The dynamic `all-files` preset resolves to
+> every loaded tool the config leaves enabled.
 
 Responses carry an additive `session_id` field when a session was used.
 

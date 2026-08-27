@@ -274,7 +274,7 @@ see [section 6](#6-connect-a-client-to-localhost)):
 | Command | Feature | Notes |
 |---|---|---|
 | `/model [name]` | **Switch the LLM provider** | menu when no name given; a context-window guard refuses a switch that would overflow the target model's window |
-| `/agent [name]` | **Switch the agent set** | `default` / `web` / `search` / `research` / `word` / `spreadsheet` / `email` / `multi` — different tool sets |
+| `/agent [name]` | **Switch the agent set** | full preset ids: `default-agent` / `web-agent` / `search-agent` / `research-agent` / `document-files` / `spreadsheet-files` / `email-agent` / `office-files` / `multi-files` / `all-files` — different tool sets; bare `/agent` opens the interactive checklist (individual tools; the core tools `FileTool`/`GitTool` are locked and always on — status changeable only via `tools.json` next to the executable) |
 | `/voice [lang]` | **Voice dictation** | dictates from the server microphone into the input (Windows) |
 | `/tts [text]` | **Text-to-speech** | speaks the last agent reply (or the given text) with Kokoro TTS; WAV playback |
 | `/sip status\|call\|answer\|hangup` | **SIP telephony** | phone-gate the agent: status, outgoing call, auto-answer on/off, hangup (see [section 7](#7-sip-telephony)) |

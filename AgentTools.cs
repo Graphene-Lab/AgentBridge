@@ -11,6 +11,8 @@
 //  Tools/ folder (see ToolPlugins). See AIOrchestrator/docs-dev/ARCHITECTURE.md —
 //  "Agent Architecture".
 // ═══════════════════════════════════════════════════════════════════════
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using AIOrchestrator;
 
 /// <summary>Maps an agent-set id ("default-agent", "web-agent", ...) to the AIOrchestrator
@@ -21,6 +23,17 @@ using AIOrchestrator;
 /// plugins loaded at runtime into <see cref="McpToolRegistry"/> (see ToolPlugins).</summary>
 public static class AgentTools
 {
+    /// <summary>Core tools — architectural primitives the other tools depend on (FileTool:
+    /// sandbox search/read surface; GitTool: versioning/rollback). Always ON by default and
+    /// locked in the TUI picker; changeable only via tools.json (see docs-dev/ARCHITECTURE.md,
+    /// "Agent sets &amp; tool policy").</summary>
+    public static readonly string[] CoreTools = { "FileTool", "GitTool" };
+
+    /// <summary>Class-B tools — vendored engines wrapped by our adapters. Default OFF unless
+    /// explicitly enabled in tools.json (domain overlap + trust/control, see the policy doc).
+    /// Currently the only one: OfficeTool (vendored officecli engine).</summary>
+    public static readonly string[] ClassBTools = { "OfficeTool" };
+
     /// <summary>Agent-set presets (id → tool names) in TUI display order. Tool names are the
     /// API contract; a preset only activates the ones that are actually loaded at runtime.</summary>
     public static readonly (string Id, string[] Tools)[] Presets =
@@ -35,6 +48,10 @@ public static class AgentTools
         ("office-files", new[] { "FileTool", "OfficeTool", "GitTool" }),
         ("multi-files", new[] { "FileTool", "WebTool", "DocumentTool", "SpreadsheetTool", "EMailTool", "GitTool" }),
     };
+
+    /// <summary>Agent-set ids exposed as models: the static presets plus the dynamic
+    /// "all-files" preset (every loaded tool the per-tool config leaves enabled).</summary>
+    public static string[] AllIds { get; } = Presets.Select(p => p.Id).Append("all-files").ToArray();
 
     /// <summary>All tools actually available at runtime — core tools plus dynamically loaded
     /// plugins — with their one-line description (class-level XML summary, English, falling
@@ -55,13 +72,66 @@ public static class AgentTools
         return string.IsNullOrWhiteSpace(desc) ? type.Name : desc;
     }
 
-    /// <summary>Resolves the agent-set id to the tool names for <see cref="AgentHarness.ExecuteAction"/>.</summary>
+    /// <summary>Resolves the agent-set id to the tool names for <see cref="AgentHarness.ExecuteAction"/>.
+    /// The enabled core tools are always appended to a preset (they are primitives, not optional
+    /// tools — see docs-dev/ARCHITECTURE.md, "Agent sets &amp; tool policy"). "all-files" resolves
+    /// to every loaded tool the per-tool config leaves enabled.</summary>
     public static string[] Resolve(string? model)
     {
         var m = model?.Trim().ToLowerInvariant();
+        if (string.Equals(m, "all-files", StringComparison.OrdinalIgnoreCase))
+            return AllFilesTools();
         foreach (var p in Presets)
             if (string.Equals(p.Id, m, StringComparison.OrdinalIgnoreCase))
-                return p.Tools;
-        return Presets[0].Tools;   // default-agent
+                return WithCore(p.Tools);
+        return WithCore(Presets[0].Tools);   // default-agent
+    }
+
+    /// <summary>Dynamic "all-files" set: every tool currently loaded that the per-tool config
+    /// leaves enabled (core tools included — they default ON like everything else).</summary>
+    public static string[] AllFilesTools() => Catalog()
+        .Select(c => c.Name)
+        .Where(IsEnabled)
+        .ToArray();
+
+    /// <summary>Effective per-tool status: an explicit tools.json value wins; otherwise class-B
+    /// tools default OFF and everything else ON (the "unspecified ⇒ ON" rule).</summary>
+    public static bool IsEnabled(string toolName) =>
+        Config.TryGetValue(toolName, out var on) ? on : !ClassBTools.Contains(toolName);
+
+    private static string[] WithCore(string[] tools)
+    {
+        // A core tool the config disabled is removed from the preset's own list AND not
+        // re-added, so the "disabled in tools.json" state is uniform across every preset.
+        var set = tools.Where(t => !CoreTools.Contains(t) || IsEnabled(t)).ToList();
+        foreach (var core in CoreTools)
+            if (IsEnabled(core) && !set.Contains(core))
+                set.Add(core);
+        return set.ToArray();
+    }
+
+    /// <summary>Per-tool config (tools.json next to the executable, protected from updates —
+    /// same pattern as telegram.json). Records only deviations; an absent file means "all
+    /// unspecified ⇒ defaults". Format: {"tools": { "OfficeTool": true, "FileTool": false }}.</summary>
+    private static readonly Dictionary<string, bool> Config = LoadConfig();
+
+    private static Dictionary<string, bool> LoadConfig()
+    {
+        var result = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tools.json");
+            if (!File.Exists(path)) return result;
+            if (JsonSerializer.Deserialize<JsonObject>(File.ReadAllText(path))?["tools"] is not JsonObject tools)
+                return result;
+            foreach (var kv in tools)
+                if (bool.TryParse(kv.Value?.ToString(), out var on))
+                    result[kv.Key] = on;
+        }
+        catch (Exception ex)
+        {
+            Log.LogStep($"AgentTools: failed to read tools.json ({ex.Message}) — using defaults");
+        }
+        return result;
     }
 }

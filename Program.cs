@@ -267,9 +267,9 @@ var jsonOptions = new JsonSerializerOptions
 };
 
 // Agent-set ids exposed as "models" (each maps to a concrete tool set in
-// ResolveAgentTypes). Derived from the AgentTools preset table so the API
-// surface and the TUI tool selection can never drift apart.
-var agentModelIds = AgentTools.Presets.Select(p => p.Id).ToArray();
+// ResolveAgentTypes). Derived from the AgentTools preset table plus the dynamic
+// "all-files" preset, so the API surface and the TUI tool selection never drift apart.
+var agentModelIds = AgentTools.AllIds;
 
 // ─────────────────────────────────────────────────────────────────────
 // POST /v1/chat/completions — OpenAI Chat Completions API
@@ -1579,7 +1579,8 @@ static string GridCapture(string text)
 /// <summary>OpenAI-compatible Chat Completions request body accepted by POST /v1/chat/completions.</summary>
 public record ChatCompletionRequest
 {
-    /// <summary>Agent set to use: default-agent, web-agent, search-agent, document-agent, spreadsheet-agent, multi-agent.</summary>
+    /// <summary>Agent set to use (see AgentTools.AllIds): default-agent, web-agent, search-agent,
+    /// research-agent, document-files, spreadsheet-files, email-agent, office-files, multi-files, all-files.</summary>
     [JsonPropertyName("model")]
     public string? Model { get; init; }
     /// <summary>Chat messages; the last user message becomes the agent prompt.</summary>

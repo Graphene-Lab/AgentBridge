@@ -383,7 +383,9 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="DlgToolsTitle" xml:space="preserve"><value>Agent tools</value></data>
   <data name="DlgToolsPresets" xml:space="preserve"><value>Quick presets — Enter applies</value></data>
   <data name="DlgToolsActive" xml:space="preserve"><value>Active tools — Space toggles</value></data>
-  <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ move · Space toggle · Enter apply · Esc cancel</value></data>
+  <data name="DlgToolsCore" xml:space="preserve"><value>Core (always on): {0}</value></data>
+  <data name="DlgToolsCoreNone" xml:space="preserve"><value>Core (always on): none — disabled in tools.json</value></data>
+  <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ move · Space toggle · Close/Esc saves automatically</value></data>
   <data name="NoteNoToolsSelected" xml:space="preserve"><value>select at least one tool</value></data>
   <data name="NoteToolsApplied" xml:space="preserve"><value>tools: {0}</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Delete file</value></data>

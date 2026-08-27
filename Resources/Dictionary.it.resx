@@ -312,7 +312,9 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="DlgToolsTitle" xml:space="preserve"><value>Strumenti dell'agente</value></data>
   <data name="DlgToolsPresets" xml:space="preserve"><value>Combinazioni rapide — Invio applica</value></data>
   <data name="DlgToolsActive" xml:space="preserve"><value>Strumenti attivi — Spazio attiva/disattiva</value></data>
-  <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ sposta · Spazio attiva/disattiva · Invio applica · Esc annulla</value></data>
+  <data name="DlgToolsCore" xml:space="preserve"><value>Core (sempre attivi): {0}</value></data>
+  <data name="DlgToolsCoreNone" xml:space="preserve"><value>Core (sempre attivi): nessuno — disabilitati in tools.json</value></data>
+  <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ sposta · Spazio attiva/disattiva · Chiudi/Esc salva automaticamente</value></data>
   <data name="NoteNoToolsSelected" xml:space="preserve"><value>seleziona almeno uno strumento</value></data>
   <data name="NoteToolsApplied" xml:space="preserve"><value>strumenti: {0}</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Elimina file</value></data>
