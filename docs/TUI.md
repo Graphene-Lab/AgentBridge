@@ -74,9 +74,10 @@ project and get a persistent TUI where:
 [Giraffe AI](https://github.com/Graphene-Lab/GiraffeAI) client — a single static
 `index.html` plus its own launcher — is **not part of this repository**: on startup the
 server installs it next to the executable (`GiraffeAIWebClient\` folder, from the client's
-latest GitHub release) and keeps it at that latest version. Then `/web` runs the platform
-launcher (`start.bat` / `start.sh`), which serves the client on `http://localhost:8000` and
-opens the browser.
+latest GitHub release). The first install is unconditional; the automatic **update** check
+follows the app's auto-update toggle (`--no-update` / **File → Auto-Update**). Then `/web`
+runs the platform launcher (`start.bat` / `start.sh`), which serves the client on
+`http://localhost:8000` and opens the browser.
 
 The launch passes `--provider` with this server's endpoint, so the client **registers the
 AgentBridge provider (if not already present) and selects it immediately** — no manual

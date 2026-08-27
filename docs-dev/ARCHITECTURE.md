@@ -102,7 +102,7 @@ between all instances on the machine — the SIP PIN lockout state is machine-wi
 
 | Key | Values | Description |
 |---|---|---|
-| `LLM:Provider` | `Ollama_Granite3b`, `DeepSeek`, `DeepSeekBridge`, `Zai`, `Gemini`, `ExllamaV2_Llama3b`, ... | **Default** LLM provider for the `AgentHarness`. The provider in use can be switched per-request / per-session — see [LLM switching](API.md#llm-switching-the-pilot-endpoint). |
+| `LLM:Provider` | `Ollama`, `DeepSeek`, `DeepSeekBridge`, `Zai`, `Gemini`, `ExllamaV2`, ... | **Default** LLM provider for the `AgentHarness`. The provider in use can be switched per-request / per-session — see [LLM switching](API.md#llm-switching-the-pilot-endpoint). |
 | `LLM:Anonymize` | `true` / `false` | NameOrKey anonymization (see AIOrchestrator docs). |
 | `SkipIndexingOnStartup` | `true` / `false` | Skip the DocumentsPath index build/refresh + file watcher at startup (debug/dev). |
 | `AutoUpdate:Enabled` | `true` / `false` | Automatic update check at startup (default `true`). Overridden by the CLI `--no-update` flag and the TUI **File → Auto-Update** menu — see [autoupdate.md](autoupdate.md). |
@@ -245,7 +245,7 @@ systemd) so only the HTTP API is exposed.
 |---|---|
 | `Program.cs` | All endpoints + helpers (top-level statements) + DTOs + launch-mode selection |
 | `Tui.cs` | The Terminal.Gui terminal UI: menu bar, AGENT logo panel, streaming chat panel + input line, status bar, `/` command palette, `@` file palette, shortcuts, mouse |
-| `SessionStore.cs` | Multi-turn sessions (orchestrator + history + feature flags) |
+| `SessionStore.cs` | Multi-turn sessions (orchestrator + history + feature flags; session-backed orchestrators record the conversation to the AIOrchestrator Memory at disposal — idle timeout from `AgentHarness.SuggestedConversationTimeout`) |
 | `TtsEngine.cs` | In-process Kokoro TTS (lazy init, WAV synthesis) |
 | `VoiceBridge.cs` | VoiceAgent.Win subprocess bridge (one-shot recognition) |
 | `TelegramBridge.cs` | Telegram text-chat medium: WTelegramClient 4.4.8 userbot (private-chat → agent session → reply) |

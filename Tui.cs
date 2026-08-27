@@ -2299,22 +2299,26 @@ public static class ConsoleTui
         // ── Web client (Giraffe AI) ──
         // The web GUI is a tiny static app (single index.html + its own launcher) installed
         // next to the executable by WebClientUpdater (startup keeps it at the latest GitHub
-        // release). /web joins that startup task, retries the install when it failed (e.g.
-        // the machine was offline at boot), then the platform launcher (start.bat /
-        // start.sh) serves it on http://localhost:8000 and opens the browser. Connectivity
-        // failures surface as friendly notes instead of crashing the UI.
+        // release). /web joins that startup task (bounded internally: 15s version check, 5 min
+        // download — no artificial timeout that would report a failure on a slow first
+        // download), retries the install when it failed (e.g. the machine was offline at boot),
+        // then the platform launcher (start.bat / start.sh) serves it on http://localhost:8000
+        // and opens the browser. Connectivity failures surface as friendly notes instead of
+        // crashing the UI.
         private async Task LaunchWebClientAsync()
         {
             var dir = WebClientUpdater.ClientDir;
             try
             {
-                await WebClientUpdater.Startup.WaitAsync(TimeSpan.FromSeconds(120));
+                await WebClientUpdater.Startup;
                 if (!WebClientUpdater.IsInstalled)
                 {
                     AddNote(string.Format(Dictionary.NoteWebClientOutdated, dir, WebClientUpdater.Repo));
                     await WebClientUpdater.EnsureAsync();
                 }
-                AddNote(string.Format(Dictionary.NoteLaunchingWebClient, dir));
+                var ver = WebClientUpdater.InstalledVersion is { } v ? $" (v{v})" : "";
+                var upd = WebClientUpdater.LastStatus is { } s ? $" — {s}" : "";
+                AddNote(string.Format(Dictionary.NoteLaunchingWebClient, dir) + ver + upd);
                 LaunchWebClientProcess(dir);
             }
             catch (Exception ex)

@@ -203,15 +203,15 @@ internal static class Program
         Check("Esc closes picker (no residue)", !residue.Success);
 
         // 2d) List selection: Enter on the list picks the highlighted provider. The
-        //     first llm-provider on this machine is ExllamaV2_Llama3b — after the
+        //     first llm-provider on this machine is ExllamaV2 — after the
         //     picker closes the switch note/status shows that name (2b switched to
         //     Zai first, so this is a real switch, not "already on").
         conpty.Send("/model\r");
         await conpty.WaitForNewTextAsync(pickerMarker, TimeSpan.FromSeconds(20));
         conpty.Send("\x1b[B\r");   // Down (already at first item) then Enter
-        await conpty.WaitForNewTextAsync("ExllamaV2_Llama3b", TimeSpan.FromSeconds(20));
+        await conpty.WaitForNewTextAsync("ExllamaV2", TimeSpan.FromSeconds(20));
         var afterPick = conpty.ScreenSinceMark();
-        Check("Enter on provider list selects and switches", afterPick.Contains("ExllamaV2_Llama3b") && !afterPick.Contains("refused") && !afterPick.Contains("rifiutato"));
+        Check("Enter on provider list selects and switches", afterPick.Contains("ExllamaV2") && !afterPick.Contains("refused") && !afterPick.Contains("rifiutato"));
         CheckAlive(conpty, "process alive after list selection");
 
         // 3) USER BUG REPORT (crash): typing "/m", selecting /model with the cursor

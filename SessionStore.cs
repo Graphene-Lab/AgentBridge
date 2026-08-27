@@ -59,8 +59,10 @@ public static class SessionStore
     private static readonly System.Threading.Timer CleanupTimer =
         new(_ => Cleanup(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
 
-    /// <summary>Idle timeout after which a session is disposed (default 30 minutes).</summary>
-    public static TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(30);
+    /// <summary>Idle timeout after which a session is disposed (default: the suggested
+    /// conversation timeout from AIOrchestrator, 1 hour — the same value the AIOffice voice
+    /// panel uses to expire its local conversation).</summary>
+    public static TimeSpan IdleTimeout { get; set; } = AgentHarness.SuggestedConversationTimeout;
 
     /// <summary>Returns the session and bumps its idle timestamp; null when unknown.</summary>
     public static ActiveSession? Get(string id)
@@ -78,7 +80,13 @@ public static class SessionStore
         // a session conversation survives across requests, so a background task started by the agent can
         // deliver its completion event on the next chat request. Stateless (session-less) requests keep the
         // default synchronous behavior — their orchestrator dies with the request.
-        var session = new ActiveSession(id, new AgentHarness(provider, anonymize) { AsyncTaskDeliveryEnabled = true });
+        // IsSessionBacked: this is a long-lived conversation — the end-of-conversation memory recording
+        // fires at Dispose (idle timeout / explicit removal), exactly once.
+        var session = new ActiveSession(id, new AgentHarness(provider, anonymize)
+        {
+            AsyncTaskDeliveryEnabled = true,
+            IsSessionBacked = true
+        });
         Sessions[id] = session;
         return session;
     }

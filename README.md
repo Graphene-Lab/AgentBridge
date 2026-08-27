@@ -86,6 +86,16 @@ Our **Agentic AI** is designed to be installed on standalone devices, such as mi
 
 ## Innovative Features
 
+- **Proprietary Deterministic Memory — the Agent Never Forgets**
+  A proprietary deterministic memory keeps the agent permanently aware of the things, facts,
+  people and documents it has already handled: every conversation leaves a trace, and every new
+  request instantly brings back the precise relevant context. No other system on the market does
+  this: conventional agents try to "remember" by re-elaborating context through the model itself,
+  while our memory retrieves deterministically — zero reasoning iterations wasted on recollection,
+  a faster workflow, and an agent that is always lucid and grounded in everything it has already
+  worked on. This original, proprietary algorithm is exclusive to AgentBridge and places it at
+  the top of the agentic sector with highly innovative technology.
+
 - **AI Assistant Available 24/7 via SIP Protocol**
   The system provides a fully integrated AI agent that can be reached at any time through SIP‑based telephone access. It operates as a dedicated personal assistant capable of natural voice interaction, immediate task execution, and uninterrupted availability. Unlike a human secretary who may be distracted or unavailable, this assistant remains consistently focused, reliable, and committed to carrying out assigned duties with precision.
 

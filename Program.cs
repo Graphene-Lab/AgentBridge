@@ -72,7 +72,7 @@ if (args.Contains("-h") || args.Contains("--help") || args.Contains("/?"))
         Options (command line overrides appsettings.json; any key is overridable
         with --Key:SubKey <value>):
           --LLM:Provider <name>   Default LLM provider: DeepSeekBridge (default), DeepSeek,
-                                  Zai, Gemini, Ollama_Granite3b, ExllamaV2_Llama3b. Per-request
+                                  Zai, Gemini, Ollama, ExllamaV2. Per-request
                                   overrides via the llm_provider field on /v1/chat/completions
                                   or POST /v1/control.
           --LLM:Anonymize <bool>  Anonymize NameOrKey elements before sending to the LLM
@@ -322,8 +322,8 @@ app.MapPost("/v1/chat/completions", async (
         }
         var attachments = ResolveAttachments(request.FileIds);
         var maxIterations = request.MaxTokens > 0
-            ? Math.Clamp(request.MaxTokens.Value / 100, 1, 50)
-            : 50;
+            ? Math.Clamp(request.MaxTokens.Value / 100, 1, 200)
+            : 200;
 
         ActiveSession? session = null;
         AgentHarness? owned = null;
@@ -1390,7 +1390,7 @@ public record ChatCompletionRequest
     public string? SessionId { get; init; }
     /// <summary>
     /// LLM provider to use for this request (extension): e.g. "DeepSeekBridge", "Zai",
-    /// "Gemini", "Ollama_Granite3b". Defaults to the appsettings LLM:Provider. On a session
+    /// "Gemini", "Ollama". Defaults to the appsettings LLM:Provider. On a session
     /// request this switches the LLM currently in use (refused with 409 when the conversation
     /// overflows the target provider's context window). See /v1/models and /v1/control.
     /// </summary>

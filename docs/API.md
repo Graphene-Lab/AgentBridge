@@ -117,16 +117,16 @@ accumulated conversation overflows the target provider's context window — the 
 ```json
 {
   "error": "context_window_exceeded",
-  "detail": "The conversation needs ≈44744 tokens but provider 'ExllamaV2_Llama3b' has a context window of 8192 tokens. Reset the conversation (POST /v1/control with reset_history: true) or switch to a provider with a larger context window.",
+  "detail": "The conversation needs ≈44744 tokens but provider 'ExllamaV2' has a context window of 8192 tokens. Reset the conversation (POST /v1/control with reset_history: true) or switch to a provider with a larger context window.",
   "estimated_tokens": 44744,
   "context_window": 8192,
-  "provider": "ExllamaV2_Llama3b"
+  "provider": "ExllamaV2"
 }
 ```
 
 The same check applies to a per-request `llm_provider` on a session chat. The switch itself
 preserves the conversation (history is moved to the new provider's utility). Note that some
-providers block while being activated — e.g. `ExllamaV2_Llama3b` auto-starts the local
+providers block while being activated — e.g. `ExllamaV2` auto-starts the local
 ExLlamaV2 server and waits for it to become ready (up to 3 minutes, then it fails).
 
 Per-request switching without a session works too: `"llm_provider": "Zai"` on any

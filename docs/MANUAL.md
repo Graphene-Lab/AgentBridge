@@ -119,7 +119,7 @@ Three JSON files control the server. All live next to the executable.
 |---|---|---|
 | `Urls` | e.g. `http://localhost:5290` | Address the server listens on (see [Connect a client](#6-connect-a-client-to-localhost)) |
 | `SkipIndexingOnStartup` | `true` / `false` | Skip the documents index build/refresh + file watcher at startup |
-| `LLM:Provider` | `Ollama_Granite3b`, `DeepSeek`, `DeepSeekBridge`, `Zai`, `Gemini`, `ExllamaV2_Llama3b`, ... | **Default** LLM provider for the orchestrator; you can still switch it per session/request |
+| `LLM:Provider` | `Ollama`, `DeepSeek`, `DeepSeekBridge`, `Zai`, `Gemini`, `ExllamaV2`, ... | **Default** LLM provider for the orchestrator; you can still switch it per session/request |
 | `LLM:Anonymize` | `true` / `false` | Name/key anonymization |
 | `Voice:ExePath` | path | Path to `AIOffice.VoiceAgent.Win.exe` for `POST /v1/voice/listen`. Empty = look next to the executable |
 | `Sip:Enabled` | `true` / `false` | **SIP telephony master switch** — see [SIP telephony](#9-sip-telephony) |
@@ -141,7 +141,7 @@ at a local server); it is reloaded when the configuration changes.
 
 ```json
 {
-  "ProviderName": "Ollama_Granite3b",
+  "ProviderName": "Ollama",
   "Protocol": "OpenAI",
   "CacheType": "PrefixCache",
   "ModelName": "granite4.1:3b",
