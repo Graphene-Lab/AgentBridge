@@ -56,9 +56,9 @@ English prompts, they create or update `telegram.json`).
 | Key | Default | Description |
 |---|---|---|
 | `Enabled` | `false` | Master switch — the bridge starts at boot only when true |
-| `ApiId` | `0` | App api_id from https://my.telegram.org/apps |
-| `ApiHash` | `""` | App api_hash from https://my.telegram.org/apps |
-| `PhoneNumber` | `""` | Account phone number, international format (e.g. `+393331234567`) |
+| `ApiId` | built-in | App api_id — AgentBridge ships with its own app identity, no need to create one. Override to use a per-install app |
+| `ApiHash` | built-in | App api_hash — same as above |
+| `PhoneNumber` | `""` | Account phone number, international format (e.g. `+393331234567`) — **the only key a new deployment must set** |
 | `SessionPath` | `"telegram.session"` | Session file (auth keys) relative to the executable dir. After the first login the session persists: no code is asked again |
 | `AllowedUsers` | `[]` | Users allowed to talk to the agent — numeric ids and/or `@usernames`, comma-separated in the TUI. Empty = all private chats |
 | `Agent` | `"default-agent"` | Agent set used for the conversations (see AgentTools.Resolve) |
@@ -100,9 +100,18 @@ itself.
 
 ## Getting your api_id / api_hash
 
+**You normally don't need these.** AgentBridge ships with its own Telegram app identity
+(`ApiId`/`ApiHash` compiled in) — a deployment only sets `PhoneNumber` and completes the
+first login with the verification code.
+
+Override the built-in credentials **only** when you want a per-install app identity (for
+example to keep independent deployments from sharing one app):
+
 1. Open https://my.telegram.org/apps and sign in with the account you want to use.
 2. Create an application (any name/description — these identify *your* app, not the user).
-3. Copy **api_id** and **api_hash** into `telegram.json` (or answer the setup script).
+3. Put your values in `telegram.json` (`ApiId` / `ApiHash`) — they take precedence over
+   the built-in ones (or set them with `/telegram config set ApiId <id>` and
+   `/telegram config set ApiHash <hash>`).
 
 ## Notes and limitations
 

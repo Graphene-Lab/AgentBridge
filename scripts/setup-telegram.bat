@@ -18,18 +18,16 @@ set /p ENABLED=Enable the Telegram bridge at startup? (y/n) [y]:
 if "%ENABLED%"=="" set "ENABLED=y"
 if /i "%ENABLED%"=="y" (set "ENABLED=true") else if "%ENABLED%"=="1" (set "ENABLED=true") else (set "ENABLED=false")
 
-set /p APIID=App api_id (from https://my.telegram.org/apps): 
-set /p APIHASH=App api_hash (from https://my.telegram.org/apps): 
-set /p PHONE=Account phone number, international format (e.g. +393331234567): 
-set /p SESSION=Session file name (auth keys persist here after the first login) [telegram.session]: 
+set /p PHONE=Account phone number, international format (e.g. +393331234567):
+set /p SESSION=Session file name (auth keys persist here after the first login) [telegram.session]:
 if "%SESSION%"=="" set "SESSION=telegram.session"
-set /p ALLOWED=Allowed users, comma separated (numeric ids or @usernames; empty = all private chats): 
+set /p ALLOWED=Allowed users, comma separated (numeric ids or @usernames; empty = all private chats):
 
+REM The app credentials (ApiId/ApiHash) are built into AgentBridge - no need to ask.
+REM Override them in telegram.json only to use a per-install app identity.
 (
 echo {
 echo   "Enabled": %ENABLED%,
-echo   "ApiId": %APIID%,
-echo   "ApiHash": "%APIHASH%",
 echo   "PhoneNumber": "%PHONE%",
 echo   "SessionPath": "%SESSION%",
 echo   "AllowedUsers": [
@@ -53,8 +51,6 @@ if "%ALLOWED%"=="" (
   (
   echo {
   echo   "Enabled": %ENABLED%,
-  echo   "ApiId": %APIID%,
-  echo   "ApiHash": "%APIHASH%",
   echo   "PhoneNumber": "%PHONE%",
   echo   "SessionPath": "%SESSION%",
   echo   "AllowedUsers": [],

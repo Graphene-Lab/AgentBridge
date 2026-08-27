@@ -1550,8 +1550,6 @@ public static class ConsoleTui
                         var lines = new List<string>
                         {
                             $"{("enabled").PadRight(18)}{(c.Enabled ? Dictionary.On : Dictionary.Off)}",
-                            $"{("api_id").PadRight(18)}{c.ApiId}",
-                            $"{("api_hash").PadRight(18)}{(c.ApiHash.Length > 0 ? "set" : "not set")}",
                             $"{("phone_number").PadRight(18)}{ValueOr(c.PhoneNumber, "(empty)")}",
                             $"{("session_path").PadRight(18)}{ValueOr(c.SessionPath, "(default)")}",
                             $"{("allowed_users").PadRight(18)}{ValueOr(allowed, "(all private chats)")}",

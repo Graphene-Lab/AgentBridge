@@ -28,17 +28,15 @@ fi
 
 ENABLED=$(ask "Enable the Telegram bridge at startup? (y/n)" "y")
 case "$ENABLED" in y|Y|yes|YES|true|1) ENABLED=true ;; *) ENABLED=false ;; esac
-APIID=$(ask "App api_id (from https://my.telegram.org/apps)" "")
-APIHASH=$(ask "App api_hash (from https://my.telegram.org/apps)" "")
 PHONE=$(ask "Account phone number, international format (e.g. +393331234567)" "")
 SESSION=$(ask "Session file name (auth keys persist here after the first login)" "telegram.session")
 ALLOWED=$(ask "Allowed users, comma separated (numeric ids or @usernames; empty = all private chats)" "")
 
+# The app credentials (ApiId/ApiHash) are built into AgentBridge — no need to ask.
+# Override them in telegram.json only to use a per-install app identity.
 cat > "$TARGET.tmp" <<EOF
 {
   "Enabled": ${ENABLED},
-  "ApiId": ${APIID},
-  "ApiHash": "${APIHASH}",
   "PhoneNumber": "${PHONE}",
   "SessionPath": "${SESSION}",
   "AllowedUsers": [],

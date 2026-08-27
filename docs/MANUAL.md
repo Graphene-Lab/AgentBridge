@@ -209,8 +209,6 @@ so Telegram is **not** a voice medium. Full reference:
 ```json
 {
   "Enabled": false,
-  "ApiId": 0,
-  "ApiHash": "",
   "PhoneNumber": "",
   "SessionPath": "telegram.session",
   "AllowedUsers": [],
@@ -221,7 +219,7 @@ so Telegram is **not** a voice medium. Full reference:
 | Key | Description |
 |---|---|
 | `Enabled` | Master switch — the bridge starts at boot only when true |
-| `ApiId` / `ApiHash` | App credentials from https://my.telegram.org/apps |
+| `ApiId` / `ApiHash` | **Built-in** app credentials (AgentBridge's own identity — omitted from the file). Override them only to use a per-install app from https://my.telegram.org/apps |
 | `PhoneNumber` | Account phone number, international format (e.g. `+393331234567`) |
 | `SessionPath` | Session file (auth keys) next to the executable — written on the first login, then no code is asked again |
 | `AllowedUsers` | Users allowed to talk to the agent (numeric ids and/or `@usernames`). Empty = all private chats |
@@ -232,8 +230,8 @@ update.
 
 > **Telegram quick config:** the first login is guided from the TUI (`/telegram status` →
 > `/telegram login-code <code>`). The setup scripts — `scripts/setup-telegram.bat` on
-> Windows, `scripts/setup-telegram.sh` on Linux/macOS — ask for the credentials
-> interactively and write `telegram.json` for you.
+> Windows, `scripts/setup-telegram.sh` on Linux/macOS — ask only for the phone number
+> interactively and write `telegram.json` for you (the app credentials are built-in).
 
 ---
 

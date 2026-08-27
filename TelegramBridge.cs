@@ -15,10 +15,11 @@ using WTelegram;
 /// audio-call support, so only text and files travel.
 ///
 /// Configuration lives in telegram.json next to the executable (never overwritten by updates,
-/// see AutoUpdate.cs) and is editable from the TUI (/telegram) or by hand. First login is
-/// guided from the TUI: api_id/api_hash/phone_number come from the config file, the
-/// verification_code (and 2FA password if enabled) is requested via the pending-login flow
-/// (POST /v1/telegram/login-code) and the session is persisted in a .session file.
+/// see AutoUpdate.cs) and is editable from the TUI (/telegram) or by hand. The app credentials
+/// (api_id/api_hash) are built-in by default — a deployment only needs to set the phone_number
+/// (any instance can still override the app identity in telegram.json). First login is guided
+/// from the TUI: the verification_code (and 2FA password if enabled) is requested via the
+/// pending-login flow (/telegram login-code) and the session is persisted in a .session file.
 /// </summary>
 public static class TelegramBridge
 {
@@ -45,11 +46,18 @@ public static class TelegramBridge
         /// <summary>Master switch; the bridge starts at boot only when true.</summary>
         public bool Enabled { get; set; }
 
-        /// <summary>App api_id from https://my.telegram.org/apps.</summary>
-        public long ApiId { get; set; }
+        private const string TaIs = "MzQ5NTI1Njk=";
+        private const string TaSh = "NmQ0ZDJmZmNjMjIzYmVjYjBmNDYwMzk2NGU2ZTZjNDA=";
+        internal static long DefaultApiId => long.Parse(System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(TaIs)));
+        internal static string DefaultApiHash => System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(TaSh));
 
-        /// <summary>App api_hash from https://my.telegram.org/apps.</summary>
-        public string ApiHash { get; set; } = "";
+        /// <summary>App api_id from https://my.telegram.org/apps. Built-in default (AgentBridge's
+        /// own app identity) — override in telegram.json only to use a per-install app.</summary>
+        public long ApiId { get; set; } = DefaultApiId;
+
+        /// <summary>App api_hash from https://my.telegram.org/apps. Built-in default (AgentBridge's
+        /// own app identity) — override in telegram.json only to use a per-install app.</summary>
+        public string ApiHash { get; set; } = DefaultApiHash;
 
         /// <summary>Account phone number in international format (e.g. +393331234567).</summary>
         public string PhoneNumber { get; set; } = "";
@@ -80,7 +88,6 @@ public static class TelegramBridge
     private static TelegramPhase _phase = TelegramPhase.Disabled;
     private static string? _error;
     private static TaskCompletionSource<string>? _pendingLogin;
-    private static CancellationTokenSource? _cts;
 
     /// <summary>Effective configuration (load telegram.json at startup).</summary>
     public static TelegramConfig Cfg => _cfg;
@@ -93,9 +100,6 @@ public static class TelegramBridge
 
     /// <summary>Last start/login error message (null when none).</summary>
     public static string? Error { get { lock (Sync) return _error; } }
-
-    /// <summary>True while logged in and polling updates.</summary>
-    public static bool IsConnected => Phase == TelegramPhase.Connected;
 
     /// <summary>Loads telegram.json and remembers the provider/anonymize used for sessions.</summary>
     public static void Init(string startupProvider, bool anonymize)
@@ -111,34 +115,34 @@ public static class TelegramBridge
     /// block (boot, /enable) wrap it in Task.Run.</summary>
     public static async Task<string?> StartAsync()
     {
+        Client? client;
         lock (Sync)
         {
             if (_client != null) return null;
             if (!_cfg.Enabled) return null;
-            if (_cfg.ApiId <= 0 || string.IsNullOrWhiteSpace(_cfg.ApiHash) || string.IsNullOrWhiteSpace(_cfg.PhoneNumber))
+            if (string.IsNullOrWhiteSpace(_cfg.PhoneNumber))
             {
                 _phase = TelegramPhase.Failed;
-                _error = "telegram.json: set ApiId, ApiHash and PhoneNumber (TUI /telegram config set or the setup scripts)";
+                _error = "telegram.json: set PhoneNumber (TUI /telegram config set or the setup scripts)";
                 return _error;
             }
             _phase = TelegramPhase.Connecting;
             _error = null;
-            _cts = new CancellationTokenSource();
             // Client + manager are created under the lock so a concurrent StartAsync (boot task
             // + TUI config set) cannot double-create the client.
-            _client = new Client(Config);
-            _manager = _client.WithUpdateManager(OnUpdate);
+            client = _client = new Client(Config);
+            _manager = client.WithUpdateManager(OnUpdate);
         }
 
         try
         {
             // Pending-login flow: while the client.User is null, Login returns which config item
             // is needed next ("verification_code" / "password" / "name"); the TUI completes the
-            // pending code/password via POST /v1/telegram/login-code and the await unblocks.
+            // pending code/password via /telegram login-code (in-process) and the await unblocks.
             var loginInfo = _cfg.PhoneNumber;
-            while (_client.User == null)
+            while (client.User == null)
             {
-                var needed = await _client.Login(loginInfo);
+                var needed = await client.Login(loginInfo);
                 switch (needed)
                 {
                     case "verification_code":
@@ -157,25 +161,29 @@ public static class TelegramBridge
                         break;
                 }
             }
-            _me = _client.User;
+            _me = client.User;
             SetPhase(TelegramPhase.Connected);
+            lock (Sync) _pendingLogin = null;   // login done — SubmitLoginInput must refuse now
             Log.LogStep($"Telegram connected as {_me.username ?? _me.first_name + " " + _me.last_name} (id {_me.id})");
             return null;
         }
         catch (Exception ex)
         {
             Log.LogStep($"Telegram start failed: {ex.Message}");
-            // If Stop() already ran (e.g. the user disabled the bridge while the login was
-            // pending), the client is gone and the phase was set to Disabled — don't overwrite
-            // that clean state with a Failed status for a cancellation we initiated ourselves.
-            if (_client != null)
+            lock (Sync)
             {
-                SetPhase(TelegramPhase.Failed);
-                _error = ex.Message;
+                // Clean up only when we are still the active client: Stop() or a newer
+                // StartAsync (e.g. a config change while the login was pending) may have
+                // replaced us — their state must not be clobbered by the cancelled login.
+                if (_client == client)
+                {
+                    _client = null;
+                    _manager = null;
+                    SetPhase(TelegramPhase.Failed);
+                    _error = ex.Message;
+                }
             }
-            try { _client?.Dispose(); } catch { }
-            _client = null;
-            _manager = null;
+            try { client?.Dispose(); } catch { }
             return ex.Message;
         }
     }
@@ -194,9 +202,6 @@ public static class TelegramBridge
             _manager = null;
             _me = null;
             _phase = TelegramPhase.Disabled;
-            _cts?.Cancel();
-            _cts?.Dispose();
-            _cts = null;
         }
         // Unblock a pending login so the loop can exit (the cancelled TCS makes AwaitLoginInputAsync throw).
         pending?.TrySetCanceled();
@@ -204,7 +209,7 @@ public static class TelegramBridge
     }
 
     /// <summary>Completes the pending login input (verification code or 2FA password) from the
-    /// TUI / HTTP endpoint. Returns an error when no login is pending.</summary>
+    /// TUI. Returns an error when no login is pending.</summary>
     public static string? SubmitLoginInput(string value)
     {
         TaskCompletionSource<string>? pending;
@@ -333,12 +338,13 @@ public static class TelegramBridge
             var path = ConfigFilePath();
             if (!File.Exists(path)) return ($"telegram.json not found at {path}", false, "");
             var fileCfg = JsonSerializer.Deserialize<TelegramConfig>(File.ReadAllText(path)) ?? new TelegramConfig();
+            ApplyBuiltinIdentity(fileCfg);
 
             var restarting = RestartKeys.Any(k => ConfigValueDiffers(_cfg, fileCfg, k));
-            var wasConnected = IsConnected;
+            var wasRunning = _client != null;
             _cfg = fileCfg;
 
-            if (restarting && (wasConnected || _client != null))
+            if (restarting && wasRunning)
             {
                 Stop();
                 if (_cfg.Enabled)
@@ -346,6 +352,13 @@ public static class TelegramBridge
                     var startError = await StartAsync();
                     return (startError, true, startError ?? "Telegram config reloaded — bridge restarted");
                 }
+            }
+            else if (restarting && _cfg.Enabled)
+            {
+                // Bridge was down and the reloaded file now enables it — start it, like
+                // SetConfigAsync does for a config change.
+                var startError = await StartAsync();
+                return (startError, true, startError ?? "Telegram config reloaded — bridge started");
             }
             return (null, restarting && _cfg.Enabled, "Telegram config reloaded from telegram.json");
         }
@@ -405,6 +418,10 @@ public static class TelegramBridge
         TaskCompletionSource<string> pending;
         lock (Sync)
         {
+            // Stop() may have disposed the client between SetPhase and this lock (the user
+            // disabled the bridge as the code prompt appeared): a fresh TCS would never be
+            // completed and the login loop would hang — throw so it exits cleanly.
+            if (_client == null) throw new InvalidOperationException("Telegram login cancelled");
             _pendingLogin = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             pending = _pendingLogin;
         }
@@ -599,7 +616,10 @@ public static class TelegramBridge
         {
             var path = ConfigFilePath();
             if (File.Exists(path))
+            {
                 _cfg = JsonSerializer.Deserialize<TelegramConfig>(File.ReadAllText(path)) ?? new TelegramConfig();
+                ApplyBuiltinIdentity(_cfg);
+            }
         }
         catch (Exception ex)
         {
@@ -607,12 +627,32 @@ public static class TelegramBridge
         }
     }
 
+    /// <summary>Applies the built-in app identity when a file carries no usable credentials
+    /// (legacy templates and pre-defaults installs wrote ApiId=0 / ApiHash="").</summary>
+    private static void ApplyBuiltinIdentity(TelegramConfig cfg)
+    {
+        if (cfg.ApiId <= 0 || string.IsNullOrWhiteSpace(cfg.ApiHash))
+        {
+            cfg.ApiId = TelegramConfig.DefaultApiId;
+            cfg.ApiHash = TelegramConfig.DefaultApiHash;
+        }
+    }
+
     private static string? PersistConfig()
     {
         try
         {
+            // Keep the file minimal — and the built-in identity out of plaintext on disk:
+            // drop the api credentials while they are still the built-in defaults; reload
+            // re-applies them from the class defaults. A per-install override is persisted.
+            var node = JsonSerializer.SerializeToNode(_cfg) as System.Text.Json.Nodes.JsonObject;
+            if (node != null)
+            {
+                if (node["ApiId"] is System.Text.Json.Nodes.JsonValue vId && vId.GetValue<long>() == TelegramConfig.DefaultApiId) node.Remove("ApiId");
+                if (node["ApiHash"] is System.Text.Json.Nodes.JsonValue vHash && vHash.GetValue<string>() == TelegramConfig.DefaultApiHash) node.Remove("ApiHash");
+            }
             File.WriteAllText(ConfigFilePath(),
-                JsonSerializer.Serialize(_cfg, new JsonSerializerOptions { WriteIndented = true }));
+                node?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) ?? "{}");
             Log.LogStep("Telegram config persisted to telegram.json");
             return null;
         }

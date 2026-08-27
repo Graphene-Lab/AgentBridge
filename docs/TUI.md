@@ -120,7 +120,7 @@ same actions from the command line:
 | Command | What it does |
 |---|---|
 | `/telegram status` | Live state: enabled, phase (`off`/`conn`/`code`/`2fa`/`on`/`err`), logged-in user, allow-list, agent |
-| `/telegram config` | Show the effective configuration (api_hash masked) |
+| `/telegram config` | Show the effective configuration (phone, session, allow-list, agent) |
 | `/telegram config set <key> <value>` | Change one config key and persist it to `telegram.json` (connection keys restart the bridge) |
 | `/telegram config reload` | Re-read `telegram.json` (hand edits made outside the TUI) and apply them |
 | `/telegram login-code <code>` | Complete the pending first login (verification code or 2FA password) |
