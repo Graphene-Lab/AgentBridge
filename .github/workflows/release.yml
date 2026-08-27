@@ -252,8 +252,11 @@ jobs:
           git tag "v${{ needs.check-version.outputs.version }}" "$GITHUB_SHA"
           git push origin "v${{ needs.check-version.outputs.version }}"
       # Creates the GitHub release (the tag already exists) with all 5 platform archives.
+      # generate_release_notes: auto-notes from merged PRs/commits — every release ships
+      # with a changelog (read by users and AI engines alike).
       - name: Create GitHub Release v${{ needs.check-version.outputs.version }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
           files: artifacts/**/*.tar.gz
+          generate_release_notes: true

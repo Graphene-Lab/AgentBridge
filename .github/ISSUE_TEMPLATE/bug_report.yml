@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a problem with AgentBridge so it can be fixed
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue. Fill in as much detail as
+        you can — logs and steps make fixes much faster.
+  - type: input
+    id: version
+    attributes:
+      label: AgentBridge version
+      description: Version from the status bar or the release tag (e.g. 1.26.08.09)
+      placeholder: 1.26.08.09
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows 64-bit
+        - Linux x64
+        - Linux ARM64
+        - macOS Intel
+        - macOS Apple Silicon
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The shortest sequence that triggers the problem
+      placeholder: |
+        1. Start agent.exe
+        2. Type /modelsetup …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Paste relevant log lines or attach screenshots
+      render: text
