@@ -8,8 +8,9 @@ status bar, `/` slash commands with a **filterable command palette**, `@` file
 attachments, keyboard shortcuts, mouse support and online help — while the HTTP
 server keeps serving every other client on the same port. **CLI and API are the
 same conversation**: messages you send from the UI go through the exact same
-`POST /v1/chat/completions` endpoint that any OpenAI-compatible client uses, so
-both can drive the agents at the same time (the UI holds one session; other
+`POST /v1/chat/completions` endpoint that OpenAI-compatible clients use, while MCP
+clients can control the same runtime via `POST /mcp`, so both can drive the agents
+at the same time (the UI holds one session; other
 clients create their own).
 
 ## How Qwen Code's TUI works (the model we followed)

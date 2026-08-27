@@ -2,8 +2,8 @@
 
 OpenAI-compatible endpoints plus a small set of **documented proprietary extensions**
 for the features that have no OpenAI equivalent (voice speech, LLM switching, platform
-capabilities). Any OpenAI SDK, script or standalone client can drive the AI agents
-without modification.
+capabilities), plus a native MCP JSON-RPC connector. Any OpenAI SDK, script, standalone
+client or MCP client can drive the AI agents without modification to the agent core.
 
 ## Endpoint summary
 
@@ -29,6 +29,7 @@ without modification.
 | `GET /v1/control` | Session state + platform capabilities (what is available here and now) |
 | `POST /v1/voice/listen` | One-shot speech recognition from the server microphone (Windows only) |
 | `GET /v1/audio/voices` | TTS voices available on this platform |
+| `POST /mcp` | Native MCP JSON-RPC endpoint (`initialize`, `tools/list`, `tools/call`) |
 
 > **Telegram is an in-process medium and exposes no HTTP endpoints** — messages travel
 > directly through the WTelegramClient library; configuration is done from the TUI
@@ -38,6 +39,46 @@ The rule for platform-dependent features: the server reports them **unavailable 
 the platform or the assets are missing, and `GET /v1/control` / `GET /v1/audio/voices` always
 tell the client what is actually available — a chat client activates voice/TTS only where they
 really run.
+
+---
+
+## `POST /mcp` — native MCP JSON-RPC connector
+
+AgentBridge exposes a native MCP connector in the same process as the agent runtime, so MCP,
+OpenAI API and TUI all drive the same orchestrator state.
+
+Current minimal profile (intentionally small for immediate interoperability):
+
+- `initialize`
+- `tools/list`
+- `tools/call`
+
+The initial tool catalog exposes one high-level tool:
+
+- `agent_run` — runs an autonomous AgentBridge execution for the provided prompt.
+
+Example request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "agent_run",
+    "arguments": {
+      "prompt": "Create a concise weekly report from the latest sales data",
+      "model": "default-agent",
+      "llm_provider": "Zai",
+      "max_iterations": 120,
+      "session_id": "sess-..."
+    }
+  }
+}
+```
+
+`agent_run` returns MCP content blocks plus a structured payload (`success`, `code`,
+`iterations`, optional `session_id`, optional `attachments`).
 
 ---
 

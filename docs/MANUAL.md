@@ -293,9 +293,9 @@ see [section 6](#6-connect-a-client-to-localhost)):
 
 ## 6. Connect a client to localhost
 
-AgentBridge speaks **OpenAI Chat Completions** plus small documented extensions. Any
-OpenAI-compatible client — script, SDK, bot, app — can drive the agents by pointing its
-base URL at the server.
+AgentBridge speaks **OpenAI Chat Completions** plus a native **MCP JSON-RPC** connector.
+OpenAI-compatible clients and standard MCP clients can both drive the same agents on
+the same server process.
 
 **Base URL:** `http://localhost:5290/v1` (change the port via `Urls` in
 `appsettings.json` or `ASPNETCORE_URLS`).
@@ -314,6 +314,56 @@ curl -N http://localhost:5290/v1/chat/completions \
 
 **In an OpenAI SDK:** set `base_url` / `BaseAddress` to `http://localhost:5290/v1` and use
 the SDK's normal chat methods.
+
+### MCP connector (standard JSON-RPC)
+
+AgentBridge also exposes a native MCP connector on:
+
+- Endpoint: `http://localhost:5290/mcp`
+- Transport shape: JSON-RPC 2.0 over HTTP POST
+
+Current minimal MCP profile (designed to work immediately):
+
+- `initialize`
+- `tools/list`
+- `tools/call`
+
+Initial tool exposed:
+
+- `agent_run` — runs one autonomous AgentBridge execution for the given prompt.
+
+Example (PowerShell):
+
+```powershell
+$body = @{
+  jsonrpc = '2.0'
+  id = 1
+  method = 'tools/call'
+  params = @{
+    name = 'agent_run'
+    arguments = @{
+      prompt = 'Analyze this week sales trend and summarize in 5 bullet points.'
+      model = 'default-agent'
+    }
+  }
+} | ConvertTo-Json -Depth 12
+
+Invoke-RestMethod -Uri 'http://localhost:5290/mcp' -Method Post -ContentType 'application/json' -Body $body
+```
+
+Supported `agent_run` arguments:
+
+- `prompt` (required)
+- `model` (optional, default: `default-agent`)
+- `llm_provider` (optional provider override)
+- `max_iterations` (optional, 1..200)
+- `session_id` (optional, continue an existing multi-turn session)
+
+The MCP response includes:
+
+- `content` (tool text blocks)
+- `structuredContent` (`success`, `code`, `iterations`, `elapsed_ms`, `session_id`, `attachments`)
+- `isError`
 
 ### The built-in web client (Giraffe AI)
 
@@ -338,6 +388,7 @@ registered and selected** — just start typing. The first download needs intern
 | `GET /v1/control` | Session state + platform capabilities |
 | `POST /v1/voice/listen` | One-shot speech recognition from the server microphone (Windows) |
 | `GET /v1/audio/voices` | TTS voices available on this platform |
+| `POST /mcp` | MCP JSON-RPC connector (`initialize`, `tools/list`, `tools/call`) |
 | `GET /v1/sip/status` · `POST /v1/sip/call` · `POST /v1/sip/hangup` · `POST /v1/sip/answer` | SIP telephony control (see [section 7](#7-sip-telephony)) |
 | `GET /health` | Liveness probe |
 

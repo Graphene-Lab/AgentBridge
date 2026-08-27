@@ -116,6 +116,9 @@ Our **Agentic AI** is designed to be installed on standalone devices, such as mi
 - **Universal Tool System (UTS) — Tools That Run Natively, Not as Scripts**
   Our Universal Tool System gives the AI its abilities through **plugins that are compiled .NET assemblies** the agent drives directly — no Python, no Node, no interpreter, and no framework stack to install. Deterministic intelligence (UISupportGeneric) reads the compiled code and builds the tool interface **on the fly**, exactly and without hallucination; the generative AI then picks and drives the right tool. The result is a **faster, more responsive AI**: tools run as native machine code — modern .NET compilers rival hand-tuned C/C++ — and are called **in-process with zero overhead**, with no interpreters, no HTTP and no serialization between the agent and its actions. The machine stays light, answers come back sooner, and the heaviest jobs finish faster — all inside a **native application‑level sandbox** (a structural action perimeter that no tool method can breach) that needs no chroot, Docker or VMs. Tools are **universal** — a single AnyCPU binary runs on Windows, Linux, macOS and iOS — and are installed by simply dropping a folder into `Tools/`, with **hot‑add**: new plugins are activated live, 30 seconds after they appear, without a restart. End‑user guide: [Universal Tool System (UTS)](https://github.com/Graphene-Lab/AgentHarness/blob/master/docs/universal-tool-system.md).
 
+- **Native MCP Interoperability — One Agent, Standard Control**
+  AgentBridge now exposes its autonomous runtime through a native MCP interface, so the same production agent can be controlled from standard MCP clients without external adapter layers. This means one orchestrator, one memory flow and one operational perimeter across terminal chat, OpenAI-compatible integrations and MCP ecosystems. In practice, teams can adopt AgentBridge as a high-capability agent core while preserving protocol-level compatibility and reducing integration complexity.
+
 ## Your documents area: the company's brain and memory
 
 Think of the documents area as your company's brain. It is a simple folder on disk — nothing special, just a place where your files already live. Whatever you put in it, the AI can read, remember and use: contracts, invoices, client files, product sheets, emails, spreadsheets, technical drawings... everything. It does not matter how much data you have or how big the files are: the more you store, the smarter your AI becomes, because it answers using *your* real documents, not guesses. You never upload anything into the chat — you just keep working with your normal folders, and the AI reaches into them directly.
@@ -163,6 +166,9 @@ Think of the documents area as your company's brain. It is a simple folder on di
 - **Expose the agents as a local OpenAI server** — point any OpenAI client at
   `http://localhost:5290/v1` and it drives the agents without modification (see the
   [manual](docs/MANUAL.md#connecting-a-client-to-localhost)).
+- **Expose the agents through the native MCP connector** — use standard MCP clients with
+  the same runtime already used by terminal and OpenAI API flows (technical setup in
+  [manual](docs/MANUAL.md#mcp-connector-standard-json-rpc)).
 - **Switch the LLM on the fly** — DeepSeek, Z.ai, Gemini, Ollama, ExLlamaV2 and more, with
   a context-window guard that refuses an overflow and explains why.
 - **Per-provider agent interaction mode** — each provider can drive the agent tools via the
@@ -209,7 +215,7 @@ client connects to localhost — is in the **[user manual](docs/MANUAL.md)**.
 |---|---|
 | [User manual](docs/MANUAL.md) | **Start here.** Install, configure the JSON files, use the terminal UI, connect a client |
 | [Terminal UI reference](docs/TUI.md) | Every command, shortcut and mouse action |
-| [HTTP API reference](docs/API.md) | All endpoints: chat, sessions, LLM switching, TTS, voice, files |
+| [HTTP API reference](docs/API.md) | All endpoints: chat, sessions, LLM switching, TTS, voice, files, MCP connector |
 | [SIP telephony](docs/sip.md) | Phone-gate the agents: config, PIN/allow-list security, NAT/trunk, STT deployment |
 | [Telegram chat](docs/telegram.md) | Connect the agents to Telegram: config, first login, allow-list, attachments |
 | [Architecture & operations](docs-dev/ARCHITECTURE.md) | *(developers — not shipped)* Launch modes, configuration keys, build & publish, project layout |

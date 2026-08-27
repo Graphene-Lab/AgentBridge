@@ -36,6 +36,7 @@ if (args.Contains("--enable-log"))
 //    GET  /v1/models             (agent sets + LLM providers with characteristics)
 //    GET  /v1/models/{id}        (single model details)
 //    POST /v1/audio/speech       (text → speech, Kokoro neural TTS, returns WAV)
+//    POST /mcp                   (MCP JSON-RPC endpoint: initialize, tools/list, tools/call)
 //    GET  /health
 //
 //  Proprietary extensions (documented, additive, ignored by strict OpenAI clients):
@@ -99,7 +100,7 @@ if (args.Contains("-h") || args.Contains("--help") || args.Contains("/?"))
                                    when the console is not interactive).
 
         Endpoints: /v1/chat/completions, /v1/files[/{id}[/content]], /v1/models[/{id}],
-                   /v1/audio/speech, /v1/audio/voices, /v1/voice/listen, /v1/control, /health
+                   /v1/audio/speech, /v1/audio/voices, /v1/voice/listen, /v1/control, /mcp, /health
 
         Examples:
           dotnet run --project AgentBridge.csproj -- --LLM:Provider Zai
@@ -838,6 +839,188 @@ app.MapPost("/v1/control", (ControlRequest request) =>
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 // ─────────────────────────────────────────────────────────────────────
+// POST /mcp — native MCP connector (JSON-RPC 2.0, minimal profile)
+//
+// This intentionally starts small to be immediately useful:
+//  - initialize
+//  - tools/list    → exposes a single high-level tool: agent_run
+//  - tools/call    → executes agent_run through AgentHarness
+//
+// Goal: make AgentBridge consumable from standard MCP clients without any external
+// adapter process, while keeping the contract stable and easy to evolve.
+// ─────────────────────────────────────────────────────────────────────
+app.MapPost("/mcp", async (HttpContext http, CancellationToken ct) =>
+{
+    JsonDocument doc;
+    try
+    {
+        doc = await JsonDocument.ParseAsync(http.Request.Body, cancellationToken: ct);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = $"Invalid JSON body: {ex.Message}" });
+    }
+
+    using (doc)
+    {
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+            return Results.BadRequest(new { error = "JSON-RPC request must be an object" });
+
+        var hasId = root.TryGetProperty("id", out var reqId);
+        var id = hasId ? reqId.Clone() : default;
+        if (!root.TryGetProperty("method", out var methodEl) || methodEl.ValueKind != JsonValueKind.String)
+            return McpError(id, hasId, -32600, "Invalid Request: missing method");
+
+        var method = methodEl.GetString() ?? "";
+        var @params = root.TryGetProperty("params", out var paramsEl) && paramsEl.ValueKind == JsonValueKind.Object
+            ? paramsEl
+            : default;
+
+        switch (method)
+        {
+            case "initialize":
+                return McpOk(id, hasId, new
+                {
+                    protocolVersion = "2025-06-18",
+                    capabilities = new
+                    {
+                        tools = new { listChanged = false }
+                    },
+                    serverInfo = new
+                    {
+                        name = "AgentBridge",
+                        version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0"
+                    }
+                });
+
+            case "tools/list":
+                return McpOk(id, hasId, new
+                {
+                    tools = new object[]
+                    {
+                        new
+                        {
+                            name = "agent_run",
+                            description = "Run an autonomous AgentBridge execution for a user goal.",
+                            inputSchema = new
+                            {
+                                type = "object",
+                                properties = new
+                                {
+                                    prompt = new { type = "string", description = "User request for the agent." },
+                                    model = new { type = "string", description = "Agent preset id (e.g. default-agent, web-agent, multi-agent)." },
+                                    llm_provider = new { type = "string", description = "Optional LLM provider override (e.g. Zai, DeepSeekBridge, Ollama)." },
+                                    max_iterations = new { type = "integer", description = "Optional max loop iterations (default 200)." },
+                                    session_id = new { type = "string", description = "Optional session id for multi-turn continuity." }
+                                },
+                                required = new[] { "prompt" }
+                            }
+                        }
+                    }
+                });
+
+            case "tools/call":
+            {
+                if (@params.ValueKind != JsonValueKind.Object)
+                    return McpError(id, hasId, -32602, "Invalid params: expected object");
+                if (!@params.TryGetProperty("name", out var toolNameEl) || toolNameEl.ValueKind != JsonValueKind.String)
+                    return McpError(id, hasId, -32602, "Invalid params: missing tool name");
+
+                var toolName = toolNameEl.GetString() ?? "";
+                if (!string.Equals(toolName, "agent_run", StringComparison.Ordinal))
+                    return McpError(id, hasId, -32601, $"Tool '{toolName}' not found");
+
+                var argsObj = @params.TryGetProperty("arguments", out var argsEl) && argsEl.ValueKind == JsonValueKind.Object
+                    ? argsEl
+                    : default;
+                var prompt = JsonString(argsObj, "prompt");
+                if (string.IsNullOrWhiteSpace(prompt))
+                    return McpError(id, hasId, -32602, "Invalid arguments: 'prompt' is required");
+
+                var model = JsonString(argsObj, "model") ?? "default-agent";
+                var providerArg = JsonString(argsObj, "llm_provider");
+                var sessionId = JsonString(argsObj, "session_id");
+                var maxIterations = JsonInt(argsObj, "max_iterations") ?? 200;
+                maxIterations = Math.Clamp(maxIterations, 1, 200);
+
+                var resolvedProvider = ResolveProvider(providerArg, startupProvider, out var providerError);
+                if (providerError != null)
+                    return McpToolError(id, hasId, providerError);
+                var provider = resolvedProvider!;
+
+                var agentToolNames = ResolveAgentTypes(model);
+                ActiveSession? session = null;
+                AgentHarness? owned = null;
+                var sessionGateHeld = false;
+
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(sessionId))
+                    {
+                        session = SessionStore.Get(sessionId);
+                        if (session == null)
+                            return McpToolError(id, hasId, $"Session '{sessionId}' not found");
+
+                        await session.Gate.WaitAsync(ct);
+                        sessionGateHeld = true;
+                        var target = session.Orchestrator.Provider;
+                        if (!string.Equals(target, provider, StringComparison.OrdinalIgnoreCase))
+                            target = provider;
+                        var fitError = ContextFitError(session, target, prompt!);
+                        if (fitError != null)
+                            return McpOk(id, hasId, new
+                            {
+                                content = new[] { new { type = "text", text = JsonSerializer.Serialize(fitError) } },
+                                isError = true
+                            });
+
+                        if (!string.Equals(session.Orchestrator.Provider, provider, StringComparison.OrdinalIgnoreCase))
+                            session.Orchestrator.SwitchProvider(provider);
+                    }
+                    else
+                    {
+                        owned = new AgentHarness(provider, anonymize);
+                    }
+
+                    var orchestrator = session?.Orchestrator ?? owned!;
+                    var result = orchestrator.ExecuteAction(prompt!, agentToolNames, maxIterations: maxIterations);
+                    var text = result.Message ?? ResultText(result) ?? Dictionary.NoOutputGenerated;
+
+                    return McpOk(id, hasId, new
+                    {
+                        content = new[] { new { type = "text", text } },
+                        structuredContent = new
+                        {
+                            success = result.Success,
+                            code = result.Code.ToString(),
+                            iterations = result.Iterations,
+                            elapsed_ms = result.TotalElapsedMs,
+                            session_id = session?.Id,
+                            attachments = result.Attachments
+                        },
+                        isError = !result.Success
+                    });
+                }
+                catch (Exception ex)
+                {
+                    return McpToolError(id, hasId, ex.Message);
+                }
+                finally
+                {
+                    if (sessionGateHeld)
+                        session?.Gate.Release();
+                    owned?.Dispose();
+                }
+            }
+
+            default:
+                return McpError(id, hasId, -32601, $"Method '{method}' not found");
+        }
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────
 // SIP telephony endpoints (proprietary, see docs/sip.md) — drive the SipBridge
 // from the TUI / client: status, outgoing calls, hangup, answer gate.
 // ─────────────────────────────────────────────────────────────────────
@@ -1114,6 +1297,56 @@ static IEnumerable<FileAttachment>? ResolveAttachments(List<string>? fileIds)
 
 // Rough token estimate (~4 chars per token for latin scripts).
 static int EstimateTokens(string text) => (int)Math.Ceiling(text.Length / 4.0);
+
+// JSON-RPC 2.0 helpers for the MCP endpoint. Notifications (missing id) intentionally
+// return 204 with no payload, as expected by JSON-RPC.
+static IResult McpOk(JsonElement id, bool hasId, object result)
+{
+    if (!hasId) return Results.NoContent();
+    return Results.Json(new { jsonrpc = "2.0", id, result });
+}
+
+static IResult McpError(JsonElement id, bool hasId, int code, string message)
+{
+    if (!hasId) return Results.NoContent();
+    return Results.Json(new
+    {
+        jsonrpc = "2.0",
+        id,
+        error = new { code, message }
+    });
+}
+
+static IResult McpToolError(JsonElement id, bool hasId, string message)
+{
+    if (!hasId) return Results.NoContent();
+    return Results.Json(new
+    {
+        jsonrpc = "2.0",
+        id,
+        result = new
+        {
+            content = new[] { new { type = "text", text = message } },
+            isError = true
+        }
+    });
+}
+
+// Lightweight JSON argument helpers used by /mcp tools/call.
+static string? JsonString(JsonElement obj, string name)
+{
+    if (obj.ValueKind != JsonValueKind.Object) return null;
+    if (!obj.TryGetProperty(name, out var p) || p.ValueKind != JsonValueKind.String) return null;
+    return p.GetString();
+}
+
+static int? JsonInt(JsonElement obj, string name)
+{
+    if (obj.ValueKind != JsonValueKind.Object) return null;
+    if (!obj.TryGetProperty(name, out var p)) return null;
+    if (p.ValueKind == JsonValueKind.Number && p.TryGetInt32(out var n)) return n;
+    return null;
+}
 
 // Platform capabilities (TTS/voice availability, LLM providers) — GET /v1/control
 // without a session and the capabilities block of session states.

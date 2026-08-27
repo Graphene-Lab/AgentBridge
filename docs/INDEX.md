@@ -8,9 +8,9 @@ in `docs-dev/` in the repository and is **not** distributed.
 
 | Guide | What it covers |
 |---|---|
-| [Manual](MANUAL.md) | **Start here** — install, configure the JSON files, use the terminal UI, connect a client |
+| [Manual](MANUAL.md) | **Start here** — install, configure the JSON files, use the terminal UI, connect OpenAI or MCP clients |
 | [Terminal UI reference](TUI.md) | Every command, shortcut and mouse action |
-| [HTTP API reference](API.md) | All endpoints: chat, sessions, LLM switching, TTS, voice, files |
+| [HTTP API reference](API.md) | All endpoints: chat, sessions, LLM switching, TTS, voice, files, MCP connector |
 | [Telegram chat](telegram.md) | Connect the agents to Telegram: config, first login, allow-list, attachments |
 | [SIP telephony](sip.md) | Phone-gate the agents: config, PIN/allow-list security, NAT/trunk, STT deployment |
 | [SIP entry point](sip-entry/README.md) | Unattended Kamailio + rtpengine entry-point installation |
