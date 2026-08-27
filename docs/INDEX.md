@@ -16,6 +16,7 @@ in `docs-dev/` in the repository and is **not** distributed.
 | [SIP entry point](sip-entry/README.md) | Unattended Kamailio + rtpengine entry-point installation |
 | [Auto-update](autoupdate.md) | How the automatic update works and what it never touches |
 | [AIOrchestrator white paper](AIORCHESTRATOR-WHITEPAPER.md) | Why the AIOrchestrator library model outperforms MCP deployments |
+| [Disclaimer](DISCLAIMER.md) | Warranty and liability terms, including AI-generated content and autonomous agent actions |
 | [Windows installer](install.ps1) · [Linux/macOS installer](install.sh) | One-line installers for the release archives |
 
 ## Rules for contributors
