@@ -139,6 +139,8 @@ Our **Agentic AI** is designed to be installed on standalone devices, such as mi
 
   <audio controls src="media/podcast-example.mp3" style="max-width: 100%;"></audio>
 
+  📥 [Download the sample episode (MP3, English, ~48 s)](media/podcast-example.mp3)
+
 ## Your documents area: the company's brain and memory
 
 Think of the documents area as your company's brain. It is a simple folder on disk — nothing special, just a place where your files already live. Whatever you put in it, the AI can read, remember and use: contracts, invoices, client files, product sheets, emails, spreadsheets, technical drawings... everything. It does not matter how much data you have or how big the files are: the more you store, the smarter your AI becomes, because it answers using *your* real documents, not guesses. You never upload anything into the chat — you just keep working with your normal folders, and the AI reaches into them directly.
