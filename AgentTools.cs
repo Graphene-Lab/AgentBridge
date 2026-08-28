@@ -24,10 +24,10 @@ using AIOrchestrator;
 public static class AgentTools
 {
     /// <summary>Core tools — architectural primitives the other tools depend on (FileTool:
-    /// sandbox search/read surface; GitTool: versioning/rollback). Always ON by default and
-    /// locked in the TUI picker; changeable only via tools.json (see docs-dev/ARCHITECTURE.md,
-    /// "Agent sets &amp; tool policy").</summary>
-    public static readonly string[] CoreTools = { "FileTool", "GitTool" };
+    /// sandbox search/read surface; GitTool: versioning/rollback; TaskSchedulerTool: scheduled
+    /// automated task chats). Always ON by default and locked in the TUI picker; changeable only
+    /// via tools.json (see docs-dev/ARCHITECTURE.md, "Agent sets &amp; tool policy").</summary>
+    public static readonly string[] CoreTools = { "FileTool", "GitTool", "TaskSchedulerTool" };
 
     /// <summary>Class-B tools — vendored engines wrapped by our adapters. Default OFF unless
     /// explicitly enabled in tools.json (domain overlap + trust/control, see the policy doc).

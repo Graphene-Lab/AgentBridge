@@ -230,6 +230,13 @@ catch { /* best-effort migration */ }
 
 Setup.Load();
 
+// The task scheduler (TaskSchedulerTool) runs scheduled tasks as automated chats: it hands the
+// host's default agent set to AgentHarness (same as a request without a model — presets +
+// always-on core tools) and the configured startup provider (ProviderConfigs.Default alone is
+// file-order, so leaving it null would pick the FIRST provider in providers.json instead).
+AIOrchestrator.API.TaskSchedulerTool.SchedulerAgentToolNames = AgentTools.Resolve(null);
+AIOrchestrator.API.TaskSchedulerTool.SchedulerProvider = startupProvider;
+
 // Optional path to the VoiceAgent executable for POST /v1/voice/listen
 // (appsettings "Voice:ExePath", CLI --Voice:ExePath). Null → server base directory.
 VoiceBridge.ExePath = builder.Configuration["Voice:ExePath"];

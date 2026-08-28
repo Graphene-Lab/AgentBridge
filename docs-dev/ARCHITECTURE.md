@@ -254,17 +254,19 @@ systemd) so only the HTTP API is exposed.
 
 | Level | Tools | Default | Changeable from the TUI? |
 |---|---|---|---|
-| **Core** (always-on) | `FileTool`, `GitTool` | Always ON | No — locked (separate read-only line in the picker, not toggleable) |
+| **Core** (always-on) | `FileTool`, `GitTool`, `TaskSchedulerTool` | Always ON | No — locked (separate read-only line in the picker, not toggleable) |
 | **Class A** (our plugins) | `DocumentTool`, `SpreadsheetTool`, `PresentationTool`, `OfficeSupportTool`, ... | ON at first start (rule below) | Yes (per-tool config) |
 | **Class B** (vendored engine behind our adapter) | `OfficeTool` | OFF unless enabled | Yes (per-tool config) |
 
-**Core tools are architectural primitives.** `FileTool` and `GitTool` live in the
-AIOrchestrator assembly (not in the `Tools/` plugin folder) and other tools depend on
-them: `FileTool` is the sandbox search/read surface (FileSearch, AnswerQuery,
+**Core tools are architectural primitives.** `FileTool`, `GitTool` and `TaskSchedulerTool`
+live in the AIOrchestrator assembly (not in the `Tools/` plugin folder) and other tools
+depend on them: `FileTool` is the sandbox search/read surface (FileSearch, AnswerQuery,
 GetDirectoryTree); `GitTool` owns rollback and versioning — plugins snapshot through
-`GitSupport` (AGENT_TOOLS_GUIDE: "Rollback lives in the shared GitTool"). Removing them
-would cripple the tools that rely on them, so they are locked ON and changeable only by
-editing the config file directly.
+`GitSupport` (AGENT_TOOLS_GUIDE: "Rollback lives in the shared GitTool");
+`TaskSchedulerTool` owns scheduled automated task chats (timers + JSON persistence in
+`/.taskscheduler`, run logs in `/.taskscheduler/logs`). Removing them would cripple the
+tools that rely on them, so they are locked ON and changeable only by editing the config
+file directly.
 
 **Default-state rule — "unspecified ⇒ ON".** The per-tool config file records only
 deviations: a tool present at first start without an explicit status is ON. This makes
