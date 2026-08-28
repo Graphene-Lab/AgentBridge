@@ -17,6 +17,8 @@ git commit + git push origin master (AgentBridge)   → pure code sync (pre-rele
 release of the dependency packages (explicit): push a tag on each repo, in dependency order
    git tag v1.yy.MM.dd && git push origin v1.yy.MM.dd    (per dependency repo)
    └─ repo's publish.yml (trigger: tag v*) → packs + pushes its NuGet package (1.yy.MM.dd, --skip-duplicate)
+   (release.ps1 performs this tag step automatically for every core repo that changed since
+    its last tag — no manual tagging needed for a release)
 
 AgentBridge release (automatic): push master with IsPrerelease=false in the committed csproj
    └─ release.yml (trigger: push to master):
@@ -78,12 +80,12 @@ propagating.
 
 - a core repo **unchanged since its last tag** (no commits, no pending changes) → nothing to
   publish, no wait needed for it;
-- a core repo **changed since its last tag** → it MUST carry today's pushed tag
-  `v1.yy.MM.dd` — otherwise `release.ps1` **aborts** with the exact command to run (a release
-  without it would silently ship the stale engine; the wait cannot help, because a
-  changed-but-untagged repo never publishes today's package);
-- with the tag in place: if today's package is **already visible** on nuget.org → no wait;
-  if it is **still propagating** → the `<NuGetWait>` marker is set.
+- a core repo **changed since its last tag** → `release.ps1` **creates and pushes today's tag
+  `v1.yy.MM.dd` automatically** right after the sync, at the commit that contains the pending
+  changes — a release without it would silently ship the stale engine, and the wait cannot
+  help a changed-but-untagged repo (it never publishes today's package);
+- after the tag is on origin: if today's package is **already visible** on nuget.org → no
+  wait; if it is **still propagating** → the `<NuGetWait>` marker is set.
 
 The marker travels inside the gate-off commit (`<NuGetWait>true|false</NuGetWait>` in
 AgentBridge.csproj): `release.yml` runs the 30-minute wait step **only when it is true**.
@@ -97,9 +99,11 @@ as soon as every one is visible; after the window, packages still missing are re
 repo identical to today's version).
 
 Consequence: a release on a day when **no core repo changed** skips the wait entirely
-(fast); when a core repo changed and was tagged, the wait resolves in a few minutes; the only
-"blocking" case is a changed core repo without a tag — a clear abort with instructions, never
-a silent stale release.
+(fast); when a core repo changed, its today-tag is created + pushed automatically and the
+wait resolves in a few minutes. The only "blocking" case is a core repo whose today-tag is
+**already on origin** (today's package already published and immutable) with newer changes
+beyond it — that engine state can only ship with tomorrow's version, so `release.ps1` aborts
+with a clear message instead of a silent stale release.
 
 ## Version scheme and the prerelease flag
 
