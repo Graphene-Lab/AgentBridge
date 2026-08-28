@@ -128,6 +128,17 @@ Our **Agentic AI** is designed to be installed on standalone devices, such as mi
 - **Autonomous Task Scheduling — Your Agent Keeps Working on Its Own**
   AgentBridge doesn't just act on command: it can plan work ahead and continue on its own, according to the real needs of your business. Tell it what matters, and it remembers deadlines, decides when it is time to act, and handles recurring duties on a preset cadence — day after day, without anyone having to ask twice. Reports, checks, follow-ups and scheduled activities all proceed on time, even while you are away: the agent schedules the work, carries it out automatically and records the outcome. A true always-on colleague, not a tool that waits for instructions.
 
+- **Podcast Generation — Narrated Episodes from a Plain Prompt**
+  Ask for a podcast on any topic and the agent does the whole production: it researches the
+  subject (recent international news for news/event topics, general material for evergreen
+  ones), plans a three-act narrative, writes the ~30-minute script, records the narration with
+  the in-process Kokoro TTS and assembles the episode — welcome intro, jingle, body on a soft
+  ducked background bed — into a ready-to-publish **MP3 plus its RSS feed** (iTunes-compatible,
+  one `<item>` per episode) saved under `/podcast/`. Sample episode (English, generated
+  end-to-end by the agent):
+
+  <audio controls src="media/podcast-example.mp3" style="max-width: 100%;"></audio>
+
 ## Your documents area: the company's brain and memory
 
 Think of the documents area as your company's brain. It is a simple folder on disk — nothing special, just a place where your files already live. Whatever you put in it, the AI can read, remember and use: contracts, invoices, client files, product sheets, emails, spreadsheets, technical drawings... everything. It does not matter how much data you have or how big the files are: the more you store, the smarter your AI becomes, because it answers using *your* real documents, not guesses. You never upload anything into the chat — you just keep working with your normal folders, and the AI reaches into them directly.
@@ -201,6 +212,8 @@ Think of the documents area as your company's brain. It is a simple folder on di
 - **Agents with tools** — web, search, research, document, spreadsheet, office, email and
   multi-files sets; pick the right tools per chat with `/agent` or the API `model` field
   (any custom tool combination via the additive `tools` field).
+- **Generate podcast episodes** — research, narrative script and narrated MP3 (welcome intro
+  → jingle → body on a soft background) with the podcast RSS feed, under `/podcast/`.
 - **One conversation everywhere** — messages from the terminal go through the exact same
   endpoint any client uses, so you can chat in the TUI while a script keeps driving the
   agents on the same port, simultaneously.
