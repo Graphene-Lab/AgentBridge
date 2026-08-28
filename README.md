@@ -125,6 +125,9 @@ Our **Agentic AI** is designed to be installed on standalone devices, such as mi
 - **Native MCP Interoperability — One Agent, Standard Control**
   AgentBridge now exposes its autonomous runtime through a native MCP interface, so the same production agent can be controlled from standard MCP clients without external adapter layers. This means one orchestrator, one memory flow and one operational perimeter across terminal chat, OpenAI-compatible integrations and MCP ecosystems. In practice, teams can adopt AgentBridge as a high-capability agent core while preserving protocol-level compatibility and reducing integration complexity.
 
+- **Autonomous Task Scheduling — Your Agent Keeps Working on Its Own**
+  AgentBridge doesn't just act on command: it can plan work ahead and continue on its own, according to the real needs of your business. Tell it what matters, and it remembers deadlines, decides when it is time to act, and handles recurring duties on a preset cadence — day after day, without anyone having to ask twice. Reports, checks, follow-ups and scheduled activities all proceed on time, even while you are away: the agent schedules the work, carries it out automatically and records the outcome. A true always-on colleague, not a tool that waits for instructions.
+
 ## Your documents area: the company's brain and memory
 
 Think of the documents area as your company's brain. It is a simple folder on disk — nothing special, just a place where your files already live. Whatever you put in it, the AI can read, remember and use: contracts, invoices, client files, product sheets, emails, spreadsheets, technical drawings... everything. It does not matter how much data you have or how big the files are: the more you store, the smarter your AI becomes, because it answers using *your* real documents, not guesses. You never upload anything into the chat — you just keep working with your normal folders, and the AI reaches into them directly.
