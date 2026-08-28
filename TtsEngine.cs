@@ -60,8 +60,9 @@ public static class TtsEngine
         if (_synth == null)
             throw new InvalidOperationException(UnavailableReason);
         // The single TTS normalization (canonical apostrophes — the typographic ’ breaks the
-        // Italian elision — plus markdown/emoji removal), shared with every TTS consumer.
-        text = AIOrchestrator.Utility.NormalizeForTts(text);
+        // Italian elision — plus markdown/emoji removal, punctuation spacing and the English
+        // "AI" pronunciation for Italian), shared with every TTS consumer.
+        text = AIOrchestrator.VoiceConversation.NormalizeForTts(text, lang);
 
         var voiceId = ResolveVoiceId(voice, lang);
         var kokoroVoice = _voices.Contains(voiceId, StringComparer.OrdinalIgnoreCase)
