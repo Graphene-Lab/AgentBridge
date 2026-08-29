@@ -90,9 +90,7 @@ soft ducked background bed, host farewell and a closing stinger — into a ready
 **MP3 plus its RSS feed** (iTunes-compatible) under `/podcast/`. Sample episode (English,
 generated end-to-end by the agent):
 
-<video controls src="media/podcast-example.mp4" style="max-width: 100%;"></video>
-
-📥 [Download the sample episode (MP3, English, ~48 s)](media/podcast-example.mp3)
+[![Podcast sample episode — click to play (MP4, English, ~42 s)](media/podcast-player.png)](media/podcast-example.mp4)
 
 ## Agent Bridge: Your AI Assistant for Office Work
 
