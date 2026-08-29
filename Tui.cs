@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AIOrchestrator;
 using AgentBridge.Resources;
 using Terminal.Gui;
@@ -152,6 +153,7 @@ public static class ConsoleTui
             new("agent", "[name]", Dictionary.CmdAgent, (t, a) => t.SwitchAgentAsync(a)),
             new("voice", "[lang]", Dictionary.CmdVoice, (t, a) => t.VoiceAsync(a)),
             new("tts", "[text]", Dictionary.CmdTts, (t, a) => t.TtsAsync(a)),
+            new("ttsengine", "[kokoro|qwen]", "TTS engine (kokoro default | qwen)", (t, a) => t.TtsEngineAsync(a)),
             new("features", "[name] [on|off]", Dictionary.CmdFeatures, (t, a) => t.FeaturesAsync(a)),
             new("new", "", Dictionary.CmdNew, (t, _) => t.NewSessionAsync(), new[] { "/reset" }),
             new("clear", "", Dictionary.CmdClear, (t, _) => t.ClearHistoryAsync()),
@@ -2025,6 +2027,44 @@ public static class ConsoleTui
             {
                 AddNote(string.Format(Dictionary.NoteTtsFailed, ex.Message));
             }
+        }
+
+        private async Task TtsEngineAsync(string args)
+        {
+            var engine = args.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(engine))
+            {
+                var current = Environment.GetEnvironmentVariable("PODCAST_TTS_ENGINE") ?? "kokoro";
+                AddNote($"TTS engine: {current} (kokoro | qwen). Set with /ttsengine <engine>.");
+                return;
+            }
+            if (engine is not ("kokoro" or "qwen"))
+            {
+                AddNote("TTS engine must be 'kokoro' (default) or 'qwen'.");
+                return;
+            }
+            Environment.SetEnvironmentVariable("PODCAST_TTS_ENGINE", engine);
+            PersistTtsEngine(engine);
+            AddNote(engine == "kokoro"
+                ? "TTS engine set to kokoro (default, in-process — persisted in appsettings Tts:Engine)."
+                : "TTS engine set to qwen (Qwen3-TTS — downloads a ~5.5 GB model on first use; falls back to Kokoro if unavailable — persisted in appsettings Tts:Engine).");
+        }
+
+        /// <summary>Persists the preferred TTS engine into appsettings.json (Tts:Engine).</summary>
+        private static void PersistTtsEngine(string engine)
+        {
+            try
+            {
+                var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+                if (!File.Exists(path)) return;
+                var doc = JsonNode.Parse(File.ReadAllText(path)) as JsonObject;
+                if (doc == null) return;
+                var tts = doc["Tts"] as JsonObject ?? new JsonObject();
+                tts["Engine"] = engine;
+                doc["Tts"] = tts;
+                File.WriteAllText(path, doc.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
         }
 
         private async Task FeaturesAsync(string args)

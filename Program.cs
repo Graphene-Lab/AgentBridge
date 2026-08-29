@@ -241,6 +241,15 @@ AIOrchestrator.API.TaskSchedulerTool.SchedulerProvider = startupProvider;
 // (appsettings "Voice:ExePath", CLI --Voice:ExePath). Null → server base directory.
 VoiceBridge.ExePath = builder.Configuration["Voice:ExePath"];
 
+// Preferred TTS engine (appsettings "Tts:Engine", CLI --Tts:Engine): "kokoro" is the default
+// (in-process, ~325 MB model); "qwen" switches the plugin TTS (e.g. PodcastTool) to Qwen3-TTS
+// (~5.5 GB model, auto-downloaded on first use, falls back to Kokoro if unavailable). The
+// plugins read the PODCAST_TTS_ENGINE environment variable — the /ttsengine TUI command and
+// the JSON above both land here.
+var ttsEngine = builder.Configuration["Tts:Engine"] ?? "kokoro";
+Environment.SetEnvironmentVariable("PODCAST_TTS_ENGINE", ttsEngine);
+Console.WriteLine($"TTS engine: {ttsEngine}");
+
 var app = builder.Build();
 
 // Tool plugins (DocumentTool, SpreadsheetTool, OfficeTool): loaded DYNAMICALLY from the
