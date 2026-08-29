@@ -90,7 +90,7 @@ soft ducked background bed, host farewell and a closing stinger — into a ready
 **MP3 plus its RSS feed** (iTunes-compatible) under `/podcast/`. Sample episode (English,
 generated end-to-end by the agent):
 
-[![Podcast sample episode — click to play (MP4, English, ~42 s)](media/podcast-player.png)](media/podcast-example.mp4)
+[![Podcast sample episode — click to play (MP4, English, ~42 s)](https://raw.githubusercontent.com/Graphene-Lab/AgentBridge/master/media/podcast-player.png)](https://raw.githubusercontent.com/Graphene-Lab/AgentBridge/master/media/podcast-example.mp4)
 
 ## Agent Bridge: Your AI Assistant for Office Work
 
