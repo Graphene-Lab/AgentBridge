@@ -3189,7 +3189,17 @@ public static class ConsoleTui
                 X = 1, Y = 0,
             };
             generalTab.Add(logEnabled);
-            var docsPath = AddField(generalTab, Dictionary.SetupDocumentsPath, AIOrchestrator.Setup.DocumentsPath, 2);
+            // Auto-start at boot (Task Scheduler task on Windows, systemd service on
+            // Linux/macOS). Shows the CURRENT persisted state; SetAutoStart below applies
+            // the change on Save.
+            var autoStart = new CheckBox
+            {
+                Text = Dictionary.SetupAutoStart,
+                Value = SystemExtra.Util.GetAutoStart() ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = 1,
+            };
+            generalTab.Add(autoStart);
+            var docsPath = AddField(generalTab, Dictionary.SetupDocumentsPath, AIOrchestrator.Setup.DocumentsPath, 3);
 
             var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
             save.Accepted += (_, _) =>
@@ -3227,6 +3237,7 @@ public static class ConsoleTui
                 AIOrchestrator.Setup.ImapPassword = (imapPswd.Text ?? "").Trim();
 
                 AIOrchestrator.Log.IsEnabled = logEnabled.Value == CheckState.Checked;
+                SystemExtra.Util.SetAutoStart(autoStart.Value == CheckState.Checked);
 
                 var chosen = (providerDropdown.Text ?? "").Trim();
                 if (chosen.Length > 0 && !string.Equals(chosen, _provider, StringComparison.OrdinalIgnoreCase))

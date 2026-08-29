@@ -234,6 +234,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupImapPassword" xml:space="preserve"><value>IMAP-пароль</value></data>
   <data name="SetupGeneralTab" xml:space="preserve"><value>Общие</value></data>
   <data name="SetupStepLogging" xml:space="preserve"><value>Включить пошаговое журналирование (папка logs/)</value></data>
+  <data name="SetupAutoStart" xml:space="preserve"><value>Автозапуск при загрузке системы</value></data>
   <data name="SetupDocumentsPath" xml:space="preserve"><value>Путь к документам</value></data>
   <data name="SetupSave" xml:space="preserve"><value>Сохранить</value></data>
   <data name="SetupInvalidSmtpPortTitle" xml:space="preserve"><value>Неверный SMTP-порт</value></data>

@@ -1112,6 +1112,18 @@ if (AutoUpdate.Enabled)
 _ = WebClientUpdater.Startup;
 
 // ─────────────────────────────────────────────────────────────────────
+// Auto-start on boot: register once on first run (release builds only — debug
+// runs are exempt, and SystemExtra.Util itself also skips when a debugger is
+// attached or the app runs from bin/). Only acts when autostart was NEVER
+// configured, so a later choice in the TUI settings (General tab) sticks.
+// Windows → Task Scheduler logon task; Linux/macOS → systemd / launchd service.
+// ─────────────────────────────────────────────────────────────────────
+#if !DEBUG
+if (!SystemExtra.Util.IsService())
+    SystemExtra.Util.SetAutoStart(true);
+#endif
+
+// ─────────────────────────────────────────────────────────────────────
 // Launch mode: terminal UI (default, interactive console) or plain server.
 // The TUI runs the HTTP server in the same process: the API keeps answering
 // while you chat — that is the "CLI + API simultaneously" requirement.

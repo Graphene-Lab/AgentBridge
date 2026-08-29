@@ -234,6 +234,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupImapPassword" xml:space="preserve"><value>Mot de passe IMAP</value></data>
   <data name="SetupGeneralTab" xml:space="preserve"><value>Général</value></data>
   <data name="SetupStepLogging" xml:space="preserve"><value>Activer la journalisation des étapes (dossier logs/)</value></data>
+  <data name="SetupAutoStart" xml:space="preserve"><value>Démarrage automatique au démarrage du système</value></data>
   <data name="SetupDocumentsPath" xml:space="preserve"><value>Chemin des documents</value></data>
   <data name="SetupSave" xml:space="preserve"><value>Enregistrer</value></data>
   <data name="SetupInvalidSmtpPortTitle" xml:space="preserve"><value>Port SMTP non valide</value></data>

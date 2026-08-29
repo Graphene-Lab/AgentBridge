@@ -331,6 +331,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupGeneralTab" xml:space="preserve"><value>General</value></data>
   <data name="SetupTabsHint" xml:space="preserve"><value>Ctrl+PageDown / Ctrl+PageUp switches page · ↑↓ move within a page</value></data>
   <data name="SetupStepLogging" xml:space="preserve"><value>Enable step logging (logs/ folder)</value></data>
+  <data name="SetupAutoStart" xml:space="preserve"><value>Start automatically at boot</value></data>
   <data name="SetupDocumentsPath" xml:space="preserve"><value>Documents path</value></data>
   <data name="SetupSave" xml:space="preserve"><value>Save</value></data>
   <data name="SetupInvalidSmtpPortTitle" xml:space="preserve"><value>Invalid SMTP port</value></data>

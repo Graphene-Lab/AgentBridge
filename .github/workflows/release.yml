@@ -132,7 +132,7 @@ jobs:
       # build proceeds (the floating 1.* restore picks the latest available version, which for
       # an unchanged repo is identical to today's version).
       # The list is ONLY the packages the build actually restores (the Graphene.AIOrchestrator
-      # closure): the tool plugins (DocumentTool, SpreadsheetTool, OfficeTool,
+      # closure + SystemExtra): the tool plugins (DocumentTool, SpreadsheetTool, OfficeTool,
       # PresentationTool, OfficeSupportTool) are NOT build dependencies — they are fetched as
       # self-contained zips from their own GitHub Releases below, never from NuGet.
       - name: Wait for dependency packages on NuGet
@@ -145,7 +145,7 @@ jobs:
           echo "Waiting for dependency packages at version $NVER ..."
           for i in $(seq 1 60); do
             missing=""
-            for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric; do
+            for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric systemextra; do
               if curl -fsS --max-time 20 "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" | grep -q "\"$NVER\""; then
                 echo "$pkg $NVER available (attempt $i)"
               else

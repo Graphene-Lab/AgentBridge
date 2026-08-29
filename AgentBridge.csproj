@@ -37,6 +37,11 @@
          when the sibling is absent — CI builds against the published package. -->
     <ProjectReference Include="..\AIOrchestrator\AIOrchestrator.csproj" Condition="Exists('..\AIOrchestrator\AIOrchestrator.csproj')" />
     <PackageReference Include="Graphene.AIOrchestrator" Version="1.*" />
+    <!-- Auto-start on boot (SystemExtra.Util — Task Scheduler task on Windows, systemd service
+         on Linux/macOS). Same dual-reference pattern as AIOrchestrator: the local sibling wins
+         in solution builds, the NuGet package is restored when the sibling is absent (CI). -->
+    <ProjectReference Include="..\SystemExtra\SystemExtra.csproj" Condition="Exists('..\SystemExtra\SystemExtra.csproj')" />
+    <PackageReference Include="SystemExtra" Version="1.*" />
     <!-- Tool plugins (DocumentTool, SpreadsheetTool, OfficeTool) are loaded DYNAMICALLY from
          the Tools/ folder (see ToolPlugins.cs + AIOrchestrator.ToolPluginHost): the agent sets
          in AgentTools.cs pass tool NAMES, so no AgentBridge code references a plugin type and

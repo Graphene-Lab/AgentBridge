@@ -2461,6 +2461,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Start automatically at boot'.
+        /// </summary>
+        public static string SetupAutoStart {
+            get {
+                return ResourceManager.GetString("SetupAutoStart", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Ctrl+PageDown / Ctrl+PageUp switches page · ↑↓ move within a page'.
         /// </summary>
         public static string SetupTabsHint {
