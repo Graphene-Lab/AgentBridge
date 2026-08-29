@@ -73,7 +73,8 @@ public static class TtsEngine
         if (kokoroVoice == null)
             throw new InvalidOperationException("No Kokoro voice available.");
 
-        var config = new KokoroTTSPipelineConfig
+        var config = new KokoroTTSPipelineConfig(
+            new DefaultSegmentationConfig { MaxFirstSegmentLength = 510 })
         {
             Speed = (float)Math.Clamp(speed ?? 1.0, 0.25, 4.0)
         };
