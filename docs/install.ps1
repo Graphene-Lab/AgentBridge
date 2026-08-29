@@ -33,6 +33,42 @@ finally {
     Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# TTS GPU acceleration: if a CUDA-capable GPU is present, offer the CUDA Toolkit + cuDNN
+# (AgentBridge ships the GPU ONNX Runtime — the TTS uses CUDA automatically when the toolkit
+# is installed; the app probes the toolkit dirs at runtime, no manual PATH setup needed).
+try {
+    $gpu = (nvidia-smi --query-gpu=name --format=csv,noheader 2>$null | Select-Object -First 1)
+} catch { $gpu = $null }
+if ($gpu) {
+    Write-Host ""
+    Write-Host "CUDA-capable GPU detected: $gpu"
+    $toolkit = Test-Path "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA"
+    $cudnn = Test-Path "C:\Program Files\NVIDIA\CUDNN"
+    if ($toolkit -and $cudnn) {
+        Write-Host "CUDA Toolkit + cuDNN already installed — the TTS will run on the GPU automatically."
+    }
+    else {
+        $ans = Read-Host "The TTS can run ~1.5x faster on the GPU. Install the CUDA Toolkit 12.8 + cuDNN 9.7 (large download)? [y/N]"
+        if ($ans -match "^[yY]") {
+            Write-Host "Downloading the CUDA Toolkit 12.8 network installer..."
+            curl.exe -L -o "$env:TEMP\cuda-12.8.2-net.exe" "https://developer.download.nvidia.com/compute/cuda/12.8.2/network_installers/cuda_12.8.2_windows_network.exe"
+            Write-Host "Installing CUDA Toolkit (silent)..."
+            Start-Process -Wait "$env:TEMP\cuda-12.8.2-net.exe" -ArgumentList "-s","-noreboot"
+            Write-Host "Downloading cuDNN 9.7..."
+            curl.exe -L -o "$env:TEMP\cudnn-9.7.exe" "https://developer.download.nvidia.com/compute/cudnn/9.7.0/local_installers/cudnn_9.7.0_windows.exe"
+            Write-Host "Installing cuDNN 9.7 (silent)..."
+            Start-Process -Wait "$env:TEMP\cudnn-9.7.exe" -ArgumentList "/s"
+            Write-Host "CUDA Toolkit installed — the TTS will use the GPU automatically."
+        }
+        else {
+            Write-Host "TTS will run on the CPU (slower). You can install CUDA later — AgentBridge picks it up automatically at runtime."
+        }
+    }
+}
+else {
+    Write-Host "No CUDA-capable GPU detected — the TTS will use the CPU."
+}
+
 Write-Host ""
 Write-Host "AgentBridge installed to $Dest."
 Write-Host "Run:  $(Join-Path $Dest 'agent.exe')"

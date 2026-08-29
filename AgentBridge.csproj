@@ -57,8 +57,13 @@
          ExcludeAssets="build": the package's props unconditionally copy the win-x64
          onnxruntime.dll to the output for AnyCPU projects, which would drop 13 MB of Windows
          binaries into every Linux/macOS archive; the correct per-RID native lib is still
-         bundled into the single file via IncludeNativeLibrariesForSelfExtract. -->
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.0" ExcludeAssets="build" />
+         bundled into the single file via IncludeNativeLibrariesForSelfExtract.
+         GPU build (Gpu.Windows): the CUDA EP ships in onnxruntime_providers_cuda.dll (~400 MB,
+         loaded on demand) — the TTS (and plugins like PodcastTool) run on CUDA automatically
+         when the CUDA Toolkit 12.x + cuDNN 9.x are installed (the engine probes the toolkit
+         dirs and sets the PATH itself — no manual setup); machines without CUDA keep the CPU
+         EP (the provider DLL is never loaded). -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu.Windows" Version="1.23.0" ExcludeAssets="build" />
     <!-- SIP telephony (incoming auto-answer + PIN, outgoing calls, RTP audio loop to the
          agent): SIPSorcery implements the UAS/UAC, REGISTER, RFC 4733 DTMF and the
          G.711/G.722 codecs on its own; the OPUS codec is bundled inside SIPSorcery (via
