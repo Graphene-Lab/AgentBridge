@@ -146,8 +146,11 @@ Our **Agentic AI** is designed to be installed on standalone devices, such as mi
   configuration. The podcast tool speaks with the same engine, out of the box. A second engine
   (Qwen3-TTS, richer voices, Italian included) is optional: run `/ttsengine qwen` and its
   model downloads automatically from HuggingFace on first use (one time, ~5.5 GB) — nothing to
-  install by hand. GPU is automatic too: on machines with an NVIDIA CUDA-capable GPU the
-  engines use it without any manual setup; everywhere else they simply run on CPU.
+  install by hand. Release builds offer Qwen only on NVIDIA GPUs with ≥16 GB VRAM (on a CPU it
+  would occupy the machine for hours); `/ttsengine` reports what your machine supports. GPU is
+  automatic too: on machines with an NVIDIA CUDA-capable GPU the engines use it without any
+  manual setup; everywhere else they simply run on CPU. Full details in the
+  [Text-to-speech guide](docs/TTS.md).
 
 ## Your documents area: the company's brain and memory
 
@@ -247,6 +250,7 @@ client connects to localhost — is in the **[user manual](docs/MANUAL.md)**.
 | Document | Audience / contents |
 |---|---|
 | [User manual](docs/MANUAL.md) | **Start here.** Install, configure the JSON files, use the terminal UI, connect a client |
+| [Text-to-speech](docs/TTS.md) | The two TTS engines, what each machine supports, platform prerequisites (Windows/Linux/macOS) and troubleshooting |
 | [Terminal UI reference](docs/TUI.md) | Every command, shortcut and mouse action |
 | [HTTP API reference](docs/API.md) | All endpoints: chat, sessions, LLM switching, TTS, voice, files, MCP connector |
 | [SIP telephony](docs/sip.md) | Phone-gate the agents: config, PIN/allow-list security, NAT/trunk, STT deployment |

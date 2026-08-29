@@ -246,7 +246,16 @@ VoiceBridge.ExePath = builder.Configuration["Voice:ExePath"];
 // (~5.5 GB model, auto-downloaded on first use, falls back to Kokoro if unavailable). The
 // plugins read the PODCAST_TTS_ENGINE environment variable — the /ttsengine TUI command and
 // the JSON above both land here.
+// Release builds gate Qwen3-TTS to NVIDIA GPUs with ≥16 GB VRAM (it is ~0.1x realtime on CPU,
+// a full podcast would block the user's machine for hours): when the configured engine is
+// unsupported, the app falls back to Kokoro and says why. Debug builds allow Qwen for testing.
 var ttsEngine = builder.Configuration["Tts:Engine"] ?? "kokoro";
+if (string.Equals(ttsEngine, "qwen", StringComparison.OrdinalIgnoreCase)
+    && !TtsEngineSupport.QwenTtsSupported(out var ttsUnsupportedReason))
+{
+    Console.WriteLine($"TTS engine 'qwen' is not supported on this machine ({ttsUnsupportedReason}) — using kokoro.");
+    ttsEngine = "kokoro";
+}
 Environment.SetEnvironmentVariable("PODCAST_TTS_ENGINE", ttsEngine);
 Console.WriteLine($"TTS engine: {ttsEngine}");
 

@@ -2035,12 +2035,21 @@ public static class ConsoleTui
             if (string.IsNullOrWhiteSpace(engine))
             {
                 var current = Environment.GetEnvironmentVariable("PODCAST_TTS_ENGINE") ?? "kokoro";
-                AddNote($"TTS engine: {current} (kokoro | qwen). Set with /ttsengine <engine>.");
+                var qwenOk = TtsEngineSupport.QwenTtsSupported(out var qwenReason);
+                AddNote("TTS engines on this machine:\n" +
+                        "  kokoro — always available (in-process, model included in the archive)\n" +
+                        $"  qwen — {(qwenOk ? "supported" : "NOT supported")}: {qwenReason}\n" +
+                        $"Current engine: {current}. Set with /ttsengine <kokoro|qwen>.");
                 return;
             }
             if (engine is not ("kokoro" or "qwen"))
             {
                 AddNote("TTS engine must be 'kokoro' (default) or 'qwen'.");
+                return;
+            }
+            if (engine == "qwen" && !TtsEngineSupport.QwenTtsSupported(out var unsupportedReason))
+            {
+                AddNote($"Qwen3-TTS is not available on this machine: {unsupportedReason} The engine stays on kokoro.");
                 return;
             }
             Environment.SetEnvironmentVariable("PODCAST_TTS_ENGINE", engine);

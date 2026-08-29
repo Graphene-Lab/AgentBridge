@@ -64,6 +64,12 @@
          dirs and sets the PATH itself — no manual setup); machines without CUDA keep the CPU
          EP (the provider DLL is never loaded). -->
     <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu.Windows" Version="1.23.0" ExcludeAssets="build" />
+    <!-- Linux GPU parity: the same CUDA execution provider for the linux RIDs. Without it a
+         Linux machine with a big NVIDIA GPU could never accelerate Qwen3-TTS (only the CPU
+         libonnxruntime.so ships) — the /ttsengine gate would advertise Qwen while it ran at
+         0.1x realtime. Same pinned version → the per-RID libonnxruntime.so + CUDA provider
+         form a consistent pair with the 1.23.0 managed wrapper. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu.Linux" Version="1.23.0" Condition="'$(RuntimeIdentifier)' == 'linux-x64' or '$(RuntimeIdentifier)' == 'linux-arm64'" ExcludeAssets="build" />
     <!-- SIP telephony (incoming auto-answer + PIN, outgoing calls, RTP audio loop to the
          agent): SIPSorcery implements the UAS/UAC, REGISTER, RFC 4733 DTMF and the
          G.711/G.722 codecs on its own; the OPUS codec is bundled inside SIPSorcery (via
