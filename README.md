@@ -140,6 +140,15 @@ Our **Agentic AI** is designed to be installed on standalone devices, such as mi
 - **Autonomous Task Scheduling — Your Agent Keeps Working on Its Own**
   AgentBridge doesn't just act on command: it can plan work ahead and continue on its own, according to the real needs of your business. Tell it what matters, and it remembers deadlines, decides when it is time to act, and handles recurring duties on a preset cadence — day after day, without anyone having to ask twice. Reports, checks, follow-ups and scheduled activities all proceed on time, even while you are away: the agent schedules the work, carries it out automatically and records the outcome. A true always-on colleague, not a tool that waits for instructions.
 
+- **Text-to-speech that works the moment you run it — no setup, no drivers, no accounts**
+  Every archive ships the Kokoro neural TTS engine with its voices and model included, so the
+  agent talks immediately — in the terminal, over the API and on the phone — with zero
+  configuration. The podcast tool speaks with the same engine, out of the box. A second engine
+  (Qwen3-TTS, richer voices, Italian included) is optional: run `/ttsengine qwen` and its
+  model downloads automatically from HuggingFace on first use (one time, ~5.5 GB) — nothing to
+  install by hand. GPU is automatic too: on machines with an NVIDIA CUDA-capable GPU the
+  engines use it without any manual setup; everywhere else they simply run on CPU.
+
 ## Your documents area: the company's brain and memory
 
 Think of the documents area as your company's brain. It is a simple folder on disk — nothing special, just a place where your files already live. Whatever you put in it, the AI can read, remember and use: contracts, invoices, client files, product sheets, emails, spreadsheets, technical drawings... everything. It does not matter how much data you have or how big the files are: the more you store, the smarter your AI becomes, because it answers using *your* real documents, not guesses. You never upload anything into the chat — you just keep working with your normal folders, and the AI reaches into them directly.
@@ -222,7 +231,9 @@ Think of the documents area as your company's brain. It is a simple folder on di
 Run the one-line install above — or download the archive for your platform from the
 [Releases page](https://github.com/Graphene-Lab/AgentBridge/releases), extract and run
 `agent.exe` / `agent`.
-No .NET installation needed; each archive already includes the Kokoro TTS voices and model.
+No .NET installation needed; each archive already includes the Kokoro TTS voices and model,
+so text-to-speech works on the first run with nothing to configure. The optional Qwen3-TTS
+engine downloads its own model automatically on first use (see *Text-to-speech* below).
 
 ```bash
 curl http://localhost:5290/health   # {"status":"healthy","timestamp":"..."}

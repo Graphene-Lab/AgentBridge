@@ -5,7 +5,10 @@
        PluginDir / PluginName / Configuration / OutputPath properties.
        The plugin's OWN files (assembly, pdb, xml, deps.json) are ALWAYS refreshed; the extra
        dependencies are copied ONLY when the host bin does not already provide them
-       (NON-HOST DEPENDENCIES RULE, AGENT_TOOLS_GUIDE §8). -->
+       (NON-HOST DEPENDENCIES RULE, AGENT_TOOLS_GUIDE §8). ONNX Runtime is ALWAYS a host
+       dependency (per-RID GPU build ships with the host archive) — the plugin's transitive
+       CPU onnxruntime natives must never shadow it (version conflicts, CPU-only QwenTTS), so
+       they are excluded here unconditionally. -->
 
   <Target Name="Ship">
     <ItemGroup>
@@ -14,10 +17,17 @@
       <_MainFiles Include="$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).deps.json" />
       <_MainFiles Include="$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).xml" />
       <_DepsFiles Include="$(PluginDir)bin\$(Configuration)\net10.0\**\*"
-                  Exclude="$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).dll;$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).pdb;$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).deps.json;$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).xml;$(PluginDir)bin\$(Configuration)\net10.0\assets\**\*" />
+                  Exclude="$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).dll;$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).pdb;$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).deps.json;$(PluginDir)bin\$(Configuration)\net10.0\$(PluginName).xml;$(PluginDir)bin\$(Configuration)\net10.0\assets\**\*;$(PluginDir)bin\$(Configuration)\net10.0\Microsoft.ML.OnnxRuntime*.dll;$(PluginDir)bin\$(Configuration)\net10.0\onnxruntime*;$(PluginDir)bin\$(Configuration)\net10.0\libonnxruntime*" />
     </ItemGroup>
     <Copy SourceFiles="@(_MainFiles)" DestinationFolder="$(OutputPath)Tools\$(PluginName)\" />
     <Copy SourceFiles="@(_DepsFiles)" DestinationFolder="$(OutputPath)Tools\$(PluginName)\" Condition="!Exists('$(OutputPath)%(Filename)%(Extension)')" />
+    <!-- Remove ORT files that older builds may have already copied into the plugin folder:
+         Copy never deletes, so the exclusion above alone would leave stale CPU natives that
+         shadow the host's GPU ORT. Delete is a no-op for absent files. -->
+    <ItemGroup>
+      <_StaleOrtFiles Include="$(OutputPath)Tools\$(PluginName)\onnxruntime*;$(OutputPath)Tools\$(PluginName)\libonnxruntime*;$(OutputPath)Tools\$(PluginName)\Microsoft.ML.OnnxRuntime*.dll" />
+    </ItemGroup>
+    <Delete Files="@(_StaleOrtFiles)" />
   </Target>
 
   <!-- Same as Ship plus the host-level assets (PresentationTool bg/js, OfficeSupportTool

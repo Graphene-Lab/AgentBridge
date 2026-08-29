@@ -71,4 +71,5 @@ else {
 
 Write-Host ""
 Write-Host "AgentBridge installed to $Dest."
+Write-Host "TTS is ready: the Kokoro voices and model are included — nothing else to install."
 Write-Host "Run:  $(Join-Path $Dest 'agent.exe')"

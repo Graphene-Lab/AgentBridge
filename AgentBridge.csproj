@@ -197,7 +197,7 @@
     <Copy SourceFiles="$(OutputPath)kokoro.onnx" DestinationFolder="$(PublishDir)" Condition="Exists('$(OutputPath)kokoro.onnx')" />
     <!-- The Microsoft.ML.OnnxRuntime package also carries C++ import libraries
          (runtimes/win-x64/native/*.lib) — build-time only, junk in the archive. -->
-    <Delete Files="$(PublishDir)onnxruntime.lib;$(PublishDir)onnxruntime_providers_shared.lib" Condition="Exists('$(PublishDir)onnxruntime.lib')" />
+    <Delete Files="$(PublishDir)onnxruntime.lib;$(PublishDir)onnxruntime_providers_shared.lib;$(PublishDir)onnxruntime_providers_cuda.lib;$(PublishDir)onnxruntime_providers_tensorrt.lib" Condition="Exists('$(PublishDir)onnxruntime.lib')" />
   </Target>
   <!-- Optional Windows voice bridge: when the sibling AIOffice.VoiceAgent.Win build output
        exists, copy its whole output (exe + voices/ + espeak/ + kokoro.onnx + runtime deps)

@@ -192,7 +192,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/plugins publish/Tools publish/assets
-          for tool in DocumentTool SpreadsheetTool OfficeTool PresentationTool OfficeSupportTool; do
+          for tool in DocumentTool SpreadsheetTool OfficeTool PresentationTool OfficeSupportTool PodcastTool; do
             # Latest release tag via the /releases/latest redirect (no API call, no rate limit).
             tag=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/Graphene-Lab/$tool/releases/latest" \
                   | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1)
@@ -213,6 +213,12 @@ jobs:
               cp -r "/tmp/plugins/$tool/assets/." "publish/assets/"
             fi
           done
+          # The host always ships the ONNX Runtime engine (per-RID GPU build); a plugin's
+          # transitive CPU onnxruntime must never shadow it (version conflicts, CPU-only
+          # QwenTTS) — drop the plugin copies here (same rule as ShipOnePlugin.targets).
+          find publish/Tools -name 'onnxruntime*' -delete
+          find publish/Tools -name 'libonnxruntime*' -delete
+          find publish/Tools -name 'Microsoft.ML.OnnxRuntime*.dll' -delete
           find publish/Tools -type f 2>/dev/null | sort || true
 
       - name: Package
