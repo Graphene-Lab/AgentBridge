@@ -87,12 +87,15 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 curl -fL --retry 3 -o "$tmp/$asset" "$BASE/$asset"
-tar -xzf "$tmp/$asset" -C "$tmp"
+
+# Extract DIRECTLY into the destination: unpacking inside the tmp dir first would need
+# archive + extracted tree in the same filesystem (tmpfs /tmp on small boards like the
+# Orange Pi is too small -> "No space left on device" mid-extraction).
+sudo tar -xzf "$tmp/$asset" -C "$DEST"
 rm -f "$tmp/$asset"
 
 # The archive files may carry a foreign uid (the CI build user); force a sane owner
 # so the app can write its runtime state (logs/) without permission errors.
-sudo cp -R "$tmp"/. "$DEST"/
 sudo chown -R root:root "$DEST"
 sudo chmod +x "$DEST/agent"
 
