@@ -67,6 +67,17 @@ if [ -n "$missing" ]; then
   fi
 fi
 
+# .NET globalization (libicu): the self-contained app falls back to invariant
+# globalization on old/missing ICU, but a completely absent ICU breaks startup.
+# Best-effort install on Debian/Ubuntu (non-fatal if unavailable).
+if command -v dpkg >/dev/null 2>&1; then
+  if ! ldconfig -p 2>/dev/null | grep -q 'libicuuc\.so'; then
+    echo "AgentBridge: libicu not found - installing (best-effort)..."
+    sudo apt-get update -qq && sudo apt-get install -y -qq libicu-dev || \
+      echo "AgentBridge: libicu install failed (the app may need it on this distro)." >&2
+  fi
+fi
+
 asset="agentbridge-$os-$arch.tar.gz"
 echo "Installing AgentBridge ($os-$arch, $VERSION) into $DEST ..."
 echo "Downloading $BASE/$asset"
