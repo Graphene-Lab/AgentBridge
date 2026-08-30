@@ -16,7 +16,7 @@
          off triggers release.yml automatically (tag v1.yy.MM.dd created by the workflow).
          Date-based auto version, same scheme as UISupportBlazor/UISupportGeneric
          (1.yy.MM.dd, e.g. 1.26.08.09). -->
-    <IsPrerelease>true</IsPrerelease>
+    <IsPrerelease>false</IsPrerelease>
     <!-- NuGet wait marker (release.ps1 / release.yml): true = the release build must wait for
          today's core dependency packages on nuget.org (a core repo changed today and its
          package is still propagating); false = no core repo changed since its last tag, so the
@@ -59,22 +59,24 @@
          System32). 1.23.0 matches the minimum required by YoloDotNet.ExecutionProvider.Cpu
          (AIOrchestrator object detection); its managed assembly shadows the .Managed 1.22.0
          wrapper pulled by KokoroSharp, keeping the managed+native pair consistent at runtime.
-         ExcludeAssets="build": the package's props unconditionally copy the win-x64
-         onnxruntime.dll to the output for AnyCPU projects, which would drop 13 MB of Windows
-         binaries into every Linux/macOS archive; the correct per-RID native lib is still
-         bundled into the single file via IncludeNativeLibrariesForSelfExtract.
+         ExcludeAssets="build;buildTransitive": the package's buildTransitive props
+         unconditionally declare runtimes/win-arm64 native files that are NOT shipped (the
+         MSB3030 phantom-copy failure on every non-win-x64 publish — WSL and Windows
+         cross-publish to linux-arm64 alike) and copy the win-x64 onnxruntime.dll into the
+         output for AnyCPU projects; both drop 13 MB+ of junk. The correct per-RID native lib
+         is still bundled into the single file via IncludeNativeLibrariesForSelfExtract.
          GPU build (Gpu.Windows): the CUDA EP ships in onnxruntime_providers_cuda.dll (~400 MB,
          loaded on demand) — the TTS (and plugins like PodcastTool) run on CUDA automatically
          when the CUDA Toolkit 12.x + cuDNN 9.x are installed (the engine probes the toolkit
          dirs and sets the PATH itself — no manual setup); machines without CUDA keep the CPU
          EP (the provider DLL is never loaded). -->
-    <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu.Windows" Version="1.23.0" ExcludeAssets="build" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu.Windows" Version="1.23.0" ExcludeAssets="build;buildTransitive" />
     <!-- Linux GPU parity: the same CUDA execution provider for the linux RIDs. Without it a
          Linux machine with a big NVIDIA GPU could never accelerate Qwen3-TTS (only the CPU
          libonnxruntime.so ships) — the /ttsengine gate would advertise Qwen while it ran at
          0.1x realtime. Same pinned version → the per-RID libonnxruntime.so + CUDA provider
          form a consistent pair with the 1.23.0 managed wrapper. -->
-    <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu.Linux" Version="1.23.0" Condition="'$(RuntimeIdentifier)' == 'linux-x64' or '$(RuntimeIdentifier)' == 'linux-arm64'" ExcludeAssets="build" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu.Linux" Version="1.23.0" Condition="'$(RuntimeIdentifier)' == 'linux-x64' or '$(RuntimeIdentifier)' == 'linux-arm64'" ExcludeAssets="build;buildTransitive" />
     <!-- SIP telephony (incoming auto-answer + PIN, outgoing calls, RTP audio loop to the
          agent): SIPSorcery implements the UAS/UAC, REGISTER, RFC 4733 DTMF and the
          G.711/G.722 codecs on its own; the OPUS codec is bundled inside SIPSorcery (via

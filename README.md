@@ -8,11 +8,7 @@ AgentBridge is a self-hosted server that runs AI agents with two interfaces in a
 Chat in the terminal while scripts, bots, and apps use the same agents on the same port:
 same process, same conversations, no bridges, no synchronization.
 
-**At a glance** — self-contained, ~460 MB per archive (no .NET installation needed, Kokoro
-TTS voices included) · 5 platforms: Windows x64, Linux x64/ARM64, macOS Intel/Apple
-Silicon · terminal UI in 6 languages · OpenAI-compatible API **and** native MCP ·
-deterministic memory · application-level sandbox · GDPR-ready anonymization · reachable
-24/7 via SIP phone and Telegram.
+It is the first **agentic** **harness** system for next-generation artificial intelligence that introduces significant innovations, raising the bar for all competitors in the industry. The system encapsulates agentic functions in a well-designed sandbox that prevents companies from suffering damage from an AI that is not properly controlled, while at the same time allowing them to entrust real business tasks to the AI, with a very high level of privacy and confidentiality.
 
 ![Replace humans in offices](media/agent-bridge-poster.png)
 
