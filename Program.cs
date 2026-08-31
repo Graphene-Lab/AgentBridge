@@ -8,6 +8,25 @@ using UISupportGeneric;
 using AgentBridge.Resources;
 using Terminal.Gui.Input;
 
+// Crash-safe console: when the process dies with an unhandled exception while the TUI
+// owns the console, the screen is left black — and the AIOrchestrator crash handler
+// below then sleeps 60 s before auto-restarting, so the user would stare at a black
+// terminal the whole time (and again after a restart that crashes again). Registered
+// FIRST so this handler restores a readable console and prints the error immediately;
+// the AIOrchestrator handler still logs the crash to file and restarts afterwards.
+AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+{
+    try { Console.ResetColor(); } catch { }
+    if (!OperatingSystem.IsWindows())
+    {
+        // Leave Terminal.Gui's alternate screen buffer (ANSI), then clear the primary.
+        try { Console.Out.Write("\u001b[0m\u001b[?1049l"); } catch { }
+    }
+    try { Console.Clear(); } catch { }
+    Console.Error.WriteLine();
+    Console.Error.WriteLine("AgentBridge crashed:");
+    Console.Error.WriteLine(e.ExceptionObject is Exception ex ? ex.ToString() : e.ExceptionObject?.ToString());
+};
 AppDomain.CurrentDomain.UnhandledException += AIOrchestrator.Utility.UnhandledException; //it catches application errors in order to prepare a log of the events that cause the crash
 
 // Logging toggle for headless runs: the TUI settings panel switches AIOrchestrator.Log on
