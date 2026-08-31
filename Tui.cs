@@ -154,6 +154,7 @@ public static class ConsoleTui
             new("voice", "[lang]", Dictionary.CmdVoice, (t, a) => t.VoiceAsync(a)),
             new("tts", "[text]", Dictionary.CmdTts, (t, a) => t.TtsAsync(a)),
             new("ttsengine", "[kokoro|qwen]", "TTS engine (kokoro default | qwen)", (t, a) => t.TtsEngineAsync(a)),
+            new("update", "", "Force-check GitHub for a new release and update", (t, _) => t.UpdateAsync()),
             new("features", "[name] [on|off]", Dictionary.CmdFeatures, (t, a) => t.FeaturesAsync(a)),
             new("new", "", Dictionary.CmdNew, (t, _) => t.NewSessionAsync(), new[] { "/reset" }),
             new("clear", "", Dictionary.CmdClear, (t, _) => t.ClearHistoryAsync()),
@@ -2074,6 +2075,15 @@ public static class ConsoleTui
                 File.WriteAllText(path, doc.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
             }
             catch { }
+        }
+
+        private async Task UpdateAsync()
+        {
+            AddNote("Checking for updates on GitHub...");
+            var result = await AutoUpdate.CheckAndApplyManualAsync();
+            // When an update was found and applied, ApplyAsync spawns the updater and
+            // exits the process — this note only surfaces when there is nothing to do.
+            AddNote(result);
         }
 
         private async Task FeaturesAsync(string args)

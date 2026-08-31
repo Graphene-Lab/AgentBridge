@@ -156,6 +156,51 @@ public static class AutoUpdate
         }
     }
 
+    /// <summary>Manual update check (TUI /update): unlike <see cref="CheckAndApplyAsync"/>
+    /// it runs regardless of <see cref="Enabled"/> — the user asked for it explicitly —
+    /// but still refuses on Debug builds and under <c>dotnet run</c>. Returns a
+    /// user-facing status string; when a newer release exists the updater is spawned and
+    /// the process exits (the returned string then never reaches the UI).</summary>
+    public static async Task<string> CheckAndApplyManualAsync()
+    {
+        if (!IsPublished) return "Updates require a published install (not `dotnet run`).";
+        if (IsDebugBuild) return "Updates are disabled on Debug builds.";
+        if (Rid() is not { } rid) return "No release archive exists for this platform.";
+        var current = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
+        try
+        {
+            var tag = await GetLatestTagAsync();
+            if (tag is null || !Version.TryParse(tag.TrimStart('v'), out var latest))
+                return "Could not reach GitHub — update check failed.";
+            if (latest <= current)
+                return $"Already up to date ({current}).";
+            Log.LogStep($"AutoUpdate (/update): {current} → {tag}, downloading", monitor: true);
+            Status($"Update {tag} available — downloading");
+
+            try
+            {
+                var pluginUpdates = await PluginUpdater.UpdatePluginsAsync(AgentBridge.ToolPlugins.Host);
+                if (pluginUpdates.Count > 0)
+                    Status($"{pluginUpdates.Count} plugin(s) updated — applied on restart");
+            }
+            catch (PluginUpdater.AgentBusyException)
+            {
+                return "Agents are executing — the update is postponed. Run /update again when they finish.";
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"AutoUpdate: plugin refresh failed — {ex.Message}");
+            }
+
+            await ApplyAsync(rid, tag);
+            return $"Update {tag} applied — restarting.";
+        }
+        catch (Exception ex)
+        {
+            return $"Update check failed — {ex.Message}";
+        }
+    }
+
     // Redirect trick: /releases/latest answers with a redirect whose Location header
     // carries the tag. No API call, so the unauthenticated rate limit is never an issue.
     private static async Task<string?> GetLatestTagAsync()
