@@ -1,0 +1,583 @@
+{
+  "version": 2,
+  "bodyType": "male",
+  "selections": {
+    "body": {
+      "itemId": "body",
+      "subId": null,
+      "variant": "",
+      "recolor": "light",
+      "name": "Body Color (light)"
+    },
+    "legs": {
+      "itemId": "legs_pants2",
+      "subId": null,
+      "variant": "",
+      "recolor": "gray",
+      "name": "Long Pants (gray)"
+    },
+    "shoes": {
+      "itemId": "feet_shoes_basic",
+      "subId": null,
+      "variant": "",
+      "recolor": "tan",
+      "name": "Basic Shoes (tan)"
+    },
+    "neck": {
+      "itemId": "neck_necktie",
+      "subId": null,
+      "variant": "",
+      "recolor": "gray",
+      "name": "Necktie (gray)"
+    },
+    "head": {
+      "itemId": "heads_human_male",
+      "subId": null,
+      "variant": "",
+      "recolor": "light",
+      "name": "Human Male (light)"
+    },
+    "hair": {
+      "itemId": "hair_plain",
+      "subId": null,
+      "variant": "",
+      "recolor": "chestnut",
+      "name": "Plain (chestnut)"
+    },
+    "clothes": {
+      "itemId": "torso_clothes_longsleeve2_cardigan",
+      "subId": null,
+      "variant": "",
+      "recolor": "slate",
+      "name": "Cardigan (slate)"
+    },
+    "sleeves": {
+      "itemId": "torso_clothes_longsleeves2",
+      "subId": null,
+      "variant": "",
+      "recolor": "white",
+      "name": "Longsleeves 2 Overlay (white)"
+    },
+    "vest": {
+      "itemId": "torso_clothes_vest_open",
+      "subId": null,
+      "variant": "white",
+      "recolor": "",
+      "name": "Vest open (white)"
+    }
+  },
+  "selectedAnimation": "walk",
+  "showTransparencyGrid": true,
+  "applyTransparencyMask": false,
+  "matchBodyColorEnabled": true,
+  "compactDisplay": false,
+  "enabledLicenses": {
+    "CC0": true,
+    "CC-BY-SA": true,
+    "CC-BY": true,
+    "OGA-BY": true,
+    "GPL": true
+  },
+  "enabledAnimations": {
+    "spellcast": false,
+    "thrust": false,
+    "walk": false,
+    "slash": false,
+    "shoot": false,
+    "hurt": false,
+    "climb": false,
+    "idle": false,
+    "jump": false,
+    "sit": false,
+    "emote": false,
+    "run": false,
+    "watering": false,
+    "combat": false,
+    "1h_slash": false,
+    "1h_backslash": false,
+    "1h_halfslash": false
+  },
+  "url": "https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/#sex=male&body=Body_Color_light&legs=Long_Pants_gray&shoes=Basic_Shoes_tan&neck=Necktie_gray&head=Human_Male_light&hair=Plain_chestnut&clothes=Cardigan_slate&sleeves=Longsleeves_2_Overlay_white&vest=Vest_open_white",
+  "layers": [
+    {
+      "itemId": "body",
+      "name": "Body Color (light)",
+      "variant": "",
+      "recolors": {
+        "body": "light"
+      },
+      "zPos": 10,
+      "layerNum": 1,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "body/bodies/male/spellcast.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "climb",
+        "idle",
+        "jump",
+        "sit",
+        "emote",
+        "run",
+        "combat_idle",
+        "backslash",
+        "halfslash"
+      ]
+    },
+    {
+      "itemId": "feet_shoes_basic",
+      "name": "Basic Shoes (tan)",
+      "variant": "",
+      "recolors": {
+        "shoes": "tan"
+      },
+      "zPos": 15,
+      "layerNum": 1,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "feet/shoes/basic/male/spellcast.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "climb",
+        "idle",
+        "jump",
+        "sit",
+        "emote",
+        "run",
+        "combat_idle",
+        "backslash",
+        "halfslash"
+      ]
+    },
+    {
+      "itemId": "legs_pants2",
+      "name": "Long Pants (gray)",
+      "variant": "",
+      "recolors": {
+        "legs": "gray"
+      },
+      "zPos": 20,
+      "layerNum": 1,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "legs/pants2/male/spellcast.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "climb",
+        "idle",
+        "jump",
+        "sit",
+        "emote",
+        "run",
+        "combat_idle",
+        "backslash",
+        "halfslash"
+      ]
+    },
+    {
+      "itemId": "torso_clothes_longsleeve2_cardigan",
+      "name": "Cardigan (slate)",
+      "variant": "",
+      "recolors": {
+        "clothes": "slate"
+      },
+      "zPos": 35,
+      "layerNum": 1,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "torso/clothes/longsleeve/longsleeve2_cardigan/male/spellcast.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "climb",
+        "idle",
+        "jump",
+        "sit",
+        "emote",
+        "run",
+        "combat_idle",
+        "backslash",
+        "halfslash"
+      ]
+    },
+    {
+      "itemId": "torso_clothes_longsleeves2",
+      "name": "Longsleeves 2 Overlay (white)",
+      "variant": "",
+      "recolors": {
+        "sleeves": "white"
+      },
+      "zPos": 36,
+      "layerNum": 1,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "torso/clothes/longsleeve/longsleeves2/male/spellcast.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "climb",
+        "idle",
+        "jump",
+        "sit",
+        "emote",
+        "run",
+        "combat_idle",
+        "backslash",
+        "halfslash"
+      ]
+    },
+    {
+      "itemId": "torso_clothes_vest_open",
+      "name": "Vest open (white)",
+      "variant": "white",
+      "recolors": null,
+      "zPos": 45,
+      "layerNum": 1,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "torso/clothes/vest_open/male/spellcast/white.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "idle"
+      ]
+    },
+    {
+      "itemId": "neck_necktie",
+      "name": "Necktie (gray)",
+      "variant": "",
+      "recolors": {
+        "neck": "gray"
+      },
+      "zPos": 90,
+      "layerNum": 1,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "neck/tie/necktie/male/spellcast.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "idle",
+        "jump",
+        "sit",
+        "emote",
+        "run",
+        "combat_idle",
+        "backslash",
+        "halfslash"
+      ]
+    },
+    {
+      "itemId": "heads_human_male",
+      "name": "Human Male (light)",
+      "variant": "",
+      "recolors": {
+        "head": "light"
+      },
+      "zPos": 100,
+      "layerNum": 1,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "head/heads/human/male/spellcast.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "climb",
+        "idle",
+        "jump",
+        "sit",
+        "emote",
+        "run",
+        "combat_idle",
+        "backslash",
+        "halfslash"
+      ]
+    },
+    {
+      "itemId": "hair_plain",
+      "name": "Plain (chestnut)",
+      "variant": "",
+      "recolors": {
+        "hair": "chestnut"
+      },
+      "zPos": 120,
+      "layerNum": 1,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "hair/plain/adult/spellcast.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "climb",
+        "idle",
+        "jump",
+        "sit",
+        "emote",
+        "run",
+        "combat_idle",
+        "backslash",
+        "halfslash"
+      ]
+    }
+  ],
+  "credits": [
+    {
+      "fileName": "body/bodies/male/walk.png",
+      "file": "body/bodies/male",
+      "notes": "see details at https://opengameart.org/content/lpc-character-bases; 'Thick' Male Revised Run/Climb by JaidynReiman (based on ElizaWy's LPC Revised)",
+      "authors": [
+        "bluecarrot16",
+        "JaidynReiman",
+        "Benjamin K. Smith (BenCreating)",
+        "Evert",
+        "Eliza Wyatt (ElizaWy)",
+        "TheraHedwig",
+        "MuffinElZangano",
+        "Durrani",
+        "Johannes Sjölund (wulax)",
+        "Stephen Challener (Redshrike)"
+      ],
+      "licenses": [
+        "OGA-BY 3.0",
+        "CC-BY-SA 3.0",
+        "GPL 3.0"
+      ],
+      "urls": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+        "https://opengameart.org/content/lpc-male-jumping-animation-by-durrani",
+        "https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle",
+        "https://opengameart.org/content/lpc-revised-character-basics",
+        "https://opengameart.org/content/lpc-be-seated",
+        "https://opengameart.org/content/lpc-runcycle-for-male-muscular-and-pregnant-character-bases-with-modular-heads",
+        "https://opengameart.org/content/lpc-jump-expanded",
+        "https://opengameart.org/content/lpc-character-bases"
+      ]
+    },
+    {
+      "fileName": "legs/pants2/male/walk.png",
+      "file": "legs/pants2/male",
+      "notes": "original overalls by ElizaWy, base animations adapted from v3 overalls by bluecarrot16, pants by JaidynReiman",
+      "authors": [
+        "JaidynReiman",
+        "ElizaWy",
+        "Bluecarrot16",
+        "Johannes Sjölund (wulax)",
+        "Stephen Challener (Redshrike)"
+      ],
+      "licenses": [
+        "OGA-BY 3.0",
+        "GPL 3.0"
+      ],
+      "urls": [
+        "https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing",
+        "https://opengameart.org/content/lpc-expanded-sit-run-jump-more",
+        "https://opengameart.org/content/lpc-expanded-pants"
+      ]
+    },
+    {
+      "fileName": "feet/shoes/basic/male/walk.png",
+      "file": "feet/shoes",
+      "notes": "original by wulax, edited for v3 base by bluecarrot16, Jump/Sit/Emote/Run/Revised Combat by JaidynReiman",
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Johannes Sjölund (wulax)"
+      ],
+      "licenses": [
+        "OGA-BY 3.0",
+        "CC-BY-SA 3.0",
+        "GPL 3.0"
+      ],
+      "urls": [
+        "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+        "http://opengameart.org/content/lpc-clothing-updates",
+        "https://opengameart.org/content/lpc-expanded-socks-shoes"
+      ]
+    },
+    {
+      "fileName": "neck/tie/necktie/male/walk.png",
+      "file": "neck/tie/necktie",
+      "notes": "Originally by pennomi/laetissima/Makrohn, edited by bluecarrot16, animations and recolors by JaidynReiman",
+      "authors": [
+        "JaidynReiman",
+        "bluecarrot16",
+        "Thane Brimhall (pennomi)",
+        "laetissima",
+        "Makrohn"
+      ],
+      "licenses": [
+        "CC-BY-SA 3.0",
+        "GPL 3.0"
+      ],
+      "urls": [
+        "https://opengameart.org/content/lpc-2-characters",
+        "https://opengameart.org/content/lpc-gentleman"
+      ]
+    },
+    {
+      "fileName": "head/heads/human/male/walk.png",
+      "file": "head/heads/human/male",
+      "notes": "original head by Redshrike, tweaks by BenCreating, modular version by bluecarrot16",
+      "authors": [
+        "bluecarrot16",
+        "Benjamin K. Smith (BenCreating)",
+        "Stephen Challener (Redshrike)"
+      ],
+      "licenses": [
+        "OGA-BY 3.0",
+        "CC-BY-SA 3.0",
+        "GPL 3.0"
+      ],
+      "urls": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://opengameart.org/content/lpc-character-bases"
+      ]
+    },
+    {
+      "fileName": "hair/plain/adult/walk.png",
+      "file": "hair/plain",
+      "notes": "",
+      "authors": [
+        "JaidynReiman",
+        "Manuel Riecke (MrBeast)",
+        "Joe White"
+      ],
+      "licenses": [
+        "OGA-BY 3.0",
+        "CC-BY-SA 3.0",
+        "GPL 3.0"
+      ],
+      "urls": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://opengameart.org/content/ponytail-and-plain-hairstyles",
+        "https://opengameart.org/content/lpc-expanded-hair"
+      ]
+    },
+    {
+      "fileName": "torso/clothes/longsleeve/longsleeve2_cardigan/male/walk.png",
+      "file": "torso/clothes/longsleeve/longsleeve2_cardigan",
+      "notes": "original by ElizaWy; spellcast/thrust/shoot/hurt/male adapted from original by JaidynReiman",
+      "authors": [
+        "ElizaWy",
+        "JaidynReiman",
+        "Stephen Challener (Redshrike)",
+        "Johannes Sjölund (wulax)"
+      ],
+      "licenses": [
+        "OGA-BY 3.0"
+      ],
+      "urls": [
+        "http://opengameart.org/content/lpc-revised-character-basics",
+        "https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing",
+        "https://opengameart.org/content/lpc-expanded-sit-run-jump-more",
+        "https://opengameart.org/content/lpc-expanded-simple-shirts"
+      ]
+    },
+    {
+      "fileName": "torso/clothes/longsleeve/longsleeves2/male/walk.png",
+      "file": "torso/clothes/longsleeve/longsleeves2",
+      "notes": "original by ElizaWy; spellcast/thrust/shoot/hurt/male/standalone sleeves adapted from original by JaidynReiman",
+      "authors": [
+        "ElizaWy",
+        "JaidynReiman",
+        "Stephen Challener (Redshrike)",
+        "Johannes Sjölund (wulax)"
+      ],
+      "licenses": [
+        "OGA-BY 3.0"
+      ],
+      "urls": [
+        "http://opengameart.org/content/lpc-revised-character-basics",
+        "https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing",
+        "https://opengameart.org/content/lpc-expanded-sit-run-jump-more",
+        "https://opengameart.org/content/lpc-expanded-simple-shirts"
+      ]
+    },
+    {
+      "fileName": "torso/clothes/vest_open/male/walk/white.png",
+      "file": "torso/clothes/vest_open",
+      "notes": "",
+      "authors": [
+        "bluecarrot16",
+        "Thane Brimhall (pennomi)",
+        "laetissima"
+      ],
+      "licenses": [
+        "CC-BY-SA 3.0",
+        "GPL 3.0"
+      ],
+      "urls": [
+        "https://opengameart.org/content/lpc-2-characters",
+        "https://opengameart.org/content/lpc-gentleman",
+        "https://opengameart.org/content/lpc-pirates"
+      ]
+    }
+  ]
+}

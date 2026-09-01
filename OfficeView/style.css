@@ -1,0 +1,112 @@
+/* 16-bit office game — retro styling with the office PNG palette
+   (wall tan #baa272, dark wood #241200, floor #2e4e54, boss vest #a83030). */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: #000;
+  font-family: "Press Start 2P", "Courier New", monospace;
+  overflow: hidden;
+  user-select: none;
+}
+
+#app {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* office + chat share one centred column: the chat is never wider than the office */
+#gamebox {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+#stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+#game {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #241200;
+}
+
+/* ---- 16-bit text-adventure chat (office palette) ---- */
+#chat {
+  flex: none;
+  width: 100%;
+  height: 208px;
+  display: flex;
+  flex-direction: column;
+  background: #170d02;
+  border: 3px solid #baa272;
+  border-bottom: none;
+  box-shadow: inset 0 6px 0 rgba(114, 84, 24, 0.25);
+}
+
+#log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px 6px;
+  font-size: 12px;
+  line-height: 1.9;
+  color: #baa272;
+  scrollbar-width: thin;
+  scrollbar-color: #baa272 #170d02;
+}
+
+#log .msg { white-space: pre-wrap; word-break: break-word; }
+#log .who { color: #c6483c; }
+#log .emp .who { color: #6ea0c8; }
+#log .sys { color: #6e5c42; font-size: 10px; line-height: 2.4; }
+
+#inputrow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 2px solid #3a2410;
+  background: #100a02;
+}
+
+.prompt { color: #baa272; font-size: 14px; }
+
+#input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e8dab0;
+  font: inherit;
+  font-size: 12px;
+  caret-color: #baa272;
+}
+
+#input::placeholder { color: #4a3a22; }
+
+#snd {
+  font: inherit;
+  font-size: 9px;
+  color: #baa272;
+  background: #241407;
+  border: 2px solid #baa272;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.hint {
+  font-size: 9px;
+  color: #6e5c42;
+  flex: none;
+}
+
+#snd:hover { background: #3a2410; }
+#snd.off { color: #6e5c42; border-color: #4a3a22; }

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Office Manager 16-Bit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <div id="gamebox">
+    <div id="stage">
+      <canvas id="game" width="1024" height="683"></canvas>
+    </div>
+    <div id="chat">
+      <div id="log" aria-live="polite"></div>
+      <div id="inputrow">
+        <span class="prompt">&gt;</span>
+        <input id="input" type="text" maxlength="80" autocomplete="off" spellcheck="false" autofocus aria-label="chat input">
+        <span class="hint">tab = hire · esc = release</span>
+        <button id="snd" type="button" title="toggle sound">SOUND:ON</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="assets/office-mask.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

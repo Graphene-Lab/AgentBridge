@@ -1,0 +1,40 @@
+Devi creare un gioco usando html, css, javascript, stile 16 bit che mostra un ufficio con vista “Top-Down” (Oblique Projection) e degli impiegati che girano per l'ufficio tra le scrivanie. Occorre pilotarne uno con i tasti cursore (il boss)?
+Quando il boss si avvicina a un impiegato, questo viene ingaggiato. L’impiegato può essere ingaggiato anche con il tasto tab o con il mouse.
+Nella parte bassa c’è un una chat come quella nelle text adventure game 16 bit, che serve a far parlare il boss con l’impiegato ingaggiato. L’impiegato ingaggiato dice “Boss, give orders!”, a qualsiasi messaggio risponde “Ok boss!”: Quello che dicono gli impiegati è un testo in un fumetto (il fumetto si deve adattare al testo e essere anche multi riga se necessario).
+Random, 1 volta al minuto di media, l’impiegato deve dire “I am working” o “I'm in a hurry”.
+Requisiti:
+- l’impiegato ingaggiato è immobile
+- quadro di gioco molto ampio (high-res, adattato alle dimensioni dei monitor moderni)
+- può essere ingaggiato un solo impiegato alla volta (se uno è ingaggiato, non è possibile ingaggiarne altri)
+- un impiegato perde l’ingaggio dopo 1 minuto di inattività del boss e se l’ingaggio è avvenuto tramite area di contatto, il boss esce dall’area
+- la scritta “boss” sopra il boss, scompare quando si muove o parla, e riappare dopo 10 secondi di inattività
+- non ridondanze nel codice
+- boss e impiegati condividono stessi sprite con palette diversa per differenziarsi
+- commenti e testi nel codice in inglese
+- effetti sonori 16 bit game
+- il cursore è sempre nell’input area testuale
+- quello che dicono gli omini (boss e impiegati), appare nel fumetto e viene loggato come messaggio nella chat. Le azioni di ingaggio o altri eventi non vengono loggate nella chat
+- se il boss ingaggia il telefono, nel fumetto appare la scritta “I have to call”
+- l’ufficio non scorre (è un unica vista)
+- nella parete di fondo a destra c’è lo spazio per mettere un orologio funzionante
+- sul lato sinistro della parete in sequenza c’è la porta e poi un telefono da parete. Quando il bos è sul telefono deve dire: “I have to call”.
+
+Asset già presenti:
+L’ufficio è già presente, diviso in 2 parti: office.png, office-ground.png
+- office.png è la parte non calpestabile (in questa immagine il pavimento è trasparente): scrivanie, pareti, arredo
+- office-ground.png è la parte calpestabile con trasparente la parte contenuta in office.png
+- office-ground.svg è la versione vettoriale che fa da parte deterministica (per avere una idea esatta della area delimitata dove camminano gli omini)
+- office.png e office-ground.png sono complementari (le parti trasparenti di uno corrispondono a quelle piene dell’altro; queste due parti vanno sovrapposte),  questo permette di facilitare il motore grafico inserendo gli omini (impiegati e boss),  sopra  office-ground.png ma sotto ground.png.
+Gli omini possono andare dietro gli oggetti solo nella parte superiore di questi, per un limite di pixel in altezza, mentre quando sono davanti possono portarsi sopra di loro fino a che i piedi non raggiungano la base: Ad esempio, l’omino quando è in fono all’ufficio, si può sovrapporre con il corpo alla parete dello sfondo fino a che i piedi non raggiungono l’inizio della parete. Lo stesso avviene quando sta davanti ad una scrivania. Se arriva da dietro può mettersi parzialmente dietro gli oggetto essendo questa una vista prospettica. Ad esempio si può mettere dietro la scrivania solo per la parte delle gambe, ma il corpo rimane fuori.
+
+L’immagine  office.png da cosa è composta: a sinistra la fotocopiatrice, a destra uno schedario (scaffale), in messo 8 scrivanie disposte su 3 file (3+3+2), e in fondo la parete con alcuni elementi di arredo appoggiati (è per questo che la linea di fondo non è dritta: quando scende significa che ci sono arredi o oggetti contro la parete).
+
+Tu dovresti sapere come gestire questo tipo di impianto grafico! Ti ho dato le indicazioni base
+
+nella cartella asset abbiamo il boss, e 5 modelli di impiegati (A, B, C, D, E) di questi cambia solo il colore della giacca per non farli sembrare tutti uguali
+
+Puoi prelevare asset da internet se occorre (fonts, suoni, elementi, ecc.)
+
+Gli assets sono nella cartella "/assets"
+
+Se hai domande chiedi pure!
