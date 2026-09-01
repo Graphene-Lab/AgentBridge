@@ -2,11 +2,19 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Collections.Concurrent;
+using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
 using AIOrchestrator;
 using UISupportGeneric;
 using AgentBridge.Resources;
 using Terminal.Gui.Input;
+
+// First-run visibility: from the process start to the TUI drawing the console shows
+// nothing — the single-file runtime extracts its embedded native libraries before Main
+// runs, and in TUI mode Console output is nulled until the UI takes over. On slow
+// machines that window can be long. Print a startup line immediately so the terminal
+// is never silently black; the TUI clears the console when it draws.
+Console.WriteLine($"AgentBridge {Assembly.GetExecutingAssembly().GetName().Version} starting — loading components, please wait...");
 
 // Crash-safe console: when the process dies with an unhandled exception while the TUI
 // owns the console, the screen is left black — and the AIOrchestrator crash handler
