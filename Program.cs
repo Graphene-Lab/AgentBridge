@@ -268,20 +268,22 @@ AIOrchestrator.API.TaskSchedulerTool.SchedulerProvider = startupProvider;
 // (appsettings "Voice:ExePath", CLI --Voice:ExePath). Null → server base directory.
 VoiceBridge.ExePath = builder.Configuration["Voice:ExePath"];
 
-// Preferred TTS engine (appsettings "Tts:Engine", CLI --Tts:Engine): "kokoro" is the default
-// (in-process, ~325 MB model); "qwen" switches the plugin TTS (e.g. PodcastTool) to Qwen3-TTS
-// (~5.5 GB model, auto-downloaded on first use, falls back to Kokoro if unavailable). The
-// plugins read the PODCAST_TTS_ENGINE environment variable — the /ttsengine TUI command and
-// the JSON above both land here.
-// Release builds gate Qwen3-TTS to NVIDIA GPUs with ≥16 GB VRAM (it is ~0.1x realtime on CPU,
-// a full podcast would block the user's machine for hours): when the configured engine is
-// unsupported, the app falls back to Kokoro and says why. Debug builds allow Qwen for testing.
-var ttsEngine = builder.Configuration["Tts:Engine"] ?? "kokoro";
-if (string.Equals(ttsEngine, "qwen", StringComparison.OrdinalIgnoreCase)
-    && !TtsEngineSupport.QwenTtsSupported(out var ttsUnsupportedReason))
+// Preferred TTS engine (appsettings "Tts:Engine", CLI --Tts:Engine), exported to the
+// plugins via PODCAST_TTS_ENGINE so they synthesize with the same engine as the host.
+// The catalog lives in TtsEngineSupport (AIOrchestrator): kokoro is the only engine
+// today — always available, in-process, model included in the archive. Future engines
+// register there and get this selection path for free; a stale configured value falls
+// back to the default and says why, so the TTS never breaks silently.
+var ttsEngine = builder.Configuration["Tts:Engine"] ?? TtsEngineSupport.DefaultEngine;
+if (!TtsEngineSupport.IsKnown(ttsEngine))
 {
-    Console.WriteLine($"TTS engine 'qwen' is not supported on this machine ({ttsUnsupportedReason}) — using kokoro.");
-    ttsEngine = "kokoro";
+    Console.WriteLine($"TTS engine '{ttsEngine}' is unknown — using {TtsEngineSupport.DefaultEngine}.");
+    ttsEngine = TtsEngineSupport.DefaultEngine;
+}
+else if (!TtsEngineSupport.IsAvailable(ttsEngine, out var ttsReason))
+{
+    Console.WriteLine($"TTS engine '{ttsEngine}' is not available on this machine ({ttsReason}) — using {TtsEngineSupport.DefaultEngine}.");
+    ttsEngine = TtsEngineSupport.DefaultEngine;
 }
 Environment.SetEnvironmentVariable("PODCAST_TTS_ENGINE", ttsEngine);
 Console.WriteLine($"TTS engine: {ttsEngine}");

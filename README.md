@@ -137,13 +137,10 @@ Our **Agentic AI** is designed to be installed on standalone devices, such as mi
 - **Text-to-speech that works the moment you run it — no setup, no drivers, no accounts**
   Every archive ships the Kokoro neural TTS engine with its voices and model included, so the
   agent talks immediately — in the terminal, over the API and on the phone — with zero
-  configuration. The podcast tool speaks with the same engine, out of the box. A second engine
-  (Qwen3-TTS, richer voices, Italian included) is optional: run `/ttsengine qwen` and its
-  model downloads automatically from HuggingFace on first use (one time, ~5.5 GB) — nothing to
-  install by hand. Release builds offer Qwen only on NVIDIA GPUs with ≥16 GB VRAM (on a CPU it
-  would occupy the machine for hours); `/ttsengine` reports what your machine supports. GPU is
-  automatic too: on machines with an NVIDIA CUDA-capable GPU the engines use it without any
-  manual setup; everywhere else they simply run on CPU. Full details in the
+  configuration. The podcast tool speaks with the same engine, out of the box. GPU is
+  automatic too: on machines with an NVIDIA CUDA-capable GPU the engine uses it without any
+  manual setup; everywhere else it simply runs on CPU. The engine catalog is designed to
+  grow — future engines appear in `/ttsengine`. Full details in the
   [Text-to-speech guide](docs/TTS.md).
 
 ## Your documents area: the company's brain and memory
@@ -229,8 +226,7 @@ Run the one-line install above — or download the archive for your platform fro
 [Releases page](https://github.com/Graphene-Lab/AgentBridge/releases), extract and run
 `agent.exe` / `agent`.
 No .NET installation needed; each archive already includes the Kokoro TTS voices and model,
-so text-to-speech works on the first run with nothing to configure. The optional Qwen3-TTS
-engine downloads its own model automatically on first use (see *Text-to-speech* below).
+so text-to-speech works on the first run with nothing to configure.
 
 ```bash
 curl http://localhost:5290/health   # {"status":"healthy","timestamp":"..."}

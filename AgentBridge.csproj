@@ -72,9 +72,9 @@
          EP (the provider DLL is never loaded). -->
     <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu.Windows" Version="1.23.0" ExcludeAssets="build;buildTransitive" />
     <!-- Linux GPU parity: the same CUDA execution provider for the linux RIDs. Without it a
-         Linux machine with a big NVIDIA GPU could never accelerate Qwen3-TTS (only the CPU
-         libonnxruntime.so ships) — the /ttsengine gate would advertise Qwen while it ran at
-         0.1x realtime. Same pinned version → the per-RID libonnxruntime.so + CUDA provider
+         Linux machine with a big NVIDIA GPU could never accelerate Kokoro (only the CPU
+         libonnxruntime.so ships) — the CUDA EP is loaded on demand, machines without CUDA
+         keep the CPU EP. Same pinned version → the per-RID libonnxruntime.so + CUDA provider
          form a consistent pair with the 1.23.0 managed wrapper. -->
     <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu.Linux" Version="1.23.0" Condition="'$(RuntimeIdentifier)' == 'linux-x64' or '$(RuntimeIdentifier)' == 'linux-arm64'" ExcludeAssets="build;buildTransitive" />
     <!-- SIP telephony (incoming auto-answer + PIN, outgoing calls, RTP audio loop to the

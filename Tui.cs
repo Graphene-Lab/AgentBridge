@@ -153,7 +153,7 @@ public static class ConsoleTui
             new("agent", "[name]", Dictionary.CmdAgent, (t, a) => t.SwitchAgentAsync(a)),
             new("voice", "[lang]", Dictionary.CmdVoice, (t, a) => t.VoiceAsync(a)),
             new("tts", "[text]", Dictionary.CmdTts, (t, a) => t.TtsAsync(a)),
-            new("ttsengine", "[kokoro|qwen]", "TTS engine (kokoro default | qwen)", (t, a) => t.TtsEngineAsync(a)),
+            new("ttsengine", "[name]", "TTS engine (kokoro default — other engines register in the catalog)", (t, a) => t.TtsEngineAsync(a)),
             new("update", "", "Force-check GitHub for a new release and update", (t, _) => t.UpdateAsync()),
             new("features", "[name] [on|off]", Dictionary.CmdFeatures, (t, a) => t.FeaturesAsync(a)),
             new("new", "", Dictionary.CmdNew, (t, _) => t.NewSessionAsync(), new[] { "/reset" }),
@@ -2033,31 +2033,27 @@ public static class ConsoleTui
         private async Task TtsEngineAsync(string args)
         {
             var engine = args.Trim().ToLowerInvariant();
+            var known = string.Join(", ", TtsEngineSupport.KnownEngines);
             if (string.IsNullOrWhiteSpace(engine))
             {
-                var current = Environment.GetEnvironmentVariable("PODCAST_TTS_ENGINE") ?? "kokoro";
-                var qwenOk = TtsEngineSupport.QwenTtsSupported(out var qwenReason);
-                AddNote("TTS engines on this machine:\n" +
-                        "  kokoro — always available (in-process, model included in the archive)\n" +
-                        $"  qwen — {(qwenOk ? "supported" : "NOT supported")}: {qwenReason}\n" +
-                        $"Current engine: {current}. Set with /ttsengine <kokoro|qwen>.");
+                var current = Environment.GetEnvironmentVariable("PODCAST_TTS_ENGINE") ?? TtsEngineSupport.DefaultEngine;
+                AddNote($"TTS engines on this machine: {known}\n" +
+                        $"Current engine: {current}. Set with /ttsengine <{known}>.");
                 return;
             }
-            if (engine is not ("kokoro" or "qwen"))
+            if (!TtsEngineSupport.IsKnown(engine))
             {
-                AddNote("TTS engine must be 'kokoro' (default) or 'qwen'.");
+                AddNote($"Unknown TTS engine '{engine}' — known engines: {known}.");
                 return;
             }
-            if (engine == "qwen" && !TtsEngineSupport.QwenTtsSupported(out var unsupportedReason))
+            if (!TtsEngineSupport.IsAvailable(engine, out var reason))
             {
-                AddNote($"Qwen3-TTS is not available on this machine: {unsupportedReason} The engine stays on kokoro.");
+                AddNote($"TTS engine '{engine}' is not available on this machine: {reason} The engine stays on {TtsEngineSupport.DefaultEngine}.");
                 return;
             }
             Environment.SetEnvironmentVariable("PODCAST_TTS_ENGINE", engine);
             PersistTtsEngine(engine);
-            AddNote(engine == "kokoro"
-                ? "TTS engine set to kokoro (default, in-process — persisted in appsettings Tts:Engine)."
-                : "TTS engine set to qwen (Qwen3-TTS — downloads a ~5.5 GB model on first use; falls back to Kokoro if unavailable — persisted in appsettings Tts:Engine).");
+            AddNote($"TTS engine set to {engine} — persisted in appsettings Tts:Engine.");
         }
 
         /// <summary>Persists the preferred TTS engine into appsettings.json (Tts:Engine).</summary>
