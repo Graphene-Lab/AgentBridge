@@ -43,7 +43,7 @@ using AIOrchestrator;
 /// <summary>WebSocket hub + agent-lifecycle tracker for the OfficeManager visual protocol.</summary>
 public static class OfficeBridge
 {
-    private const int IdleCount = 5;                 // always-present roaming employees (sprite pool)
+    private const int IdleCount = 1;                 // one always-present roamable employee (hire pool)
     private const int SpriteCount = 5;               // employee A..E sprite sheets
 
     private static string _provider = "DeepSeekBridge";

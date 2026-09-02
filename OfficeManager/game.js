@@ -212,7 +212,9 @@ const Chat = {
     const span = document.createElement("span");
     div.appendChild(span);
     this.el.appendChild(div);
-    const text = esc(m.text);
+    // textContent escapes by itself — the text must stay RAW (esc() would render
+    // &#39;/&amp; entities literally in the chat)
+    const text = m.text;
     let i = 0;
     const tick = () => {
       if (i >= text.length) { this.timer = setTimeout(() => this._type(), 40); return; }
@@ -967,6 +969,23 @@ function initInput() {
     engageAt((e.clientX - r.left) / s, (e.clientY - r.top) / s);
   });
 
+  // hover: reveal the nameplate of the agent employee under the cursor (labels are not
+  // rendered by default — it reduces clutter and per-frame canvas text)
+  cv.addEventListener("mousemove", (e) => {
+    const r = cv.getBoundingClientRect();
+    const s = r.width / W;
+    const px = (e.clientX - r.left) / s, py = (e.clientY - r.top) / s;
+    hoveredEmp = null;
+    for (const emp of employees) {
+      if (emp.label && !emp.returningHome &&
+          px >= emp.fx - 24 && px <= emp.fx + 24 && py >= emp.fy - CHAR_H + 4 && py <= emp.fy - 8) {
+        hoveredEmp = emp;
+        break;
+      }
+    }
+  });
+  cv.addEventListener("mouseleave", () => { hoveredEmp = null; });
+
   // sound toggle
   const snd = document.getElementById("snd");
   snd.addEventListener("click", () => {
@@ -1002,8 +1021,10 @@ function drawPerson(p) {
   ctx.restore();
 }
 
+/* the "boss" nameplate is hidden ONLY while the boss is keyboard-driven: during the
+   auto-pilot (and while standing still) it stays visible to identify him */
 function labelVisible() {
-  return !phoneActive && performance.now() - lastBossActivity > LABEL_IDLE_MS;
+  return !phoneActive && !(keys.up || keys.down || keys.left || keys.right);
 }
 
 function drawLabel() {
@@ -1020,16 +1041,18 @@ function drawLabel() {
   ctx.fillText("boss", x + 4, y + h - 2);
 }
 
-/* small nameplate over agent employees (they may share a sprite with other
-   employees, so the label tells them apart) */
+/* agent nameplate (short id) shown ONLY when the mouse hovers the employee — it is
+   kept off the default render to avoid clutter and per-frame text cost */
+let hoveredEmp = null;
+
 function drawEmployeeLabel(p) {
-  if (!p.label || p.returningHome) return;
+  if (!p.label || p.returningHome || p !== hoveredEmp) return;
   ctx.font = PIX_FONT;
   const w = ctx.measureText(p.label).width + 6, h = 10;
   const x = p.fx - w / 2, y = p.fy - CHAR_H - h - 2;
-  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillStyle = "rgba(0,0,0,0.75)";
   ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = "#9fb8c4";
+  ctx.fillStyle = "#e8dab0";
   ctx.fillText(p.label, x + 3, y + h - 3);
 }
 
@@ -1060,7 +1083,7 @@ function drawBubble(p) {
 
   let baseY = p.fy - CHAR_H - 4;
   if (p.isBoss && labelVisible()) baseY -= 13;      // stack above the "boss" nameplate
-  else if (!p.isBoss && p.label && !p.returningHome) baseY -= 12;   // above the employee nameplate
+  else if (!p.isBoss && p === hoveredEmp && p.label && !p.returningHome) baseY -= 12;   // above the hovered nameplate
   const x = p.fx - w / 2;
   let y = baseY - h;
   if (y < 2) y = p.fy + CHAR_H / 2;                 // below the head when there is no room above
@@ -1166,7 +1189,10 @@ function drawEngagedMark() {
 /* ---------- main loop ---------- */
 let lastT = performance.now();
 function frame(now) {
-  const dt = Math.min(now - lastT, 50);
+  // dt cap: high enough that a capture-heavy page (full-res toDataURL on the same
+  // thread) or a busy scene never makes the simulation itself run in slow motion —
+  // at worst the motion gets a little less smooth, but wall-clock time is preserved.
+  const dt = Math.min(now - lastT, 150);
   lastT = now;
   updateBoss(dt);
   for (const e of [...employees]) updateEmployee(e, dt);
