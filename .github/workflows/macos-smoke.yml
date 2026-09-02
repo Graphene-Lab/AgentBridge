@@ -1,0 +1,155 @@
+name: macOS smoke test
+
+# Runs the AgentBridge macOS archive (osx-arm64 / osx-x64) on a public GitHub
+# macOS runner and checks that the headless server actually starts: /health,
+# /v1/models, /v1/control (platform capabilities), /OfficeManager and the Kokoro
+# TTS endpoint (/v1/audio/speech). Useful to catch Apple silicon signing/runtime
+# regressions (unsigned arm64 binaries are killed by macOS) and NuGet/native
+# dependency issues on macOS.
+#
+#   mode=asset   download a release archive (input: version, default latest)
+#   mode=source  dotnet publish -r <rid> (self-contained single-file, as release.yml)
+#                and run the freshly built agent
+#
+# The runner may be Intel (x64) or Apple silicon (arm64): a matrix entry only runs
+# the binary when the host architecture matches the asset; otherwise it reports a
+# structural check (file/codesign) and skips execution.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'smoke mode: asset (released archive) or source (fresh publish)'
+        required: true
+        default: asset
+        type: choice
+        options: [asset, source]
+      version:
+        description: 'release tag to test in asset mode, e.g. v1.26.09.02 (default: latest)'
+        required: false
+        default: latest
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: ${{ matrix.rid }} (${{ github.event.inputs.mode || 'asset' }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [osx-arm64, osx-x64]
+    steps:
+      - name: Host info
+        shell: bash
+        run: |
+          uname -srm
+          sw_vers
+          echo "host_arch=$(uname -m)" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: repo
+
+      - name: Build from source (mode=source)
+        if: github.event.inputs.mode == 'source'
+        shell: bash
+        run: |
+          dotnet publish repo/AgentBridge.csproj -c Release -r ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:DebugType=None -p:DebugSymbols=false \
+            -o /tmp/ab
+
+      - name: Download release archive (mode=asset)
+        if: github.event.inputs.mode != 'source'
+        shell: bash
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          VERSION="$VERSION"
+          if [ "$VERSION" = "latest" ] || [ -z "$VERSION" ]; then
+            BASE="https://github.com/Graphene-Lab/AgentBridge/releases/latest/download"
+          else
+            BASE="https://github.com/Graphene-Lab/AgentBridge/releases/download/$VERSION"
+          fi
+          curl -fL -o /tmp/ab.tar.gz "$BASE/agentbridge-${{ matrix.rid }}.tar.gz"
+          mkdir -p /tmp/ab
+          tar -xzf /tmp/ab.tar.gz -C /tmp/ab
+
+      - name: Inspect the binary (signature / architecture)
+        shell: bash
+        run: |
+          chmod +x /tmp/ab/agent 2>/dev/null || true
+          file /tmp/ab/agent
+          codesign -dv /tmp/ab/agent 2>&1 | head -n 8 || echo "(codesign: no signature info)"
+          # dyld signature check: does the binary pass macOS's requirement to be signed?
+          codesign --verify --deep --strict /tmp/ab/agent 2>&1 && echo "codesign verify: OK" || echo "codesign verify: FAILED (unsigned binaries are killed on arm64)"
+          ls /tmp/ab | head -n 20
+
+      - name: Run the agent headless (host arch must match the asset)
+        shell: bash
+        run: |
+          RID="${{ matrix.rid }}"
+          HOST_ARCH="${{ env.host_arch }}"
+          EXPECT=""
+          case "$RID" in
+            osx-arm64) EXPECT="arm64" ;;
+            osx-x64)   EXPECT="x86_64" ;;
+          esac
+          if [ "$HOST_ARCH" != "$EXPECT" ]; then
+            echo "SKIP execution: host is $HOST_ARCH, asset is $RID (no native match on this runner)."
+            exit 0
+          fi
+          cd /tmp/ab
+          ./agent --headless --environment Production > /tmp/ab/agent.log 2>&1 &
+          echo $! > /tmp/ab/agent.pid
+          ok=0
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:5290/health >/dev/null 2>&1; then ok=1; break; fi
+            sleep 2
+          done
+          if [ "$ok" != "1" ]; then
+            echo "AGENT DID NOT START"
+            tail -n 50 /tmp/ab/agent.log || true
+            exit 1
+          fi
+          echo "agent started (pid $(cat /tmp/ab/agent.pid))"
+
+      - name: Smoke endpoints
+        if: always()
+        shell: bash
+        run: |
+          HOST_ARCH="${{ env.host_arch }}"
+          case "${{ matrix.rid }}" in
+            osx-arm64) EXPECT="arm64" ;;
+            osx-x64)   EXPECT="x86_64" ;;
+          esac
+          if [ "$HOST_ARCH" != "$EXPECT" ]; then
+            echo "SKIP endpoint smoke (binary not executed on this runner)."
+            exit 0
+          fi
+          set -e
+          echo "== /health ==";  curl -fsS http://localhost:5290/health; echo
+          echo "== /v1/models (first 300 chars) =="; curl -fsS http://localhost:5290/v1/models | head -c 300; echo
+          echo "== /v1/control capabilities =="; curl -fsS http://localhost:5290/v1/control | head -c 600; echo
+          echo "== /OfficeManager =="; curl -fsS -o /tmp/ab/om.html -w 'HTTP %{http_code}, %{size_download} bytes\n' http://localhost:5290/OfficeManager
+          echo "== /v1/audio/speech (Kokoro TTS) =="
+          curl -fsS -X POST http://localhost:5290/v1/audio/speech -H 'Content-Type: application/json' \
+            -d '{"model":"kokoro","input":"Hello from Apple silicon.","voice":"af_heart"}' \
+            -o /tmp/ab/hello.wav
+          file /tmp/ab/hello.wav
+
+      - name: Stop the agent
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/ab/agent.pid ]; then kill "$(cat /tmp/ab/agent.pid)" 2>/dev/null || true; fi
+
+      - name: Agent log tail on failure
+        if: failure()
+        shell: bash
+        run: tail -n 60 /tmp/ab/agent.log 2>/dev/null || true
