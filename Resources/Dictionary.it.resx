@@ -35,6 +35,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="MenuNewChat" xml:space="preserve"><value>_Nuova chat</value></data>
   <data name="MenuModelsProviders" xml:space="preserve"><value>_Modelli e provider (/modelsetup)</value></data>
   <data name="MenuAutoUpdate" xml:space="preserve"><value>_Aggiornamento automatico: {0}</value></data>
+  <data name="MenuCheckUpdates" xml:space="preserve"><value>_Controlla aggiornamenti… (/update)</value></data>
   <data name="MenuExit" xml:space="preserve"><value>_Esci</value></data>
   <data name="MenuChat" xml:space="preserve"><value>_Chat</value></data>
   <data name="MenuClearHistory" xml:space="preserve"><value>_Pulisci cronologia</value></data>
@@ -45,6 +46,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="MenuAgent" xml:space="preserve"><value>_Agente (/agent)</value></data>
   <data name="MenuStatus" xml:space="preserve"><value>_Stato (/status)</value></data>
   <data name="MenuHealth" xml:space="preserve"><value>_Verifica stato (/health)</value></data>
+  <data name="MenuFeatures" xml:space="preserve"><value>_Funzionalità sessione (/features)</value></data>
   <data name="MenuWeb" xml:space="preserve"><value>_Web</value></data>
   <data name="MenuGui" xml:space="preserve"><value>_GUI (/web)</value></data>
   <data name="MenuHelp" xml:space="preserve"><value>_Aiuto</value></data>
@@ -61,6 +63,8 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="CmdAgent" xml:space="preserve"><value>Scegli gli strumenti dell'agente: seleziona una combinazione rapida o attiva i singoli strumenti</value></data>
   <data name="CmdVoice" xml:space="preserve"><value>Dettatura dal microfono del server nell'input (predefinito = lingua di sistema)</value></data>
   <data name="CmdTts" xml:space="preserve"><value>Pronuncia l'ultima risposta dell'agente (o il testo dato) con Kokoro TTS</value></data>
+  <data name="CmdTtsEngine" xml:space="preserve"><value>Motore TTS (kokoro predefinito — gli altri si registrano nel catalogo)</value></data>
+  <data name="CmdUpdate" xml:space="preserve"><value>Controlla su GitHub se c'è una versione più recente e installala</value></data>
   <data name="CmdFeatures" xml:space="preserve"><value>Mostra o attiva/disattiva i flag di funzionalità della sessione (voice, tts, ...)</value></data>
   <data name="CmdNew" xml:space="preserve"><value>Avvia una nuova sessione (nuova conversazione, nuovo id)</value></data>
   <data name="CmdClear" xml:space="preserve"><value>Azzera la cronologia della sessione corrente (mantiene la sessione)</value></data>
@@ -182,6 +186,20 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="NoteLaunchingWebClient" xml:space="preserve"><value>avvio del client web da {0}…</value></data>
   <data name="NoteWebClientFailed" xml:space="preserve"><value>client web non riuscito: {0}</value></data>
   <data name="NoteLoadFilesFailed" xml:space="preserve"><value>impossibile caricare i file: {0}</value></data>
+  <data name="UpdateChecking" xml:space="preserve"><value>Controllo aggiornamenti…</value></data>
+  <data name="UpdateDownloading" xml:space="preserve"><value>Aggiornamento {0} disponibile — download in corso…</value></data>
+  <data name="UpdateProgress" xml:space="preserve"><value>download {0}%</value></data>
+  <data name="UpdatePlugins" xml:space="preserve"><value>plugin aggiornati: {0} — attivi al riavvio</value></data>
+  <data name="UpdateUpToDate" xml:space="preserve"><value>Sei già aggiornato ({0}).</value></data>
+  <data name="UpdateNewerThanLatest" xml:space="preserve"><value>Non è ancora pubblicata una versione più recente: questa build ({0}) è più nuova dell'ultima release GitHub ({1}).</value></data>
+  <data name="UpdateUseExecutable" xml:space="preserve"><value>Per aggiornare, avvia AgentBridge con agent.exe (non con dotnet).</value></data>
+  <data name="UpdateDebugBuild" xml:space="preserve"><value>Aggiornamenti disabilitati nelle build di debug.</value></data>
+  <data name="UpdateGitHubUnreachable" xml:space="preserve"><value>Impossibile contattare GitHub — controlla la connessione e riprova.</value></data>
+  <data name="UpdateAgentsBusy" xml:space="preserve"><value>Gli agenti stanno ancora lavorando — ripeti /update quando hanno finito.</value></data>
+  <data name="UpdateAnotherInstance" xml:space="preserve"><value>È già in esecuzione un'altra istanza di AgentBridge — chiudila (anche quella dell'avvio automatico) e ripeti /update.</value></data>
+  <data name="UpdateFailed" xml:space="preserve"><value>Aggiornamento non riuscito: {0}</value></data>
+  <data name="UpdateNoArchive" xml:space="preserve"><value>Nessun aggiornamento disponibile per questo tipo di computer.</value></data>
+  <data name="UpdateServiceRestart" xml:space="preserve"><value>Aggiornamento {0} installato — il servizio riavvierà AgentBridge.</value></data>
   <data name="HelpQuickStart" xml:space="preserve"><value>AVVIO RAPIDO</value></data>
   <data name="HelpQuickStart1" xml:space="preserve"><value>  • Scrivi un messaggio e premi Invio per parlare con gli agenti (default/web/search/word/spreadsheet/email/multi).</value></data>
   <data name="HelpQuickStart2" xml:space="preserve"><value>  • / apre la palette dei comandi (filtra mentre scrivi): /model cambia LLM, /files carica documenti, /voice detta, /tts pronuncia.</value></data>
@@ -306,10 +324,12 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="MenuTools" xml:space="preserve"><value>_Strumenti</value></data>
   <data name="MenuMedia" xml:space="preserve"><value>_Multimedia</value></data>
   <data name="MenuTelegram" xml:space="preserve"><value>_Telegram (/telegram)</value></data>
+  <data name="MenuSip" xml:space="preserve"><value>_SIP (/sip)</value></data>
   <data name="MenuFiles" xml:space="preserve"><value>_File (/files)</value></data>
   <data name="MenuAttach" xml:space="preserve"><value>_Allega (/attach)</value></data>
   <data name="MenuVoice" xml:space="preserve"><value>_Voce (/voice)</value></data>
   <data name="MenuTts" xml:space="preserve"><value>_TTS (/tts)</value></data>
+  <data name="MenuTtsEngine" xml:space="preserve"><value>_Motore TTS (/ttsengine)</value></data>
   <data name="DlgToolsTitle" xml:space="preserve"><value>Strumenti dell'agente</value></data>
   <data name="DlgToolsPresets" xml:space="preserve"><value>Combinazioni rapide — Invio applica</value></data>
   <data name="DlgToolsActive" xml:space="preserve"><value>Strumenti attivi — Spazio attiva/disattiva</value></data>

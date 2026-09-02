@@ -89,7 +89,45 @@ The archive name maps from the running OS + architecture (the RIDs built by
 | anything else (e.g. Windows arm64) | no archive — the check is skipped |
 
 The update is also skipped when the app runs from `dotnet run`/`dotnet <dll>` (dev
-mode): the entry assembly is a `.dll`, so the swap would target `dotnet` itself.
+mode): the check looks at the **process executable** — under the dotnet host the swap
+would target `dotnet` itself. Launching the published apphost (`agent.exe` / `agent`) is
+what enables updates; this holds for every apphost layout, single-file or not.
+
+## Manual update from the TUI (`/update`)
+
+`/update` (menu **Help → Check for updates… (/update)**) forces the same GitHub check on
+demand and works even when the auto-update toggle is off. The TUI shows a short note for
+each outcome:
+
+- a newer release **exists** → the app downloads it (the status bar shows the download
+  percentage — the archive is large), spawns the updater and **closes itself**; the
+  updater swaps the files and the app comes back on the new version. If the app stays
+  open, nothing was installed and the note says why:
+  - **already up to date** — the running version equals the latest release;
+  - **no newer release yet** — the running build is *newer* than the latest release
+    (updates install GitHub **releases**, never local commits or unpushed work);
+  - **start the app with `agent(.exe)`, not `dotnet`** — the check refuses under the
+    dotnet host, because the swap would target `dotnet` itself. Release installs run
+    from the apphost: launch `agent.exe` (Windows) / `agent` (Linux/macOS);
+  - **GitHub unreachable / agents busy / another instance is running** (see below).
+
+## Running as a service (systemd / launchd) or with auto-start
+
+The two-process swap assumes a plain, user-launched process. When a supervisor owns the
+process the behavior adapts:
+
+- **systemd / launchd**: the update copies the changed files **in place** and exits —
+  the service manager restarts the app with the new version (the SystemExtra unit uses
+  `Restart=always`). The app never restarts itself there: its own restart would race the
+  supervisor (duplicate instance, or the cgroup kill cutting the swap short).
+- **Windows auto-start (Task Scheduler)**: when a second instance was launched manually
+  while the auto-start instance is running the same `agent.exe`, the swap cannot replace
+  the locked image. `/update` then refuses with *"another AgentBridge instance is
+  running"* — run `/update` from that instance, or close it first (the auto-start one
+  too), then retry.
+
+Services that manage the binary themselves should still pass `--no-update` — they are
+the ones deciding when and how the files change.
 
 ## Enabling / disabling
 

@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using System.Formats.Tar;
+using System.Globalization;
 using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
+using AgentBridge.Resources;
 using AIOrchestrator;
 
 // Automatic updates. At startup the app asks GitHub for the latest release; when it is
@@ -50,10 +52,22 @@ public static class AutoUpdate
         return null; // e.g. win-arm64: no archive is built for this platform
     }
 
-    // A published install runs from the apphost (single-file). Under `dotnet run` the
-    // entry assembly is agent.dll and a swap would target dotnet itself — never update.
-    private static bool IsPublished => !string.Equals(
-        Path.GetExtension(Assembly.GetEntryAssembly()?.Location), ".dll", StringComparison.OrdinalIgnoreCase);
+    // A published install runs from the apphost (agent.exe on Windows, agent on
+    // POSIX); `dotnet run` and `dotnet agent.dll` run under the dotnet host instead.
+    // The PROCESS executable is the reliable test — checking the ENTRY assembly would
+    // treat every apphost-published (non single-file) install as `dotnet run`, because
+    // the managed entry assembly is agent.dll even when launched through agent.exe
+    // (that is exactly how the release archives are laid out).
+    private static bool IsPublished
+    {
+        get
+        {
+            var processPath = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(processPath)) return false;
+            return !string.Equals(
+                Path.GetFileNameWithoutExtension(processPath), "dotnet", StringComparison.OrdinalIgnoreCase);
+        }
+    }
 
     // Debug configuration (the SDK bakes AssemblyConfiguration into the entry assembly):
     // auto-update must never run on a Debug build — not even a published one. Combined
@@ -121,8 +135,17 @@ public static class AutoUpdate
             var tag = await GetLatestTagAsync();
             if (tag is null || !Version.TryParse(tag.TrimStart('v'), out var latest) || latest <= current) return;
 
+            // A second agent.exe instance (e.g. the Windows auto-start task plus a manual
+            // launch) would keep the executable locked during the swap — the other
+            // instance applies the update instead.
+            if (OtherAgentInstanceRunning())
+            {
+                Log.LogStep("AutoUpdate: another agent instance is running — skipping (it will apply the update)");
+                return;
+            }
+
             Log.LogStep($"AutoUpdate: {current} → {tag}, downloading", monitor: true);
-            Status($"Update {tag} available — applying, the app will restart");
+            Status(string.Format(Dictionary.UpdateDownloading, tag));
 
             // Plugin refresh first: the plugin repos publish self-contained zips to their
             // GitHub releases; refresh the plugins BEFORE the app archive is applied. The
@@ -135,7 +158,7 @@ public static class AutoUpdate
             {
                 var pluginUpdates = await PluginUpdater.UpdatePluginsAsync(AgentBridge.ToolPlugins.Host);
                 if (pluginUpdates.Count > 0)
-                    Status($"{pluginUpdates.Count} plugin(s) updated — applied on restart");
+                    Status(string.Format(Dictionary.UpdatePlugins, pluginUpdates.Count));
             }
             catch (PluginUpdater.AgentBusyException)
             {
@@ -158,34 +181,39 @@ public static class AutoUpdate
 
     /// <summary>Manual update check (TUI /update): unlike <see cref="CheckAndApplyAsync"/>
     /// it runs regardless of <see cref="Enabled"/> — the user asked for it explicitly —
-    /// but still refuses on Debug builds and under <c>dotnet run</c>. Returns a
-    /// user-facing status string; when a newer release exists the updater is spawned and
-    /// the process exits (the returned string then never reaches the UI).</summary>
-    public static async Task<string> CheckAndApplyManualAsync()
+    /// but still refuses when running under the dotnet host and on Debug builds (see
+    /// <see cref="IsPublished"/>/<see cref="IsDebugBuild"/>). When a newer release exists
+    /// the updater is spawned and the process exits, so a returned result always means
+    /// "nothing was installed"; the TUI localizes each status for the user.</summary>
+    public static async Task<ManualUpdateResult> CheckAndApplyManualAsync()
     {
-        if (!IsPublished) return "Updates require a published install (not `dotnet run`).";
-        if (IsDebugBuild) return "Updates are disabled on Debug builds.";
-        if (Rid() is not { } rid) return "No release archive exists for this platform.";
         var current = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
+        if (!IsPublished) return new(ManualUpdateStatus.NotPublished, current.ToString(), null, null);
+        if (IsDebugBuild) return new(ManualUpdateStatus.DebugBuild, current.ToString(), null, null);
+        if (Rid() is not { } rid) return new(ManualUpdateStatus.NoArchive, current.ToString(), null, null);
         try
         {
             var tag = await GetLatestTagAsync();
             if (tag is null || !Version.TryParse(tag.TrimStart('v'), out var latest))
-                return "Could not reach GitHub — update check failed.";
+                return new(ManualUpdateStatus.Unreachable, current.ToString(), tag, null);
             if (latest <= current)
-                return $"Already up to date ({current}).";
+                return new(latest == current ? ManualUpdateStatus.UpToDate : ManualUpdateStatus.NewerThanLatest,
+                    current.ToString(), tag, null);
+            if (OtherAgentInstanceRunning())
+                return new(ManualUpdateStatus.AnotherInstance, current.ToString(), tag, null);
+
             Log.LogStep($"AutoUpdate (/update): {current} → {tag}, downloading", monitor: true);
-            Status($"Update {tag} available — downloading");
+            Status(string.Format(Dictionary.UpdateDownloading, tag));
 
             try
             {
                 var pluginUpdates = await PluginUpdater.UpdatePluginsAsync(AgentBridge.ToolPlugins.Host);
                 if (pluginUpdates.Count > 0)
-                    Status($"{pluginUpdates.Count} plugin(s) updated — applied on restart");
+                    Status(string.Format(Dictionary.UpdatePlugins, pluginUpdates.Count));
             }
             catch (PluginUpdater.AgentBusyException)
             {
-                return "Agents are executing — the update is postponed. Run /update again when they finish.";
+                return new(ManualUpdateStatus.AgentsBusy, current.ToString(), tag, null);
             }
             catch (Exception ex)
             {
@@ -193,11 +221,13 @@ public static class AutoUpdate
             }
 
             await ApplyAsync(rid, tag);
-            return $"Update {tag} applied — restarting.";
+            // ApplyAsync spawns the updater and exits the process when an update applies;
+            // reaching this line means the process is still alive (defensive fallback).
+            return new(ManualUpdateStatus.Failed, current.ToString(), tag, "the updater did not start");
         }
         catch (Exception ex)
         {
-            return $"Update check failed — {ex.Message}";
+            return new(ManualUpdateStatus.Failed, current.ToString(), null, ex.Message);
         }
     }
 
@@ -220,27 +250,78 @@ public static class AutoUpdate
         var extract = Path.Combine(TempRoot, "extract");
         Directory.CreateDirectory(TempRoot);
 
+        // Download with visible progress (the archive is large — runtime, kokoro.onnx,
+        // plugins, OfficeManager). Status events reach the TUI status bar.
         using (var http = new HttpClient { Timeout = TimeSpan.FromMinutes(20) })
-        using (var src = await http.GetStreamAsync(url))
-        using (var dst = File.Create(archive))
-            await src.CopyToAsync(dst);
+        {
+            using var resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            resp.EnsureSuccessStatusCode();
+            var total = resp.Content.Headers.ContentLength;
+            await using var src = await resp.Content.ReadAsStreamAsync();
+            await using var dst = File.Create(archive);
+            var buffer = new byte[81920];
+            long read = 0;
+            int lastPct = -1;
+            while (true)
+            {
+                var n = await src.ReadAsync(buffer);
+                if (n == 0) break;
+                await dst.WriteAsync(buffer.AsMemory(0, n));
+                read += n;
+                if (total is > 0)
+                {
+                    var pct = (int)(read * 100 / total.Value);
+                    if (pct >= lastPct + 5) { lastPct = pct; Status(string.Format(Dictionary.UpdateProgress, pct)); }
+                }
+            }
+        }
 
         if (Directory.Exists(extract)) Directory.Delete(extract, true);
         Directory.CreateDirectory(extract);
         using (var gz = new GZipStream(File.OpenRead(archive), CompressionMode.Decompress))
             TarFile.ExtractToDirectory(gz, extract, overwriteFiles: true);
 
-        // Protected (see docs-dev/RELEASING.md): the user's server config, provider list and Telegram
-        // config are never overwritten. Everything else in the archive is distribution content.
+        // Protected (see docs-dev/RELEASING.md): the user's server config, provider list
+        // and Telegram config are never overwritten. Everything else in the archive is
+        // distribution content.
         File.Delete(Path.Combine(extract, "appsettings.json"));
         File.Delete(Path.Combine(extract, "providers.json"));
         File.Delete(Path.Combine(extract, "telegram.json"));
 
-        // The updater restarts with the original command line, minus --no-update.
+        var target = Path.GetDirectoryName(Environment.ProcessPath)!;
+
+        // A service manager (systemd / launchd) owns the process lifecycle: restarting the
+        // app from here would race the supervisor (its own restart can kill the updater via
+        // the cgroup, or a second unmanaged instance would start). On POSIX the running
+        // image can be replaced in place, so copy the changed files and exit — the
+        // manager's restart policy (Restart=always in the SystemExtra unit) brings the new
+        // version up.
+        if (IsServiceSupervised)
+        {
+            Log.LogStep($"AutoUpdate: service-managed run — applying {tag} in place", monitor: true);
+            Status(string.Format(Dictionary.UpdateServiceRestart, tag));
+            foreach (var src in Directory.EnumerateFiles(extract, "*", SearchOption.AllDirectories))
+            {
+                var rel = Path.GetRelativePath(extract, src);
+                if (rel == RestartArgsFile) continue;
+                var dst = Path.Combine(target, rel);
+                if (!File.Exists(dst) || !SameContent(src, dst))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(dst)!);
+                    File.Copy(src, dst, true);
+                }
+            }
+            try { Directory.Delete(TempRoot, true); } catch { }
+            Environment.Exit(0);
+        }
+
+        // Desktop / interactive runs: the updater (the NEW executable, extracted to the
+        // temp area) swaps the files once this process is gone — the executable last, via
+        // a .old rename for rollback — and restarts with the original command line,
+        // minus --no-update.
         File.WriteAllText(Path.Combine(extract, RestartArgsFile), JsonSerializer.Serialize(
             Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--no-update").ToArray()));
 
-        var target = Path.GetDirectoryName(Environment.ProcessPath)!;
         var updater = new ProcessStartInfo(Path.Combine(extract, Path.GetFileName(Environment.ProcessPath)!)) { UseShellExecute = false };
         updater.ArgumentList.Add("--apply-update");
         updater.ArgumentList.Add(target);
@@ -341,7 +422,88 @@ public static class AutoUpdate
         return ha.ComputeHash(sa).SequenceEqual(hb.ComputeHash(sb));
     }
 
+    // Windows only: another process running the same executable from the same folder would
+    // hold the image lock during the swap (e.g. the Task Scheduler auto-start instance plus
+    // a second manual launch). Refuse the update up-front instead of failing the swap after
+    // the requesting UI already exited — the running server instance is the one to update.
+    private static bool OtherAgentInstanceRunning()
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+        try
+        {
+            var processPath = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(processPath)) return false;
+            var myPid = Environment.ProcessId;
+            foreach (var p in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(processPath)))
+            {
+                try
+                {
+                    if (p.Id != myPid && string.Equals(p.MainModule?.FileName, processPath, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                catch { /* process of another user — cannot read its image, not ours */ }
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    // True when a service manager (systemd / launchd) owns this process and will restart it
+    // after the files are swapped. systemd marks its units with INVOCATION_ID /
+    // JOURNAL_STREAM; launchd services are children of pid 1 (also true for systemd units).
+    private static bool IsServiceSupervised
+    {
+        get
+        {
+            if (OperatingSystem.IsWindows()) return false;
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("INVOCATION_ID"))
+                || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("JOURNAL_STREAM"))) return true;
+            try
+            {
+                if (!OperatingSystem.IsLinux()) return false;
+                var stat = File.ReadAllText($"/proc/{Environment.ProcessId}/stat");
+                var close = stat.LastIndexOf(')');
+                if (close < 0) return false;
+                var fields = stat[(close + 2)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                return fields.Length > 0
+                    && int.TryParse(fields[0], NumberStyles.None, CultureInfo.InvariantCulture, out var ppid)
+                    && ppid == 1;
+            }
+            catch { return false; }
+        }
+    }
+
     private static void Status(string message) => OnStatus?.Invoke(message);
+
+    // ── Manual update result (TUI /update) ─────────────────────────────────────────
+    /// <summary>Why a manual update check did not install anything. The TUI localizes each
+    /// status; when an update IS applied the process exits, so a returned value always
+    /// means the user keeps the running version.</summary>
+    public enum ManualUpdateStatus
+    {
+        /// <summary>Running under the dotnet host — launch agent(.exe) instead.</summary>
+        NotPublished,
+        /// <summary>Debug build — updates never run there.</summary>
+        DebugBuild,
+        /// <summary>No release archive exists for this OS/architecture.</summary>
+        NoArchive,
+        /// <summary>GitHub could not be reached.</summary>
+        Unreachable,
+        /// <summary>Running version is the latest published release.</summary>
+        UpToDate,
+        /// <summary>Running build is newer than any published release.</summary>
+        NewerThanLatest,
+        /// <summary>Agents are executing — retry later.</summary>
+        AgentsBusy,
+        /// <summary>Another agent instance holds the app folder.</summary>
+        AnotherInstance,
+        /// <summary>Unexpected failure (see Detail).</summary>
+        Failed,
+    }
+
+    /// <summary>Outcome of <see cref="CheckAndApplyManualAsync"/> with the versions involved.</summary>
+    public sealed record ManualUpdateResult(
+        ManualUpdateStatus Status, string? CurrentVersion, string? LatestVersion, string? Detail);
 
     private sealed class State
     {

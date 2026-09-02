@@ -83,6 +83,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="MenuNewChat" xml:space="preserve"><value>_New Chat</value></data>
   <data name="MenuModelsProviders" xml:space="preserve"><value>_Models &amp; Providers (/modelsetup)</value></data>
   <data name="MenuAutoUpdate" xml:space="preserve"><value>_Auto-Update: {0}</value></data>
+  <data name="MenuCheckUpdates" xml:space="preserve"><value>_Check for updates… (/update)</value></data>
   <data name="MenuCrashReport" xml:space="preserve"><value>_Crash report: {0}</value></data>
   <data name="MenuExit" xml:space="preserve"><value>_Exit</value></data>
   <data name="MenuChat" xml:space="preserve"><value>_Chat</value></data>
@@ -94,6 +95,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="MenuAgent" xml:space="preserve"><value>_Agent (/agent)</value></data>
   <data name="MenuStatus" xml:space="preserve"><value>_Status (/status)</value></data>
   <data name="MenuHealth" xml:space="preserve"><value>_Health (/health)</value></data>
+  <data name="MenuFeatures" xml:space="preserve"><value>_Session Features (/features)</value></data>
   <data name="MenuWeb" xml:space="preserve"><value>_Web</value></data>
   <data name="MenuGui" xml:space="preserve"><value>_GUI (/web)</value></data>
   <data name="MenuOfficeManager" xml:space="preserve"><value>_OfficeManager (/officemanager)</value></data>
@@ -112,6 +114,8 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="CmdAgent" xml:space="preserve"><value>Choose the agent tools: pick a quick preset or toggle individual tools</value></data>
   <data name="CmdVoice" xml:space="preserve"><value>Dictate from the server microphone into the input (default = system language)</value></data>
   <data name="CmdTts" xml:space="preserve"><value>Speak the last agent reply (or the given text) via Kokoro TTS</value></data>
+  <data name="CmdTtsEngine" xml:space="preserve"><value>TTS engine (kokoro default — others register in the catalog)</value></data>
+  <data name="CmdUpdate" xml:space="preserve"><value>Check GitHub for a newer version and install it</value></data>
   <data name="CmdFeatures" xml:space="preserve"><value>Show or toggle session feature flags (voice, tts, ...)</value></data>
   <data name="CmdCrashReport" xml:space="preserve"><value>Toggle sending sanitized crash reports to the GitHub repository</value></data>
   <data name="CmdNew" xml:space="preserve"><value>Start a new session (fresh conversation, new id)</value></data>
@@ -255,6 +259,20 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="NoteLaunchingWebClient" xml:space="preserve"><value>launching web client from {0}…</value></data>
   <data name="NoteWebClientFailed" xml:space="preserve"><value>web client failed: {0}</value></data>
   <data name="NoteLoadFilesFailed" xml:space="preserve"><value>could not load files: {0}</value></data>
+  <data name="UpdateChecking" xml:space="preserve"><value>Checking for updates…</value></data>
+  <data name="UpdateDownloading" xml:space="preserve"><value>Update {0} found — downloading…</value></data>
+  <data name="UpdateProgress" xml:space="preserve"><value>downloading {0}%</value></data>
+  <data name="UpdatePlugins" xml:space="preserve"><value>plugins updated: {0} — active after the restart</value></data>
+  <data name="UpdateUpToDate" xml:space="preserve"><value>You are up to date ({0}).</value></data>
+  <data name="UpdateNewerThanLatest" xml:space="preserve"><value>No newer version is published yet — this build ({0}) is newer than the latest GitHub release ({1}).</value></data>
+  <data name="UpdateUseExecutable" xml:space="preserve"><value>To update, start AgentBridge with agent.exe (not dotnet).</value></data>
+  <data name="UpdateDebugBuild" xml:space="preserve"><value>Updates are disabled on debug builds.</value></data>
+  <data name="UpdateGitHubUnreachable" xml:space="preserve"><value>Could not reach GitHub — check the connection and try again.</value></data>
+  <data name="UpdateAgentsBusy" xml:space="preserve"><value>The agents are still working — run /update again when they finish.</value></data>
+  <data name="UpdateAnotherInstance" xml:space="preserve"><value>Another AgentBridge instance is running — close it (the auto-start one too) and run /update again.</value></data>
+  <data name="UpdateFailed" xml:space="preserve"><value>Update failed: {0}</value></data>
+  <data name="UpdateNoArchive" xml:space="preserve"><value>No update is available for this computer type.</value></data>
+  <data name="UpdateServiceRestart" xml:space="preserve"><value>Update {0} installed — the service will restart AgentBridge.</value></data>
   <data name="HelpQuickStart" xml:space="preserve"><value>QUICK START</value></data>
   <data name="HelpQuickStart1" xml:space="preserve"><value>  • Type a message and press Enter to talk to the agents (default/web/search/word/spreadsheet/email/multi).</value></data>
   <data name="HelpQuickStart2" xml:space="preserve"><value>  • / opens the command palette (filters as you type): /model switches LLM, /files uploads documents, /voice dictates, /tts speaks.</value></data>
@@ -384,10 +402,12 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="MenuTools" xml:space="preserve"><value>_Tools</value></data>
   <data name="MenuMedia" xml:space="preserve"><value>_Media</value></data>
   <data name="MenuTelegram" xml:space="preserve"><value>_Telegram (/telegram)</value></data>
+  <data name="MenuSip" xml:space="preserve"><value>_SIP (/sip)</value></data>
   <data name="MenuFiles" xml:space="preserve"><value>_Files (/files)</value></data>
   <data name="MenuAttach" xml:space="preserve"><value>_Attach (/attach)</value></data>
   <data name="MenuVoice" xml:space="preserve"><value>_Voice (/voice)</value></data>
   <data name="MenuTts" xml:space="preserve"><value>_TTS (/tts)</value></data>
+  <data name="MenuTtsEngine" xml:space="preserve"><value>_TTS Engine (/ttsengine)</value></data>
   <data name="DlgToolsTitle" xml:space="preserve"><value>Agent tools</value></data>
   <data name="DlgToolsPresets" xml:space="preserve"><value>Quick presets — Enter applies</value></data>
   <data name="DlgToolsActive" xml:space="preserve"><value>Active tools — Space toggles</value></data>

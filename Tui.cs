@@ -140,35 +140,73 @@ public static class ConsoleTui
             public bool Attached;
         }
 
+        // The single command registry: /help (alphabetical), the "/" palette and the menu
+        // bars are all generated from this list. MenuGroup picks the top-level menu where
+        // the command gets its voice (BuildUI logs a warning for commands that are
+        // forgotten there); MenuTitle is the short localized label used by that voice.
         private sealed record CliCommand(
-            string Name, string Args, string Help, Func<Tui, string, Task> Run, string[]? Aliases = null);
+            string Name, string Args, string Help, Func<Tui, string, Task> Run,
+            string[]? Aliases = null,
+            string? MenuGroup = null, string? MenuTitle = null, Key Shortcut = default);
 
         private static readonly List<CliCommand> Commands = new()
         {
-            new("help", "", Dictionary.CmdHelp, (t, _) => t.ShowHelpAsync(), new[] { "/?" }),
-            new("docs", "", Dictionary.CmdDocs, (t, _) => t.OpenDocsAsync()),
-            new("web", "", Dictionary.CmdWeb, (t, _) => t.LaunchWebClientAsync()),
-            new("officemanager", "", Dictionary.CmdOfficeManager, (t, _) => t.LaunchOfficeManagerAsync()),
-            new("modelsetup", "", Dictionary.CmdModelSetup, (t, _) => t.ShowModelSetupAsync()),
-            new("model", "[name]", Dictionary.CmdModel, (t, a) => t.SwitchModelAsync(a)),
-            new("agent", "[name]", Dictionary.CmdAgent, (t, a) => t.SwitchAgentAsync(a)),
-            new("voice", "[lang]", Dictionary.CmdVoice, (t, a) => t.VoiceAsync(a)),
-            new("tts", "[text]", Dictionary.CmdTts, (t, a) => t.TtsAsync(a)),
-            new("ttsengine", "[name]", "TTS engine (kokoro default — other engines register in the catalog)", (t, a) => t.TtsEngineAsync(a)),
-            new("update", "", "Force-check GitHub for a new release and update", (t, _) => t.UpdateAsync()),
+            // Chat
+            new("new", "", Dictionary.CmdNew, (t, _) => t.NewSessionAsync(), new[] { "/reset" },
+                MenuGroup: "chat", MenuTitle: Dictionary.MenuNewChat, Shortcut: Key.N.WithCtrl),
+            new("modelsetup", "", Dictionary.CmdModelSetup, (t, _) => t.ShowModelSetupAsync(),
+                MenuGroup: "chat", MenuTitle: Dictionary.MenuModelsProviders),
+            new("clear", "", Dictionary.CmdClear, (t, _) => t.ClearHistoryAsync(),
+                MenuGroup: "chat", MenuTitle: Dictionary.MenuClearHistory, Shortcut: Key.L.WithCtrl),
+            new("retry", "", Dictionary.CmdRetry, (t, _) => t.RetryAsync(),
+                MenuGroup: "chat", MenuTitle: Dictionary.MenuRetryLast, Shortcut: Key.Y.WithCtrl),
+            new("exit", "", Dictionary.CmdExit, (t, _) => t.ExitAsync(), new[] { "/quit" },
+                MenuGroup: "chat", MenuTitle: Dictionary.MenuExit, Shortcut: Key.Q.WithCtrl),
+            // File
+            new("files", "add <path>|rm <id>|list", Dictionary.CmdFiles, (t, a) => t.FilesAsync(a),
+                MenuGroup: "file", MenuTitle: Dictionary.MenuFiles),
+            new("attach", "[id]", Dictionary.CmdAttach, (t, a) => t.AttachAsync(a),
+                MenuGroup: "file", MenuTitle: Dictionary.MenuAttach),
+            // Tools
+            new("agent", "[name]", Dictionary.CmdAgent, (t, a) => t.SwitchAgentAsync(a),
+                MenuGroup: "tools", MenuTitle: Dictionary.MenuAgent),
+            new("sip", "status|config [set <key> <value>|reload]|call <sip-uri>|answer on|off|hangup", Dictionary.CmdSip, (t, a) => t.SipAsync(a),
+                MenuGroup: "tools", MenuTitle: Dictionary.MenuSip),
+            new("telegram", "status|config [set <key> <value>|reload]|login-code <code>|allow|disallow <user>", Dictionary.CmdTelegram, (t, a) => t.TelegramAsync(a),
+                MenuGroup: "tools", MenuTitle: Dictionary.MenuTelegram),
+            // Session
+            new("model", "[name]", Dictionary.CmdModel, (t, a) => t.SwitchModelAsync(a),
+                MenuGroup: "session", MenuTitle: Dictionary.MenuLlmModel),
+            new("features", "[name] [on|off]", Dictionary.CmdFeatures, (t, a) => t.FeaturesAsync(a),
+                MenuGroup: "session", MenuTitle: Dictionary.MenuFeatures),
+            new("status", "", Dictionary.CmdStatus, (t, _) => t.ShowStatusAsync(),
+                MenuGroup: "session", MenuTitle: Dictionary.MenuStatus),
+            new("health", "", Dictionary.CmdHealth, (t, _) => t.HealthAsync(),
+                MenuGroup: "session", MenuTitle: Dictionary.MenuHealth),
+            // Media
+            new("voice", "[lang]", Dictionary.CmdVoice, (t, a) => t.VoiceAsync(a),
+                MenuGroup: "media", MenuTitle: Dictionary.MenuVoice),
+            new("tts", "[text]", Dictionary.CmdTts, (t, a) => t.TtsAsync(a),
+                MenuGroup: "media", MenuTitle: Dictionary.MenuTts),
+            new("ttsengine", "[name]", Dictionary.CmdTtsEngine, (t, a) => t.TtsEngineAsync(a),
+                MenuGroup: "media", MenuTitle: Dictionary.MenuTtsEngine),
+            // Web
+            new("web", "", Dictionary.CmdWeb, (t, _) => t.LaunchWebClientAsync(),
+                MenuGroup: "web", MenuTitle: Dictionary.MenuGui),
+            new("officemanager", "", Dictionary.CmdOfficeManager, (t, _) => t.LaunchOfficeManagerAsync(),
+                MenuGroup: "web", MenuTitle: Dictionary.MenuOfficeManager),
+            // Help
+            new("help", "", Dictionary.CmdHelp, (t, _) => t.ShowHelpAsync(), new[] { "/?" },
+                MenuGroup: "help", MenuTitle: Dictionary.MenuHelpItem, Shortcut: Key.F1),
+            new("shortcuts", "", Dictionary.CmdShortcuts, (t, _) => t.ShowShortcutsAsync(), new[] { "/keys" },
+                MenuGroup: "help", MenuTitle: Dictionary.MenuShortcuts),
+            new("docs", "", Dictionary.CmdDocs, (t, _) => t.OpenDocsAsync(),
+                MenuGroup: "help", MenuTitle: Dictionary.MenuDocumentation),
+            new("update", "", Dictionary.CmdUpdate, (t, _) => t.UpdateAsync(),
+                MenuGroup: "help", MenuTitle: Dictionary.MenuCheckUpdates),
+            // No menu voice: the Help menu hosts a dedicated state toggle for this one
+            // (crashReportItem in BuildUI) — see ValidateMenuCoverage.
             new("crashreport", "", Dictionary.CmdCrashReport, (t, _) => t.CrashReportAsync()),
-            new("features", "[name] [on|off]", Dictionary.CmdFeatures, (t, a) => t.FeaturesAsync(a)),
-            new("new", "", Dictionary.CmdNew, (t, _) => t.NewSessionAsync(), new[] { "/reset" }),
-            new("clear", "", Dictionary.CmdClear, (t, _) => t.ClearHistoryAsync()),
-            new("status", "", Dictionary.CmdStatus, (t, _) => t.ShowStatusAsync()),
-            new("sip", "status|config [set <key> <value>|reload]|call <sip-uri>|answer on|off|hangup", Dictionary.CmdSip, (t, a) => t.SipAsync(a)),
-            new("telegram", "status|config [set <key> <value>|reload]|login-code <code>|allow|disallow <user>", Dictionary.CmdTelegram, (t, a) => t.TelegramAsync(a)),
-            new("files", "add <path>|rm <id>|list", Dictionary.CmdFiles, (t, a) => t.FilesAsync(a)),
-            new("attach", "[id]", Dictionary.CmdAttach, (t, a) => t.AttachAsync(a)),
-            new("shortcuts", "", Dictionary.CmdShortcuts, (t, _) => t.ShowShortcutsAsync(), new[] { "/keys" }),
-            new("health", "", Dictionary.CmdHealth, (t, _) => t.HealthAsync()),
-            new("retry", "", Dictionary.CmdRetry, (t, _) => t.RetryAsync()),
-            new("exit", "", Dictionary.CmdExit, (t, _) => t.ExitAsync(), new[] { "/quit" }),
         };
 
         private const uint SndAsync = 0x0001;
@@ -328,6 +366,45 @@ public static class ConsoleTui
         }
 
         // ── Layout ──
+
+        // Slash commands whose menu voice is a custom item (state shown in the title,
+        // not just "run the command") — see ValidateMenuCoverage.
+        private static readonly HashSet<string> MenuVoiceExempt = new(StringComparer.Ordinal) { "crashreport" };
+
+        // Commands placed in the menus by CommandMenuItem (see ValidateMenuCoverage).
+        private readonly HashSet<string> _menuVoices = new(StringComparer.Ordinal);
+
+        // Menu voice for a slash command: the label, the accelerator and the action come
+        // from the command's registry entry, and the action runs through
+        // RunCommandByName — the same guarded path as typing "/name". Every placed
+        // command is recorded so ValidateMenuCoverage can flag forgotten ones.
+        private MenuItem CommandMenuItem(string name)
+        {
+            var cmd = Commands.FirstOrDefault(c => c.Name == name);
+            _menuVoices.Add(name);
+            if (cmd == null)
+            {
+                Log.LogStep($"TUI menu: '/{name}' is not in the Commands registry", monitor: true);
+                return new MenuItem(name, Key.Empty, () => { });
+            }
+            return new MenuItem(cmd.MenuTitle ?? cmd.Help, cmd.Shortcut, () => RunCommandByName(cmd.Name, ""));
+        }
+
+        // Every slash command must be reachable from the menus. New commands must either
+        // get a CommandMenuItem("name") above or be listed in MenuVoiceExempt; anything
+        // forgotten shows up here as a loud startup warning, so /help, the "/" palette
+        // and the menu bars stay in sync by construction.
+        private void ValidateMenuCoverage()
+        {
+            var missing = Commands.Select(c => c.Name)
+                .Where(n => !_menuVoices.Contains(n) && !MenuVoiceExempt.Contains(n))
+                .ToList();
+            if (missing.Count == 0) return;
+            Log.LogStep(
+                $"TUI menu: commands without a menu voice: {string.Join(", ", missing.Select(n => "/" + n))} — add them in BuildUI (see Commands registry)",
+                monitor: true);
+        }
+
         private void BuildUI()
         {
             _mainWindow = new Window
@@ -357,55 +434,64 @@ public static class ConsoleTui
                 crashReportItem.Title = string.Format(Dictionary.MenuCrashReport, CrashReporter.Enabled ? Dictionary.On : Dictionary.Off);
             });
 
+            // Menus are assembled from the Commands registry (single source): each item
+            // below is a command whose label/accelerator/action come from its registry
+            // entry, so /help, the "/" palette and the menus can never drift apart.
+            // ValidateMenuCoverage warns when a command was forgotten here.
             var menu = new MenuBar(new MenuBarItem[]
             {
                 new(Dictionary.MenuChat, new MenuItem[]
                 {
-                    new MenuItem(Dictionary.MenuNewChat, Key.N.WithCtrl, () => RunCommandByName("new", "")),
-                    new MenuItem(Dictionary.MenuModelsProviders, Key.Empty, () => RunCommandByName("modelsetup", "")),
-                    new MenuItem(Dictionary.MenuClearHistory, Key.L.WithCtrl, () => RunCommandByName("clear", "")),
+                    CommandMenuItem("new"),
+                    CommandMenuItem("modelsetup"),
+                    CommandMenuItem("clear"),
                     new MenuItem(Dictionary.MenuCommands, Key.Empty, () => ShowCommandMenu("")),
-                    new MenuItem(Dictionary.MenuRetryLast, Key.Y.WithCtrl, () => RunCommandByName("retry", "")),
-                    new MenuItem(Dictionary.MenuExit, Key.Q.WithCtrl, () => RequestExit()),
+                    CommandMenuItem("retry"),
+                    CommandMenuItem("exit"),
                 }),
                 new(Dictionary.MenuFile, new MenuItem[]
                 {
-                    new MenuItem(Dictionary.MenuFiles, Key.Empty, () => RunCommandByName("files", "")),
-                    new MenuItem(Dictionary.MenuAttach, Key.Empty, () => RunCommandByName("attach", "")),
+                    CommandMenuItem("files"),
+                    CommandMenuItem("attach"),
                 }),
                 new(Dictionary.MenuTools, new MenuItem[]
                 {
-                    new MenuItem(Dictionary.MenuAgent, Key.Empty, () => RunCommandByName("agent", "")),
-                    new MenuItem(Dictionary.MenuTelegram, Key.Empty, () => RunCommandByName("telegram", "")),
+                    CommandMenuItem("agent"),
+                    CommandMenuItem("sip"),
+                    CommandMenuItem("telegram"),
                 }),
                 new(Dictionary.MenuSession, new MenuItem[]
                 {
-                    new MenuItem(Dictionary.MenuLlmModel, Key.Empty, () => RunCommandByName("model", "")),
-                    new MenuItem(Dictionary.MenuStatus, Key.Empty, () => RunCommandByName("status", "")),
-                    new MenuItem(Dictionary.MenuHealth, Key.Empty, () => RunCommandByName("health", "")),
+                    CommandMenuItem("model"),
+                    CommandMenuItem("features"),
+                    CommandMenuItem("status"),
+                    CommandMenuItem("health"),
                 }),
                 new(Dictionary.MenuMedia, new MenuItem[]
                 {
-                    new MenuItem(Dictionary.MenuVoice, Key.Empty, () => RunCommandByName("voice", "")),
-                    new MenuItem(Dictionary.MenuTts, Key.Empty, () => RunCommandByName("tts", "")),
+                    CommandMenuItem("voice"),
+                    CommandMenuItem("tts"),
+                    CommandMenuItem("ttsengine"),
                 }),
                 new(Dictionary.MenuWeb, new MenuItem[]
                 {
-                    new MenuItem(Dictionary.MenuGui, Key.Empty, () => RunCommandByName("web", "")),
-                    new MenuItem(Dictionary.MenuOfficeManager, Key.Empty, () => RunCommandByName("officemanager", "")),
+                    CommandMenuItem("web"),
+                    CommandMenuItem("officemanager"),
                 }),
                 new(Dictionary.MenuHelp, new MenuItem[]
                 {
                     autoUpdateItem,
                     crashReportItem,
-                    new MenuItem(Dictionary.MenuHelpItem, Key.F1, () => RunCommandByName("help", "")),
-                    new MenuItem(Dictionary.MenuShortcuts, Key.Empty, () => RunCommandByName("shortcuts", "")),
-                    new MenuItem(Dictionary.MenuDocumentation, Key.Empty, () => RunCommandByName("docs", "")),
+                    CommandMenuItem("update"),
+                    CommandMenuItem("help"),
+                    CommandMenuItem("shortcuts"),
+                    CommandMenuItem("docs"),
                     new MenuItem(Dictionary.MenuIssues, Key.Empty, () => OpenIssuesAsync()),
                     new MenuItem(Dictionary.MenuAbout, Key.Empty, () => ShowAbout()),
                 }),
             });
             _mainWindow.Add(menu);
+            ValidateMenuCoverage();
 
             // Esc never quits the app directly: it is handled by the focused view
             // (input line, dialogs, menus). Guard the window's default Esc→Quit
@@ -2097,11 +2183,22 @@ public static class ConsoleTui
 
         private async Task UpdateAsync()
         {
-            AddNote("Checking for updates on GitHub...");
+            AddNote(Dictionary.UpdateChecking);
             var result = await AutoUpdate.CheckAndApplyManualAsync();
             // When an update was found and applied, ApplyAsync spawns the updater and
-            // exits the process — this note only surfaces when there is nothing to do.
-            AddNote(result);
+            // exits the process — this note only surfaces when nothing was installed.
+            AddNote(result.Status switch
+            {
+                AutoUpdate.ManualUpdateStatus.NotPublished => Dictionary.UpdateUseExecutable,
+                AutoUpdate.ManualUpdateStatus.DebugBuild => Dictionary.UpdateDebugBuild,
+                AutoUpdate.ManualUpdateStatus.NoArchive => Dictionary.UpdateNoArchive,
+                AutoUpdate.ManualUpdateStatus.Unreachable => Dictionary.UpdateGitHubUnreachable,
+                AutoUpdate.ManualUpdateStatus.UpToDate => string.Format(Dictionary.UpdateUpToDate, result.CurrentVersion),
+                AutoUpdate.ManualUpdateStatus.NewerThanLatest => string.Format(Dictionary.UpdateNewerThanLatest, result.CurrentVersion, result.LatestVersion),
+                AutoUpdate.ManualUpdateStatus.AgentsBusy => Dictionary.UpdateAgentsBusy,
+                AutoUpdate.ManualUpdateStatus.AnotherInstance => Dictionary.UpdateAnotherInstance,
+                _ => string.Format(Dictionary.UpdateFailed, result.Detail ?? "unknown error"),
+            });
         }
 
         private async Task FeaturesAsync(string args)
@@ -2539,8 +2636,11 @@ public static class ConsoleTui
                 "",
                 Dictionary.HelpCommands,
             };
-            foreach (var c in Commands)
-                lines.Add($"  /{c.Name} {c.Args}".TrimEnd().PadRight(28) + c.Help);
+            foreach (var c in Commands.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                var alias = c.Aliases is { Length: > 0 } ? $"  (also {string.Join(", ", c.Aliases)})" : "";
+                lines.Add($"  /{c.Name}{alias} {c.Args}".TrimEnd().PadRight(30) + c.Help);
+            }
             lines.Add("");
             lines.Add(Dictionary.HelpShortcuts);
             foreach (var (keys, what) in ShortcutTable)

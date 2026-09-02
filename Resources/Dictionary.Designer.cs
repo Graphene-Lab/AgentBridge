@@ -166,6 +166,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Toggle sending sanitized crash reports to the GitHub repository'.
+        /// </summary>
+        public static string CmdCrashReport {
+            get {
+                return ResourceManager.GetString("CmdCrashReport", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Open the online documentation in your browser'.
         /// </summary>
         public static string CmdDocs {
@@ -247,6 +256,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Open OfficeManager (the agents' office) in the browser'.
+        /// </summary>
+        public static string CmdOfficeManager {
+            get {
+                return ResourceManager.GetString("CmdOfficeManager", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Resend the last prompt (also Ctrl+Y)'.
         /// </summary>
         public static string CmdRetry {
@@ -301,29 +319,29 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'TTS engine (kokoro default — others register in the catalog)'.
+        /// </summary>
+        public static string CmdTtsEngine {
+            get {
+                return ResourceManager.GetString("CmdTtsEngine", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Check GitHub for a newer version and install it'.
+        /// </summary>
+        public static string CmdUpdate {
+            get {
+                return ResourceManager.GetString("CmdUpdate", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Dictate from the server microphone into the input (default = system language)'.
         /// </summary>
         public static string CmdVoice {
             get {
                 return ResourceManager.GetString("CmdVoice", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'Toggle sending sanitized crash reports to the GitHub repository'.
-        /// </summary>
-        public static string CmdCrashReport {
-            get {
-                return ResourceManager.GetString("CmdCrashReport", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'Open OfficeManager (the agents' office) in the browser'.
-        /// </summary>
-        public static string CmdOfficeManager {
-            get {
-                return ResourceManager.GetString("CmdOfficeManager", resourceCulture);
             }
         }
 
@@ -904,20 +922,20 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to '_Crash report: {0}'.
-        /// </summary>
-        public static string MenuCrashReport {
-            get {
-                return ResourceManager.GetString("MenuCrashReport", resourceCulture);
-            }
-        }
-
-        /// <summary>
         ///   Looks up a localized string similar to '_Chat'.
         /// </summary>
         public static string MenuChat {
             get {
                 return ResourceManager.GetString("MenuChat", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Check for updates… (/update)'.
+        /// </summary>
+        public static string MenuCheckUpdates {
+            get {
+                return ResourceManager.GetString("MenuCheckUpdates", resourceCulture);
             }
         }
 
@@ -940,6 +958,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to '_Crash report: {0}'.
+        /// </summary>
+        public static string MenuCrashReport {
+            get {
+                return ResourceManager.GetString("MenuCrashReport", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to '_Documentation (/docs)'.
         /// </summary>
         public static string MenuDocumentation {
@@ -954,6 +981,15 @@ namespace AgentBridge.Resources {
         public static string MenuExit {
             get {
                 return ResourceManager.GetString("MenuExit", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_Session Features (/features)'.
+        /// </summary>
+        public static string MenuFeatures {
+            get {
+                return ResourceManager.GetString("MenuFeatures", resourceCulture);
             }
         }
 
@@ -981,15 +1017,6 @@ namespace AgentBridge.Resources {
         public static string MenuGui {
             get {
                 return ResourceManager.GetString("MenuGui", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to '_OfficeManager (/officemanager)'.
-        /// </summary>
-        public static string MenuOfficeManager {
-            get {
-                return ResourceManager.GetString("MenuOfficeManager", resourceCulture);
             }
         }
 
@@ -1066,6 +1093,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to '_OfficeManager (/officemanager)'.
+        /// </summary>
+        public static string MenuOfficeManager {
+            get {
+                return ResourceManager.GetString("MenuOfficeManager", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to '_Retry Last (/retry)'.
         /// </summary>
         public static string MenuRetryLast {
@@ -1089,6 +1125,15 @@ namespace AgentBridge.Resources {
         public static string MenuShortcuts {
             get {
                 return ResourceManager.GetString("MenuShortcuts", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_SIP (/sip)'.
+        /// </summary>
+        public static string MenuSip {
+            get {
+                return ResourceManager.GetString("MenuSip", resourceCulture);
             }
         }
 
@@ -1125,6 +1170,15 @@ namespace AgentBridge.Resources {
         public static string MenuTts {
             get {
                 return ResourceManager.GetString("MenuTts", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_TTS Engine (/ttsengine)'.
+        /// </summary>
+        public static string MenuTtsEngine {
+            get {
+                return ResourceManager.GetString("MenuTtsEngine", resourceCulture);
             }
         }
 
@@ -1242,6 +1296,24 @@ namespace AgentBridge.Resources {
         public static string NoteCouldNotLoadProvidersEx {
             get {
                 return ResourceManager.GetString("NoteCouldNotLoadProvidersEx", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'crash report sending disabled'.
+        /// </summary>
+        public static string NoteCrashReportDisabled {
+            get {
+                return ResourceManager.GetString("NoteCrashReportDisabled", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'crash report sending enabled'.
+        /// </summary>
+        public static string NoteCrashReportEnabled {
+            get {
+                return ResourceManager.GetString("NoteCrashReportEnabled", resourceCulture);
             }
         }
 
@@ -1458,24 +1530,6 @@ namespace AgentBridge.Resources {
         public static string NoteOfficeManagerNoDesktop {
             get {
                 return ResourceManager.GetString("NoteOfficeManagerNoDesktop", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'crash report sending enabled'.
-        /// </summary>
-        public static string NoteCrashReportEnabled {
-            get {
-                return ResourceManager.GetString("NoteCrashReportEnabled", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'crash report sending disabled'.
-        /// </summary>
-        public static string NoteCrashReportDisabled {
-            get {
-                return ResourceManager.GetString("NoteCrashReportDisabled", resourceCulture);
             }
         }
 
@@ -2200,6 +2254,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Start automatically at boot'.
+        /// </summary>
+        public static string SetupAutoStart {
+            get {
+                return ResourceManager.GetString("SetupAutoStart", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'cannot remove '{0}' — not configured or it is the last provider'.
         /// </summary>
         public static string SetupCannotRemove {
@@ -2520,15 +2583,6 @@ namespace AgentBridge.Resources {
         public static string SetupStepLogging {
             get {
                 return ResourceManager.GetString("SetupStepLogging", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'Start automatically at boot'.
-        /// </summary>
-        public static string SetupAutoStart {
-            get {
-                return ResourceManager.GetString("SetupAutoStart", resourceCulture);
             }
         }
 
@@ -3168,6 +3222,132 @@ namespace AgentBridge.Resources {
         public static string Unreachable {
             get {
                 return ResourceManager.GetString("Unreachable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'The agents are still working — run /update again when they finish.'.
+        /// </summary>
+        public static string UpdateAgentsBusy {
+            get {
+                return ResourceManager.GetString("UpdateAgentsBusy", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Another AgentBridge instance is running — close it (the auto-start one too) and run /update again.'.
+        /// </summary>
+        public static string UpdateAnotherInstance {
+            get {
+                return ResourceManager.GetString("UpdateAnotherInstance", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Checking for updates…'.
+        /// </summary>
+        public static string UpdateChecking {
+            get {
+                return ResourceManager.GetString("UpdateChecking", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Updates are disabled on debug builds.'.
+        /// </summary>
+        public static string UpdateDebugBuild {
+            get {
+                return ResourceManager.GetString("UpdateDebugBuild", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Update {0} found — downloading…'.
+        /// </summary>
+        public static string UpdateDownloading {
+            get {
+                return ResourceManager.GetString("UpdateDownloading", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Update failed: {0}'.
+        /// </summary>
+        public static string UpdateFailed {
+            get {
+                return ResourceManager.GetString("UpdateFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Could not reach GitHub — check the connection and try again.'.
+        /// </summary>
+        public static string UpdateGitHubUnreachable {
+            get {
+                return ResourceManager.GetString("UpdateGitHubUnreachable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'No newer version is published yet — this build ({0}) is newer than the latest GitHub release ({1}).'.
+        /// </summary>
+        public static string UpdateNewerThanLatest {
+            get {
+                return ResourceManager.GetString("UpdateNewerThanLatest", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'No update is available for this computer type.'.
+        /// </summary>
+        public static string UpdateNoArchive {
+            get {
+                return ResourceManager.GetString("UpdateNoArchive", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'plugins updated: {0} — active after the restart'.
+        /// </summary>
+        public static string UpdatePlugins {
+            get {
+                return ResourceManager.GetString("UpdatePlugins", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'downloading {0}%'.
+        /// </summary>
+        public static string UpdateProgress {
+            get {
+                return ResourceManager.GetString("UpdateProgress", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Update {0} installed — the service will restart AgentBridge.'.
+        /// </summary>
+        public static string UpdateServiceRestart {
+            get {
+                return ResourceManager.GetString("UpdateServiceRestart", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'You are up to date ({0}).'.
+        /// </summary>
+        public static string UpdateUpToDate {
+            get {
+                return ResourceManager.GetString("UpdateUpToDate", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'To update, start AgentBridge with agent.exe (not dotnet).'.
+        /// </summary>
+        public static string UpdateUseExecutable {
+            get {
+                return ResourceManager.GetString("UpdateUseExecutable", resourceCulture);
             }
         }
 
