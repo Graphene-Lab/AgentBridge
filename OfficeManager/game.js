@@ -55,6 +55,19 @@ const DOOR = { x0: 72, x1: 156, y0: 152, y1: 212 };   // spawn/despawn strip in 
 const PIX_FONT = '8px "Press Start 2P", monospace';
 const EMP_SPRITES = ["employee A", "employee B", "employee C", "employee D", "employee E"];
 
+/* boss auto-pilot: after BOSS_AUTO_MS without arrow input the boss wanders on its own
+   (never attracted to desks, cannot hire by contact) and keeps an eye on the working agents */
+const BOSS_AUTO_MS = 10000;
+const BOSS_AUTO_SAY_MIN_MS = 8000;
+const BOSS_AUTO_SAY_SPAN_MS = 6000;
+const BOSS_AUTO_LINES = [
+  "I'm watching you!",
+  "Get to work, slackers!",
+  "Forget your holidays!",
+  "Production bonus to whoever does an excellent job!",
+  "Let's have a briefing to assess the situation",
+];
+
 /* Sprite poses (verified by pixel census): row 0 = back (mostly hair),
    row 1 = left profile, row 2 = front, row 3 = right profile. Pure up shows
    the back; lateral movement (including the up/down diagonals) uses the
@@ -296,6 +309,8 @@ let engaged = null;        // currently hired employee
 let engagedBy = null;      // "contact" | "tab" | "mouse"
 let engagedSince = 0;      // engagement timer: fired after 1 min of boss inactivity
 let lastBossActivity = 0;  // last boss move / speech timestamp
+let bossAuto = false;      // boss auto-pilot (no arrow input for BOSS_AUTO_MS)
+let lastBossInput = 0;     // last arrow-key movement timestamp
 let phoneActive = false;
 let stepT = 0;
 let waypoints = [];
@@ -519,9 +534,14 @@ function chatFromServer(m) {
 const keys = { up: false, down: false, left: false, right: false };
 
 function updateBoss(dt) {
+  const now = performance.now();
   const vx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   const vy = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
   if (vx || vy) {
+    // any arrow input ends the auto-pilot immediately
+    bossAuto = false;
+    boss.path = null;
+    lastBossInput = now;
     const n = Math.hypot(vx, vy);
     const sp = BOSS_SPEED * dt / 1000;
     boss.setDir(vx, vy);
@@ -532,8 +552,56 @@ function updateBoss(dt) {
     if (stepT > 150) { stepT = 0; Sfx.step(); }
   } else {
     boss.moving = false;
+    if (!bossAuto && now - lastBossInput > BOSS_AUTO_MS) {
+      bossAuto = true;                       // unattended boss starts wandering on its own
+      boss.nextAutoSay = now + 4000;
+    }
+    if (bossAuto) updateBossAuto(dt, now);
   }
   boss.anim(dt);
+}
+
+/* auto-pilot: wander like an employee (BFS paths — never attracted to desks) and, while real
+   agents are working, keep an eye on them with supervision lines */
+function updateBossAuto(dt, now) {
+  if (!boss.path || boss.path.length === 0) {
+    if (now < (boss.idleUntil || 0)) { boss.moving = false; return; }
+    for (let tries = 0; tries < 6; tries++) {
+      const t = randomWalkable();
+      const p = pathTo(boss.x, boss.y, t[0], t[1]);
+      if (p) { boss.path = p; boss.path.push(t); boss.stuckT = 0; boss.lastX = boss.x; boss.lastY = boss.y; break; }
+    }
+    if (!boss.path || boss.path.length === 0) { boss.idleUntil = now + 1200; return; }
+  }
+  const dx = boss.path[0][0] - boss.x, dy = boss.path[0][1] - boss.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 12) {
+    boss.path.shift();
+    if (!boss.path.length) { boss.idleUntil = now + 800 + Math.random() * 2200; boss.moving = false; return; }
+  }
+  boss.stuckT += dt;
+  if (boss.stuckT > 2000) {
+    if (Math.hypot(boss.x - boss.lastX, boss.y - boss.lastY) < 2) boss.path = null;   // replan
+    boss.lastX = boss.x; boss.lastY = boss.y; boss.stuckT = 0;
+  }
+  const sp = BOSS_SPEED * dt / 1000;
+  const ox = boss.x, oy = boss.y;
+  boss.move(dx / dist * sp, dy / dist * sp);
+  boss.moving = Math.hypot(boss.x - ox, boss.y - oy) > 0.1;
+  if (boss.moving) boss.setDir(boss.x - ox, boss.y - oy);
+
+  // supervision lines only while agents (not the idle employee) are actually working
+  if (now >= (boss.nextAutoSay || 0)) {
+    const working = employees.some(o => o.kind !== "idle" && (o.running || o.workAt));
+    if (working) {
+      boss.nextAutoSay = now + BOSS_AUTO_SAY_MIN_MS + Math.random() * BOSS_AUTO_SAY_SPAN_MS;
+      boss.say(BOSS_AUTO_LINES[(Math.random() * BOSS_AUTO_LINES.length) | 0]);
+      Sfx.ambient();
+    } else {
+      boss.nextAutoSay = now + 4000;
+    }
+  }
+  markBossActivity();
 }
 
 /* ---------- employee AI (BFS path following) ---------- */
@@ -582,7 +650,7 @@ function updateEmployee(e, dt) {
     return;
   }
 
-  // heading to the desk spot: direct steering along the route
+  // heading to the desk spot: BFS route follow with anti-jam (no progress for 2 s → replan)
   if (e.workSpot) {
     const [tx, ty] = e.workRoute[0];
     const dx = tx - e.x, dy = ty - e.y;
@@ -596,6 +664,18 @@ function updateEmployee(e, dt) {
       e.move(dx / dist * sp, dy / dist * sp);
       e.moving = Math.hypot(e.x - ox, e.y - oy) > 0.1;
       if (e.moving) e.setDir(e.x - ox, e.y - oy);
+    }
+    e.stuckT += dt;
+    if (e.stuckT > 2000) {
+      const moved = Math.hypot(e.x - e.lastX, e.y - e.lastY);
+      e.lastX = e.x; e.lastY = e.y; e.stuckT = 0;
+      if (moved < 3) {
+        // jammed against furniture: free the spot and retry (agents) or cool down (idle)
+        e.workSpot = null; e.workAt = null; e.workRoute = null;
+        if (isAgent && e.running) { attractAgentToDesk(e); return; }
+        e.noWorkUntil = now + WORK_COOLDOWN_MS;
+        return;
+      }
     }
     return;
   }
@@ -614,10 +694,12 @@ function updateEmployee(e, dt) {
         const taken = employees.some(o => o !== e && (o.workSpot === s || o.workAt === s));
         const tx = taken ? s.x + 30 : s.x;         // stand to the right when the spot is taken
         const ay = s.y + 24;                       // approach point in the aisle (clear of the chair)
+        const route = pathTo(e.x, e.y, tx, ay);
+        if (!route) continue;                      // desk unreachable from here — try the next one
         e.workSpot = s;
         e.workAt = s;
         e.workDeadline = now + WORK_MS;            // the 20 s run from the attraction moment
-        e.workRoute = [[tx, ay], [tx, s.y]];       // via the aisle, then straight up through the gap
+        e.workRoute = [...route, [tx, ay], [tx, s.y]];   // BFS to the aisle, then straight up
         e.stuckT = 0; e.lastX = e.x; e.lastY = e.y;
         break;
       }
@@ -626,7 +708,7 @@ function updateEmployee(e, dt) {
 
   if (!e.path || e.path.length === 0) {
     if (now < e.idleUntil) { e.moving = false; return; }
-    for (let tries = 0; tries < 12; tries++) {           // pick a reachable random target
+    for (let tries = 0; tries < 6; tries++) {            // pick a reachable random target
       const t = randomWalkable();
       const p = pathTo(e.x, e.y, t[0], t[1]);
       if (p) { e.path = p; e.path.push(t); e.stuckT = 0; e.lastX = e.x; e.lastY = e.y; break; }
@@ -652,22 +734,26 @@ function updateEmployee(e, dt) {
   if (e.moving) e.setDir(e.x - ox, e.y - oy);
 }
 
-/* agent employee: walk to the nearest free desk and stay (no timeout) */
+/* agent employee: walk to the nearest FREE desk whose approach is REACHABLE (BFS around the
+   furniture — a straight line from the door would jam against desks) and stay there forever */
 function attractAgentToDesk(e) {
-  let best = null, bd = Infinity;
+  let best = null, bd = Infinity, bestRoute = null;
   for (const s of WORK_SPOTS) {
     const taken = employees.some(o => o !== e && (o.workSpot === s || o.workAt === s));
-    const d = Math.hypot(e.x - s.x, e.y - s.y);
-    if (!taken && d < bd) { bd = d; best = s; }
+    if (taken) continue;
+    const route = pathTo(e.x, e.y, s.x, s.y + 24);     // BFS to the aisle approach point
+    if (!route) continue;                               // unreachable — try the next desk
+    if (route.length < bd) { bd = route.length; best = s; bestRoute = route; }
   }
-  if (!best) best = WORK_SPOTS[0];                   // every desk taken — queue at the first
-  const taken = employees.some(o => o !== e && (o.workSpot === best || o.workAt === best));
-  const tx = taken ? best.x + 30 : best.x;
-  const ay = best.y + 24;
+  if (!best) {
+    // every desk taken or unreachable — queue right of the first desk (best-effort)
+    best = WORK_SPOTS[0];
+    bestRoute = pathTo(e.x, e.y, best.x + 30, best.y + 24) || [];
+  }
   e.workSpot = best;
   e.workAt = best;
   e.workDeadline = 0;                                // no 20 s timeout for agent employees
-  e.workRoute = [[tx, ay], [tx, best.y]];
+  e.workRoute = [...bestRoute, [best.x, best.y + 24], [best.x, best.y]];
   e.stuckT = 0; e.lastX = e.x; e.lastY = e.y;
 }
 
@@ -740,7 +826,8 @@ function updateEngagement() {
         (engagedBy === "contact" && Math.hypot(boss.x - engaged.x, boss.y - engaged.y) > DISENGAGE_R)) {
       disengage();
     }
-  } else {
+  } else if (!bossAuto) {
+    // the auto-piloting boss is "off duty": it cannot hire by contact (tab/mouse still work)
     for (const e of employees) {
       if (e.blockedUntil < now && Math.hypot(boss.x - e.x, boss.y - e.y) <= ENGAGE_R) {
         engage(e, "contact");
@@ -1098,6 +1185,12 @@ async function boot() {
     return;
   }
   boss.img = IMG.chars["boss"];
+  boss.path = null;
+  boss.idleUntil = 0;
+  boss.stuckT = 0;
+  boss.lastX = boss.x; boss.lastY = boss.y;
+  boss.nextAutoSay = 0;
+  lastBossInput = performance.now();            // the auto-pilot starts after BOSS_AUTO_MS idle
   buildWaypoints();
   buildNav();
   buildBehind();

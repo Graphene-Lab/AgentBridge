@@ -29,7 +29,10 @@ each split into words**: `FileTool.FileSearch` → **"File Tool, File Search"**.
 
 ## Playing the game
 
-- **Arrows** move the boss — the human user's avatar.
+- **Arrows** move the boss — the human user's avatar. After 10 seconds without input the boss
+  goes into **auto-pilot**: it wanders on its own (never attracted to desks, cannot hire by
+  contact) and, while agents are working, keeps an eye on them with supervision lines
+  ("I'm watching you!", "Get to work, slackers!", …). Any arrow key ends the auto-pilot.
 - **Tab** / **click** an employee to hire (engage) it; **Esc** releases it — and on a
   session employee it **closes the conversation** (the employee walks back to the door and
   disappears).
