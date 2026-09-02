@@ -1553,7 +1553,7 @@ object BuildCapabilities()
     var ttsAvailable = TtsEngine.IsAvailable;
     return new
     {
-        platform = OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsLinux() ? "linux" : "other",
+        platform = OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : OperatingSystem.IsLinux() ? "linux" : "other",
         default_provider = startupProvider,
         providers = ProviderConfigs.All.Select(p => new
         {
