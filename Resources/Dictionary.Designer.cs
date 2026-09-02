@@ -310,6 +310,24 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Toggle sending sanitized crash reports to the GitHub repository'.
+        /// </summary>
+        public static string CmdCrashReport {
+            get {
+                return ResourceManager.GetString("CmdCrashReport", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Open OfficeManager (the agents' office) in the browser'.
+        /// </summary>
+        public static string CmdOfficeManager {
+            get {
+                return ResourceManager.GetString("CmdOfficeManager", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Install (first run) and launch the Giraffe AI web client in the browser'.
         /// </summary>
         public static string CmdWeb {
@@ -886,6 +904,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to '_Crash report: {0}'.
+        /// </summary>
+        public static string MenuCrashReport {
+            get {
+                return ResourceManager.GetString("MenuCrashReport", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to '_Chat'.
         /// </summary>
         public static string MenuChat {
@@ -954,6 +981,15 @@ namespace AgentBridge.Resources {
         public static string MenuGui {
             get {
                 return ResourceManager.GetString("MenuGui", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '_OfficeManager (/officemanager)'.
+        /// </summary>
+        public static string MenuOfficeManager {
+            get {
+                return ResourceManager.GetString("MenuOfficeManager", resourceCulture);
             }
         }
 
@@ -1413,6 +1449,33 @@ namespace AgentBridge.Resources {
         public static string NoteNoToolsSelected {
             get {
                 return ResourceManager.GetString("NoteNoToolsSelected", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'OfficeManager needs a desktop environment to open the browser — no graphical session detected'.
+        /// </summary>
+        public static string NoteOfficeManagerNoDesktop {
+            get {
+                return ResourceManager.GetString("NoteOfficeManagerNoDesktop", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'crash report sending enabled'.
+        /// </summary>
+        public static string NoteCrashReportEnabled {
+            get {
+                return ResourceManager.GetString("NoteCrashReportEnabled", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'crash report sending disabled'.
+        /// </summary>
+        public static string NoteCrashReportDisabled {
+            get {
+                return ResourceManager.GetString("NoteCrashReportDisabled", resourceCulture);
             }
         }
 

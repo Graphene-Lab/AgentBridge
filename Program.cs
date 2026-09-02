@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Collections.Concurrent;
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.FileProviders;
 using AIOrchestrator;
 using UISupportGeneric;
 using AgentBridge.Resources;
@@ -34,6 +35,10 @@ AppDomain.CurrentDomain.UnhandledException += (_, e) =>
     Console.Error.WriteLine();
     Console.Error.WriteLine("AgentBridge crashed:");
     Console.Error.WriteLine(e.ExceptionObject is Exception ex ? ex.ToString() : e.ExceptionObject?.ToString());
+    // Best-effort crash diagnostics to the project's GitHub issues — SANITIZED payload (only
+    // the exception type + our stack frames, never messages/user data, see CrashReporter.cs).
+    // Disable from the TUI (Help → Crash report) or appsettings CrashReport:Enabled.
+    CrashReporter.Report(e.ExceptionObject as Exception);
 };
 AppDomain.CurrentDomain.UnhandledException += AIOrchestrator.Utility.UnhandledException; //it catches application errors in order to prepare a log of the events that cause the crash
 
@@ -295,6 +300,16 @@ var app = builder.Build();
 // pass tool names and McpToolRegistry resolves them at runtime.
 _ = AgentBridge.ToolPlugins.Host;
 
+// OfficeManager hub: tracks every agent instance in this process (sessions of any medium,
+// stateless API calls, subagents) and serves them to the /OfficeManager web app over the
+// WebSocket protocol (see OfficeBridge.cs). Agents created by OTHER processes forward their
+// lifecycle events here via AgentHarness.ForwardGlobalProgressTo → POST /v1/office/events.
+OfficeBridge.Init(startupProvider, anonymize);
+
+// Dynamic-hash conversation correlation for stateless clients without session_id (see
+// StatelessConversation.cs): wires the transcript-hash cleanup on session removal.
+StatelessConversation.Init();
+
 // SIP telephony (auto-answer + PIN, outgoing calls — see docs/sip.md): initialized from the
 // "Sip" appsettings section; the server itself starts right before the launch mode below so a
 // bind failure (port in use) cannot kill the HTTP API — it is reported and logged only.
@@ -312,7 +327,70 @@ TelegramBridge.Init(startupProvider, anonymize);
 if (!AutoUpdate.LoadState(args.Contains("--no-update")))
     AutoUpdate.Enabled = app.Configuration.GetValue<bool>("AutoUpdate:Enabled", true);
 
+// Crash reporting toggle (TUI Help → Crash report / /crashreport): persisted state in the OS
+// app-data folder wins, else the appsettings default. Repo/token come from appsettings
+// (CrashReport:Repo, CrashReport:Token — token optional; without it the report opens as a
+// pre-filled GitHub issue the user reviews before submitting, see CrashReporter.cs).
+if (!CrashReporter.LoadState())
+    CrashReporter.Enabled = app.Configuration.GetValue("CrashReport:Enabled", true);
+CrashReporter.Repo = app.Configuration["CrashReport:Repo"] ?? CrashReporter.Repo;
+CrashReporter.Token = app.Configuration["CrashReport:Token"];
+
 app.UseCors();
+
+// ─────────────────────────────────────────────────────────────────────
+// OfficeManager (web app) — static files + duplex WebSocket hub
+//
+// The 16-bit office app ships in the OfficeManager/ folder next to the
+// executable (same csproj copy rule as docs/) and is served at
+// /OfficeManager. The browser opens a WebSocket to /ws/office: the server
+// streams agent lifecycle events (employees spawning at the door, tool
+// methods, conversations) and receives chat prompts / close commands —
+// see OfficeBridge.cs for the wire protocol. External hosts (AIOffice app,
+// voice panels) forward their agents' events to POST /v1/office/events via
+// AgentHarness.ForwardGlobalProgressTo, so every agent/subagent instance,
+// however it was created, is reflected in the office.
+// ─────────────────────────────────────────────────────────────────────
+app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
+
+var officeDir = Path.Combine(AppContext.BaseDirectory, "OfficeManager");
+if (Directory.Exists(officeDir))
+{
+    var officeFiles = new PhysicalFileProvider(officeDir);
+    app.UseStaticFiles(new StaticFileOptions { FileProvider = officeFiles, RequestPath = "/OfficeManager" });
+    // Routing treats the trailing slash as optional, so one pattern serves both /OfficeManager
+    // and /OfficeManager/. The page uses ABSOLUTE asset URLs (/OfficeManager/...), so both work.
+    var officeIndex = Path.Combine(officeDir, "index.html");
+    app.MapGet("/OfficeManager", () => Results.File(officeIndex, "text/html"));
+}
+else
+{
+    Console.WriteLine("OfficeManager/ not found next to the executable — the web office is unavailable.");
+}
+
+app.Map("/ws/office", async (HttpContext context) =>
+{
+    if (context.WebSockets.IsWebSocketRequest)
+    {
+        using var ws = await context.WebSockets.AcceptWebSocketAsync();
+        await OfficeBridge.HandleClientAsync(ws, context.RequestAborted);
+    }
+    else
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+    }
+});
+
+// Agents created by OTHER processes (AIOffice app, voice panels, schedulers) forward their
+// GlobalProgress stream here — the same events AgentBridge raises for its own instances.
+app.MapPost("/v1/office/events", (JsonElement body) =>
+{
+    if (body.ValueKind == JsonValueKind.Array)
+        foreach (var item in body.EnumerateArray()) OfficeBridge.IngestExternalEvent(item);
+    else
+        OfficeBridge.IngestExternalEvent(body);
+    return Results.Ok();
+});
 
 var jsonOptions = new JsonSerializerOptions
 {
@@ -390,8 +468,6 @@ app.MapPost("/v1/chat/completions", async (
                 if (session == null)
                     return Results.NotFound(new { error = $"Session '{request.SessionId}' not found. Omit session_id to start a new session, or create one via POST /v1/control." });
 
-                await session.Gate.WaitAsync(ct);
-
                 // Switch the LLM in use on the fly (history preserved), but refuse when the
                 // conversation overflows the target provider's context window.
                 var target = session.Orchestrator.Provider;
@@ -405,10 +481,39 @@ app.MapPost("/v1/chat/completions", async (
             }
             else
             {
-                // No session → the historical stateless behaviour: one orchestrator per
-                // request (fresh history), disposed when the request completes.
-                owned = new AgentHarness(provider, anonymize);
+                // No session → the historical stateless behaviour (one orchestrator per request),
+                // with one refinement: a third-party client that never sends session_id but RESENDS
+                // the accumulated transcript is correlated back to its conversation via the dynamic
+                // transcript hash (see StatelessConversation.cs), so its chat stays ONE session —
+                // ONE persistent employee in OfficeManager — instead of a one-shot per message.
+                // True one-shot requests (no prior assistant reply) keep the fresh-instance path.
+                var contKey = StatelessConversation.ContinuationKey(request.Messages);
+                var correlated = contKey != null ? StatelessConversation.Lookup(contKey) : null;
+                if (correlated != null)
+                {
+                    // Known conversation → its session; pending transcript → start + seed it.
+                    session = correlated.Length > 0
+                        ? SessionStore.Get(correlated)
+                        : CreateSeededSession(request.Messages);
+                    if (session == null)
+                        owned = new AgentHarness(provider, anonymize);
+                }
+                else if (HasAssistantHistory(request.Messages))
+                {
+                    // A multi-turn transcript we have never seen (server restart, or the first
+                    // message was a true one-shot): start the conversation from the resent history.
+                    session = CreateSeededSession(request.Messages);
+                }
+                else
+                {
+                    owned = new AgentHarness(provider, anonymize);
+                }
             }
+
+            // One chat at a time per conversation — both for the explicit session_id path and for
+            // the correlated/seeded stateless path (the finally releases the gate).
+            if (session != null)
+                await session.Gate.WaitAsync(ct);
 
             var orchestrator = session?.Orchestrator ?? owned!;
             // isLocalUser: the caller is at the desktop only when it reaches us from a loopback
@@ -425,6 +530,16 @@ app.MapPost("/v1/chat/completions", async (
             var content = result.Message ?? ResultText(result) ?? Dictionary.NoOutputGenerated;
             var finishReason = result.Success ? "stop" : "error";
             var sessionId = session?.Id;
+            // Keep the dynamic-hash correlation current (see StatelessConversation.cs): the
+            // rolling transcript hash INCLUDING this reply is recorded under the conversation,
+            // or marked pending when the request was a true one-shot — so the next message that
+            // resends the transcript is routed back to the same conversation.
+            if (request.Messages != null)
+            {
+                var key = StatelessConversation.FullKey(request.Messages, content);
+                if (sessionId != null) StatelessConversation.Record(sessionId, key);
+                else StatelessConversation.MarkPending(key);
+            }
 
             if (request.Stream == true)
             {
@@ -1296,6 +1411,23 @@ static string ExtractTextContent(object? content)
 // AgentHarness.ExecuteAction resolves to live instances as tools. Shared with the SIP
 // telephony loop (AgentTools) so the two paths resolve the same agent sets.
 static string[] ResolveAgentTypes(string? model) => AgentTools.Resolve(model);
+
+// A request without session_id that carries PRIOR assistant replies resends the accumulated
+// transcript — the precondition for the dynamic-hash correlation (see StatelessConversation.cs).
+static bool HasAssistantHistory(List<RequestMessage>? messages) =>
+    messages is { Count: > 1 }
+    && messages.SkipLast(1).Any(m => m.Role == "assistant" && !string.IsNullOrWhiteSpace(ExtractTextContent(m.Content)));
+
+// Starts a real conversation for a stateless client and seeds it with the transcript the client
+// resends (the earlier turns are preserved for the LLM). The session store fires SessionCreated,
+// so OfficeManager spawns the persistent employee for the chat.
+ActiveSession CreateSeededSession(List<RequestMessage>? messages)
+{
+    var s = SessionStore.Create(startupProvider, anonymize);
+    if (messages is { Count: > 1 })
+        s.Orchestrator.SeedHistory(messages.Take(messages.Count - 1).Select(m => (m.Role, ExtractTextContent(m.Content))));
+    return s;
+}
 
 // Resolves the effective LLM provider for a request: the explicit llm_provider field
 // (extension) or the appsettings default. Returns null + error message for unknown names.

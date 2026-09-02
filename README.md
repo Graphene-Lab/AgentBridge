@@ -88,6 +88,19 @@ generated end-to-end by the agent):
 
 [![Podcast sample episode — click to play (MP4, English, ~42 s)](https://raw.githubusercontent.com/Graphene-Lab/AgentBridge/master/media/podcast-player.png)](https://raw.githubusercontent.com/Graphene-Lab/AgentBridge/master/media/podcast-example.mp4)
 
+**OfficeManager — watch your AI team work (and give the lazy ones a nudge)**
+
+Every agent becomes a little person in a 16-bit office, so you can actually **see what your
+AI team is doing** instead of reading logs: they walk in through the door, sit at a desk and
+get to work — the tool they are using appears in a speech bubble over their head (a web
+search, a file lookup, a document…). Talk to an agent from the chat to give it a new task or
+ask how it is going, and when it finishes it gets up and leaves through the door. A roaming
+employee with "nothing to do" is always available: give it a task and it becomes a brand-new
+agent on the spot. Great for keeping an eye on many agents at once — and for spotting anyone
+who seems to be working very hard… at pretending. 😉
+
+![OfficeManager — the agents' office](media/office-manager-demo.gif)
+
 ## Agent Bridge: Your AI Assistant for Office Work
 
 Agent Bridge is a tool that allows you to connect to your preferred AI, transforming it into your personal assistant: a tireless worker capable of handling office tasks such as drafting complex documents, working with spreadsheets, interacting with email, and performing internet-based activities—all while having full awareness of your company's knowledge base: clients, documents, products, and everything stored in your archive.

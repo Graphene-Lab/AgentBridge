@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$BaseUrl = 'http://127.0.0.1:5290',
     [string]$Corpus = 'C:\Users\andre\AppData\Local\Temp\aioffice_e2e_corpus',
     [string]$Work = 'C:\Users\andre\AppData\Local\Temp\aioffice_e2e_work',

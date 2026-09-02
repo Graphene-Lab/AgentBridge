@@ -37,6 +37,8 @@ A series of short guides written in plain language for anyone who uses AgentBrid
 | [SIP telephony](sip.md) | Phone-gate the agents: config, PIN/allow-list security, NAT/trunk, STT deployment |
 | [SIP entry point](sip-entry/README.md) | Unattended Kamailio + rtpengine entry-point installation |
 | [Auto-update](autoupdate.md) | How the automatic update works and what it never touches |
+| [OfficeManager](office-manager.md) | The 16-bit office view of your agents (served at /OfficeManager) |
+| [Crash reporting](crash-reporting.md) | Privacy-safe crash diagnostics to the GitHub repository — what is sent and how to disable it |
 | [AIOrchestrator white paper](AIORCHESTRATOR-WHITEPAPER.md) | Why the AIOrchestrator library model outperforms MCP deployments |
 | [Disclaimer](DISCLAIMER.md) | Warranty and liability terms, including AI-generated content and autonomous agent actions |
 | [Windows installer](install.ps1) · [Linux/macOS installer](install.sh) | One-line installers for the release archives |

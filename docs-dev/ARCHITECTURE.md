@@ -302,7 +302,9 @@ the additive `tools` field (API) and the `/agent` checklist (TUI).
 |---|---|
 | `Program.cs` | All endpoints + helpers (top-level statements) + DTOs + launch-mode selection |
 | `Tui.cs` | The Terminal.Gui terminal UI: menu bar, AGENT logo panel, streaming chat panel + input line, status bar, `/` command palette, `@` file palette, shortcuts, mouse |
-| `SessionStore.cs` | Multi-turn sessions (orchestrator + history + feature flags; session-backed orchestrators record the conversation to the AIOrchestrator Memory at disposal — idle timeout from `AgentHarness.SuggestedConversationTimeout`) |
+| `SessionStore.cs` | Multi-turn sessions (orchestrator + history + feature flags; session-backed orchestrators record the conversation to the AIOrchestrator Memory at disposal — idle timeout from `AgentHarness.SuggestedConversationTimeout`; lifecycle events `SessionCreated`/`SessionRemoved` feed the OfficeManager hub) |
+| `OfficeBridge.cs` | OfficeManager WebSocket hub (`/ws/office`): every agent/subagent instance of this process becomes an employee (spawn/assign/running/method/closed + chat protocol); accepts forwarded events from other processes (`POST /v1/office/events`) |
+| `StatelessConversation.cs` | Dynamic transcript-hash correlation for stateless chat requests (no `session_id`): full-transcript SHA-256 → session dictionary, so a third-party client that resends its transcript stays ONE conversation (one employee) instead of a one-shot per message |
 | `TtsEngine.cs` | In-process Kokoro TTS (lazy init, WAV synthesis) |
 | `VoiceBridge.cs` | VoiceAgent.Win subprocess bridge (one-shot recognition) |
 | `TelegramBridge.cs` | Telegram text-chat medium: WTelegramClient 4.4.8 userbot (private-chat → agent session → reply) |

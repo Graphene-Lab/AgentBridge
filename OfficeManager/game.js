@@ -2,8 +2,16 @@
 
 /* ============================================================
    Office Manager 16-Bit — top-down oblique office game.
-   The boss (arrow keys) hires employees by contact, Tab or
-   mouse; the bottom chat is a 16-bit text-adventure console.
+   The boss (arrow keys) is the human user's avatar: he hires
+   employees (contact, Tab, mouse) and talks to them through the
+   bottom chat; what the user types appears above the boss's head.
+   Every employee is the visual of an AGENT INSTANCE in
+   AIOrchestrator: idle employees wander and say "I have nothing
+   to do", session employees (any medium: TUI, API, SIP, this
+   chat) work at a desk while their agent runs and go back to the
+   door and despawn when the agent instance closes; subagents are
+   visual-only. The roster is server-authoritative (AgentBridge →
+   /ws/office duplex WebSocket, see AgentBridge/OfficeBridge.cs).
    See docs-dev/ARCHITECTURE.md for the full technical picture.
    ============================================================ */
 
@@ -40,10 +48,12 @@ const WORK_SPOTS = [
   { x: 334, y: 640 }, { x: 652, y: 636 },
 ];
 const WORK_R = 55;                     // attraction radius when passing in front of a desk
-const WORK_MS = 20000;                 // working duration at a desk
-const WORK_COOLDOWN_MS = 15000;        // desk attraction disabled after a work session
-const AMBIENT_LINES = ["I am working", "I'm in a hurry"];
+const WORK_MS = 20000;                 // IDLE employees: working duration at a desk (agent employees have NO timeout — they stay until the agent instance closes)
+const WORK_COOLDOWN_MS = 15000;        // desk attraction disabled after a work session (idle employees)
+const IDLE_LINE = "I have nothing to do";
+const DOOR = { x0: 72, x1: 156, y0: 152, y1: 212 };   // spawn/despawn strip in front of the door
 const PIX_FONT = '8px "Press Start 2P", monospace';
+const EMP_SPRITES = ["employee A", "employee B", "employee C", "employee D", "employee E"];
 
 /* Sprite poses (verified by pixel census): row 0 = back (mostly hair),
    row 1 = left profile, row 2 = front, row 3 = right profile. Pure up shows
@@ -121,15 +131,17 @@ function loadImage(src) {
 }
 
 async function loadAssets() {
+  // Absolute asset URLs — the page may be opened at /OfficeManager or /OfficeManager/.
+  const base = "/OfficeManager/assets/";
   [IMG.top, IMG.ground] = await Promise.all([
-    loadImage("assets/office.png"),
-    loadImage("assets/office-ground.png"),
+    loadImage(base + "office.png"),
+    loadImage(base + "office-ground.png"),
   ]);
-  const names = ["boss", "employee A", "employee B", "employee C", "employee D", "employee E"];
+  const names = ["boss", ...EMP_SPRITES];
   await Promise.all(names.map(name =>
     Promise.all([
-      loadImage("assets/" + name + "/standard/walk.png"),
-      loadImage("assets/" + name + "/standard/idle.png"),
+      loadImage(base + name + "/standard/walk.png"),
+      loadImage(base + name + "/standard/idle.png"),
     ]).then(([walk, idle]) => { IMG.chars[name] = { walk, idle }; })
   ));
 }
@@ -212,6 +224,13 @@ class Person {
     this.frame = 0; this.animT = 0;
     this.bubble = null;
     this.speed = isBoss ? BOSS_SPEED : EMP_SPEED;
+    /* server-driven role: "idle" | "session" | "stateless" | "subagent" */
+    this.empId = null;
+    this.kind = "idle";
+    this.label = "";
+    this.running = false;
+    this.returningHome = false;
+    this.homeX = 0; this.homeY = 0; this.homePath = null;
   }
   get fx() { return this.x | 0; }
   get fy() { return this.y | 0; }
@@ -228,6 +247,10 @@ class Person {
   say(text, kind) {                          // kind: "phone"/"coffee" = persistent zone bubble
     this.bubble = { text, until: kind ? Infinity : performance.now() + BUBBLE_MS, kind: kind || null };
     Chat.say(this.name, text);
+  }
+  /* the agent's current tool method, shown as its split words (FileSearch → "File Search") */
+  sayMethod(method) {
+    this.bubble = { text: methodWords(method), until: Infinity, kind: "method" };
   }
   move(dx, dy) {
     if (dx && this.canStand(this.x + dx, this.y)) this.x += dx;
@@ -246,10 +269,28 @@ class Person {
   }
 }
 
+/* splits a PascalCase token into its words: "FileSearch" → "File Search" */
+function splitWords(part) {
+  return part
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/[_\-\s]+/g, " ")
+    .trim();
+}
+
+/* the agent's current tool call as bubble words: the tool CLASS name split into words,
+   a comma, then the METHOD name split into words — "FileTool.FileSearch" → "File Tool, File Search".
+   Bare reserved methods (done, cli, ...) have no class and stay as their split words. */
+function methodWords(name) {
+  const parts = name.split(".");
+  return parts.length > 1
+    ? splitWords(parts[0]) + ", " + splitWords(parts.slice(1).join("."))
+    : splitWords(name);
+}
+
 /* ---------- world state ---------- */
 const boss = new Person("Boss", null, 512, 620, true);
 const employees = [];
-const EMP_NAMES = ["employee A", "employee B", "employee C", "employee D", "employee E"];
 
 let engaged = null;        // currently hired employee
 let engagedBy = null;      // "contact" | "tab" | "mouse"
@@ -258,6 +299,9 @@ let lastBossActivity = 0;  // last boss move / speech timestamp
 let phoneActive = false;
 let stepT = 0;
 let waypoints = [];
+let ws = null;
+let wsRetry = null;
+let connected = false;
 
 function markBossActivity() {            // any action (movement or speech) — drives the "boss" label
   lastBossActivity = performance.now();
@@ -328,29 +372,146 @@ function pathTo(sx, sy, tx, ty) {
   return cells.map(k => [(k % NAV_COLS) * NAV_CELL + NAV_CELL / 2, ((k / NAV_COLS) | 0) * NAV_CELL + NAV_CELL / 2]);
 }
 
-function initEmployees() {
-  employees.length = 0;
-  const used = [];
-  for (const name of EMP_NAMES) {
-    let p, tries = 0;
-    do {                                   // all employees start in front of the door
-      p = [72 + Math.random() * 84, 152 + Math.random() * 60];
-      tries++;
-    } while (tries < 50 && used.some(u => (u[0] - p[0]) ** 2 + (u[1] - p[1]) ** 2 < 40 ** 2));
-    used.push(p);
-    const e = new Person(name, IMG.chars[name], p[0], p[1], false);
-    e.path = null;
-    e.idleUntil = Math.random() * 2000;
-    e.blockedUntil = 0;
-    e.stuckT = 0; e.lastX = p[0]; e.lastY = p[1];
-    e.nextAmbient = performance.now() + AMBIENT_MIN_MS + (-Math.log(Math.random()) * AMBIENT_SPAN_MS);
-    e.workSpot = null;                 // desk the employee is heading to (attraction)
-    e.workAt = null;                   // desk the employee is working at (occupies the spot)
-    e.workRoute = null;                // [approach point, spot] route while heading there
-    e.workDeadline = 0;                // work session deadline, started at the attraction moment
-    e.noWorkUntil = 0;                 // desk attraction disabled until this time
-    e.nextCoffee = 0;                  // coffee line cooldown
-    employees.push(e);
+/* ---------- server protocol (AgentBridge /ws/office) ---------- */
+function connect() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(proto + "://" + location.host + "/ws/office");
+  ws.onopen = () => {
+    connected = true;
+    ws.send(JSON.stringify({ type: "hello" }));
+    Chat.say("", "OFFICE MANAGER — connected to AgentBridge", "sys");
+  };
+  ws.onmessage = e => onServerMessage(e.data);
+  ws.onclose = () => {
+    connected = false;
+    if (engaged) disengage();
+    Chat.say("", "OFFICE MANAGER — disconnected, retrying…", "sys");
+    clearTimeout(wsRetry);
+    wsRetry = setTimeout(connect, 3000);
+  };
+  ws.onerror = () => { try { ws.close(); } catch (e) { } };
+}
+
+function onServerMessage(json) {
+  let m;
+  try { m = JSON.parse(json); } catch (e) { return; }
+  switch (m.type) {
+    case "snapshot":
+      syncRoster(m.employees || []);
+      break;
+    case "spawn":
+      spawnEmployee(m);
+      break;
+    case "assign":
+      assignEmployee(m);
+      break;
+    case "running":
+      setRunning(m.empId, m.value);
+      break;
+    case "method":
+      setMethod(m.empId, m.method);
+      break;
+    case "closed":
+      closeEmployee(m.empId);
+      break;
+    case "chat":
+      chatFromServer(m);
+      break;
+    case "error":
+      Chat.say("", m.text || "server error", "sys");
+      break;
+  }
+}
+
+/* the snapshot is the authoritative roster (sent on connect/hello): despawn employees the
+   server no longer knows (e.g. they closed while this tab was reconnecting), keep the rest */
+function syncRoster(list) {
+  const ids = new Set(list.map(e => e.empId));
+  for (const e of [...employees]) {
+    if (!ids.has(e.empId) && !e.returningHome) despawnEmployee(e);
+  }
+  for (const m of list) spawnEmployee(m);
+}
+
+function doorSpot() {
+  for (let tries = 0; tries < 24; tries++) {
+    const x = DOOR.x0 + Math.random() * (DOOR.x1 - DOOR.x0);
+    const y = DOOR.y0 + Math.random() * (DOOR.y1 - DOOR.y0);
+    if (walkable(x, y)) return [x, y];
+  }
+  return [(DOOR.x0 + DOOR.x1) / 2, (DOOR.y0 + DOOR.y1) / 2];
+}
+
+function spawnEmployee(m) {
+  if (employees.some(e => e.empId === m.empId)) return;   // re-sync/snapshot
+  const [x, y] = doorSpot();
+  const e = new Person(m.label || "employee", IMG.chars[EMP_SPRITES[m.sprite % EMP_SPRITES.length]], x, y, false);
+  e.empId = m.empId;
+  e.kind = m.kind || "idle";
+  e.label = m.label || "";
+  e.running = !!m.running;
+  e.idleUntil = Math.random() * 2000;
+  e.blockedUntil = 0;
+  e.stuckT = 0; e.lastX = x; e.lastY = y;
+  e.nextAmbient = performance.now() + AMBIENT_MIN_MS + (-Math.log(Math.random()) * AMBIENT_SPAN_MS);
+  e.workSpot = null; e.workAt = null; e.workRoute = null;
+  e.workDeadline = 0; e.noWorkUntil = 0;
+  e.nextCoffee = 0;
+  employees.push(e);
+}
+
+function assignEmployee(m) {
+  const e = employees.find(e => e.empId === m.empId);
+  if (!e) return;
+  e.kind = "session";
+  e.label = m.label || e.label;
+  e.name = e.label || e.name;
+  Chat.say("", e.name + " is now an agent — a new employee appeared at the door", "sys");
+  Sfx.engage();
+}
+
+function setRunning(empId, value) {
+  const e = employees.find(e => e.empId === empId);
+  if (!e) return;
+  e.running = value;
+  if (!value && e.bubble && e.bubble.kind === "method") e.bubble = null;
+  if (value) e.noWorkUntil = 0;                       // an agent employee may be attracted right away
+}
+
+function setMethod(empId, method) {
+  const e = employees.find(e => e.empId === empId);
+  if (!e) return;
+  e.running = true;
+  e.sayMethod(method);
+}
+
+function closeEmployee(empId) {
+  const e = employees.find(e => e.empId === empId);
+  if (!e) return;
+  if (engaged === e) disengage();
+  // release the desk (if any) and walk home: while returning, the employee is
+  // NEVER re-attracted to a desk, so it cannot get stuck and always reaches the door.
+  e.workSpot = null; e.workAt = null; e.workRoute = null; e.workDeadline = 0;
+  e.path = null;
+  e.returningHome = true;
+  [e.homeX, e.homeY] = doorSpot();
+  e.homePath = null;
+  e.bubble = null;
+  e.running = false;
+  e.blockedUntil = 0;
+  e.stuckT = 0; e.lastX = e.x; e.lastY = e.y;
+}
+
+function chatFromServer(m) {
+  if (m.role === "assistant") {
+    const e = employees.find(e => e.empId === m.empId);
+    Chat.say(e && e.label ? e.label : "agent", m.text);
+    Sfx.reply();
+  } else if (m.role === "user") {
+    Chat.say("Boss", m.text);
+  } else {
+    Chat.say("", m.text, "sys");
   }
 }
 
@@ -392,16 +553,22 @@ function updateEmployee(e, dt) {
     e.setDir(boss.x - e.x, boss.y - e.y);    // face the boss while hired
     return;
   }
+  if (e.returningHome) { updateReturnHome(e, dt, now); return; }
   if (now < e.blockedUntil) { e.moving = false; return; }
 
-  if (now >= e.nextAmbient) {                            // ~1 ambient line per minute
+  const isAgent = e.kind !== "idle";
+
+  // idle employees say "I have nothing to do" on the ambient cadence (~1/min) —
+  // they never claim to be working.
+  if (!isAgent && now >= e.nextAmbient) {
     e.nextAmbient = now + AMBIENT_MIN_MS + (-Math.log(Math.random()) * AMBIENT_SPAN_MS);
-    e.say(AMBIENT_LINES[(Math.random() * AMBIENT_LINES.length) | 0]);
+    e.say(IDLE_LINE);
     Sfx.ambient();
   }
 
-  // work deadline (starts at the attraction moment): reached -> free + cooldown,
-  // so employees jammed on the chair without reaching the spot still unlock
+  // work deadline (starts at the attraction moment): IDLE employees free the spot and
+  // enter a cooldown; AGENT employees have workDeadline = 0 (no timeout — they stay at
+  // the desk until the agent instance closes).
   if (e.workDeadline && now >= e.workDeadline) {
     e.workSpot = null;
     e.workAt = null;
@@ -409,7 +576,7 @@ function updateEmployee(e, dt) {
     e.noWorkUntil = now + WORK_COOLDOWN_MS;
   }
 
-  // standing at the desk (working pose) until the deadline — direction is kept as-is
+  // standing at the desk (working pose) — direction is kept as-is
   if (e.workAt && !e.workSpot) {
     e.moving = false;
     return;
@@ -433,8 +600,15 @@ function updateEmployee(e, dt) {
     return;
   }
 
-  // desk attraction: passing in front of a desk pulls the employee to its spot
-  if (now >= e.noWorkUntil) {
+  // an agent employee that just started running walks to a free desk and stays there
+  if (isAgent && e.running && now >= e.noWorkUntil) {
+    attractAgentToDesk(e);
+    return;
+  }
+
+  // desk attraction (idle employees only): passing in front of a desk pulls the
+  // employee to its spot for the 20 s WORK_MS session (same as before)
+  if (!isAgent && now >= e.noWorkUntil) {
     for (const s of WORK_SPOTS) {
       if (Math.hypot(e.x - s.x, e.y - s.y) <= WORK_R) {
         const taken = employees.some(o => o !== e && (o.workSpot === s || o.workAt === s));
@@ -476,6 +650,69 @@ function updateEmployee(e, dt) {
   e.move(dx / dist * sp, dy / dist * sp);
   e.moving = Math.hypot(e.x - ox, e.y - oy) > 0.1;
   if (e.moving) e.setDir(e.x - ox, e.y - oy);
+}
+
+/* agent employee: walk to the nearest free desk and stay (no timeout) */
+function attractAgentToDesk(e) {
+  let best = null, bd = Infinity;
+  for (const s of WORK_SPOTS) {
+    const taken = employees.some(o => o !== e && (o.workSpot === s || o.workAt === s));
+    const d = Math.hypot(e.x - s.x, e.y - s.y);
+    if (!taken && d < bd) { bd = d; best = s; }
+  }
+  if (!best) best = WORK_SPOTS[0];                   // every desk taken — queue at the first
+  const taken = employees.some(o => o !== e && (o.workSpot === best || o.workAt === best));
+  const tx = taken ? best.x + 30 : best.x;
+  const ay = best.y + 24;
+  e.workSpot = best;
+  e.workAt = best;
+  e.workDeadline = 0;                                // no 20 s timeout for agent employees
+  e.workRoute = [[tx, ay], [tx, best.y]];
+  e.stuckT = 0; e.lastX = e.x; e.lastY = e.y;
+}
+
+/* return to the door after the agent instance closed: attraction is permanently
+   disabled in this state, so the employee can never get stuck on a desk again */
+function updateReturnHome(e, dt, now) {
+  if (Math.hypot(e.x - e.homeX, e.y - e.homeY) < 16) {
+    despawnEmployee(e);
+    return;
+  }
+  if (!e.homePath || !e.homePath.length) {
+    e.homePath = pathTo(e.x, e.y, e.homeX, e.homeY) || [];
+    if (e.homePath.length) e.homePath.push([e.homeX, e.homeY]);
+    e.stuckT = 0; e.lastX = e.x; e.lastY = e.y;
+  }
+  let tx, ty;
+  if (e.homePath.length) {
+    [tx, ty] = e.homePath[0];
+  } else {
+    tx = e.homeX; ty = e.homeY;                     // unreachable via BFS — go straight
+  }
+  const dx = tx - e.x, dy = ty - e.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 12) {
+    e.homePath.shift();
+    if (!e.homePath.length) { despawnEmployee(e); return; }
+    [tx, ty] = e.homePath[0];
+  }
+  e.stuckT += dt;
+  if (e.stuckT > 2500) {
+    if (Math.hypot(e.x - e.lastX, e.y - e.lastY) < 2) e.homePath = null;   // replan
+    e.lastX = e.x; e.lastY = e.y; e.stuckT = 0;
+  }
+  const d2 = Math.hypot(tx - e.x, ty - e.y);
+  const sp = e.speed * dt / 1000;
+  const ox = e.x, oy = e.y;
+  e.move(d2 ? (tx - e.x) / d2 * sp : 0, d2 ? (ty - e.y) / d2 * sp : 0);
+  e.moving = Math.hypot(e.x - ox, e.y - oy) > 0.1;
+  if (e.moving) e.setDir(e.x - ox, e.y - oy);
+}
+
+function despawnEmployee(e) {
+  const i = employees.indexOf(e);
+  if (i >= 0) employees.splice(i, 1);
+  if (engaged === e) { engaged = null; engagedBy = null; }
 }
 
 /* ---------- engagement ---------- */
@@ -552,10 +789,22 @@ function sendMessage() {
   input.value = "";
   if (!text) return;
   markBossSpeech();
-  if (boss.bubble && boss.bubble.kind) Chat.say("Boss", text);   // persistent zone bubble stays (phone/coffee)
-  else boss.say(text);
   Sfx.send();
-  if (engaged) { engaged.say("Ok boss!"); Sfx.reply(); }
+
+  // Send is inhibited unless an employee is engaged (and the target can be talked to).
+  if (!connected) { Chat.say("", "OFFICE MANAGER — not connected to AgentBridge", "sys"); return; }
+  if (!engaged) { Chat.say("", "hire an employee first (tab or click)", "sys"); return; }
+  if (engaged.kind === "subagent" || engaged.kind === "stateless") {
+    Chat.say("", (engaged.label || "this employee") + " cannot be chatted with", "sys");
+    return;
+  }
+  if (engaged.running) { Chat.say("", (engaged.label || engaged.name) + " is still working…", "sys"); return; }
+
+  // What the user typed appears in the bubble above the boss's head; the server echoes the
+  // message into the chat log (role "user"), so the log is consistent across tabs.
+  if (!(boss.bubble && boss.bubble.kind))           // keep a persistent zone bubble (phone/coffee)
+    boss.bubble = { text, until: performance.now() + BUBBLE_MS, kind: null };
+  ws.send(JSON.stringify({ type: "chat_send", empId: engaged.empId, prompt: text }));
 }
 
 /* Tab cycles through the employees: hires the nearest one first, then every
@@ -566,7 +815,7 @@ function engageNextTab() {
     const idx = employees.indexOf(engaged);
     engaged.blockedUntil = now + REENGAGE_PAUSE;   // prevent instant re-hire by contact
     engaged = null; engagedBy = null;
-    engage(employees[(idx + 1) % employees.length], "tab");
+    if (employees.length) engage(employees[(idx + 1) % employees.length], "tab");
     return;
   }
   let best = null, bd = Infinity;
@@ -598,7 +847,13 @@ function initInput() {
       case "ArrowLeft":  keys.left = true; break;
       case "ArrowRight": keys.right = true; break;
       case "Tab":        engageNextTab(); break;
-      case "Escape":     disengage(); break;
+      case "Escape":
+        // Esc on a session employee CLOSES the conversation (the agent instance ends → the
+        // employee walks back to the door and despawns); on any other employee it just releases.
+        if (engaged && engaged.kind === "session" && connected)
+          ws.send(JSON.stringify({ type: "close", empId: engaged.empId }));
+        disengage();
+        break;
       case "Enter":      sendMessage(); break;
       default: return;
     }
@@ -678,6 +933,19 @@ function drawLabel() {
   ctx.fillText("boss", x + 4, y + h - 2);
 }
 
+/* small nameplate over agent employees (they may share a sprite with other
+   employees, so the label tells them apart) */
+function drawEmployeeLabel(p) {
+  if (!p.label || p.returningHome) return;
+  ctx.font = PIX_FONT;
+  const w = ctx.measureText(p.label).width + 6, h = 10;
+  const x = p.fx - w / 2, y = p.fy - CHAR_H - h - 2;
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "#9fb8c4";
+  ctx.fillText(p.label, x + 3, y + h - 3);
+}
+
 /* wrap a speech text and return the bubble size (w, h) at the pixel font size */
 const BUBBLE_PAD = 5, BUBBLE_LH = 10;
 function wrapBubble(text) {
@@ -705,6 +973,7 @@ function drawBubble(p) {
 
   let baseY = p.fy - CHAR_H - 4;
   if (p.isBoss && labelVisible()) baseY -= 13;      // stack above the "boss" nameplate
+  else if (!p.isBoss && p.label && !p.returningHome) baseY -= 12;   // above the employee nameplate
   const x = p.fx - w / 2;
   let y = baseY - h;
   if (y < 2) y = p.fy + CHAR_H / 2;                 // below the head when there is no room above
@@ -780,6 +1049,7 @@ function render() {
   if (cursor < H) ctx.drawImage(IMG.top, 0, cursor, W, H - cursor, 0, cursor, W, H - cursor);
   drawClock();
   drawLabel();
+  for (const p of employees) drawEmployeeLabel(p);
   for (const p of all) drawBubble(p);
   if (engaged) drawEngagedMark();                    // "!" above the hired employee (clears any bubble)
 }
@@ -812,7 +1082,7 @@ function frame(now) {
   const dt = Math.min(now - lastT, 50);
   lastT = now;
   updateBoss(dt);
-  for (const e of employees) updateEmployee(e, dt);
+  for (const e of [...employees]) updateEmployee(e, dt);
   updateEngagement();
   updatePhone();
   updateCoffee();
@@ -831,10 +1101,10 @@ async function boot() {
   buildWaypoints();
   buildNav();
   buildBehind();
-  initEmployees();
   initInput();
   fitCanvas();
-  Chat.say("", "OFFICE 16-BIT - arrows: move boss - tab = hire - esc = release - click: hire - enter: talk", "sys");
+  Chat.say("", "OFFICE MANAGER - arrows: move boss - tab/click: hire - enter: talk - esc: release/close", "sys");
+  connect();
   requestAnimationFrame(frame);
 }
 boot();

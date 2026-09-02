@@ -83,6 +83,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="MenuNewChat" xml:space="preserve"><value>_New Chat</value></data>
   <data name="MenuModelsProviders" xml:space="preserve"><value>_Models &amp; Providers (/modelsetup)</value></data>
   <data name="MenuAutoUpdate" xml:space="preserve"><value>_Auto-Update: {0}</value></data>
+  <data name="MenuCrashReport" xml:space="preserve"><value>_Crash report: {0}</value></data>
   <data name="MenuExit" xml:space="preserve"><value>_Exit</value></data>
   <data name="MenuChat" xml:space="preserve"><value>_Chat</value></data>
   <data name="MenuClearHistory" xml:space="preserve"><value>_Clear History</value></data>
@@ -95,6 +96,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="MenuHealth" xml:space="preserve"><value>_Health (/health)</value></data>
   <data name="MenuWeb" xml:space="preserve"><value>_Web</value></data>
   <data name="MenuGui" xml:space="preserve"><value>_GUI (/web)</value></data>
+  <data name="MenuOfficeManager" xml:space="preserve"><value>_OfficeManager (/officemanager)</value></data>
   <data name="MenuHelp" xml:space="preserve"><value>_Help</value></data>
   <data name="MenuHelpItem" xml:space="preserve"><value>_Help (/help)</value></data>
   <data name="MenuShortcuts" xml:space="preserve"><value>_Shortcuts (/shortcuts)</value></data>
@@ -104,12 +106,14 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="CmdHelp" xml:space="preserve"><value>Show help: commands, shortcuts, API endpoints, online docs</value></data>
   <data name="CmdDocs" xml:space="preserve"><value>Open the online documentation in your browser</value></data>
   <data name="CmdWeb" xml:space="preserve"><value>Install (first run) and launch the Giraffe AI web client in the browser</value></data>
+  <data name="CmdOfficeManager" xml:space="preserve"><value>Open OfficeManager (the agents' office) in the browser</value></data>
   <data name="CmdModelSetup" xml:space="preserve"><value>Configure LLM models &amp; providers (add/edit/remove, active model, API keys)</value></data>
   <data name="CmdModel" xml:space="preserve"><value>Switch the LLM provider (menu when no name given)</value></data>
   <data name="CmdAgent" xml:space="preserve"><value>Choose the agent tools: pick a quick preset or toggle individual tools</value></data>
   <data name="CmdVoice" xml:space="preserve"><value>Dictate from the server microphone into the input (default = system language)</value></data>
   <data name="CmdTts" xml:space="preserve"><value>Speak the last agent reply (or the given text) via Kokoro TTS</value></data>
   <data name="CmdFeatures" xml:space="preserve"><value>Show or toggle session feature flags (voice, tts, ...)</value></data>
+  <data name="CmdCrashReport" xml:space="preserve"><value>Toggle sending sanitized crash reports to the GitHub repository</value></data>
   <data name="CmdNew" xml:space="preserve"><value>Start a new session (fresh conversation, new id)</value></data>
   <data name="CmdClear" xml:space="preserve"><value>Reset the current session history (keeps the session)</value></data>
   <data name="CmdStatus" xml:space="preserve"><value>Show session state and platform capabilities</value></data>
@@ -210,6 +214,9 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="NoteNothingToRetry" xml:space="preserve"><value>nothing to retry yet</value></data>
   <data name="NoteLastReplyOk" xml:space="preserve"><value>the last reply succeeded — still resending</value></data>
   <data name="NoteOpenedUrl" xml:space="preserve"><value>opened {0} in your browser</value></data>
+  <data name="NoteOfficeManagerNoDesktop" xml:space="preserve"><value>OfficeManager needs a desktop environment to open the browser — no graphical session detected</value></data>
+  <data name="NoteCrashReportEnabled" xml:space="preserve"><value>crash report sending enabled</value></data>
+  <data name="NoteCrashReportDisabled" xml:space="preserve"><value>crash report sending disabled</value></data>
   <data name="NoteOpenBrowserFailed" xml:space="preserve"><value>could not open the browser: {0}</value></data>
   <data name="NoteSipUsage" xml:space="preserve"><value>usage: /sip status | config [set &lt;key&gt; &lt;value&gt;|reload] | call &lt;sip-uri&gt; | answer on|off | hangup</value></data>
   <data name="NoteSipUnavailable" xml:space="preserve"><value>SIP unavailable (HTTP {0})</value></data>

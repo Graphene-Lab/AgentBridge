@@ -1,6 +1,6 @@
 """Generate assets/office-mask.js — the walkable floor mask for the office game.
 
-Run once from the OfficeView folder:
+Run once from the OfficeManager folder:
     python tools/make-mask.py
 
 The browser cannot read the PNG pixels from file:// (canvas tainting), so the

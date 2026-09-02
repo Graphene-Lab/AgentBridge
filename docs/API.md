@@ -30,6 +30,9 @@ client or MCP client can drive the AI agents without modification to the agent c
 | `POST /v1/voice/listen` | One-shot speech recognition from the server microphone (Windows only) |
 | `GET /v1/audio/voices` | TTS voices available on this platform |
 | `POST /mcp` | Native MCP JSON-RPC endpoint (`initialize`, `tools/list`, `tools/call`) |
+| `GET /OfficeManager` | The OfficeManager web app (static files; see [OfficeManager](office-manager.md)) |
+| `GET /ws/office` | OfficeManager duplex WebSocket hub (agent lifecycle + chat protocol) |
+| `POST /v1/office/events` | Ingest agent lifecycle events forwarded by OTHER processes (AIOffice app, voice panels) |
 
 > **Telegram is an in-process medium and exposes no HTTP endpoints** — messages travel
 > directly through the WTelegramClient library; configuration is done from the TUI
@@ -135,8 +138,27 @@ By default every request is stateless (fresh orchestrator, fresh history). Passi
 3. Inspect/reset: `GET /v1/control?session_id=...` and `POST /v1/control` with
    `reset_history: true`.
 
-Sessions are in-memory, expire after 30 minutes of inactivity, and are serialized (one chat
-at a time per session). Unknown `session_id` → `404`.
+Sessions are in-memory, expire after **1 hour** of inactivity (the AIOrchestrator suggested
+conversation timeout, `AgentHarness.SuggestedConversationTimeout` — the same value the AIOffice
+voice panel uses), and are serialized (one chat at a time per session). Unknown `session_id` → `404`.
+
+### Stateless clients: dynamic transcript-hash correlation
+
+`session_id` is a **proprietary additive extension** — a strict third-party OpenAI client may
+never send it. To avoid a multi-message chat (no `session_id`) degrading into a sequence of
+unrelated one-shot runs, the server correlates stateless requests **by content**:
+
+- after every exchange the **full transcript** (roles + texts, including the assistant reply)
+  is hashed (SHA-256) into a `hash → session` dictionary (bounded, idle-TTL, dropped when the
+  session is disposed — see `StatelessConversation.cs`);
+- the next request's transcript **minus its last message** (the "previous part" the client
+  resends) is hashed the same way; on a hit the request is routed to that conversation — a
+  session is created and **seeded** with the resent transcript when the first message was
+  processed one-shot (`AgentHarness.SeedHistory`).
+
+The correlation only applies when the client **resends the accumulated transcript** (most
+OpenAI-style SDKs do). A request carrying no prior assistant reply stays a true one-shot:
+fresh orchestrator, disposed when the request completes.
 
 ## LLM switching (the pilot endpoint)
 

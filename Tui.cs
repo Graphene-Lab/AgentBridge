@@ -148,6 +148,7 @@ public static class ConsoleTui
             new("help", "", Dictionary.CmdHelp, (t, _) => t.ShowHelpAsync(), new[] { "/?" }),
             new("docs", "", Dictionary.CmdDocs, (t, _) => t.OpenDocsAsync()),
             new("web", "", Dictionary.CmdWeb, (t, _) => t.LaunchWebClientAsync()),
+            new("officemanager", "", Dictionary.CmdOfficeManager, (t, _) => t.LaunchOfficeManagerAsync()),
             new("modelsetup", "", Dictionary.CmdModelSetup, (t, _) => t.ShowModelSetupAsync()),
             new("model", "[name]", Dictionary.CmdModel, (t, a) => t.SwitchModelAsync(a)),
             new("agent", "[name]", Dictionary.CmdAgent, (t, a) => t.SwitchAgentAsync(a)),
@@ -155,6 +156,7 @@ public static class ConsoleTui
             new("tts", "[text]", Dictionary.CmdTts, (t, a) => t.TtsAsync(a)),
             new("ttsengine", "[name]", "TTS engine (kokoro default — other engines register in the catalog)", (t, a) => t.TtsEngineAsync(a)),
             new("update", "", "Force-check GitHub for a new release and update", (t, _) => t.UpdateAsync()),
+            new("crashreport", "", Dictionary.CmdCrashReport, (t, _) => t.CrashReportAsync()),
             new("features", "[name] [on|off]", Dictionary.CmdFeatures, (t, a) => t.FeaturesAsync(a)),
             new("new", "", Dictionary.CmdNew, (t, _) => t.NewSessionAsync(), new[] { "/reset" }),
             new("clear", "", Dictionary.CmdClear, (t, _) => t.ClearHistoryAsync()),
@@ -344,6 +346,17 @@ public static class ConsoleTui
                 autoUpdateItem.Title = string.Format(Dictionary.MenuAutoUpdate, AutoUpdate.Enabled ? Dictionary.On : Dictionary.Off);
             });
 
+            // Crash-diagnostics toggle: whether sanitized crash reports are sent to the GitHub
+            // repository (see CrashReporter.cs). State shown in the title, like Auto-Update.
+            MenuItem crashReportItem = null!;
+            crashReportItem = new MenuItem(string.Format(Dictionary.MenuCrashReport, CrashReporter.Enabled ? Dictionary.On : Dictionary.Off), Key.Empty, () =>
+            {
+                CrashReporter.Toggle();
+                Log.LogStep($"TUI CrashReport toggled: {CrashReporter.Enabled}", monitor: true);
+                AddNote(CrashReporter.Enabled ? Dictionary.NoteCrashReportEnabled : Dictionary.NoteCrashReportDisabled);
+                crashReportItem.Title = string.Format(Dictionary.MenuCrashReport, CrashReporter.Enabled ? Dictionary.On : Dictionary.Off);
+            });
+
             var menu = new MenuBar(new MenuBarItem[]
             {
                 new(Dictionary.MenuChat, new MenuItem[]
@@ -379,10 +392,12 @@ public static class ConsoleTui
                 new(Dictionary.MenuWeb, new MenuItem[]
                 {
                     new MenuItem(Dictionary.MenuGui, Key.Empty, () => RunCommandByName("web", "")),
+                    new MenuItem(Dictionary.MenuOfficeManager, Key.Empty, () => RunCommandByName("officemanager", "")),
                 }),
                 new(Dictionary.MenuHelp, new MenuItem[]
                 {
                     autoUpdateItem,
+                    crashReportItem,
                     new MenuItem(Dictionary.MenuHelpItem, Key.F1, () => RunCommandByName("help", "")),
                     new MenuItem(Dictionary.MenuShortcuts, Key.Empty, () => RunCommandByName("shortcuts", "")),
                     new MenuItem(Dictionary.MenuDocumentation, Key.Empty, () => RunCommandByName("docs", "")),
@@ -1285,6 +1300,13 @@ public static class ConsoleTui
             }
             await RefreshSessionStateAsync();
             UpdateStatusUi();
+        }
+
+        private Task CrashReportAsync()
+        {
+            CrashReporter.Toggle();
+            AddNote(CrashReporter.Enabled ? Dictionary.NoteCrashReportEnabled : Dictionary.NoteCrashReportDisabled);
+            return Task.CompletedTask;
         }
 
         private Task ExitAsync()
@@ -2364,6 +2386,46 @@ public static class ConsoleTui
                 Log.LogStep($"TUI OpenIssues FAILED: {ex.Message}");
                 AddNote(string.Format(Dictionary.NoteOpenBrowserFailed, ex.Message));
             }
+        }
+
+        // ── OfficeManager (agents' office) ──
+        // The 16-bit office is served by THIS server at /OfficeManager (static files + the
+        // /ws/office duplex hub — see OfficeBridge.cs): no external launcher or download needed.
+        // /officemanager opens it in the OS default browser; on a server without a desktop
+        // environment the browser cannot be started, so the command reports an error instead of
+        // failing silently.
+        private Task LaunchOfficeManagerAsync()
+        {
+            if (!HasDesktopSession())
+            {
+                AddNote(Dictionary.NoteOfficeManagerNoDesktop);
+                return Task.CompletedTask;
+            }
+            var url = _serverUrl.TrimEnd('/') + "/OfficeManager";
+            try
+            {
+                Log.LogStep($"TUI OfficeManager: opening {url}", monitor: true);
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                AddNote(string.Format(Dictionary.NoteOpenedUrl, url));
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"TUI OfficeManager FAILED: {ex.Message}");
+                AddNote(string.Format(Dictionary.NoteOpenBrowserFailed, ex.Message));
+            }
+            return Task.CompletedTask;
+        }
+
+        // Desktop-session detection (same rule as AgentHarness.IsInteractiveDesktopSession): a
+        // browser can only be launched from a machine with a graphical session — Windows/macOS
+        // interactive console, or Linux with DISPLAY/WAYLAND_DISPLAY set (headless servers have
+        // neither, so the office cannot be shown there).
+        private static bool HasDesktopSession()
+        {
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
+                return Environment.UserInteractive;
+            return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"))
+                || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"));
         }
 
         // ── Web client (Giraffe AI) ──

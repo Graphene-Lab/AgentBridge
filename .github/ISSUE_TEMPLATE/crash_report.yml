@@ -1,0 +1,34 @@
+name: Crash report
+description: Automatic or manual crash report — sanitized stack trace of AgentBridge code only
+labels: [bug, crash]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is used by the automatic crash reporter (see
+        [docs/crash-reporting.md](../../docs/crash-reporting.md) in the repository).
+        The automatic report contains **only** the exception type and the stack-trace
+        frames of AgentBridge code — no user data, no exception messages, no memory
+        dumps. You can disable sending from the TUI (Help → Crash report, or
+        `/crashreport`) or with `CrashReport:Enabled=false` in appsettings.json.
+  - type: input
+    id: version
+    attributes:
+      label: AgentBridge version
+      description: Version from the status bar or the release tag (e.g. 1.26.09.01)
+      placeholder: 1.26.09.01
+    validations:
+      required: true
+  - type: textarea
+    id: trace
+    attributes:
+      label: Sanitized stack trace
+      description: Exception type chain and the stack frames of AgentBridge code (filled automatically by the crash reporter)
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: What were you doing?
+      description: Optional — the action that preceded the crash (never paste credentials or personal data)

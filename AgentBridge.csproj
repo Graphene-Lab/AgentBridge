@@ -144,6 +144,11 @@
   <ItemGroup>
     <None Include="docs\**\*" CopyToOutputDirectory="PreserveNewest" TargetPath="docs/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="scripts\setup-telegram.bat;scripts\setup-telegram.sh;scripts\sip-config.bat;scripts\sip-config.ps1;scripts\sip-config.sh" CopyToOutputDirectory="PreserveNewest" TargetPath="scripts/%(Filename)%(Extension)" />
+    <!-- The OfficeManager web app (16-bit office, served at /OfficeManager + /ws/office hub):
+         ships next to the executable like docs/ so the static files + WebSocket protocol are
+         always available wherever the server runs. Developer-only content (docs-dev/, tools/,
+         the GameBase requirements doc) stays out of the shipped copy, like everywhere else. -->
+    <None Include="OfficeManager\**\*" Exclude="OfficeManager\docs-dev\**;OfficeManager\tools\**;OfficeManager\GameBase.txt" CopyToOutputDirectory="PreserveNewest" TargetPath="OfficeManager/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
   <!-- Ship the tool plugins into Tools/<Plugin>/ so the dynamic ToolPluginHost loader can pick
        them up at startup. PLUGIN DISCOVERY IS DYNAMIC: any sibling *Tool repo whose csproj

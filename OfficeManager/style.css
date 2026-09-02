@@ -1,5 +1,14 @@
 /* 16-bit office game — retro styling with the office PNG palette
    (wall tan #baa272, dark wood #241200, floor #2e4e54, boss vest #a83030). */
+
+/* The pixel font is bundled locally (assets/fonts/) — the app never calls
+   external font services (e.g. Google Fonts), it must work fully offline. */
+@font-face {
+  font-family: "Press Start 2P";
+  src: url("assets/fonts/PressStart2P-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {

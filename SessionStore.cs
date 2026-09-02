@@ -55,6 +55,15 @@ public static class SessionStore
 {
     private static readonly ConcurrentDictionary<string, ActiveSession> Sessions = new();
 
+    // Lifecycle events consumed by the OfficeManager hub (OfficeBridge): every session — whatever
+    // medium created it (TUI chat, /v1/chat/completions, SIP, Telegram, OfficeManager chat) — is
+    // represented by an employee in the office, so the visual protocol needs the same hooks.
+    // Events fire synchronously on the creating/removing thread (inside Create/TryRemove).
+    /// <summary>Fired after a new session is created and stored.</summary>
+    public static event Action<ActiveSession>? SessionCreated;
+    /// <summary>Fired after a session was disposed and removed (idle cleanup or explicit removal).</summary>
+    public static event Action<ActiveSession>? SessionRemoved;
+
     // Periodic cleanup of idle sessions (the timer keeps the process alive — fine for a server).
     private static readonly System.Threading.Timer CleanupTimer =
         new(_ => Cleanup(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
@@ -87,7 +96,11 @@ public static class SessionStore
             AsyncTaskDeliveryEnabled = true,
             IsSessionBacked = true
         });
+        // The orchestrator carries the session id in its InstanceId so every AgentProgress/GlobalProgress
+        // event of this conversation is correlated to the session (OfficeManager employee ↔ session).
+        session.Orchestrator.InstanceId = id;
         Sessions[id] = session;
+        try { SessionCreated?.Invoke(session); } catch { }
         return session;
     }
 
@@ -96,6 +109,7 @@ public static class SessionStore
     {
         if (!Sessions.TryRemove(id, out var session)) return false;
         try { session.Dispose(); } catch { }
+        try { SessionRemoved?.Invoke(session); } catch { }
         return true;
     }
 

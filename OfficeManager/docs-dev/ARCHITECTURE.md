@@ -8,7 +8,7 @@ to them through a text-adventure style chat.
 ## File layout
 
 ```
-OfficeView/
+OfficeManager/
 ├── index.html          # page: #gamebox (canvas + chat), font, scripts
 ├── style.css           # retro styling, palette taken from the office PNGs
 ├── game.js             # the whole game (~600 lines, vanilla JS, no deps)
@@ -17,6 +17,7 @@ OfficeView/
 │   ├── office-ground.png   # walkable layer (complementary to office.png)
 │   ├── office-ground.svg   # vector reference of the walkable area (source of truth)
 │   ├── office-mask.js      # GENERATED: bit-packed walkable mask (see ASSETS.md)
+│   ├── fonts/              # LOCAL Press Start 2P font — no external https calls
 │   ├── person.json         # LPC generator config of a generic employee (reference only)
 │   ├── boss/, employee A..E/
 │   │   ├── character.json  # LPC generator config (palette differences)
@@ -27,6 +28,12 @@ docs-dev/
 ├── ARCHITECTURE.md     # this file
 └── ASSETS.md           # asset inventory + how derived assets are produced
 ```
+
+The app is served by AgentBridge (static files at `/OfficeManager`) and talks to
+it over a duplex WebSocket (`/ws/office`); the wire protocol is documented in
+`AgentBridge/OfficeBridge.cs`. The employee roster is server-authoritative: the
+browser renders employees as the server spawns/assigns/closes them.
+
 
 `index.html` loads `assets/office-mask.js` (plain `const` globals) before
 `game.js`. Everything else is loaded asynchronously by `loadAssets()`.
@@ -238,6 +245,12 @@ phone, typed chat messages are logged without replacing the bubble.
 white with black border, tail towards the speaker) and pushes the line to the
 chat console. All speech is logged; **engagement events are not**.
 
+**Agent method bubbles** (`Person.sayMethod`): while an agent executes a tool,
+its bubble shows the tool CLASS and the METHOD, each PascalCase-split into words
+and joined by ", " — `methodWords("FileTool.FileSearch")` → **"File Tool, File Search"**.
+The bubble is persistent (replaced by the next method, cleared when the run ends);
+bare reserved methods (done, cli, ...) have no class and show only their split words.
+
 `Chat` is a typewriter queue (30 ms/char) that appends to `#log` and
 auto-scrolls. User text is HTML-escaped (`esc()`).
 
@@ -283,11 +296,11 @@ All tunables are at the top of `game.js`: speeds, radii, timers, the phone
 zone, the clock spot, the navigation cell, the sprite scale, the ambient-line
 schedule (12 s floor + exponential tail, mean ≈ 60 s per employee).
 
-## Canvas tainting on file:// (why the mask is precomputed)
+## Why the mask is precomputed
 
-`index.html` runs directly from disk. In Chromium, drawing a `file://` image
-onto a canvas taints it, so `getImageData()` throws — that is why the walkable
-mask is shipped as generated data (`assets/office-mask.js`) instead of being
-read from the PNG at startup. Do not replace the mask with a runtime pixel
-read unless you require serving the game over HTTP (where the taint does not
-apply) — and even then, the embedded mask is exact and faster.
+The app is served by AgentBridge over HTTP (no canvas taint), but the walkable
+mask is still shipped as generated data (`assets/office-mask.js`) instead of
+being read from the PNG at startup: the precomputed mask is exact, loads
+instantly and keeps the runtime deterministic. Do not replace it with a
+runtime pixel read — the embedded mask is the single source of truth for
+collision while the two PNG layers drive the rendering.
