@@ -1,0 +1,40 @@
+You need to create a game using HTML, CSS, JavaScript, in a 16-bit style that shows an office with a "Top-Down" (Oblique Projection) view and employees moving around the office between desks. You control one of them with the arrow keys (the boss).
+When the boss approaches an employee, that employee is engaged. The employee can also be engaged with the Tab key or with the mouse.
+At the bottom, there is a chat like those in 16-bit text adventure games, used to make the boss talk to the engaged employee. The engaged employee says "Boss, give orders!", and responds "Ok boss!" to any message. What employees say appears in a speech bubble (the bubble must adapt to the text and be multi-line if necessary).
+Randomly, on average once per minute, the employee must say "I am working" or "I'm in a hurry".
+Requirements:
+- The engaged employee is stationary.
+- The game view is very large (high-res, adapted to modern monitor sizes).
+- Only one employee can be engaged at a time (if one is engaged, you cannot engage another).
+- An employee loses engagement after 1 minute of boss inactivity, and if the engagement happened via contact area, the boss leaves that area.
+- The label "boss" above the boss disappears when he moves or talks, and reappears after 10 seconds of inactivity.
+- No redundancies in the code.
+- Boss and employees share the same sprites with a different palette to distinguish them.
+- Comments and text in the code are in English.
+- 16-bit game sound effects.
+- The cursor is always in the text input area.
+- What the characters (boss and employees) say appears in the speech bubble and is logged as a message in the chat. Engagement actions or other events are not logged in the chat.
+- If the boss engages the phone, the speech bubble shows "I have to call".
+- The office does not scroll (it is a single view).
+- On the back wall on the right, there is space for a working clock.
+- On the left side of the wall, in sequence, there is the door and then a wall phone. When the boss is at the phone, he must say: "I have to call".
+
+Assets already present:
+The office is already provided, divided into 2 parts: office.png, office-ground.png
+- office.png is the non-walkable part (in this image the floor is transparent): desks, walls, furniture.
+- office-ground.png is the walkable part with the parts contained in office.png transparent.
+- office-ground.svg is the vector version that acts as the deterministic part (to have an exact idea of the delimited area where characters walk).
+- office.png and office-ground.png are complementary (the transparent parts of one correspond to the solid parts of the other; these two parts must be overlaid). This facilitates the graphics engine by placing the characters (employees and boss) above office-ground.png but below office.png.
+Characters can go behind objects only in the upper part of these objects, for a limit in pixel height, while when they are in front they can move above them until their feet reach the base: For example, when the character is at the back of the office, he can overlap with his body on the background wall until his feet reach the start of the wall. The same happens when he is in front of a desk. If he comes from behind, he can be partially behind the object, since this is a perspective view. For example, he can stand behind the desk only with his legs, but his body remains outside.
+
+The image office.png is composed of: on the left the photocopier, on the right a filing cabinet (shelf), in the middle 8 desks arranged in 3 rows (3+3+2), and at the back the wall with some furniture elements placed against it (that is why the back line is not straight: when it goes down it means there are furnishings or objects against the wall).
+
+You should know how to handle this type of graphic setup! I have given you the basic guidelines.
+
+In the assets folder we have the boss, and 5 employee models (A, B, C, D, E). Only the jacket color changes so they don't all look the same.
+
+You may fetch assets from the internet if needed (fonts, sounds, elements, etc.).
+
+The assets are in the "/assets" folder.
+
+If you have questions, feel free to ask!
