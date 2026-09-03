@@ -55,6 +55,7 @@ if [ -z "$ps_cmd" ]; then
   exit 1
 fi
 
+echo "pre-push: ⚠ review docs-dev/RELEASE-CHECKLIST.md — do not push a release while any box is unchecked (no config json next to the exe, persistent files under PersistentData/)."
 echo "pre-push: syncing dependency repos (code-only — no NuGet publish on plain pushes)..."
 # -SkipSelf: sync only the dependency repos — AgentBridge itself is pushed by this git push
 # (pushing it here too would make the original push fail with a stale-ref lock error).

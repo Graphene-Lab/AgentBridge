@@ -2164,12 +2164,13 @@ public static class ConsoleTui
             AddNote($"TTS engine set to {engine} — persisted in appsettings Tts:Engine.");
         }
 
-        /// <summary>Persists the preferred TTS engine into appsettings.json (Tts:Engine).</summary>
+        /// <summary>Persists the preferred TTS engine into appsettings.json (Tts:Engine), the
+        /// user-editable copy under PersistentData\ (AppConfig).</summary>
         private static void PersistTtsEngine(string engine)
         {
             try
             {
-                var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+                var path = AppConfig.AppSettingsFile;
                 if (!File.Exists(path)) return;
                 var doc = JsonNode.Parse(File.ReadAllText(path)) as JsonObject;
                 if (doc == null) return;

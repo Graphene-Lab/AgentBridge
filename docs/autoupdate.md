@@ -47,16 +47,17 @@ The update mechanism respects the three tiers defined in
 
 | Tier | Rule |
 |---|---|
-| `PersistentData\` (user-editable config) | never touched — not present in the archive, never written |
+| `PersistentData\` (user-editable config: `appsettings.json`, `providers.json`, `telegram.json` + `telegram.session`, `tools.json`, `rag_settings.json`) | never touched — not present in the archive, never written |
 | OS app-data folder `<AppData>\agent\` (SMTP/IMAP credentials, `setup.json`, `autoupdate.json`; LLM API keys are NOT here — they live per-provider in `providers.json`) | never touched — outside the app folder by construction |
-| Distribution content (everything else) | replaced when changed, with **two exceptions** |
+| Distribution content (everything else) | replaced when changed — **no exceptions, no whitelist** |
 
-The exceptions: **`appsettings.json`** (server config) and **`providers.json`** (LLM
-provider definitions) are stripped from the extracted copy before the swap, so the
-user's configuration is never overwritten. Everything else — including the other
-`.json` files in the archive (`.playwright/package/*.json`,
-`agent.staticwebassets.endpoints.json`) — is distribution content and is replaced.
-Protection is by **whitelist**, never by file extension.
+User-editable configuration lives ONLY under `PersistentData\` (single-directory rule): the
+archive never contains it, so replacing the distribution content can never overwrite your
+settings. Legacy files left next to the executable by an older version are moved into
+`PersistentData\` automatically on the first start. Every `.json` at the archive root
+(`.playwright/package/*.json`, `agent.staticwebassets.endpoints.json`) is generated content
+and is replaced like everything else — protection is by the directory rule, never by file
+extension.
 
 Files are copied only when they changed (length + SHA-256 comparison); the executable
 is always replaced (never compared — a fresh build is the point of the update).

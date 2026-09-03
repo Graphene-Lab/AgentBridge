@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using System.Collections.Concurrent;
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.FileProviders;
 using AIOrchestrator;
 using UISupportGeneric;
@@ -155,12 +156,40 @@ if (args.Contains("--apply-update"))
 // Remove leftovers of a previous update (rollback .old, stale temp area).
 AutoUpdate.CleanupOnStartup();
 
-// Content root = the executable's folder (not the CWD): the standalone exe must find
-// appsettings.json even when launched from another directory (double click, services, tests).
+// Single persistent-config layout (AppConfig): CWD anchored to the executable folder, legacy
+// root config files (appsettings/providers/telegram/tools) migrated into PersistentData\,
+// default appsettings seeded. In DEBUG, refuse to start when config json still sits next to
+// the executable — the tripwire that keeps the layout rule from regressing (see the
+// RELEASE-CHECKLIST before any push).
+AppConfig.Initialize();
+AppConfig.GuardNoStrayRootJson();
+
+// LLM provider definitions (providers.json) obey the same rule: read/written under
+// PersistentData\ for this host. The engine default (next to the exe) stays unchanged, so
+// other hosts (AIOffice) keep their current layout. Seed the embedded factory copy so the
+// file exists (and is hand-editable) from the first run.
+ProviderConfigs.ConfigDirectory = AppConfig.PersistentDir;
+ProviderConfigs.EnsureDefaultFile();
+
+// Content root = the executable's folder (not the CWD): the standalone exe must find its
+// content even when launched from another directory (double click, services, tests).
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
     ContentRootPath = AppContext.BaseDirectory
+});
+
+// appsettings.json is user-editable config and lives under PersistentData\ (AppConfig): the
+// configuration chain is re-pointed at it WITHOUT changing precedence — the source is inserted
+// first, so environment variables and the command line still override it (as when the file sat
+// at the content root). The Web SDK's own content-root appsettings providers stay in the chain
+// but find nothing, because no appsettings.json is shipped next to the exe anymore.
+builder.Configuration.Sources.Insert(0, new JsonConfigurationSource
+{
+    FileProvider = new PhysicalFileProvider(AppConfig.PersistentDir),
+    Path = "appsettings.json",
+    Optional = true,
+    ReloadOnChange = false
 });
 
 // The TUI (Tui.cs) is built on Terminal.Gui v2 — before changing anything about
@@ -316,7 +345,7 @@ StatelessConversation.Init();
 SipBridge.Init(app.Configuration, startupProvider, anonymize);
 
 // Telegram chat medium (WTelegramClient userbot — see docs/telegram.md): initialized from
-// telegram.json (a standalone file next to the executable, never overwritten by updates).
+// telegram.json under PersistentData\ (never overwritten by updates).
 // The bridge starts at boot only when Enabled=true; the login is fully automatic when the
 // .session file already exists, otherwise the TUI drives the pending verification code.
 TelegramBridge.Init(startupProvider, anonymize);

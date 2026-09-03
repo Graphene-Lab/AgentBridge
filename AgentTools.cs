@@ -110,9 +110,10 @@ public static class AgentTools
         return set.ToArray();
     }
 
-    /// <summary>Per-tool config (tools.json next to the executable, protected from updates —
-    /// same pattern as telegram.json). Records only deviations; an absent file means "all
-    /// unspecified ⇒ defaults". Format: {"tools": { "OfficeTool": true, "FileTool": false }}.</summary>
+    /// <summary>Per-tool config (tools.json under <see cref="AppConfig.PersistentDir"/>,
+    /// protected from updates — same pattern as telegram.json). Records only deviations; an
+    /// absent file means "all unspecified ⇒ defaults". Format:
+    /// {"tools": { "OfficeTool": true, "FileTool": false }}.</summary>
     private static readonly Dictionary<string, bool> Config = LoadConfig();
 
     private static Dictionary<string, bool> LoadConfig()
@@ -120,7 +121,7 @@ public static class AgentTools
         var result = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         try
         {
-            var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tools.json");
+            var path = AppConfig.ToolsFile;
             if (!File.Exists(path)) return result;
             if (JsonSerializer.Deserialize<JsonObject>(File.ReadAllText(path))?["tools"] is not JsonObject tools)
                 return result;

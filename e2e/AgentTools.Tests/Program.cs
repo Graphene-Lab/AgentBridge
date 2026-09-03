@@ -7,18 +7,21 @@
 //   - tools.json overrides (explicit value wins, "unspecified ⇒ ON" otherwise).
 //
 // Phase 1 (no arg): asserts the defaults with NO tools.json present.
-// Phase 2 (--with-tools-json): writes {"tools": {"OfficeTool": true, "FileTool": false}} into its
-//   own output directory BEFORE the first AgentTools access (AgentTools.Config is a static snapshot
-//   loaded at first access), asserts the overrides, then deletes the file.
+// Phase 2 (--with-tools-json): writes {"tools": {"OfficeTool": true, "FileTool": false}} under
+//   PersistentData\ in its own output directory (AgentTools reads tools.json from there — the
+//   single persistent-config directory rule) BEFORE the first AgentTools access
+//   (AgentTools.Config is a static snapshot loaded at first access), asserts the overrides,
+//   then deletes the file.
 using AIOrchestrator;
 
 var withToolsJson = args.Contains("--with-tools-json");
-var toolsJsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tools.json");
+var toolsJsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PersistentData", "tools.json");
 
 if (withToolsJson)
 {
     if (File.Exists(toolsJsonPath))
         throw new InvalidOperationException("tools.json already present — delete it first");
+    Directory.CreateDirectory(Path.GetDirectoryName(toolsJsonPath)!);
     File.WriteAllText(toolsJsonPath, """{ "tools": { "OfficeTool": true, "FileTool": false } }""");
 }
 else if (File.Exists(toolsJsonPath))

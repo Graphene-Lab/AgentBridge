@@ -88,7 +88,7 @@ failing — handy to attach a UI to a running service.
 
 ## 3. Configure the JSON files
 
-Three JSON files control the server. All live next to the executable.
+Three JSON files control the server. All live under `PersistentData\`.
 
 ### `appsettings.json` — server and default LLM
 
@@ -143,10 +143,10 @@ Run `agent --help` for the full list of overrides.
 
 ### `providers.json` — the LLM providers
 
-This file defines every LLM provider the server can talk to. It is copied next to the
-executable at build time, and the server falls back to an embedded factory default if the
-file is missing or corrupt. You can edit it freely (add a provider, change a model, point
-at a local server); it is reloaded when the configuration changes.
+This file defines every LLM provider the server can talk to. It is seeded under
+`PersistentData\` on the first start, and the server falls back to an embedded factory
+default if the file is missing or corrupt. You can edit it freely (add a provider, change
+a model, point at a local server); it is reloaded when the configuration changes.
 
 ```json
 {
@@ -191,7 +191,7 @@ at a local server); it is reloaded when the configuration changes.
   regardless of name.
 - Cloud keys are sent as `Authorization: Bearer` (OpenAI/Anthropic protocols) or in the
   query string (Gemini protocol).
-- `providers.json` is excluded from updates, so configured keys survive every update.
+- `providers.json` is never touched by updates, so configured keys survive every update.
 - The same Z.ai key also enables image OCR: the attachment pipeline converts images via
   Z.ai GLM-OCR using the `Zai` provider's key. Without it, images are simply skipped.
 - Legacy note: keys set through the older per-provider `Setup` properties (e.g.
@@ -221,12 +221,19 @@ so Telegram is **not** a voice medium. Full reference:
 | `Enabled` | Master switch — the bridge starts at boot only when true |
 | `ApiId` / `ApiHash` | **Built-in** app credentials (AgentBridge's own identity — omitted from the file). Override them only to use a per-install app from https://my.telegram.org/apps |
 | `PhoneNumber` | Account phone number, international format (e.g. `+393331234567`) |
-| `SessionPath` | Session file (auth keys) next to the executable — written on the first login, then no code is asked again |
-| `AllowedUsers` | Users allowed to talk to the agent (numeric ids and/or `@usernames`). Empty = all private chats |
+| `SessionPath` | Session file (auth keys) under `PersistentData\` — written on the first login, then no code is asked again |
+| `AllowedUsers` | Users allowed to talk to the agent (numeric ids and/or `@usernames`). **Empty = nobody** — closed by default: a new user sends the access PIN to enroll (see below) or is added from the TUI |
 | `Agent` | Agent set used for the conversations |
 
-Like `providers.json`, this file is **excluded from updates** — your edits survive every
+Like `providers.json`, this file is **never touched by updates** — your edits survive every
 update.
+
+> **Access control.** Telegram is closed by default: only the users in `AllowedUsers` can
+> talk. A stranger who sends the **access PIN** — the same PIN used for SIP calls
+> (`/sip config set Pin <code>`, shown as `Sip:Pin`; wrong attempts and the lockout are
+> shared machine-wide between SIP and Telegram) — is added to the allow-list automatically
+> and welcomed with "How can I help you?". With no PIN configured the only way in is the
+> allow-list.
 
 > **Telegram quick config:** the first login is guided from the TUI (`/telegram status` →
 > `/telegram login-code <code>`). The setup scripts — `scripts/setup-telegram.bat` on
@@ -274,7 +281,7 @@ see [section 6](#6-connect-a-client-to-localhost)):
 | Command | Feature | Notes |
 |---|---|---|
 | `/model [name]` | **Switch the LLM provider** | menu when no name given; a context-window guard refuses a switch that would overflow the target model's window |
-| `/agent [name]` | **Switch the agent set** | full preset ids: `default-agent` / `web-agent` / `search-agent` / `research-agent` / `document-files` / `spreadsheet-files` / `email-agent` / `office-files` / `multi-files` / `all-files` — different tool sets; bare `/agent` opens the interactive checklist (individual tools; the core tools `FileTool`/`GitTool` are locked and always on — status changeable only via `tools.json` next to the executable) |
+| `/agent [name]` | **Switch the agent set** | full preset ids: `default-agent` / `web-agent` / `search-agent` / `research-agent` / `document-files` / `spreadsheet-files` / `email-agent` / `office-files` / `multi-files` / `all-files` — different tool sets; bare `/agent` opens the interactive checklist (individual tools; the core tools `FileTool`/`GitTool` are locked and always on — status changeable only via `tools.json` under `PersistentData\`) |
 | `/voice [lang]` | **Voice dictation** | dictates from the server microphone into the input (Windows) |
 | `/tts [text]` | **Text-to-speech** | speaks the last agent reply (or the given text) with Kokoro TTS; WAV playback |
 | `/sip status\|call\|answer\|hangup` | **SIP telephony** | phone-gate the agent: status, outgoing call, auto-answer on/off, hangup (see [section 7](#7-sip-telephony)) |
@@ -449,10 +456,10 @@ Full reference (architecture, security, NAT/firewall, deployment): **[docs/sip.m
 | File/folder | Contents |
 |---|---|
 | `agent` / `agent.exe` | The server (self-contained single file) |
-| `appsettings.json` | Server configuration (port, default LLM, voice path) |
-| `providers.json` | LLM provider definitions + the per-provider API keys (excluded from updates) |
-| `telegram.json` | Telegram chat medium configuration (excluded from updates) |
-| `telegram.session` | Telegram session file (auth keys, created on the first login) |
+| `PersistentData\appsettings.json` | Server configuration (port, default LLM, voice path) |
+| `PersistentData\providers.json` | LLM provider definitions + the per-provider API keys (never touched by updates) |
+| `PersistentData\telegram.json` | Telegram chat medium configuration (never touched by updates) |
+| `PersistentData\telegram.session` | Telegram session file (auth keys, created on the first login) |
 | `kokoro.onnx` + `voices/` | Kokoro TTS model and voices |
 | `AIOffice.VoiceAgent.Win.exe` (Windows) | Voice dictation backend |
 | `voiceagent-stt/` | `AIOffice.VoiceAgent` executable (whisper) — SIP call speech-to-text |

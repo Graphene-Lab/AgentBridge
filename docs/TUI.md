@@ -142,10 +142,11 @@ history shows them as **`[attachment: <path>]`** lines — the files are saved u
 
 The first login is TUI-guided: `/telegram status` shows `code` while the verification code
 is pending, `/telegram login-code <code>` completes it (a 2FA password, if the account has
-one, is submitted the same way), and the session persists in `telegram.session` — no code
-is asked again. Configuration lives in `telegram.json` next to the executable (excluded
-from updates); edit it by hand, with the setup scripts (`scripts/setup-telegram.bat` on
-Windows, `scripts/setup-telegram.sh` on Linux/macOS), or with these commands. Full
+one, is submitted the same way), and the session persists in `telegram.session` under
+`PersistentData\` — no code is asked again. Configuration lives in `telegram.json` under
+`PersistentData\` (never touched by updates); edit it by hand, with the setup scripts
+(`scripts/setup-telegram.bat` on Windows, `scripts/setup-telegram.sh` on Linux/macOS),
+or with these commands. Full
 reference: [docs/telegram.md](telegram.md).
 
 ## Models & Providers setup

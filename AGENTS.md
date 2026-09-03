@@ -3,6 +3,16 @@
 > The full release/NuGet mechanism (diagrams, pitfalls, integration checklist) is in
 > **[docs-dev/RELEASING.md](docs-dev/RELEASING.md)** — read it before touching the release pipeline.
 
+## ⚠️ Before ANY push or release — developer checklist
+
+**Read and satisfy [docs-dev/RELEASE-CHECKLIST.md](docs-dev/RELEASE-CHECKLIST.md) before every
+push or release** (the pre-push hook prints the reminder). It is short on purpose: the layout
+rules the code enforces — no config/state json next to the executable (only SDK-generated
+`agent.*.json`), persistent files under `PersistentData\` or the OS app-data folder, the app
+must run when launched from any directory — must never regress. A Debug build of agent refuses
+to start when a stray json sits next to the exe (AppConfig); treat that refusal as a blocker.
+Do not push while any box is unchecked.
+
 ## Documentation: two types (READ BEFORE WRITING A GUIDE)
 
 AgentBridge has **two distinct documentation sets** — they are physically separated and

@@ -19,8 +19,8 @@ Telegram user ⇄ private chat message (text + files) ⇄ WTelegramClient (userb
                                                           │
                               filter: private chats only, own messages (echo) ignored
                                                           │
-                                      allow-list gate (AllowedUsers; empty = everyone)
-                                      — disallowed users are silently ignored
+                           access gate — allow-list (AllowedUsers; empty = nobody)
+                           or first message = shared access PIN → enrolled + welcome
                                                           │
                               per-user FIFO queue (messages answered in arrival order)
                                                           │
@@ -34,9 +34,16 @@ Telegram user ⇄ private chat message (text + files) ⇄ WTelegramClient (userb
 
 - **Private chats only.** Messages in groups/channels are ignored (as are the bot's own
   messages, so replies never echo into an endless loop).
-- **Allow-list (optional).** `AllowedUsers` in `telegram.json` restricts who can talk to
-  the agent (numeric user id or `@username`). **Empty = everyone** in a private chat, exactly
-  like the HTML client. Disallowed users are silently ignored.
+- **Closed by default.** Only the users listed in `AllowedUsers` (numeric Telegram id or
+  `@username`) can talk to the agent. **Empty = nobody** — a stranger who finds the account
+  is ignored until they authenticate.
+- **Enrollment with the access PIN.** An unlisted user who sends the **access PIN** — the
+  same PIN used for SIP calls (`Sip:Pin`, changed from the TUI with `/sip config set Pin`;
+  the two mediums share one PIN and one attempt/lockout budget) — is added to `AllowedUsers`
+  automatically and receives the same welcome used after a SIP login, as text
+  ("How can I help you?"). Wrong PINs count against the shared gate and can lock the PIN
+  out machine-wide for the configured hours. No PIN configured = the enrollment path is
+  disabled (allow-list only).
 - **Attachments both ways.** Incoming documents/photos are downloaded (cap 25 MB) and go
   through the same server-side Markdown conversion as the HTML uploads (`/v1/files`), so the
   agent reads their content. Files the agent attaches in its answer (the `done` method's
@@ -46,9 +53,9 @@ Telegram user ⇄ private chat message (text + files) ⇄ WTelegramClient (userb
 
 ## Configuration (`telegram.json`)
 
-Telegram configuration lives in its own file, **`telegram.json` next to the executable**
-— separate from `appsettings.json` on purpose, and never overwritten by updates (see
-[autoupdate.md](autoupdate.md) "the file storage tiers", same protection as `providers.json`).
+Telegram configuration lives in its own file, **`PersistentData\telegram.json`**
+— separate from `PersistentData\appsettings.json` on purpose, and never touched by updates
+(see [autoupdate.md](autoupdate.md) "the file storage tiers", same protection as `providers.json`).
 You can edit it by hand, from the TUI (`/telegram`), or with the guided setup scripts
 (`scripts/setup-telegram.bat` on Windows, `scripts/setup-telegram.sh` on Linux/macOS —
 English prompts, they create or update `telegram.json`).
@@ -59,9 +66,14 @@ English prompts, they create or update `telegram.json`).
 | `ApiId` | built-in | App api_id — AgentBridge ships with its own app identity, no need to create one. Override to use a per-install app |
 | `ApiHash` | built-in | App api_hash — same as above |
 | `PhoneNumber` | `""` | Account phone number, international format (e.g. `+393331234567`) — **the only key a new deployment must set** |
-| `SessionPath` | `"telegram.session"` | Session file (auth keys) relative to the executable dir. After the first login the session persists: no code is asked again |
-| `AllowedUsers` | `[]` | Users allowed to talk to the agent — numeric ids and/or `@usernames`, comma-separated in the TUI. Empty = all private chats |
+| `SessionPath` | `"telegram.session"` | Session file (auth keys) stored under `PersistentData\`. After the first login the session persists: no code is asked again |
+| `AllowedUsers` | `[]` | Users allowed to talk to the agent — numeric ids and/or `@usernames`, comma-separated in the TUI. **Empty = nobody** (closed by default): users enroll by sending the access PIN (see above) or are added from the TUI |
 | `Agent` | `"default-agent"` | Agent set used for the conversations (see AgentTools.Resolve) |
+
+> **Access PIN.** Telegram shares the external-client access PIN with SIP: set it once with
+> `/sip config set Pin <code>` (shown masked as `Sip:Pin` in the appsettings config). The PIN
+> gate is machine-wide — wrong attempts from SIP **and** Telegram accumulate and a lockout
+> blocks both for `Sip:LockoutHours`.
 
 ## First login (one time only)
 

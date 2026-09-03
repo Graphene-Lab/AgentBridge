@@ -1069,8 +1069,7 @@ public static class SipBridge
         }
     }
 
-    private static string ConfigFilePath() =>
-        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+    private static string ConfigFilePath() => AppConfig.AppSettingsFile;
 
     private static object? ParseConfigValue(Type type, string? value)
     {
@@ -1109,8 +1108,8 @@ public static class SipBridge
     }
 
     /// <summary>Persists the effective "Sip" section back to appsettings.json, preserving every
-    /// other section of the file. appsettings.json is a runtime file for this server (updates
-    /// never overwrite it — see AutoUpdate.cs), so it is safe to write from here.</summary>
+    /// other section of the file. appsettings.json lives under PersistentData\ (AppConfig) — a
+    /// runtime file the updates never touch, so it is safe to write from here.</summary>
     private static string? PersistConfig()
     {
         try
@@ -1634,6 +1633,30 @@ public static class SipBridge
         catch (Exception ex)
         {
             Log.LogStep($"SIP lockout state not persisted: {ex.Message}");
+        }
+    }
+
+    // ─── Shared external-client access PIN (SIP calls + Telegram) ───────
+
+    /// <summary>Validates a WHOLE-STRING access-PIN submission from a non-voice medium
+    /// (Telegram). The PIN is the appsettings "Sip:Pin" value, shared by every medium (SIP
+    /// DTMF, Telegram text, future ones) and changed in ONE TUI place (/sip config set Pin).
+    /// Attempts and lockout are machine-wide across mediums (same PinAuthGate instance as SIP,
+    /// persisted in the app-data sipstate.json); an in-progress DTMF entry is never disturbed
+    /// (the submission is refused without consuming an attempt).</summary>
+    internal static PinCheckResult SubmitClientPin(string candidate)
+    {
+        lock (Sync)
+        {
+            var pin = Cfg?.Pin?.Trim() ?? "";
+            if (pin.Length == 0) return PinCheckResult.Incomplete;   // no access PIN configured
+            var text = candidate?.Trim() ?? "";
+            if (text.Length != pin.Length || Gate.PendingDigits > 0)
+                return Gate.IsLocked ? PinCheckResult.Locked : PinCheckResult.Wrong;
+            Gate.Submit(text);
+            if (!Gate.TrySubmitPending(out var result)) return PinCheckResult.Incomplete;
+            if (result == PinCheckResult.Locked) SaveLockout();
+            return result;
         }
     }
 

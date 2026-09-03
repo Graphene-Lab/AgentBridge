@@ -281,9 +281,11 @@ public static class AutoUpdate
         using (var gz = new GZipStream(File.OpenRead(archive), CompressionMode.Decompress))
             TarFile.ExtractToDirectory(gz, extract, overwriteFiles: true);
 
-        // Protected (see docs-dev/RELEASING.md): the user's server config, provider list
-        // and Telegram config are never overwritten. Everything else in the archive is
-        // distribution content.
+        // Legacy archives (pre-PersistentData layout) still carried the root config json
+        // (appsettings/providers/telegram): strip them from the extract so an upgrade never
+        // places user config next to the executable. Since the single-directory layout
+        // (AppConfig), user-editable config lives in PersistentData\ — never part of an
+        // archive — so nothing else needs protecting.
         File.Delete(Path.Combine(extract, "appsettings.json"));
         File.Delete(Path.Combine(extract, "providers.json"));
         File.Delete(Path.Combine(extract, "telegram.json"));

@@ -8,7 +8,12 @@ The first time you connect, AgentBridge guides you through the process from the 
 
 ## Who can talk to the assistant
 
-You decide who is allowed to write. AgentBridge keeps an allow-list: only the people you add can talk to the assistant, and everyone else is ignored. You can add or remove people at any time, using either their username or their numeric ID.
+You decide who is allowed to write. AgentBridge keeps an allow-list: only the people you add
+can talk to the assistant, and everyone else is ignored. You can add or remove people at any
+time, using either their username or their numeric ID. There is also a self-service way in:
+if you configure the **access PIN** (the same one used for phone access, see the phone
+guide), a person who sends it to the assistant in chat is added to the allow-list
+automatically and gets a welcome reply.
 
 ## Files in both directions
 

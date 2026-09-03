@@ -112,11 +112,11 @@ curl -N http://localhost:5290/v1/chat/completions \
 | `session_id` | **Extension** — multi-turn session id (see [Sessions](#sessions-multi-turn-memory)). |
 | `llm_provider` | **Extension** — LLM provider for this request (see [LLM switching](#llm-switching-the-pilot-endpoint)). |
 
-> **Per-tool configuration (`tools.json`).** A JSON file next to the executable overrides a
+> **Per-tool configuration (`tools.json`).** A JSON file under `PersistentData\` overrides a
 > tool's default status — `{"tools": {"OfficeTool": true}}` enables the class-B `OfficeTool`
 > (default OFF), `{"tools": {"FileTool": false}}` disables a core tool. The rule is
 > **"unspecified ⇒ ON"**: a tool with no explicit entry uses its default (class-A tools ON,
-> class-B tools OFF). An absent file means all defaults. The file is never overwritten by
+> class-B tools OFF). An absent file means all defaults. The file is never touched by
 > updates (same pattern as `telegram.json`). The dynamic `all-files` preset resolves to
 > every loaded tool the config leaves enabled.
 
@@ -295,7 +295,7 @@ the agent harness, and configuration is driven from the TUI (`/telegram`), which
 `TelegramBridge` directly. **There are no `/v1/telegram/*` HTTP endpoints** — Telegram is
 not a web client, so nothing about it is exposed over HTTP.
 
-Configuration lives in `telegram.json` next to the executable (excluded from updates) — set
+Configuration lives in `telegram.json` under `PersistentData\` (never touched by updates) — set
 it by hand, with the setup scripts (`scripts/setup-telegram.bat` on Windows,
 `scripts/setup-telegram.sh` on Linux/macOS), or from the TUI `/telegram` command. Config
 keys (case-insensitive): `Enabled`, `ApiId`, `ApiHash`, `PhoneNumber`, `SessionPath`,

@@ -96,10 +96,12 @@ internal static class Program
         Check("status exposes stt/tts availability flags", sttFlag && ttsFlag);
 
         // ── Config surface: GET /v1/sip/config (masked), set (live), bad input ──
-        // The set endpoint persists the "Sip" section to the executable's appsettings.json —
-        // back it up and restore it so the developer's local config is never left modified.
+        // The set endpoint persists the "Sip" section to PersistentData\appsettings.json next
+        // to the executable (single persistent-config directory) — back it up and restore it so
+        // the developer's local config is never left modified.
         Console.WriteLine("Config: /v1/sip/config read/write surface");
-        var appsettingsPath = Path.Combine(Path.GetDirectoryName(agentExe)!, "appsettings.json");
+        var appsettingsPath = Path.Combine(Path.GetDirectoryName(agentExe)!, "PersistentData", "appsettings.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(appsettingsPath)!);
         var appsettingsBackup = File.Exists(appsettingsPath) ? File.ReadAllText(appsettingsPath) : null;
         try
         {

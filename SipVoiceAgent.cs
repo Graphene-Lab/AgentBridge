@@ -91,6 +91,9 @@ public static class SipVoiceAgent
                 var psi = new ProcessStartInfo
                 {
                     FileName = ExePath,
+                    // Anchor the child to its own folder: the host may have been launched from
+                    // any directory, and the child must not inherit an arbitrary CWD.
+                    WorkingDirectory = Path.GetDirectoryName(ExePath) ?? AppContext.BaseDirectory,
                     UseShellExecute = false,
                     RedirectStandardInput = true,
                     RedirectStandardOutput = true,

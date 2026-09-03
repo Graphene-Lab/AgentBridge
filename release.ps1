@@ -152,6 +152,13 @@ $nugetWaitRegex = '<NuGetWait>\s*(true|false)\s*</NuGetWait>'
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $syncMsg = "Update at $(Get-Date -Format HH:mm)"
 
+Write-Host ""
+Write-Host "RELEASE-CHECKLIST (docs-dev/RELEASE-CHECKLIST.md) — stop while any box is unchecked:"
+Write-Host "  * no config/state json next to the executable (only SDK-generated agent.*.json)"
+Write-Host "  * persistent files under PersistentData\ or the OS app-data folder"
+Write-Host "  * Debug build starts clean (stray-json guard silent) and the app runs from any CWD"
+Write-Host ""
+
 function Set-IsPrerelease([string]$value, [switch]$Push, [switch]$SkipCi) {
     $content = [regex]::Replace([System.IO.File]::ReadAllText($csprojPath), $gateRegex, "<IsPrerelease>$value</IsPrerelease>", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     [System.IO.File]::WriteAllText($csprojPath, $content, $utf8NoBom)

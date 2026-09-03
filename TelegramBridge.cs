@@ -14,12 +14,21 @@ using WTelegram;
 /// attachments) is sent back to the same chat. No audio: the Telegram Client API has no
 /// audio-call support, so only text and files travel.
 ///
-/// Configuration lives in telegram.json next to the executable (never overwritten by updates,
-/// see AutoUpdate.cs) and is editable from the TUI (/telegram) or by hand. The app credentials
-/// (api_id/api_hash) are built-in by default — a deployment only needs to set the phone_number
-/// (any instance can still override the app identity in telegram.json). First login is guided
-/// from the TUI: the verification_code (and 2FA password if enabled) is requested via the
-/// pending-login flow (/telegram login-code) and the session is persisted in a .session file.
+/// Configuration lives in telegram.json under PersistentData\ (never overwritten by updates,
+/// see AppConfig + AutoUpdate.cs) and is editable from the TUI (/telegram) or by hand. The app
+/// credentials (api_id/api_hash) are built-in by default — a deployment only needs to set the
+/// phone_number (any instance can still override the app identity in telegram.json). First
+/// login is guided from the TUI: the verification_code (and 2FA password if enabled) is
+/// requested via the pending-login flow (/telegram login-code) and the session is persisted in
+/// a .session file under the same folder.
+///
+/// ACCESS CONTROL (closed by default): only users listed in <see cref="TelegramConfig.AllowedUsers"/>
+/// (numeric Telegram ids and/or @usernames) may talk to the agent. An unlisted user who sends
+/// the shared external-client access PIN — the same "Sip:Pin" used for SIP calls, changed from
+/// the TUI with `/sip config set Pin` — is added to the allow-list on the spot and greeted with
+/// the same "How can I help you?" used after a SIP login, as text. Wrong/locked PIN attempts
+/// share the SIP gate budget (machine-wide lockout, persisted in the app-data sipstate.json),
+/// so guessing is rate-limited across every medium.
 /// </summary>
 public static class TelegramBridge
 {
@@ -62,12 +71,13 @@ public static class TelegramBridge
         /// <summary>Account phone number in international format (e.g. +393331234567).</summary>
         public string PhoneNumber { get; set; } = "";
 
-        /// <summary>Session file (auth keys) relative to the executable directory. One pairing
+        /// <summary>Session file (auth keys) under PersistentData\. One pairing
         /// is enough: after the first login the session persists and no code is asked again.</summary>
         public string SessionPath { get; set; } = "telegram.session";
 
-        /// <summary>Users allowed to talk to the agent. Empty = everyone in private chats
-        /// (like the HTML client). Entries are numeric user ids and/or @usernames.</summary>
+        /// <summary>Users allowed to talk to the agent (numeric Telegram ids and/or @usernames).
+        /// CLOSED BY DEFAULT: an empty list denies everyone — an unlisted user must first send
+        /// the shared access PIN (see the class docs) to be enrolled.</summary>
         public List<string> AllowedUsers { get; set; } = new();
 
         /// <summary>Agent set used for the conversations (see AgentTools.Resolve).</summary>
@@ -404,7 +414,7 @@ public static class TelegramBridge
         "api_id" => _cfg.ApiId.ToString(),
         "api_hash" => _cfg.ApiHash,
         "phone_number" => _cfg.PhoneNumber,
-        "session_pathname" => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _cfg.SessionPath),
+        "session_pathname" => Path.Combine(AppConfig.PersistentDir, _cfg.SessionPath),
         // verification_code / password / name: return null so WTelegramClient signals the
         // pending item through Client.Login() (the "request/response" dance in RunLoginAsync)
         // instead of asking this callback. The StartAsync login loop then sets the phase and
@@ -429,19 +439,22 @@ public static class TelegramBridge
         catch (TaskCanceledException) { throw new InvalidOperationException("Telegram login cancelled"); }
     }
 
-    private static Task OnUpdate(Update update)
+    private static async Task OnUpdate(Update update)
     {
-        if (update is not UpdateNewMessage { message: Message message }) return Task.CompletedTask;
-        if (message.flags.HasFlag(Message.Flags.out_)) return Task.CompletedTask; // our own message (echo)
-        if (message.peer_id is not PeerUser) return Task.CompletedTask;           // private chats only
+        if (update is not UpdateNewMessage { message: Message message }) return;
+        if (message.flags.HasFlag(Message.Flags.out_)) return; // our own message (echo)
+        if (message.peer_id is not PeerUser) return;           // private chats only
         var userId = (message.from_id as PeerUser)?.user_id ?? message.peer_id.ID;
-        if (userId == 0) return Task.CompletedTask;
+        if (userId == 0) return;
 
-        // Allow-list: empty = everyone (HTML-client behaviour). Disallowed users are silently ignored.
+        // Allow-list (closed by default): only listed users may talk. An unlisted user whose
+        // message is the shared access PIN is enrolled on the spot (see TryEnrollByPinAsync);
+        // everything else from unlisted users is silently ignored.
         if (!IsAllowed(userId))
         {
-            Log.LogStep($"Telegram: ignoring message from user {userId} (not in the allow-list)");
-            return Task.CompletedTask;
+            if (await TryEnrollByPinAsync(userId, message)) return;
+            Log.LogStep($"Telegram: ignoring message from user {userId} (not in the allow-list — send the access PIN to enroll)");
+            return;
         }
 
         // Fire-and-forget: the agent run can take minutes and the UpdateManager must keep
@@ -450,7 +463,46 @@ public static class TelegramBridge
         // reply to message 2 before message 1 (the session gate serializes access but does
         // not order it).
         EnqueuePeer(userId, message);
-        return Task.CompletedTask;
+    }
+
+    /// <summary>Closed-by-default enrollment: an unlisted user who sends the shared external-client
+    /// access PIN (the same "Sip:Pin" used for SIP calls — see <see cref="SipBridge.SubmitClientPin"/>)
+    /// is added to the allow-list (persisted) and greeted with the same "How can I help you?" used
+    /// after a SIP login, as plain text. Wrong/locked attempts consume the shared gate budget.</summary>
+    private static async Task<bool> TryEnrollByPinAsync(long userId, Message message)
+    {
+        try
+        {
+            var result = SipBridge.SubmitClientPin(message.message ?? "");
+            if (result == PinCheckResult.Accepted)
+            {
+                AddAllowedUser(userId.ToString());
+                var peer = await ResolvePeerAsync(userId);
+                if (peer != null)
+                    await _client!.SendMessageAsync(peer, Dictionary.SipAnnounceWelcomeOk);
+                Log.LogStep($"Telegram: user {userId} enrolled with the access PIN");
+                return true;
+            }
+            if (result is PinCheckResult.Wrong or PinCheckResult.Locked)
+                Log.LogStep($"Telegram: access-PIN attempt from {userId} → {result}");
+            return false;   // not a valid PIN attempt (or no PIN configured) — the message is ignored
+        }
+        catch (Exception ex)
+        {
+            Log.LogStep($"Telegram: access-PIN enrollment failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>Resolves the input peer for a user (populating the manager cache on demand).</summary>
+    private static async Task<InputPeerUser?> ResolvePeerAsync(long userId)
+    {
+        if (_manager!.Users.TryGetValue(userId, out var sender) && sender.access_hash != 0)
+            return new InputPeerUser(userId, sender.access_hash);
+        await _client!.Messages_GetAllDialogs();   // populate the manager caches
+        if (_manager!.Users.TryGetValue(userId, out sender) && sender.access_hash != 0)
+            return new InputPeerUser(userId, sender.access_hash);
+        return null;
     }
 
     // FIFO chain per user: every incoming message waits for the previous one of the same
@@ -472,17 +524,12 @@ public static class TelegramBridge
     {
         try
         {
-            if (!_manager!.Users.TryGetValue(userId, out var sender))
-            {
-                await _client!.Messages_GetAllDialogs(); // populate the manager caches
-                _manager.Users.TryGetValue(userId, out sender);
-            }
-            if (sender == null || sender.access_hash == 0)
+            var peer = await ResolvePeerAsync(userId);
+            if (peer == null)
             {
                 Log.LogStep($"Telegram: cannot resolve user {userId} (no access hash) — reply skipped");
                 return;
             }
-            var peer = new InputPeerUser(userId, sender.access_hash);
 
             // Incoming attachments: Telegram documents/photos are downloaded and handed to the
             // harness as FileAttachment — the server-side Markdown conversion pipeline then
@@ -598,17 +645,16 @@ public static class TelegramBridge
         // TUI thread while OnUpdate (background) reads it — iterating the live list could throw.
         List<string> allowed;
         lock (Sync) allowed = _cfg.AllowedUsers.ToList();
-        if (allowed.Count == 0) return true;
+        if (allowed.Count == 0) return false;   // closed by default: nobody but the allow-list
         if (allowed.Any(u => long.TryParse(u.Trim(), out var id) && id == userId)) return true;
         if (_manager?.Users.TryGetValue(userId, out var user) == true && user.username != null)
             return allowed.Any(u => u.Trim().TrimStart('@').Equals(user.username, StringComparison.OrdinalIgnoreCase));
         return false;
     }
 
-    // ─── Config file persistence (telegram.json, protected from updates) ─
+    // ─── Config file persistence (telegram.json under PersistentData, protected from updates) ─
 
-    private static string ConfigFilePath() =>
-        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "telegram.json");
+    private static string ConfigFilePath() => AppConfig.TelegramFile;
 
     private static void LoadFromFile()
     {

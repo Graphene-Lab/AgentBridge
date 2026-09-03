@@ -72,11 +72,15 @@ public static class VoiceBridge
         Process? process = null;
         try
         {
+            var exe = ResolveExe()!;
             process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = ResolveExe()!,
+                    FileName = exe,
+                    // Anchor the child to its own folder: the host may have been launched from
+                    // any directory, and the child must not inherit an arbitrary CWD.
+                    WorkingDirectory = Path.GetDirectoryName(exe) ?? AppContext.BaseDirectory,
                     UseShellExecute = false,
                     RedirectStandardInput = true,
                     RedirectStandardOutput = true,

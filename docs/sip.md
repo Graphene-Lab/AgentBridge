@@ -69,6 +69,12 @@ Implemented with [SIPSorcery](https://github.com/sipsorcery-org/sipsorcery) 10.0
 
 Every key is overridable from the command line (`--Sip:Pin 12345`, ...).
 
+> **`Pin` is the shared external-client access PIN.** The same `Sip:Pin` is used by Telegram:
+> a stranger who writes it in a private Telegram chat is enrolled in the Telegram allow-list
+> (see [telegram.md](telegram.md)). Wrong attempts and the lockout are machine-wide across
+> SIP and Telegram (one `PinAuthGate`, lockout persisted in the app-data `sipstate.json`) —
+> set the PIN once with `/sip config set Pin <code>`.
+
 | Key | Default | Description |
 |---|---|---|
 | `Enabled` | `false` | Master switch — the SIP channel binds only when true |

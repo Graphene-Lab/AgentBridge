@@ -66,7 +66,13 @@ between all instances on the machine — the SIP PIN lockout state is machine-wi
 
 ## Configuration
 
-`appsettings.json`:
+Configuration files are user-editable and live under **`<app folder>\PersistentData\`**
+(`appsettings.json`, `providers.json`, `telegram.json` + `telegram.session`, `tools.json`) —
+never next to the executable (single-directory rule, see "Where files live" below and
+RELEASE-CHECKLIST.md). `AppConfig.Initialize()` seeds the default `appsettings.json` and
+migrates legacy root files on the first run; every key is overridable from the command line.
+
+`appsettings.json` (under `PersistentData\`):
 
 ```json
 {
@@ -122,24 +128,33 @@ audio: the Telegram Client API has no audio-call support, so Telegram adds **no
 **Voice (desktop microphone)**. The transport is
 [WTelegramClient](https://github.com/wiz0u/WTelegramClient) **4.4.8** (userbot, MTProto).
 
-Configuration lives in its own file, **`telegram.json` next to the executable** — separate
-from `appsettings.json`, and **excluded from updates** (same whitelist as
-`appsettings.json` and `providers.json`, see
-[RELEASING.md](RELEASING.md#what-an-update-must-never-touch--the-file-storage-tiers)).
-Keys: `Enabled`, `ApiId`, `ApiHash`, `PhoneNumber`, `SessionPath`, `AllowedUsers`,
+Configuration lives in its own file, **`telegram.json` under `PersistentData\`** — separate
+from `appsettings.json`, and **never touched by updates** (single-directory rule — see
+[RELEASING.md](RELEASING.md#what-an-update-must-never-touch--the-file-storage-tiers)). The
+`.session` file (Telegram auth) lives in the same folder. Keys: `Enabled`, `ApiId`,
+`ApiHash`, `PhoneNumber`, `SessionPath`, `AllowedUsers`,
 `Agent` (see [docs/telegram.md](../docs/telegram.md)). When `Enabled=true` the bridge **starts in
 the background at boot** — a pending first login (verification code / 2FA password) never
 blocks the boot; the TUI `/telegram` command drives status, config, the pending-login code
 and the allow-list **in-process** (the bridge exposes **no HTTP endpoints** — Telegram is a
 chat client, not a web client, so nothing about it travels over HTTP).
 
+**Access control (closed by default).** Only `AllowedUsers` entries (numeric ids/@usernames)
+may talk. An unlisted user who sends the **shared external-client access PIN** (`Sip:Pin`,
+set once from the TUI with `/sip config set Pin`) is enrolled into the allow-list and
+welcomed with the same "How can I help you?" used after a SIP login, as text
+(`SipBridge.SubmitClientPin` → shared `PinAuthGate`: one attempt/lockout budget across SIP
+and Telegram, lockout persisted in the app-data `sipstate.json`). No PIN configured → the
+allow-list is the only way in.
+
 ### LLM providers & API keys
 
-LLM providers are defined in **`providers.json`** next to the executable (the same file the
-AIOrchestrator library ships — embedded factory default as fallback). Each entry carries its
-own **`ApiKey`** field: the **single source of truth** for keys. `Setup.ApiKey` resolves the
-active provider's key from here; the legacy per-provider `Setup` properties are honored only
-as a fallback when a provider config has no key.
+LLM providers are defined in **`providers.json` under `PersistentData\`** (the same file the
+AIOrchestrator library ships — embedded factory default as fallback; `ProviderConfigs.ConfigDirectory`
+redirects the library to `PersistentData\` for this host, other hosts keep the default next to
+the executable). Each entry carries its own **`ApiKey`** field: the **single source of truth**
+for keys. `Setup.ApiKey` resolves the active provider's key from here; the legacy per-provider
+`Setup` properties are honored only as a fallback when a provider config has no key.
 
 - **Cloud providers** (DeepSeek, Z.ai, Gemini, Anthropic, …) require `ApiKey` — sent as
   `Authorization: Bearer` (OpenAI/Anthropic) or in the query string (Gemini).
@@ -147,8 +162,9 @@ as a fallback when a provider config has no key.
   (`localhost` / `127.0.0.1`) is treated as keyless regardless of name — a dynamically added
   Ollama/ExLlamaV2/DeepSeekBridge entry works out of the box.
 - Keys are edited via the TUI **provider dialog** (`/modelsetup` → Edit, masked field), the
-  AIOffice Settings panel, or directly in the file. `providers.json` is **excluded from
-  updates** (whitelisted — see [autoupdate.md](autoupdate.md)), so keys survive every update.
+  AIOffice Settings panel, or directly in the file. `providers.json` is **never touched by
+  updates** (single-directory rule — see [autoupdate.md](autoupdate.md)), so keys survive
+  every update.
 - The Z.ai key also enables the image OCR pipeline (`ZaiOcrConverter` reads the `Zai` entry's
   key).
 
@@ -165,23 +181,26 @@ future auto-updater) may only replace the distribution tier. The full rule table
 [RELEASING.md](RELEASING.md#what-an-update-must-never-touch--the-file-storage-tiers);
 summary:
 
-- **User-editable configuration** — `<app folder>\PersistentData\` (currently
-  `rag_settings.json`, the persisted DocumentsPath). Never overwritten by updates;
-  legacy `rag_settings.json` next to the executable is migrated there on first run.
+- **User-editable configuration — the single-directory rule** — `<app folder>\PersistentData\`
+  holds EVERY file the user edits or the app persists that must survive updates:
+  `appsettings.json`, `providers.json`, `telegram.json` + `telegram.session`, `tools.json`,
+  `rag_settings.json`. Never overwritten by updates; legacy root copies are migrated there by
+  `AppConfig.Initialize()` on first run (in DEBUG the app refuses to start while a config json
+  still sits next to the executable — `AppConfig.GuardNoStrayRootJson`).
 - **Application data & secrets** — the OS app-data folder in a subfolder named after the
   running executable: `%LocalAppData%\agent\setup.json` on Windows (`~/.local/share/agent`
   on Linux, `~/Library/Application Support/agent` on macOS). SMTP/IMAP credentials,
-  DPAPI-encrypted on Windows. Outside the app folder, so updates never touch it. (LLM API
-  keys are **not** here: they live per-provider in `providers.json` — see the AIOrchestrator
-  `docs/providers-config.md`; the legacy key fields of `setup.json` remain only as a
-  fallback.)
+  DPAPI-encrypted on Windows, plus `autoupdate.json`, `crashreport.json`, `sipstate.json`.
+  Outside the app folder, so updates never touch it. (LLM API keys are **not** here: they
+  live per-provider in `providers.json` — see the AIOrchestrator `docs/providers-config.md`;
+  the legacy key fields of `setup.json` remain only as a fallback.)
 - **Distribution content** — everything else next to the executable (what the archive
   ships): `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `.playwright/`,
-  `agent.staticwebassets.endpoints.json`, the default `appsettings.json`. Replaced on
-  every update, **except `appsettings.json`, `providers.json` and `telegram.json`**
-  (user-editable server config, LLM providers and the Telegram chat medium — preserved by
-  whitelist). All other `.json` files in the archive are distribution content and must be
-  overwritten. The automatic updater implements these rules — see [autoupdate.md](autoupdate.md).
+  `docs/`, `Tools/`, the SDK-generated `agent.staticwebassets.endpoints.json`. Replaced on
+  every update with **no exceptions and no whitelist** — user config is never in the
+  archive, so replacing the distribution tier cannot touch it. All `.json` at the archive
+  root are generated content and must be overwritten. The automatic updater implements
+  these rules — see [autoupdate.md](autoupdate.md).
 
 Ephemeral runtime files (TTS WAVs) go to the OS temp folder (`%TEMP%`) and are never part of
 an update. The Giraffe web GUI client is installed next to the executable (a
@@ -244,7 +263,7 @@ systemd) so only the HTTP API is exposed.
 > **Design decision (2026-08-27, issue #2), implemented in the following release.** The
 > preset table in `AgentTools.cs` is the static form of a three-level tool policy. The
 > model is config-driven so new plugins need no code change and users cannot accidentally
-> cripple the agent. Implemented: per-tool config (`tools.json` next to the executable,
+> cripple the agent. Implemented: per-tool config (`tools.json` under `PersistentData\`,
 > "unspecified ⇒ ON"), the dynamic `all-files` preset, core tools appended to every preset
 > and locked in the TUI picker. Not implemented (future hardening): server-side
 > enforcement — an explicit API `tools` list can still omit the core tools (documented
@@ -310,9 +329,10 @@ the additive `tools` field (API) and the `/agent` checklist (TUI).
 | `TelegramBridge.cs` | Telegram text-chat medium: WTelegramClient 4.4.8 userbot (private-chat → agent session → reply) |
 | `SystemLang.cs` | Machine language resolution (two-letter ISO code) |
 | `AgentBridge.csproj` | Web SDK, `AssemblyName=agent`, references AIOrchestrator + Terminal.Gui + KokoroSharp, asset targets |
+| `AppConfig.cs` | Single persistent-config directory: `PersistentData\` layout, CWD anchoring, legacy-root migration, default-appsettings seed, DEBUG stray-json guard |
 | `AGRNT_ascii_art.txt` | Source of the colored `AGENT` wordmark shown in the TUI |
-| `appsettings.json` | Port, LLM provider, voice path |
-| `telegram.json` | Telegram chat medium config (enabled, api credentials, allow-list, agent) — excluded from updates |
+| `appsettings.json` | Repo copy of the DEFAULT user config — embedded and seeded into `PersistentData\` on first run (port, LLM provider, voice path) |
+| `telegram.json` | Telegram chat medium config, created under `PersistentData\` at runtime — never part of an update |
 | `e2e/` | PowerShell regression harness (33+ tests, requires DeepSeekBridge) |
 | `e2e/TuiSmoke/` | ConPTY harness that launches the real TUI, injects keystrokes and asserts the UI (logo, `/model` picker + Esc, chat) |
 
