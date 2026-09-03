@@ -111,8 +111,8 @@ migrates legacy root files on the first run; every key is overridable from the c
 | `LLM:Provider` | `Ollama`, `DeepSeek`, `DeepSeekBridge`, `Zai`, `Gemini`, `ExllamaV2`, ... | **Default** LLM provider for the `AgentHarness`. The provider in use can be switched per-request / per-session — see [LLM switching](API.md#llm-switching-the-pilot-endpoint). |
 | `LLM:Anonymize` | `true` / `false` | NameOrKey anonymization (see AIOrchestrator docs). |
 | `SkipIndexingOnStartup` | `true` / `false` | Skip the DocumentsPath index build/refresh + file watcher at startup (debug/dev). |
-| `AutoUpdate:Enabled` | `true` / `false` | Automatic update check at startup (default `true`). Overridden by the CLI `--no-update` flag and the TUI **File → Auto-Update** menu — see [autoupdate.md](autoupdate.md). |
-| `Voice:ExePath` | path | Path to `AIOffice.VoiceAgent.Win.exe` for `POST /v1/voice/listen`. Empty (default) = look next to the server executable. |
+| `AutoUpdate:Enabled` | `true` / `false` | Automatic update check at startup (default `true`). Overridden by the CLI `--no-update` flag and the TUI **Help → Auto-Update** menu — see [autoupdate.md](autoupdate.md). |
+| `Voice:ExePath` | path | Path to `AIOffice.VoiceAgent.Win.exe` for `POST /v1/voice/listen`. Empty (default) = the `voiceagent\` folder next to the server executable — see [Build / assets](#build--assets) for where it comes from in development vs. releases. |
 | `Sip:*` | see [sip.md](../docs/sip.md) | SIP telephony: auto-answer + PIN gate, outgoing calls, voice conversation over RTP (whisper STT + Kokoro TTS). |
 | `Urls` | e.g. `http://localhost:5290` | Kestrel listening address. |
 
@@ -161,7 +161,7 @@ for keys. `Setup.ApiKey` resolves the active provider's key from here; the legac
 - **Local providers are keyless by design**: any provider whose `BaseAddress` is on loopback
   (`localhost` / `127.0.0.1`) is treated as keyless regardless of name — a dynamically added
   Ollama/ExLlamaV2/DeepSeekBridge entry works out of the box.
-- Keys are edited via the TUI **provider dialog** (`/modelsetup` → Edit, masked field), the
+- Keys are edited via the TUI **provider dialog** (`/setup` → Edit, masked field), the
   AIOffice Settings panel, or directly in the file. `providers.json` is **never touched by
   updates** (single-directory rule — see [autoupdate.md](autoupdate.md)), so keys survive
   every update.
@@ -196,7 +196,7 @@ summary:
   the legacy key fields of `setup.json` remain only as a fallback.)
 - **Distribution content** — everything else next to the executable (what the archive
   ships): `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `.playwright/`,
-  `docs/`, `Tools/`, the SDK-generated `agent.staticwebassets.endpoints.json`. Replaced on
+  `docs/`, `Tools/`, `voiceagent/` (Windows), the SDK-generated `agent.staticwebassets.endpoints.json`. Replaced on
   every update with **no exceptions and no whitelist** — user config is never in the
   archive, so replacing the distribution tier cannot touch it. All `.json` at the archive
   root are generated content and must be overwritten. The automatic updater implements
@@ -219,8 +219,13 @@ only pulls the managed wrapper.
 
 On Windows, if the sibling `AIOffice.VoiceAgent.Win` build output exists, the target
 `CopyVoiceAgentOutput` copies the whole VoiceAgent (exe + voices + espeak + model + runtime
-deps) next to the server, enabling `POST /v1/voice/listen` out of the box. Without it the
-voice endpoint self-reports as unavailable — copy the exe manually or set `Voice:ExePath`.
+deps) into the `voiceagent\` subfolder next to the server, enabling `POST /v1/voice/listen`
+out of the box. This is the **development** rule: the release pipeline downloads the
+VoiceAgent.Win release from the public `Graphene-Lab/AIOffice.VoiceAgent.Win` repository,
+so **public Windows releases ship the component inside the archive** (same `voiceagent\`
+folder — the TUI message and the `voice_unavailable` 501 both point the user at updating
+the app, not at files). Without the component the voice endpoint self-reports as
+unavailable — copy the exe manually or set `Voice:ExePath`.
 
 ## Build & publish
 
@@ -253,10 +258,12 @@ systemd) so only the HTTP API is exposed.
 
 > **Assets stay next to the executable.** Single-file bundles the managed code; the
 > Kokoro TTS voices (`voices/`, `kokoro.onnx` ~325 MB) and, on Windows, the
-> `AIOffice.VoiceAgent.Win.exe` voice bridge are **published alongside** (never embedded —
-> that would bloat the exe by hundreds of MB). Keep the whole publish folder together and
-> run `agent` from it. On Windows the publish copies the sibling VoiceAgent output
-> automatically (`CopyVoiceAgentOutput` also runs on Publish).
+> `AIOffice.VoiceAgent.Win.exe` voice bridge (in the `voiceagent\` subfolder) are
+> **published alongside** (never embedded — that would bloat the exe by hundreds of MB).
+> Keep the whole publish folder together and run `agent` from it. On Windows the publish
+> copies the sibling VoiceAgent output automatically into `voiceagent\`
+> (`CopyVoiceAgentOutput` also runs on Publish); release archives are produced the same
+> way, with the VoiceAgent.Win release downloaded in CI.
 
 ## Agent sets & tool policy
 
@@ -313,7 +320,7 @@ plugins join it automatically. The token cost of a large catalog (~155 methods i
 full set, re-sent into the system prompt on every agent iteration) is paid only by users
 who choose the all-in-one preset; the narrow presets (`web-agent`, `email-agent`, ...)
 remain for focused tasks and small models. Any custom combination remains possible via
-the additive `tools` field (API) and the `/agent` checklist (TUI).
+the additive `tools` field (API) and the `/tools` checklist (TUI).
 
 ## Project layout
 

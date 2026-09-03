@@ -38,12 +38,29 @@ project and get a persistent TUI where:
 | TUI is the only front-end | TUI **and** the OpenAI-compatible API simultaneously, same process — any SDK/script can keep driving the agents while you chat |
 | Model switch is provider-side | `/model` switches LLM **with a context-window guard** — the server refuses (409) when the conversation overflows the target provider's window and explains why |
 | Mouse: scroll + click | native cross-platform mouse (Terminal.Gui): **wheel** scrolls the conversation and menus, **click** positions the input cursor or selects a list row, **double-click** runs the selected item |
-| Menus | pickers are drawn inside the TUI layout — **Esc always cancels** (`/model`, `/agent`, `/attach`) with a clean screen, no residue |
+| Menus | pickers are drawn inside the TUI layout — **Esc always cancels** (`/model`, `/tools`, `/attach`) with a clean screen, no residue |
 | No voice | `/voice` — dictation from the server microphone (Windows), `/tts` — Kokoro neural TTS speaks the replies and plays the WAV |
 | File completion via `@` | `@` palette of **uploaded** files (server-side `/v1/files`), `/files add <path>` uploads and attaches; attachments ride along as `file_ids` |
 | Status shows context | status bar also shows **history tokens / context window**, the active **tools** (readable names, e.g. `File, Web, Git`), TTS/mic availability |
 | `/docs` opens docs site | `/docs` opens **this project's** online README; `/help` lists commands, shortcuts, API endpoints and links |
-| — | `/agent` opens the tools checklist (presets + individual tools), `/features` toggles feature flags, `/health` pings the server, `/retry` resends the last prompt, `/web` opens the auto-connected web client |
+| — | `/tools` opens the tools checklist (presets + individual tools), `/features` toggles feature flags, `/health` pings the server, `/retry` resends the last prompt, `/web` opens the auto-connected web client |
+
+## Menu bar
+
+The top menu bar has six menus (labels follow the UI language):
+
+| Menu | Items |
+|---|---|
+| **Chat** | New Chat (`Ctrl+N`) · Clear History (`Ctrl+L`) · TTS (`/tts`) · Commands (`/…`) · Retry Last (`Ctrl+Y`) · Exit (`Ctrl+Q`) |
+| **File** | Files (`/files`) · Attach (`/attach`) |
+| **Settings** (IT: *Impostazioni*) | Main settings (`/setup`) · Tools (`/tools`) · Voice (`/voice`) · TTS Engine (`/ttsengine`) · SIP (`/sip`) · Telegram (`/telegram`) |
+| **Session** (IT: *Sessione*) | LLM Model (`/model`) · Session Features (`/features`) · Status (`/status`) · Health (`/health`) |
+| **Web** | GUI (`/web`) · OfficeManager (`/officemanager`) |
+| **Help** (IT: *Aiuto*) | Auto-Update · Crash report · Check for updates (`/update`) · Help (`F1`) · Shortcuts (`?`) · Documentation (`/docs`) · Report Issues… · About |
+
+The right end of the menu row shows a busy indicator while an operation runs
+(`[indexing…]` / `[generating…]` / `[listening…]`, localised), so you can see at a glance
+that the agent is working.
 
 ## Commands (type `/` for the live list)
 
@@ -52,11 +69,12 @@ project and get a persistent TUI where:
 | `/help` · `/?` | Full help: commands, shortcuts, API endpoints, online docs |
 | `/docs` | Open the online documentation in the browser |
 | `/web` | Launch the Giraffe AI web client (auto-installed/updated), auto-connected to this server |
-| `/modelsetup` | Configure LLM models & providers (add/edit/remove, active model, API keys) |
-| `/model [name]` | Switch the LLM provider (menu when no name given; context-window checked) |
-| `/agent [name]` | Choose the agent tools: quick presets or an individual-tool checklist (Space toggles; see below) |
+| `/setup` · `/modelsetup` | Open the **Main settings** dialog — LLM providers (add/edit/remove, API keys, persistent default), email (SMTP), mail reading (IMAP), general (logging, documents path) |
+| `/model [name]` | Switch the LLM provider for **this chat** (menu when no name given; context-window checked) — the default for new chats is configured in **Settings → Main settings**, it never changes when you use `/model` |
+| `/tools [name]` · `/agent` | Choose the agent's tools: quick presets or an individual-tool checklist (Space toggles; see below) |
 | `/voice [lang]` | Dictate from the server microphone into the input |
 | `/tts [text]` | Speak the last agent reply (or the given text) — Kokoro TTS, WAV playback |
+| `/ttsengine [name]` | Show the known TTS engines and set the active one (persisted to `appsettings.json`) |
 | `/telegram status\|config [set <key> <value>\|reload]\|login-code <code>\|allow\|disallow <user>` | Telegram chat medium: bare `/telegram` opens the interactive panel (status, login code, allow-list, config), the subcommands cover the same actions (see [Telegram](#telegram-chat)) |
 | `/features [name] [on\|off]` | Show or toggle session feature flags (voice, tts, ...) |
 | `/new` · `/reset` | Start a new session (fresh conversation) |
@@ -76,7 +94,7 @@ project and get a persistent TUI where:
 `index.html` plus its own launcher — is **not part of this repository**: on startup the
 server installs it next to the executable (`GiraffeAIWebClient\` folder, from the client's
 latest GitHub release). The first install is unconditional; the automatic **update** check
-follows the app's auto-update toggle (`--no-update` / **File → Auto-Update**). Then `/web`
+follows the app's auto-update toggle (`--no-update` / **Help → Auto-Update**). Then `/web`
 runs the platform launcher (`start.bat` / `start.sh`), which serves the client on
 `http://localhost:8000` and opens the browser.
 
@@ -91,10 +109,10 @@ configuration, just start typing.
 
 ## Agent tools
 
-`/agent [name]` switches to a preset — full ids: `default-agent`, `web-agent`,
-`search-agent`, `research-agent`, `document-files`, `spreadsheet-files`, `email-agent`,
-`office-files`, `multi-files`, `all-files`. Bare `/agent` (or menu **Tools → Agent & Tools**)
-opens the tool checklist dialog:
+`/tools [name]` (alias `/agent`) switches to a preset — full ids: `default-agent`,
+`web-agent`, `search-agent`, `research-agent`, `document-files`, `spreadsheet-files`,
+`email-agent`, `office-files`, `multi-files`, `all-files`. Bare `/tools` (or menu
+**Settings → Tools**) opens the tool checklist dialog:
 
 - **Core (always on)** — the first line lists the locked core tools (`FileTool`, `GitTool`):
   always active, not toggleable; the only way to change their status is `tools.json`
@@ -121,7 +139,7 @@ any files the agent attaches — comes back into the same chat. Text chat only: 
 Client API has no audio-call support, so Telegram is **not** a voice medium (see
 [docs/telegram.md](telegram.md)).
 
-**Bare `/telegram`** (or menu **Tools → Telegram**) opens an interactive panel: live
+**Bare `/telegram`** (or menu **Settings → Telegram**) opens an interactive panel: live
 status plus the first-login code field, allow/disallow user, config, reload and
 enable/disable — no slash-command syntax to remember. The subcommands below drive the
 same actions from the command line:
@@ -149,18 +167,24 @@ one, is submitted the same way), and the session persists in `telegram.session` 
 or with these commands. Full
 reference: [docs/telegram.md](telegram.md).
 
-## Models & Providers setup
+## Main settings (Models & Providers setup)
 
-`/modelsetup` (or menu **File → Models & Providers**) opens a tabbed window that mirrors the
-AIOffice settings panel:
+`/setup` (alias `/modelsetup`; menu **Settings → Main settings**) opens a tabbed window that
+mirrors the AIOffice settings panel:
 
 | Tab | What you can edit |
 |---|---|
-| **LLM & Providers** | Active provider (dropdown, switches via the same path as `/model`) and a provider list with **Add… / Edit… / Remove** — the CRUD operations apply immediately and persist to `providers.json` (see below) |
+| **LLM & Providers** | Default provider (dropdown) with **Set default** and a provider list with **Add… / Edit… / Remove** — the CRUD operations apply immediately and persist to `providers.json` (see below) |
 | **Email (SMTP)** | SMTP server, port, user, password and the recipient email |
 | **Mail (IMAP)** | IMAP server, port, user and password |
 | **General** | Step logging on/off (`logs/` folder) and the documents path (re-indexed on change) |
 
+- The **default provider** is the one new chats start from. **Set default** marks a
+  provider as the persistent default (stored as `IsDefault` in `providers.json`; when no
+  provider is marked, the first one in the list is the default). The provider currently
+  selected in the dropdown is shown as the active model.
+- `/model` switches **only the current chat** on the fly — it never changes the default
+  configured here. New chats (Chat → New Chat, `/new`) always start from the default.
 - Field edits (email, general) apply when you press **Save**; **Close** discards them.
 - Adding a provider opens a small form (name, protocol OpenAI/Gemini/Anthropic, interaction
   mode Default/API/CLI, model, base address, endpoint path, **API key**, context window,
@@ -177,7 +201,7 @@ AIOffice settings panel:
 
 ## Auto-update
 
-Menu **File → Auto-Update** toggles the automatic update check performed at startup
+Menu **Help → Auto-Update** toggles the automatic update check performed at startup
 (checked = enabled, the default). The choice persists to the OS app-data folder
 (`<AppData>\agent\autoupdate.json`), so it survives updates. When a newer release is
 found, the app downloads it, swaps the files and restarts itself — see
@@ -215,7 +239,7 @@ message resumes it.
 
 Terminal.Gui provides native cross-platform mouse support: menus and dialogs are
 rendered inside the layout and **Esc always cancels them** cleanly (`/model`,
-`/agent`, `/attach`).
+`/tools`, `/attach`).
 
 | Action | Effect |
 |---|---|
@@ -246,7 +270,7 @@ German one `de`, any other culture falls back to the neutral English resource).
 
 Rules and conventions:
 
-- **Command names are never translated** — `/help`, `/model`, `/agent`, `/voice`, `/tts`,
+- **Command names are never translated** — `/help`, `/model`, `/tools`, `/voice`, `/tts`,
   `/files`, … keep their English names in every language (they are also the API contract).
   Only the command *descriptions* shown in the palette/help are localised.
 - All UI strings (menus, help pages, dialogs, status notes, picker hints) come from

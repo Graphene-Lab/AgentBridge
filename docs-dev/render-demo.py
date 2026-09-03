@@ -216,9 +216,9 @@ COMMANDS = [
     ("/help", "Show help: commands, shortcuts, API, docs"),
     ("/docs", "Open the online documentation in your browser"),
     ("/web", "Launch the Giraffe AI web client in the browser"),
-    ("/modelsetup", "Configure LLM models & providers"),
-    ("/model", "Switch the LLM provider (menu when no name)"),
-    ("/agent", "Switch the agent tool set"),
+    ("/setup", "Main settings: providers, email, documents (also /modelsetup)"),
+    ("/model", "Switch the LLM provider for this chat (menu when no name)"),
+    ("/tools", "Choose the agent tool set (also /agent)"),
     ("/voice", "Dictate from the server microphone"),
     ("/tts", "Speak the last reply via Kokoro TTS"),
     ("/new", "Start a new session (fresh conversation)"),
@@ -326,7 +326,7 @@ def chat_lines(sim, t):
 
 def draw_menu(g):
     g.fill(0, 0, 0, COLS - 1, bg=MENUBG)
-    items = ["File", "Chat", "Session", "Web", "Help"]
+    items = ["Chat", "File", "Settings", "Session", "Web", "Help"]
     col = 2
     for it in items:
         g.text(0, col, " " + it, fg=MENUTXT, bg=MENUBG)
@@ -340,7 +340,7 @@ def draw_logo(g):
     g.frame(r0, c0, r1, c1, "AGENT")
     for i, line in enumerate(LOGO):
         g.text(r0 + 1 + i, c0 + 1, line, fg=LOGO_GRADIENT[i])
-    g.text(r0 + 9, c0 + 1, "· /help  /model  /agent", fg=GRAY)
+    g.text(r0 + 9, c0 + 1, "· /help  /model  /tools", fg=GRAY)
 
 
 def draw_chat(g, sim, t):

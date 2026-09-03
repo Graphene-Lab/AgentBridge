@@ -221,6 +221,38 @@ jobs:
           find publish/Tools -name 'Microsoft.ML.OnnxRuntime*.dll' -delete
           find publish/Tools -type f 2>/dev/null | sort || true
 
+      # Windows voice bridge: fetch the AIOffice.VoiceAgent.Win self-contained win-x64 zip
+      # from its OWN GitHub release (public repo, same channel as the tool plugins) into
+      # publish/voiceagent/ — POST /v1/voice/listen spawns AIOffice.VoiceAgent.Win.exe from
+      # there. The local csproj target CopyVoiceAgentOutput covers developer machines that
+      # have the sibling VoiceAgent build; CI has no sibling, so this step is what makes the
+      # released Windows archive work out of the box. The zip contains a top-level
+      # AIOffice.VoiceAgent.Win/ folder (exe + voices/ + kokoro.onnx + native runtimes).
+      # Other RIDs do not ship voice recognition (Windows-only feature).
+      - name: Fetch VoiceAgent.Win into voiceagent/
+        if: matrix.rid == 'win-x64'
+        shell: bash
+        run: |
+          tag=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/Graphene-Lab/AIOffice.VoiceAgent.Win/releases/latest" \
+                | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1)
+          if [ -z "$tag" ]; then
+            echo "::warning::AIOffice.VoiceAgent.Win has no release yet — /voice will be unavailable in this archive"
+            exit 0
+          fi
+          ver="${tag#v}"
+          zip="AIOffice.VoiceAgent.Win-$ver.zip"
+          mkdir -p /tmp/voiceagent
+          if ! curl -fsSL -o "/tmp/voiceagent/$zip" "https://github.com/Graphene-Lab/AIOffice.VoiceAgent.Win/releases/download/$tag/$zip"; then
+            echo "::warning::cannot download $zip — /voice will be unavailable in this archive"
+            exit 0
+          fi
+          (cd /tmp/voiceagent && unzip -qo "$zip")
+          mkdir -p publish/voiceagent
+          cp -r /tmp/voiceagent/AIOffice.VoiceAgent.Win/. publish/voiceagent/
+          test -f publish/voiceagent/AIOffice.VoiceAgent.Win.exe \
+            && echo "voiceagent payload ready: $(du -sh publish/voiceagent | cut -f1)" \
+            || echo "::warning::voiceagent/ does not contain AIOffice.VoiceAgent.Win.exe"
+
       - name: Package
         shell: bash
         run: |

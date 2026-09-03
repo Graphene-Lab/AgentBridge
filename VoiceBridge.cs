@@ -36,16 +36,20 @@ public static class VoiceBridge
         }
     }
 
-    /// <summary>Human-readable reason when <see cref="IsAvailable"/> is false.</summary>
+    /// <summary>Human-readable reason when <see cref="IsAvailable"/> is false. Written for the
+    /// END USER of the app (the detail is shown verbatim in the TUI note): no paths, no
+    /// project/build jargon — just what the user can do about it. Where the payload actually
+    /// comes from (release archives ship it; developers can point to a local build via
+    /// Voice:ExePath) is documented in the csproj targets and Program.cs, not here.</summary>
     public static string UnavailableReason
     {
         get
         {
             if (!OperatingSystem.IsWindows())
-                return "Voice speech recognition runs only on Windows (AIOffice.VoiceAgent.Win).";
+                return "Voice speech recognition runs only on Windows.";
             var exe = ResolveExe();
             if (exe == null || !File.Exists(exe))
-                return $"AIOffice.VoiceAgent.Win.exe not found in '{Path.GetDirectoryName(exe) ?? AppDomain.CurrentDomain.BaseDirectory}'. Copy the VoiceAgent output into the voiceagent/ subfolder next to the server (the csproj does it automatically when the sibling VoiceAgent build exists) or set Voice:ExePath.";
+                return "The speech-recognition component is missing from this installation. Update the app to the latest version — voice comes bundled with it.";
             return "";
         }
     }

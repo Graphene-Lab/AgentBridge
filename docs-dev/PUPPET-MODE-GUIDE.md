@@ -57,7 +57,7 @@ This applies to EVERY element that accepts data: settings, configs, uploads, fil
 ### Phase 1 — Structural review (before any test)
 - **Redundancies**: elements duplicating the same purpose (e.g. two dialogs for the same setting) → consider unifying them or marking them clearly.
 - **Simplifications**: cryptic labels/items or overly long paths → improve them.
-- **Menu placement**: every item must live in the correct top menu (Chat/File/Tools/Session/Media/Web/Help).
+- **Menu placement**: every item must live in the correct top menu (Chat/File/Settings/Session/Web/Help).
 - **Visual redundancy**: if two items show the same information with different values, that is a state bug (not a design choice).
 
 ### Phase 2 — Per-element verification (mandatory checks)
@@ -280,14 +280,16 @@ powershell -File tools\puppet.ps1 '{"type":"capture"}'
 # 4. Close with Esc
 powershell -File tools\puppet.ps1 '{"type":"key","key":"escape"}'
 
-# 5. Open "Modelli e provider" (Chat → 2nd item → Enter) and capture the dialog
+# 5. Open "Impostazioni principali" (menu Impostazioni/Settings → 1st item) and capture the dialog
 powershell -File tools\puppet.ps1 '{"type":"key","key":"f10"}'
 Start-Sleep -Milliseconds 500
-powershell -File tools\puppet.ps1 '{"type":"key","key":"cursordown"}'
+powershell -File tools\puppet.ps1 '{"type":"key","key":"cursorright"}'
+Start-Sleep -Milliseconds 500
+powershell -File tools\puppet.ps1 '{"type":"key","key":"cursorright"}'
 Start-Sleep -Milliseconds 500
 powershell -File tools\puppet.ps1 '{"type":"key","key":"enter"}'
 Start-Sleep -Seconds 2
-powershell -File tools\puppet.ps1 '{"type":"capture"}'   # → dialog + "Active model: …"
+powershell -File tools\puppet.ps1 '{"type":"capture"}'   # → dialog with the active/default-model label
 
 # 6. Close the dialog
 powershell -File tools\puppet.ps1 '{"type":"key","key":"escape"}'

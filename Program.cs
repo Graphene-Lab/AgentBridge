@@ -73,7 +73,7 @@ if (args.Contains("--enable-log"))
 //    GET  /health
 //
 //  Proprietary extensions (documented, additive, ignored by strict OpenAI clients):
-//    POST /v1/control            (pilot: switch the LLM in use, features, reset)
+//    POST /v1/control            (pilot: switch the LLM in use, features, reset, set the default for new sessions)
 //    GET  /v1/control            (session state + platform capabilities)
 //    POST /v1/voice/listen       (one-shot server-mic speech recognition, Windows)
 //    GET  /v1/audio/voices       (TTS voices available on this platform)
@@ -105,10 +105,11 @@ if (args.Contains("-h") || args.Contains("--help") || args.Contains("/?"))
 
         Options (command line overrides appsettings.json; any key is overridable
         with --Key:SubKey <value>):
-          --LLM:Provider <name>   Default LLM provider: DeepSeekBridge (default), DeepSeek,
-                                  Zai, Gemini, Ollama, ExllamaV2. Per-request
-                                  overrides via the llm_provider field on /v1/chat/completions
-                                  or POST /v1/control.
+          --LLM:Provider <name>   Default LLM provider for NEW sessions. An explicit default
+                                  marked in providers.json (TUI main settings → "Set default")
+                                  wins over this key; without a mark this key applies, and the
+                                  first configured provider is the fallback. The session-scoped
+                                  llm_provider field / POST /v1/control never change this default.
           --LLM:Anonymize <bool>  Anonymize NameOrKey elements before sending to the LLM
                                   (true|false)
           --SkipIndexingOnStartup <bool>
@@ -126,7 +127,7 @@ if (args.Contains("-h") || args.Contains("--help") || args.Contains("/?"))
 
         Terminal UI (default when the console is interactive):
           Without flags the console opens the Qwen-Code-style terminal UI (chat,
-          slash commands, model/agent/voice/TTS/files/help) while the server keeps
+          slash commands, model/tools/voice/TTS/files/help) while the server keeps
           answering API calls in the same process.
           --headless               Server only (no terminal UI) — for scripts/CI.
           --tui                    Force the terminal UI (falls back to server-only
@@ -228,13 +229,19 @@ if (useTui)
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-// Configure the LLM provider via appsettings "LLM:Provider" (e.g. DeepSeekBridge).
-// This is the DEFAULT provider; per-request and per-session overrides are handled by
-// the llm_provider field (chat) / POST /v1/control — see docs/API.md "LLM switching".
-var startupProvider = builder.Configuration["LLM:Provider"] ?? "DeepSeekBridge";
-if (!ProviderConfigs.TryGet(startupProvider, out _))
+// Configure the default LLM provider for NEW sessions. Priority: the provider explicitly
+// marked as default in providers.json (set from the TUI main-settings dialog "Set default",
+// persisted) → the operator's appsettings "LLM:Provider" → the first configured provider.
+// The session-scoped switches (/model, the llm_provider field / POST /v1/control) never
+// touch this default — they change only the session currently in use (see docs/API.md
+// "LLM switching").
+var explicitDefault = ProviderConfigs.All.FirstOrDefault(p => p.IsDefault)?.ProviderName;
+var startupProvider = !string.IsNullOrWhiteSpace(explicitDefault)
+    ? explicitDefault
+    : builder.Configuration["LLM:Provider"] ?? "";
+if (string.IsNullOrWhiteSpace(startupProvider) || !ProviderConfigs.TryGet(startupProvider, out _))
 {
-    Console.WriteLine($"Unknown LLM provider '{startupProvider}' — using the first configured provider.");
+    Console.WriteLine("LLM provider not configured — using the first configured provider.");
     startupProvider = ProviderConfigs.Default.ProviderName;
 }
 
@@ -978,9 +985,11 @@ app.MapGet("/v1/control", (string? session_id) =>
 // toggle feature flags (voice, tts, ...), reset the conversation, or create a session.
 // Body (all fields optional):
 //   { "create": true }                         → create a new session (returns its id)
-//   { "session_id": "...", "llm_provider": "Zai" }      → switch the LLM in use
+//   { "session_id": "...", "llm_provider": "Zai" }      → switch the LLM in use (session only)
 //   { "session_id": "...", "features": { "voice": true, "tts": false } }
 //   { "session_id": "...", "reset_history": true }
+//   { "set_default_provider": "Zai" }          → process-wide default for NEW sessions (persisted);
+//                                                the current session is NOT switched
 //
 // A provider switch is refused (409) when the accumulated conversation overflows the
 // target provider's context window (the exact case "switch on the fly conflicts with
@@ -988,6 +997,18 @@ app.MapGet("/v1/control", (string? session_id) =>
 // ─────────────────────────────────────────────────────────────────────
 app.MapPost("/v1/control", (ControlRequest request) =>
 {
+    // Make a provider the default for NEW sessions (persisted explicit marker). This is the
+    // TUI main-settings "Set default" action — /model keeps switching only the current session.
+    if (!string.IsNullOrEmpty(request.SetDefaultProvider))
+    {
+        var defaultName = request.SetDefaultProvider.Trim();
+        if (!ProviderConfigs.TryGet(defaultName, out _))
+            return Results.BadRequest(new { error = $"Unknown LLM provider '{defaultName}'." });
+        ProviderConfigs.SetDefault(defaultName, persist: true);
+        startupProvider = ProviderConfigs.Get(defaultName).ProviderName;
+        return Results.Ok(new { default_provider = startupProvider });
+    }
+
     if (request.Create == true)
     {
         var created = SessionStore.Create(startupProvider, anonymize);
@@ -1951,6 +1972,10 @@ public record ControlRequest
     /// <summary>When true, clear the session's conversation history.</summary>
     [JsonPropertyName("reset_history")]
     public bool? ResetHistory { get; init; }
+    /// <summary>Make the named provider the process-wide default for new chat sessions
+    /// (persisted as the explicit default marker in providers.json). No session_id needed.</summary>
+    [JsonPropertyName("set_default_provider")]
+    public string? SetDefaultProvider { get; init; }
 }
 
 /// <summary>

@@ -367,7 +367,7 @@ The TUI must work on all three. Rules that keep it portable:
 - **Localization.** All UI strings come from the `Resources/Dictionary.*.resx`
   satellites (`Dictionary.*` in code), never hardcoded — including on
   Linux/macOS where the system culture decides the language. Command names
-  (`/agent`, `/web`, ...) are never translated.
+  (`/tools`, `/web`, ...) are never translated.
 
 ## 10. Verification workflow
 

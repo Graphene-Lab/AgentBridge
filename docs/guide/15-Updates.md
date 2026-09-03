@@ -26,7 +26,7 @@ service restarts it — you do not have to do anything.
 
 ## Choosing how updates work
 
-Automatic updates are enabled by default. If you prefer, you can turn the check off from the menu File and then Auto-Update, and the choice is remembered even across updates. Some setups, such as a service that manages the program by itself, may prefer to handle updates separately; the program offers a way to skip the check for a single start when needed.
+Automatic updates are enabled by default. If you prefer, you can turn the check off from the menu Help and then Auto-Update, and the choice is remembered even across updates. Some setups, such as a service that manages the program by itself, may prefer to handle updates separately; the program offers a way to skip the check for a single start when needed.
 
 ## A safe process
 

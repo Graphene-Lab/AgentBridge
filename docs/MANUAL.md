@@ -130,7 +130,7 @@ Three JSON files control the server. All live under `PersistentData\`.
 | `SkipIndexingOnStartup` | `true` / `false` | Skip the documents index build/refresh + file watcher at startup |
 | `LLM:Provider` | `Ollama`, `DeepSeek`, `DeepSeekBridge`, `Zai`, `Gemini`, `ExllamaV2`, ... | **Default** LLM provider for the orchestrator; you can still switch it per session/request |
 | `LLM:Anonymize` | `true` / `false` | Name/key anonymization |
-| `Voice:ExePath` | path | Path to `AIOffice.VoiceAgent.Win.exe` for `POST /v1/voice/listen`. Empty = look next to the executable |
+| `Voice:ExePath` | path | Path to `AIOffice.VoiceAgent.Win.exe` for `POST /v1/voice/listen`. Empty = the `voiceagent\` folder next to the executable |
 | `Sip:Enabled` | `true` / `false` | **SIP telephony master switch** — see [SIP telephony](#9-sip-telephony) |
 
 Every key is overridable from the command line, e.g.:
@@ -174,7 +174,7 @@ a model, point at a local server); it is reloaded when the configuration changes
 | `PauseBetweenRequests` | Pause between requests (rate limiting), same format |
 | `ContextWindow` | Token window of the model — used by the context-window guard when switching |
 | `AgentInteractionMode` | Optional `API` / `CLI` / `Default`. How the agent tools are exposed: `API` = one JSON tool per method; `CLI` = the agent drives the application terminal with `ClassName subcommand args`; `Default` (omitted) = CLI for small models (context window < 128 000 tokens), API for large ones |
-| `ApiKey` | API key of this provider — empty for local providers (loopback endpoint). Set it here or via the `/modelsetup` provider dialog (masked) / AIOffice Settings panel |
+| `ApiKey` | API key of this provider — empty for local providers (loopback endpoint). Set it here or via the `/setup` provider dialog (masked) / AIOffice Settings panel |
 
 > **Example — add an Anthropic provider:** copy the commented block at the top of
 > `providers.json`, set `Protocol` to `Anthropic`, `CacheType` to `AnthropicCache`, and put
@@ -184,7 +184,7 @@ a model, point at a local server); it is reloaded when the configuration changes
 #### How API keys work
 
 - **One key per provider, stored in `providers.json`** — the `ApiKey` field of the
-  provider's entry is the single source of truth. Set it via the `/modelsetup` **Edit**
+  provider's entry is the single source of truth. Set it via the `/setup` **Edit**
   dialog (the field is masked while typing) or directly in the file.
 - **Local providers need no key**: any provider whose `BaseAddress` points at loopback
   (`localhost` / `127.0.0.1` — Ollama, ExLlamaV2, the DeepSeekBridge) is treated as keyless
@@ -261,7 +261,7 @@ provider, model, session and context usage.
 **Type `/help` inside the UI for the complete, always-up-to-date command list.** The key
 concepts:
 
-- **Commands** — everything is a command: `/model`, `/agent`, `/voice`, `/tts`,
+- **Commands** — everything is a command: `/model`, `/tools`, `/voice`, `/tts`,
   `/files`, `/new`, `/status`, ... Type `/` to see them all.
 - **Streaming** — replies appear as they are generated. The conversation auto-follows
   while you are at the bottom; scrolling up pauses the follow, scrolling down resumes it.
@@ -280,8 +280,8 @@ see [section 6](#6-connect-a-client-to-localhost)):
 
 | Command | Feature | Notes |
 |---|---|---|
-| `/model [name]` | **Switch the LLM provider** | menu when no name given; a context-window guard refuses a switch that would overflow the target model's window |
-| `/agent [name]` | **Switch the agent set** | full preset ids: `default-agent` / `web-agent` / `search-agent` / `research-agent` / `document-files` / `spreadsheet-files` / `email-agent` / `office-files` / `multi-files` / `all-files` — different tool sets; bare `/agent` opens the interactive checklist (individual tools; the core tools `FileTool`/`GitTool` are locked and always on — status changeable only via `tools.json` under `PersistentData\`) |
+| `/model [name]` | **Switch the LLM provider** | menu when no name given; a context-window guard refuses a switch that would overflow the target model's window. Switches **this chat only** — the default for new chats is configured in Settings → Main settings |
+| `/tools [name]` · `/agent` | **Switch the agent set** | full preset ids: `default-agent` / `web-agent` / `search-agent` / `research-agent` / `document-files` / `spreadsheet-files` / `email-agent` / `office-files` / `multi-files` / `all-files` — different tool sets; bare `/tools` opens the interactive checklist (individual tools; the core tools `FileTool`/`GitTool` are locked and always on — status changeable only via `tools.json` under `PersistentData\`) |
 | `/voice [lang]` | **Voice dictation** | dictates from the server microphone into the input (Windows) |
 | `/tts [text]` | **Text-to-speech** | speaks the last agent reply (or the given text) with Kokoro TTS; WAV playback |
 | `/sip status\|call\|answer\|hangup` | **SIP telephony** | phone-gate the agent: status, outgoing call, auto-answer on/off, hangup (see [section 7](#7-sip-telephony)) |
@@ -296,7 +296,7 @@ see [section 6](#6-connect-a-client-to-localhost)):
 | `/retry` | **Resend the last prompt** | also `Ctrl+Y` |
 | `/docs` | **Open the online docs** | in the browser |
 | `/web` | **Launch the web GUI (Giraffe AI)** | auto-installed/updated next to the executable and auto-connected to this server (see [section 6](#6-connect-a-client-to-localhost)) |
-| `/modelsetup` | **Configure models & providers** | add/edit/remove providers (including the per-provider API key), active model, email (SMTP), mail reading (IMAP), logging, documents path |
+| `/setup` · `/modelsetup` | **Main settings (Models & Providers)** | add/edit/remove providers (including the per-provider API key and the persistent default), email (SMTP), mail reading (IMAP), logging, documents path |
 | `/exit` · `/quit` | **Exit** | also `Ctrl+C` twice, or `Ctrl+D` |
 
 > Platform-dependent features are honest: if the platform or the assets are missing, the
@@ -461,7 +461,7 @@ Full reference (architecture, security, NAT/firewall, deployment): **[docs/sip.m
 | `PersistentData\telegram.json` | Telegram chat medium configuration (never touched by updates) |
 | `PersistentData\telegram.session` | Telegram session file (auth keys, created on the first login) |
 | `kokoro.onnx` + `voices/` | Kokoro TTS model and voices |
-| `AIOffice.VoiceAgent.Win.exe` (Windows) | Voice dictation backend |
+| `voiceagent/` (Windows) | `AIOffice.VoiceAgent.Win.exe` — voice dictation backend, included in the Windows release; in development the build copies it from the sibling VoiceAgent repo when present |
 | `voiceagent-stt/` | `AIOffice.VoiceAgent` executable (whisper) — SIP call speech-to-text |
 
 ---

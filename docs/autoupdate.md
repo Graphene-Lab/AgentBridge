@@ -133,7 +133,7 @@ the ones deciding when and how the files change.
 ## Enabling / disabling
 
 - **Default: enabled** (`true`).
-- **TUI**: menu **File → Auto-Update** toggles the check on/off and persists the choice
+- **TUI**: menu **Help → Auto-Update** toggles the check on/off and persists the choice
   to `<AppData>\agent\autoupdate.json` (the OS app-data folder, same tier as
   `setup.json` — updates never touch it).
 - **`appsettings.json`**: `"AutoUpdate": { "Enabled": true }` is the shipped default.

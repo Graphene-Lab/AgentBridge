@@ -230,7 +230,10 @@
        to the server would shadow this project's 0.8.4 KokoroSharp.dll — TtsEngine then dies
        with "Could not load type KokoroSharp.KokoroWavSynthesizer" and EVERY /v1/control call
        fails, leaving the TUI without a session. Runs on Publish too so the single-file
-       production exe has the voice bridge alongside. -->
+       production exe has the voice bridge alongside.
+       CI/public releases have NO sibling build: release.yml (win-x64 job) downloads the
+       AIOffice.VoiceAgent.Win self-contained zip from its own GitHub release into
+       publish/voiceagent/ instead — see .github/workflows/release.yml. -->
   <Target Name="CopyVoiceAgentOutput" AfterTargets="Build;Publish" Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\AIOffice.VoiceAgent.Win.exe')">
     <ItemGroup>
       <_VoiceAgentFiles Include="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\**\*" Exclude="..\AIOffice.VoiceAgent.Win\bin\$(Configuration)\net10.0-windows10.0.19041.0\logs\**\*" />

@@ -4,7 +4,7 @@ When your work needs up-to-date information, the assistant can browse the web fo
 
 ## Research agents
 
-AgentBridge includes agents specialised for this kind of work. The web agent combines browsing with your files, so it can blend what it finds online with your own documents. The research and search agents focus on gathering and summarising information. You can switch to them by typing /agent and choosing the one that fits the task, without ever leaving the chat.
+AgentBridge includes agents specialised for this kind of work. The web agent combines browsing with your files, so it can blend what it finds online with your own documents. The research and search agents focus on gathering and summarising information. You can switch to them by typing /tools and choosing the one that fits the task, without ever leaving the chat.
 
 ## Reports you can trust
 

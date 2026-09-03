@@ -4,7 +4,7 @@ Your assistant can work with your email account, so sending a message is as simp
 
 ## Connecting your account
 
-To let the assistant use email, open the chat window and type /modelsetup. In the setup window you will find two tabs: Email (SMTP) and Mail (IMAP). The SMTP settings are what the assistant uses to send messages, and the IMAP settings are what it uses to read the ones you receive. Enter the details of your account in both tabs, press Save, and the assistant is ready to help with your correspondence.
+To let the assistant use email, open the chat window and type /setup. In the setup window you will find two tabs: Email (SMTP) and Mail (IMAP). The SMTP settings are what the assistant uses to send messages, and the IMAP settings are what it uses to read the ones you receive. Enter the details of your account in both tabs, press Save, and the assistant is ready to help with your correspondence.
 
 ## What you can ask
 

@@ -159,8 +159,10 @@ internal static class Program
         // "· ctx " (with the bullet) disambiguates the picker rows from the status
         // bar's context segment ("ctx 0/32k"), which must not leak into these checks.
         const string pickerMarker = "· ctx ";
-        // The slash palette lists command names ("/agent ...") which are NOT translated.
-        const string paletteMarker = "/agent ";
+        // The slash palette lists the CANONICAL command names ("/tools ...") which are
+        // NOT translated. The old aliases (/agent, /modelsetup) still run when typed
+        // but never appear in the palette rows.
+        const string paletteMarker = "/tools ";
 
         // 2) "/model" opens the provider picker (the slash-command palette opens live
         //    on "/", the rest of the line goes to its filter field).
@@ -266,7 +268,7 @@ internal static class Program
         Check("palette opens and lists commands", palette.Contains(paletteMarker));
         var idx = new List<int>
         {
-            palette.IndexOf("/agent "),
+            palette.IndexOf("/tools "),
             palette.IndexOf("/attach "),
             palette.IndexOf("/clear "),
             palette.IndexOf("/docs "),
@@ -299,8 +301,8 @@ internal static class Program
         {
             ("help", "\x1b"), ("shortcuts", "\x1b"), ("status", "\x1b"),
             ("features", ""), ("clear", ""), ("new", ""), ("retry", ""), ("health", ""),
-            ("files", "\x1b"), ("attach", "\x1b"), ("agent", "\x1b"), ("telegram", "\x1b"),
-            ("model", "\x1b"), ("modelsetup", "\x1b"),
+            ("files", "\x1b"), ("attach", "\x1b"), ("tools", "\x1b"), ("telegram", "\x1b"),
+            ("model", "\x1b"), ("setup", "\x1b"),
         })
         {
             conpty.Send("/" + cmd + "\r");
@@ -311,22 +313,22 @@ internal static class Program
             if (conpty.Exited) break;   // the rest would only produce noise
         }
 
-        // 5b) The "/" palette still opens after the sweep (modelsetup's dialog closed).
+        // 5b) The "/" palette still opens after the sweep (setup's dialog closed).
         conpty.Send("/");
         await Task.Delay(800);
         Check("palette still opens after sweep", conpty.Screen.Contains(paletteMarker));
         conpty.Send("\x1b");
         await Task.Delay(400);
 
-        // 5c) USER REQUEST: /agent opens the TOOLS dialog — untranslated preset ids and
+        // 5c) USER REQUEST: /tools opens the TOOLS dialog — untranslated preset ids and
         //     tool names (API contract) prove the checklist rendered; Esc closes it.
-        conpty.Send("/agent\r");
+        conpty.Send("/tools\r");
         await conpty.WaitForNewTextAsync("default-agent", TimeSpan.FromSeconds(15));
         var toolsDlg = conpty.ScreenSinceMark();
         if (!toolsDlg.Contains("default-agent") || !toolsDlg.Contains("FileTool"))
             Console.WriteLine("[diag] tools dialog screen:\n" + (toolsDlg.Length > 2500 ? toolsDlg[^2500..] : toolsDlg));
         Check("tools dialog lists presets and tools", toolsDlg.Contains("default-agent") && toolsDlg.Contains("FileTool"));
-        CheckAlive(conpty, "process alive after /agent tools dialog");
+        CheckAlive(conpty, "process alive after /tools tools dialog");
         conpty.Send("\x1b");
         await Task.Delay(500);
 

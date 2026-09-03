@@ -48,7 +48,7 @@ Diagnostics:
 - **Never start a run before the plugin copy has completed** — rebuild the host first
   and check `Tools\` timestamps; a stale plugin in the bin shows old behaviour.
 - **Do not type into the agent window while a puppet run is active** — injected input
-  mixes with real keystrokes (a stray keypress can garble the `/agent` checklist).
+  mixes with real keystrokes (a stray keypress can garble the `/tools` checklist).
 - The agent's behaviour is **stochastic** (LLM): a run may occasionally skip a step or
   duplicate a block. Re-run to distinguish model variance from a real bug; the
   structural verification catches both.

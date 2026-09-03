@@ -13,7 +13,8 @@ selectable through the same `/ttsengine` command and `appsettings` preference.
 
 The engine is selected through the same preference every time:
 
-- **`/ttsengine`** in the terminal UI — shows the known engines and sets the engine.
+- **`/ttsengine`** in the terminal UI (menu **Settings → TTS Engine**) — shows the known
+  engines and sets the engine.
 - **`appsettings.json`** → `"Tts": { "Engine": "kokoro" }` (the `/ttsengine` command persists
   here). A value outside the catalog falls back to Kokoro and logs why, so a stale setting
   never breaks the TTS.

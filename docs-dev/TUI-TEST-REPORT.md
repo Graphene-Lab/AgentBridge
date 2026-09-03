@@ -1,6 +1,18 @@
 ﻿# AGENTBRIDGE TUI — TEST REPORT COMPLETO (Modalità Puppet)
 ## Data: 2026-08-24 · Versione: Debug (bin\Debug\net10.0\agent.exe) · Tester: AI Agent (Qwen Code)
 
+> **⚠️ 2026-09-03 — RISTRUTTURAZIONE MENU/COMANDI (le sessioni qui sotto sono PRECEDENTI).**
+> La barra menu attuale è **Chat · File · Impostazioni/Settings · Sessione/Session · Web ·
+> Help** (i menu top Strumenti/Tools e Multimedia/Media non esistono più). Mapping vecchio →
+> nuovo: l'ex "Strumenti > Agent" è **Impostazioni > Strumenti** (`/tools`, alias `/agent`),
+> l'ex "Chat/File > Models & Providers" è **Impostazioni > Impostazioni principali**
+> (`/setup`, alias `/modelsetup`), `/tts` è ora nel gruppo Chat, `/voice` e `/ttsengine`
+> sotto Impostazioni insieme a SIP e Telegram; Auto-Update e Crash report sono nel menu
+> Aiuto/Help. Palette e `/help` mostrano i **nomi canonici** (`/setup`, `/tools`, ...);
+> gli alias `/modelsetup` e `/agent` restano validi solo come input. I riferimenti al
+> vecchio layout nelle sessioni sottostanti vanno letti con questo mapping; un ciclo di
+> test completo sulla nuova struttura è da rieseguire.
+
 ---
 
 ## Metodo di Test
@@ -131,10 +143,20 @@
 ## CICLO COMPLETO (sessione 28540, secondo la guida v2.1)
 
 ### Elementi individuati dall'analisi del codice (Tui.cs)
-- **Menu bar**: Chat (new, modelsetup, clear, commands, retry, exit) · File (files, attach) · Strumenti (agent, telegram) · Sessione (model, status, health) · Multimedia (voice, tts) · Web (web) · Aiuto (autoupdate, help, shortcuts, docs, issues, about)
-- **Comandi `/`** (21): help, docs, web, modelsetup, model, agent, voice, tts, features, new, clear, status, sip, telegram, files, attach, shortcuts, health, retry, exit
-- **Dialog/pagine**: Model Setup (4 tab) · Provider Add/Edit · Telegram panel · Agent checklist · Help page · Status page · Shortcuts page · SIP page · Command palette `/` · Files palette `@` · Model picker `/model` · About
-- **Chat**: input field, history (❯ tu / ◆ agente), status bar, spinner, banner ASCII, footer scorciatoie
+- **Menu bar**: Chat (new, clear, tts, commands, retry, exit) · File (files, attach) ·
+  Impostazioni/Settings (setup, tools, voice, ttsengine, sip, telegram) ·
+  Sessione/Session (model, features, status, health) · Web (web, officemanager) ·
+  Aiuto/Help (auto-update, crashreport, update, help, shortcuts, docs, issues, about)
+- **Comandi `/`** (24, nomi canonici; alias storici `/modelsetup` e `/agent` validi solo
+  come input, mai mostrati in palette/help): help, shortcuts, docs, update, crashreport,
+  new, clear, tts, retry, exit, files, attach, setup, tools, voice, ttsengine, sip,
+  telegram, model, features, status, health, web, officemanager
+- **Dialog/pagine**: Model Setup / Main settings (4 tab, bottone "Set default" nel tab
+  LLM) · Provider Add/Edit · Telegram panel · Tools checklist (`/tools`) · Help page ·
+  Status page · Shortcuts page · SIP page · Command palette `/` · Files palette `@` ·
+  Model picker `/model` · About
+- **Chat**: input field (multi-line: Shift+Enter a capo, Enter invia), history
+  (❯ tu / ◆ agente), status bar, spinner, banner ASCII, footer scorciatoie
 
 ### Esito per elemento (check 0-4)
 | Elemento | Stato aperti | Visiva | Interazione | Persistenza | Propagazione (log) |

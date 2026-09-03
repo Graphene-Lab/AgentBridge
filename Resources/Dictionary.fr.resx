@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -33,7 +33,7 @@ Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichie
   <data name="ChatFrameTitle" xml:space="preserve"><value>Chat</value></data>
   <data name="MenuFile" xml:space="preserve"><value>_Fichier</value></data>
   <data name="MenuNewChat" xml:space="preserve"><value>_Nouvelle discussion</value></data>
-  <data name="MenuModelsProviders" xml:space="preserve"><value>_Modèles et fournisseurs (/modelsetup)</value></data>
+  <data name="MenuMainSetup" xml:space="preserve"><value>_Paramètres principaux (/setup)</value></data>
   <data name="MenuAutoUpdate" xml:space="preserve"><value>_Mise à jour automatique : {0}</value></data>
   <data name="MenuExit" xml:space="preserve"><value>_Quitter</value></data>
   <data name="MenuChat" xml:space="preserve"><value>_Chat</value></data>
@@ -42,7 +42,7 @@ Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichie
   <data name="MenuRetryLast" xml:space="preserve"><value>_Renvoyer le dernier (/retry)</value></data>
   <data name="MenuSession" xml:space="preserve"><value>_Session</value></data>
   <data name="MenuLlmModel" xml:space="preserve"><value>_Modèle LLM (/model)</value></data>
-  <data name="MenuAgent" xml:space="preserve"><value>_Agent (/agent)</value></data>
+  <data name="MenuTools" xml:space="preserve"><value>_Outils (/tools)</value></data>
   <data name="MenuStatus" xml:space="preserve"><value>_État (/status)</value></data>
   <data name="MenuHealth" xml:space="preserve"><value>_Vérifier l'état (/health)</value></data>
   <data name="MenuWeb" xml:space="preserve"><value>_Web</value></data>
@@ -278,8 +278,8 @@ La zone de documents précédente est toujours active — rien n'a été modifi�
   <data name="SipAnnouncePinWrong" xml:space="preserve"><value>Code incorrect. Tentatives restantes : {0}.</value></data>
   <data name="SipAnnounceLocked" xml:space="preserve"><value>Trop de tentatives. Le service est bloqué pendant vingt-quatre heures.</value></data>
   <data name="SipAnnouncePinTimeout" xml:space="preserve"><value>Aucun code reçu. La communication va se terminer.</value></data>
-  <data name="MenuTools" xml:space="preserve"><value>_Outils</value></data>
-  <data name="MenuMedia" xml:space="preserve"><value>_Médias</value></data>
+  <data name="MenuSettings" xml:space="preserve"><value>_Paramètres</value></data>
+  
   <data name="MenuTelegram" xml:space="preserve"><value>_Telegram (/telegram)</value></data>
   <data name="MenuFiles" xml:space="preserve"><value>_Fichiers (/files)</value></data>
   <data name="MenuAttach" xml:space="preserve"><value>_Joindre (/attach)</value></data>

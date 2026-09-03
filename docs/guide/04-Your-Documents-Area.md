@@ -4,7 +4,7 @@ Think of the documents area as the company's brain. It is a simple folder on you
 
 ## How to set it up
 
-Open the chat window and type /modelsetup, then go to the General tab. In the Documents path field, choose the folder that holds your documents. The default is your personal Documents folder, and you can change it at any time. When you save, AgentBridge starts reading that area in the background. The first indexing of a large archive takes a few minutes, but you can keep working while it runs.
+Open the chat window and type /setup, then go to the General tab. In the Documents path field, choose the folder that holds your documents. The default is your personal Documents folder, and you can change it at any time. When you save, AgentBridge starts reading that area in the background. The first indexing of a large archive takes a few minutes, but you can keep working while it runs.
 
 ## Asking questions about your files
 

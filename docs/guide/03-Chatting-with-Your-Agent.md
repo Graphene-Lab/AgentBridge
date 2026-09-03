@@ -12,7 +12,7 @@ The assistant keeps your conversations in sessions. You can start a fresh conver
 
 ## Choosing what the agent can do
 
-Each conversation uses a set of tools that give the agent its abilities, such as browsing the web or working with spreadsheets. Type /agent to see the available presets and pick the one that fits the task. The status bar always shows the tools currently active, so you know at a glance what the agent can do in this conversation.
+Each conversation uses a set of tools that give the agent its abilities, such as browsing the web or working with spreadsheets. Type /tools to see the available presets and pick the one that fits the task (the older name /agent works too). The status bar always shows the tools currently active, so you know at a glance what the agent can do in this conversation.
 
 ## The web version
 

@@ -10,6 +10,8 @@ The assistant speaks with the built-in Kokoro voice engine: its voices and model
 
 Type /voice in the chat to dictate from the microphone, and /tts to hear the assistant speak the last answer aloud. Type /ttsengine to see which voice engine is active and which engines are available. The same voice engine also speaks on the phone and in the podcast tool, so your assistant sounds the same everywhere.
 
+On Windows, the speech-recognition component travels with the release — it is part of the package you install, in the voiceagent folder next to the program. If it is missing on an outdated installation, the program does not show technical details: it simply says that the speech-recognition component is missing from this installation and that updating the app to the latest version brings it, since voice comes bundled with it.
+
 ## Speech that never blocks you
 
 Everything runs on your machine, locally, with no downloads.

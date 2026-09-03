@@ -243,8 +243,11 @@ curl http://localhost:5290/v1/voice/listen \
 ```
 
 - `lang`: two-letter ISO code (default `it`); `timeout_seconds`: 1–60 (default 15).
-- **501 `voice_unavailable`** on non-Windows or when the executable is missing
-  (`Voice:ExePath`, default: next to the server). The microphone is exclusive — one listener
+- **501 `voice_unavailable`** on non-Windows or when the executable is missing (default
+  location: the `voiceagent\` folder next to the server — override with `Voice:ExePath`).
+  In development the csproj copies the sibling `AIOffice.VoiceAgent.Win` build there
+  automatically; public Windows releases ship the component already inside the archive, so
+  an updated install has it. The microphone is exclusive — one listener
   at a time. `408` on timeout.
 
 Typical voice chat flow: `voice/listen` → transcript → `chat/completions` → `audio/speech` →
@@ -277,8 +280,8 @@ Two kinds of entries:
 **Agent interaction mode.** Each provider drives the agent tools either through the JSON
 tool-calling API (`interaction_mode: "API"` — one tool per method) or through the
 application CLI (`interaction_mode: "CLI"` — the agent issues `ClassName subcommand args`
-commands against the terminal). It is configured per provider in the Models & Providers UI
-or in `providers.json` (`AgentInteractionMode`, options `API`/`CLI`/`Default`); `Default`
+commands against the terminal). It is configured per provider in the TUI Main settings
+dialog (Settings → Main settings, `/setup`) or in `providers.json` (`AgentInteractionMode`, options `API`/`CLI`/`Default`); `Default`
 delegates to the model size — CLI for small models (context window < 128 000 tokens), API
 for large ones. `interaction_mode` always reports the **effective** value (the explicit
 setting or the size default). The same field appears on `GET /v1/control` session state.

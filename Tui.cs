@@ -106,6 +106,14 @@ public static class ConsoleTui
         private volatile bool _spinnerActive;
         private Label? _spinnerLabel;
 
+        // Top-right busy indicator (right end of the menu-bar row): shows the most important
+        // operation currently running — [indicizzazione…]/[indexing…] for the background
+        // document reindex (from AIOrchestrator.Setup.IndexingChanged), the chat stream, voice
+        // listening. Ops are tagged strings so several concurrent operations collapse into one.
+        private readonly object _busyLock = new();
+        private readonly HashSet<string> _busyOps = new(StringComparer.Ordinal);
+        private Label? _busyLabel;
+
         private static readonly JsonSerializerOptions JsonOpts = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
@@ -114,6 +122,8 @@ public static class ConsoleTui
 
         private const int MaxHistory = 1000;
         private const int MaxInputLines = 4;
+        // Right-end slot on the menu-bar row reserved for the busy indicator (overlay label).
+        private const int BusyLabelWidth = 20;
 
         // UI strings come from the localized dictionary (system language, English fallback) —
         // see Resources/Dictionary.*.resx. Command names (/help, /model...) are NOT translated.
@@ -154,10 +164,10 @@ public static class ConsoleTui
             // Chat
             new("new", "", Dictionary.CmdNew, (t, _) => t.NewSessionAsync(), new[] { "/reset" },
                 MenuGroup: "chat", MenuTitle: Dictionary.MenuNewChat, Shortcut: Key.N.WithCtrl),
-            new("modelsetup", "", Dictionary.CmdModelSetup, (t, _) => t.ShowModelSetupAsync(),
-                MenuGroup: "chat", MenuTitle: Dictionary.MenuModelsProviders),
             new("clear", "", Dictionary.CmdClear, (t, _) => t.ClearHistoryAsync(),
                 MenuGroup: "chat", MenuTitle: Dictionary.MenuClearHistory, Shortcut: Key.L.WithCtrl),
+            new("tts", "[text]", Dictionary.CmdTts, (t, a) => t.TtsAsync(a),
+                MenuGroup: "chat", MenuTitle: Dictionary.MenuTts),
             new("retry", "", Dictionary.CmdRetry, (t, _) => t.RetryAsync(),
                 MenuGroup: "chat", MenuTitle: Dictionary.MenuRetryLast, Shortcut: Key.Y.WithCtrl),
             new("exit", "", Dictionary.CmdExit, (t, _) => t.ExitAsync(), new[] { "/quit" },
@@ -167,13 +177,21 @@ public static class ConsoleTui
                 MenuGroup: "file", MenuTitle: Dictionary.MenuFiles),
             new("attach", "[id]", Dictionary.CmdAttach, (t, a) => t.AttachAsync(a),
                 MenuGroup: "file", MenuTitle: Dictionary.MenuAttach),
-            // Tools
-            new("agent", "[name]", Dictionary.CmdAgent, (t, a) => t.SwitchAgentAsync(a),
-                MenuGroup: "tools", MenuTitle: Dictionary.MenuAgent),
+            // Settings (menu Impostazioni/Settings): main setup, tool selection, voice and
+            // the SIP/Telegram bridges. /model stays under Session: it switches the CURRENT
+            // chat on the fly and never touches the default provider configured here.
+            new("setup", "", Dictionary.CmdModelSetup, (t, _) => t.ShowModelSetupAsync(), new[] { "/modelsetup" },
+                MenuGroup: "settings", MenuTitle: Dictionary.MenuMainSetup),
+            new("tools", "[name]", Dictionary.CmdAgent, (t, a) => t.SwitchAgentAsync(a), new[] { "/agent" },
+                MenuGroup: "settings", MenuTitle: Dictionary.MenuTools),
+            new("voice", "[lang]", Dictionary.CmdVoice, (t, a) => t.VoiceAsync(a),
+                MenuGroup: "settings", MenuTitle: Dictionary.MenuVoice),
+            new("ttsengine", "[name]", Dictionary.CmdTtsEngine, (t, a) => t.TtsEngineAsync(a),
+                MenuGroup: "settings", MenuTitle: Dictionary.MenuTtsEngine),
             new("sip", "status|config [set <key> <value>|reload]|call <sip-uri>|answer on|off|hangup", Dictionary.CmdSip, (t, a) => t.SipAsync(a),
-                MenuGroup: "tools", MenuTitle: Dictionary.MenuSip),
+                MenuGroup: "settings", MenuTitle: Dictionary.MenuSip),
             new("telegram", "status|config [set <key> <value>|reload]|login-code <code>|allow|disallow <user>", Dictionary.CmdTelegram, (t, a) => t.TelegramAsync(a),
-                MenuGroup: "tools", MenuTitle: Dictionary.MenuTelegram),
+                MenuGroup: "settings", MenuTitle: Dictionary.MenuTelegram),
             // Session
             new("model", "[name]", Dictionary.CmdModel, (t, a) => t.SwitchModelAsync(a),
                 MenuGroup: "session", MenuTitle: Dictionary.MenuLlmModel),
@@ -183,13 +201,6 @@ public static class ConsoleTui
                 MenuGroup: "session", MenuTitle: Dictionary.MenuStatus),
             new("health", "", Dictionary.CmdHealth, (t, _) => t.HealthAsync(),
                 MenuGroup: "session", MenuTitle: Dictionary.MenuHealth),
-            // Media
-            new("voice", "[lang]", Dictionary.CmdVoice, (t, a) => t.VoiceAsync(a),
-                MenuGroup: "media", MenuTitle: Dictionary.MenuVoice),
-            new("tts", "[text]", Dictionary.CmdTts, (t, a) => t.TtsAsync(a),
-                MenuGroup: "media", MenuTitle: Dictionary.MenuTts),
-            new("ttsengine", "[name]", Dictionary.CmdTtsEngine, (t, a) => t.TtsEngineAsync(a),
-                MenuGroup: "media", MenuTitle: Dictionary.MenuTtsEngine),
             // Web
             new("web", "", Dictionary.CmdWeb, (t, _) => t.LaunchWebClientAsync(),
                 MenuGroup: "web", MenuTitle: Dictionary.MenuGui),
@@ -276,6 +287,12 @@ public static class ConsoleTui
             // Surface auto-update progress in the status bar (fires from background tasks).
             AutoUpdate.OnStatus += OnUpdateStatus;
 
+            // Background document reindex events → top-right busy indicator. Subscribing and
+            // the IsIndexingNow probe never create the processor, so merely running the TUI
+            // cannot trigger a multi-minute index (see AIOrchestrator.Setup).
+            AIOrchestrator.Setup.IndexingChanged += OnIndexingChanged;
+            if (AIOrchestrator.Setup.IsIndexingNow) SetBusy("indexing", true);
+
             // Modern dark theme for the whole main window (views reference it by name).
             _baseScheme = new Scheme
             {
@@ -345,6 +362,7 @@ public static class ConsoleTui
             if (_disposed) return;
             _disposed = true;
             AutoUpdate.OnStatus -= OnUpdateStatus;
+            AIOrchestrator.Setup.IndexingChanged -= OnIndexingChanged;
             CancelChat();
             try { _app.Dispose(); } catch { }
             _http.Dispose();
@@ -443,8 +461,8 @@ public static class ConsoleTui
                 new(Dictionary.MenuChat, new MenuItem[]
                 {
                     CommandMenuItem("new"),
-                    CommandMenuItem("modelsetup"),
                     CommandMenuItem("clear"),
+                    CommandMenuItem("tts"),
                     new MenuItem(Dictionary.MenuCommands, Key.Empty, () => ShowCommandMenu("")),
                     CommandMenuItem("retry"),
                     CommandMenuItem("exit"),
@@ -454,9 +472,12 @@ public static class ConsoleTui
                     CommandMenuItem("files"),
                     CommandMenuItem("attach"),
                 }),
-                new(Dictionary.MenuTools, new MenuItem[]
+                new(Dictionary.MenuSettings, new MenuItem[]
                 {
-                    CommandMenuItem("agent"),
+                    CommandMenuItem("setup"),
+                    CommandMenuItem("tools"),
+                    CommandMenuItem("voice"),
+                    CommandMenuItem("ttsengine"),
                     CommandMenuItem("sip"),
                     CommandMenuItem("telegram"),
                 }),
@@ -466,12 +487,6 @@ public static class ConsoleTui
                     CommandMenuItem("features"),
                     CommandMenuItem("status"),
                     CommandMenuItem("health"),
-                }),
-                new(Dictionary.MenuMedia, new MenuItem[]
-                {
-                    CommandMenuItem("voice"),
-                    CommandMenuItem("tts"),
-                    CommandMenuItem("ttsengine"),
                 }),
                 new(Dictionary.MenuWeb, new MenuItem[]
                 {
@@ -491,6 +506,19 @@ public static class ConsoleTui
                 }),
             });
             _mainWindow.Add(menu);
+
+            // Busy indicator on the right end of the menu-bar row. Terminal.Gui's MenuBar
+            // has no right-side widget slot, so a small overlay label (added after the menu,
+            // therefore drawn above it) shows the current operation; it is hidden when idle.
+            _busyLabel = new Label
+            {
+                Text = "",
+                X = Pos.AnchorEnd(BusyLabelWidth), Y = 0, Width = BusyLabelWidth,
+                TextAlignment = Alignment.End,
+                SchemeName = "Hint",
+                Visible = false,
+            };
+            _mainWindow.Add(_busyLabel);
             ValidateMenuCoverage();
 
             // Esc never quits the app directly: it is handled by the focused view
@@ -1031,6 +1059,7 @@ public static class ConsoleTui
             _lastPrompt = prompt;
             _lastFailed = false;
             lock (_stateLock) _chatCts = new CancellationTokenSource();
+            SetBusy("generating", true);
             var sw = Stopwatch.StartNew();
             Ui(() =>
             {
@@ -1143,6 +1172,7 @@ public static class ConsoleTui
             finally
             {
                 Interlocked.Exchange(ref _chatRunning, 0);
+                SetBusy("generating", false);
                 lock (_stateLock)
                 {
                     _chatCts?.Dispose();
@@ -1319,6 +1349,34 @@ public static class ConsoleTui
         private void OnUpdateStatus(string message) => Ui(() => { _statusNote = message; UpdateStatusUi(); });
 
         private void UpdateStatusUi() => Ui(UpdateStatus);
+
+        // ── Top-right busy indicator ──
+        private void OnIndexingChanged(bool indexing) => SetBusy("indexing", indexing);
+
+        private void SetBusy(string op, bool on)
+        {
+            lock (_busyLock)
+            {
+                if (on) _busyOps.Add(op);
+                else _busyOps.Remove(op);
+            }
+            Ui(UpdateBusyLabel);
+        }
+
+        private void UpdateBusyLabel()
+        {
+            if (_busyLabel == null) return;
+            string text;
+            lock (_busyLock)
+            {
+                text = _busyOps.Contains("indexing") ? Dictionary.BusyIndexing
+                    : _busyOps.Contains("generating") ? Dictionary.BusyGenerating
+                    : _busyOps.Contains("listening") ? Dictionary.BusyListening
+                    : "";
+            }
+            _busyLabel.Visible = text.Length > 0;
+            _busyLabel.Text = text;
+        }
 
         // Puppet mode (PrintScreen): dumps the current screen to a timestamped file
         // next to the executable so an agent tester can read it later.
@@ -1926,10 +1984,32 @@ public static class ConsoleTui
             if (resp2.IsSuccessStatusCode)
             {
                 AddNote(string.Format(Dictionary.NoteProviderNow, name));
+                // The switch is session-scoped by design (/model never touches the default
+                // in the settings): refresh the session state so the status line and the
+                // pickers reflect the provider actually in use right away.
+                await RefreshSessionStateAsync();
             }
             else
             {
                 AddNote(string.Format(Dictionary.NoteSwitchRefused, (int)resp2.StatusCode, await ReadErrorAsync(resp2)));
+            }
+        }
+
+        // Asks the server to adopt the marked default provider for the current process: new
+        // chat sessions start with it. Only the process-wide default changes — the session
+        // currently open is NOT switched (that is /model's job).
+        private async Task SetDefaultProviderAsync(string name)
+        {
+            try
+            {
+                var body = JsonSerializer.Serialize(new { set_default_provider = name }, JsonOpts);
+                using var resp = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
+                if (!resp.IsSuccessStatusCode)
+                    AddNote(string.Format(Dictionary.NoteSetDefaultFailedHttp, (int)resp.StatusCode, await ReadErrorAsync(resp)));
+            }
+            catch (Exception ex)
+            {
+                AddNote(string.Format(Dictionary.NoteSetDefaultFailed, ex.Message));
             }
         }
 
@@ -2062,6 +2142,7 @@ public static class ConsoleTui
             }
             var l = string.IsNullOrWhiteSpace(lang) ? SystemLang.Get() : lang.Trim();
             AddNote(Dictionary.NoteListening);
+            SetBusy("listening", true);
             var body = JsonSerializer.Serialize(new { lang = l, timeout_seconds = 15 }, JsonOpts);
             try
             {
@@ -2092,6 +2173,10 @@ public static class ConsoleTui
             catch (Exception ex)
             {
                 AddNote(string.Format(Dictionary.NoteVoiceFailed, ex.Message));
+            }
+            finally
+            {
+                SetBusy("listening", false);
             }
         }
 
@@ -3245,15 +3330,34 @@ public static class ConsoleTui
                 var editBtn = new Button { Text = Dictionary.SetupEdit, X = Pos.Right(addBtn) + 1, Y = y };
                 var removeBtn = new Button { Text = Dictionary.SetupRemove, X = Pos.Right(editBtn) + 1, Y = y };
                 llmTab.Add(addBtn, editBtn, removeBtn);
+                // Explicit persistent default ("Imposta come predefinito"): the provider new
+                // chats start with. /model (Session menu) never touches it — it switches only
+                // the current chat on the fly. See SetupDefaultHint below.
+                var defaultBtn = new Button { Text = Dictionary.SetupSetDefault, X = 1, Y = y + 1 };
+                llmTab.Add(defaultBtn);
+                llmTab.Add(new Label
+                {
+                    Text = Dictionary.SetupDefaultHint,
+                    X = 1, Y = y + 2, Width = 60,
+                    SchemeName = "Hint",
+                });
 
                 // The dropdown re-marks the active provider in the list below it,
                 // and updates the active-model indicator shown above the list.
                 providerDropdown.ValueChanged += (_, _) => RefreshProviderList();
                 void RefreshProviderList()
                 {
+                    var defaultName = ProviderConfigs.Default.ProviderName;
                     providersList.Source = new ListWrapper<string>(new ObservableCollection<string>(
-                        ProviderConfigs.All.Select(p => p.ProviderName == providerDropdown.Text
-                            ? $"{p.ProviderName}  {Dictionary.SetupActiveMarker}" : p.ProviderName)));
+                        ProviderConfigs.All.Select(p =>
+                        {
+                            var marks = "";
+                            if (string.Equals(p.ProviderName, providerDropdown.Text, StringComparison.OrdinalIgnoreCase))
+                                marks += $"  {Dictionary.SetupActiveMarker}";
+                            if (string.Equals(p.ProviderName, defaultName, StringComparison.OrdinalIgnoreCase))
+                                marks += Dictionary.SetupDefaultMarker;
+                            return p.ProviderName + marks;
+                        })));
                     // Active model: the REAL session model when the dropdown shows the active
                     // provider (the provider's configured ModelName is often empty even though
                     // a concrete model is in use — the session knows the truth); otherwise the
@@ -3331,6 +3435,21 @@ public static class ConsoleTui
                         _ = SwitchModelAsync(ProviderConfigs.Default.ProviderName);
                     }
                     RefreshProviders();
+                };
+                defaultBtn.Accepted += (_, _) =>
+                {
+                    var name = SelectedProviderName();
+                    if (name == null) { AddNote(Dictionary.SetupSelectForDefault); return; }
+                    Log.LogStep($"TUI ModelSetup: Set default provider '{name}'", monitor: true);
+                    // Persist the explicit marker locally (providers.json) and ask the server
+                    // to adopt it for the current process too — new chats start with it while
+                    // /model keeps switching only the running session.
+                    if (ProviderConfigs.SetDefault(name, persist: true))
+                    {
+                        AddNote(string.Format(Dictionary.SetupDefaultSet, name));
+                        RefreshProviderList();
+                        _ = SetDefaultProviderAsync(name);
+                    }
                 };
             }
 
@@ -3511,6 +3630,8 @@ public static class ConsoleTui
                     ProviderName = providerName,
                     Protocol = proto,
                     AgentInteractionMode = mode,
+                    // Editing a provider must never silently drop its default marker.
+                    IsDefault = existing?.IsDefault ?? false,
                     ModelName = (modelField.Text ?? "").Trim(),
                     BaseAddress = uri,
                     EndPoint = (endPointField.Text ?? "").Trim(),

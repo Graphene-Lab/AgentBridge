@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -33,7 +33,7 @@ Nachricht eingeben und Eingabetaste drücken · / öffnet Befehle · @ Dateien �
   <data name="ChatFrameTitle" xml:space="preserve"><value>Chat</value></data>
   <data name="MenuFile" xml:space="preserve"><value>_Datei</value></data>
   <data name="MenuNewChat" xml:space="preserve"><value>_Neuer Chat</value></data>
-  <data name="MenuModelsProviders" xml:space="preserve"><value>_Modelle und Anbieter (/modelsetup)</value></data>
+  <data name="MenuMainSetup" xml:space="preserve"><value>_Haupteinstellungen (/setup)</value></data>
   <data name="MenuAutoUpdate" xml:space="preserve"><value>_Automatische Aktualisierung: {0}</value></data>
   <data name="MenuExit" xml:space="preserve"><value>_Beenden</value></data>
   <data name="MenuChat" xml:space="preserve"><value>_Chat</value></data>
@@ -42,7 +42,7 @@ Nachricht eingeben und Eingabetaste drücken · / öffnet Befehle · @ Dateien �
   <data name="MenuRetryLast" xml:space="preserve"><value>_Letzten erneut senden (/retry)</value></data>
   <data name="MenuSession" xml:space="preserve"><value>_Sitzung</value></data>
   <data name="MenuLlmModel" xml:space="preserve"><value>_LLM-Modell (/model)</value></data>
-  <data name="MenuAgent" xml:space="preserve"><value>_Agent (/agent)</value></data>
+  <data name="MenuTools" xml:space="preserve"><value>_Werkzeuge (/tools)</value></data>
   <data name="MenuStatus" xml:space="preserve"><value>_Status (/status)</value></data>
   <data name="MenuHealth" xml:space="preserve"><value>_Status prüfen (/health)</value></data>
   <data name="MenuWeb" xml:space="preserve"><value>_Web</value></data>
@@ -278,8 +278,8 @@ Der vorherige Dokumentbereich ist weiterhin aktiv — es wurde nichts geändert.
   <data name="SipAnnouncePinWrong" xml:space="preserve"><value>Falscher Code. Verbleibende Versuche: {0}.</value></data>
   <data name="SipAnnounceLocked" xml:space="preserve"><value>Zu viele Versuche. Der Dienst ist für vierundzwanzig Stunden gesperrt.</value></data>
   <data name="SipAnnouncePinTimeout" xml:space="preserve"><value>Kein Code empfangen. Das Gespräch wird beendet.</value></data>
-  <data name="MenuTools" xml:space="preserve"><value>_Werkzeuge</value></data>
-  <data name="MenuMedia" xml:space="preserve"><value>_Medien</value></data>
+  <data name="MenuSettings" xml:space="preserve"><value>_Einstellungen</value></data>
+  
   <data name="MenuTelegram" xml:space="preserve"><value>_Telegram (/telegram)</value></data>
   <data name="MenuFiles" xml:space="preserve"><value>_Dateien (/files)</value></data>
   <data name="MenuAttach" xml:space="preserve"><value>_Anhängen (/attach)</value></data>

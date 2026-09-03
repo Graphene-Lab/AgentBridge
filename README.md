@@ -162,14 +162,14 @@ Think of the documents area as your company's brain. It is a simple folder on di
 
 ### How to configure the documents area
 
-1. Open AgentBridge and type `/modelsetup` (menu **File → Models & Providers**).
+1. Open AgentBridge and type `/setup` (menu **Settings → Main settings**).
 2. In the **General** tab, set **Documents path** to the folder that holds your documents. The default is your personal Documents folder — you can change it at any time.
 3. Press **Save**. AgentBridge starts reading that area in the background: the first indexing of a large archive takes a few minutes, but you can keep working while it runs.
 4. From now on, ask the AI anything about your documents — it searches the whole area and answers from your data. If you move to a different folder, just change the path again: AgentBridge automatically re-indexes the new area.
 
 ### How to configure the LLM provider and API keys
 
-1. Open AgentBridge and type `/modelsetup` (menu **File → Models & Providers**).
+1. Open AgentBridge and type `/setup` (menu **Settings → Main settings**).
 2. In the **LLM & Providers** tab, pick the active provider; use **Add…** / **Edit…** to
    create or edit a provider. The provider dialog includes an **API key** field (masked on
    screen) — every cloud provider (DeepSeek, Z.ai, Gemini, Anthropic, …) needs its key;
@@ -210,14 +210,16 @@ Think of the documents area as your company's brain. It is a simple folder on di
   a context-window guard that refuses an overflow and explains why.
 - **Per-provider agent interaction mode** — each provider can drive the agent tools via the
   JSON tool-calling API (`API`) or the application CLI (`CLI`), or leave it `Default` (CLI
-  for small models, API for large ones). Set it in the provider dialog under **Models &
-  Providers**; the active mode is shown on the status page and reported by `GET /v1/models`
+  for small models, API for large ones). Set it in the provider dialog under **Settings →
+  Main settings**; the active mode is shown on the status page and reported by `GET /v1/models`
   as `interaction_mode`.
-- **Configure models & providers from the UI** — `/modelsetup` (menu **File → Models &
-  Providers**) adds, edits or removes providers, picks the active model, sets the
-  per-provider API keys, SMTP/IMAP and documents path — no JSON editing required.
-- **Voice in the terminal** — dictate from the server microphone (Windows) and hear the
-  replies spoken by Kokoro neural TTS, in the UI and over the API.
+- **Configure models & providers from the UI** — `/setup` (alias `/modelsetup`, menu
+  **Settings → Main settings**) adds, edits or removes providers, picks the persistent
+  **default provider** new chats start from, sets the per-provider API keys, SMTP/IMAP and
+  documents path — no JSON editing required.
+- **Voice in the terminal** — dictate from the server microphone (Windows; the release
+  ships the speech-recognition component) and hear the replies spoken by Kokoro neural
+  TTS, in the UI and over the API.
 - **SIP telephony** — the server becomes a phone endpoint: auto-answer behind a DTMF PIN
   (3 attempts, 24 h lockout), outgoing calls, and full voice conversations with the agents
   over RTP (whisper STT + Kokoro TTS). See [docs/sip.md](docs/sip.md).
@@ -227,7 +229,8 @@ Think of the documents area as your company's brain. It is a simple folder on di
 - **Upload-and-attach files** — documents and images converted to Markdown server-side,
   attached to chat requests as `file_ids`.
 - **Agents with tools** — web, search, research, document, spreadsheet, office, email and
-  multi-files sets; pick the right tools per chat with `/agent` or the API `model` field
+  multi-files sets; pick the right tools per chat with `/tools` (alias `/agent`) or the API
+  `model` field
   (any custom tool combination via the additive `tools` field).
 - **One conversation everywhere** — messages from the terminal go through the exact same
   endpoint any client uses, so you can chat in the TUI while a script keeps driving the
@@ -272,7 +275,7 @@ its chat pipeline as a standard web API. **One process. Your machine. Your agent
 ```mermaid
 flowchart LR
     subgraph Clients["You — however you prefer"]
-        A["Terminal UI<br/>(/agent chat)"]
+        A["Terminal UI<br/>(/tools)"]
         B["Any OpenAI client<br/>(SDKs, bots, scripts)"]
         C["Web GUI"]
     end
