@@ -16,7 +16,7 @@
          off triggers release.yml automatically (tag v1.yy.MM.dd created by the workflow).
          Date-based auto version, same scheme as UISupportBlazor/UISupportGeneric
          (1.yy.MM.dd, e.g. 1.26.08.09). -->
-    <IsPrerelease>true</IsPrerelease>
+    <IsPrerelease>false</IsPrerelease>
     <!-- NuGet wait marker (release.ps1 / release.yml): true = the release build must wait for
          today's core dependency packages on nuget.org (a core repo changed today and its
          package is still propagating); false = no core repo changed since its last tag, so the
@@ -102,6 +102,12 @@
          a loose .txt in the output proved unreliable on the OneDrive-synced bin folder
          (same lesson as the processing-indicator.wav). Loaded once by ConsoleTui. -->
     <EmbeddedResource Include="AGRNT_ascii_art.txt" LogicalName="AgentBridge.assets.agent-ascii-art.txt" />
+    <!-- appsettings.json is USER-EDITABLE configuration: the single-config-directory rule
+         (AppConfig + docs-dev/RELEASE-CHECKLIST.md) forbids shipping it next to the executable.
+         The Web SDK would copy the repo file into the output; instead it is EMBEDDED and
+         AppConfig.Initialize() seeds it into PersistentData\ on the first run. -->
+    <Content Update="appsettings.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+    <EmbeddedResource Include="appsettings.json" LogicalName="AgentBridge.appsettings.default.json" />
   </ItemGroup>
   <!-- e2e/ hosts standalone tooling (TuiSmoke, run_e2e.ps1) and tools/ hosts standalone
        developer tooling (ConsolePuppetInjector) — never part of this project. WITHOUT these
@@ -244,5 +250,14 @@
     </ItemGroup>
     <Copy SourceFiles="@(_SttFiles)" DestinationFiles="@(_SttFiles->'$(OutputPath)voiceagent-stt\%(RecursiveDir)%(Filename)%(Extension)')" />
     <Message Text="VoiceAgent (STT) output copied to $(OutputPath)voiceagent-stt\" Importance="high" />
+  </Target>
+  <!-- Root user-editable config must NEVER sit next to the executable (single-config-directory
+       rule, AppConfig + docs-dev/RELEASE-CHECKLIST.md). providers.json is copied in by
+       AIOrchestrator's Content items (ProjectReference) and appsettings.json by the Web SDK;
+       the copies are removed after Build and after Publish as a safety net — the app reads both
+       from PersistentData\ (seeded/migrated at startup by AppConfig.Initialize()). -->
+  <Target Name="RemoveRootConfigJson" AfterTargets="Build;Publish">
+    <Delete Files="$(OutputPath)appsettings.json;$(OutputPath)providers.json" Condition="Exists('$(OutputPath)appsettings.json') or Exists('$(OutputPath)providers.json')" />
+    <Delete Files="$(PublishDir)appsettings.json;$(PublishDir)providers.json" Condition="'$(PublishDir)' != '' and (Exists('$(PublishDir)appsettings.json') or Exists('$(PublishDir)providers.json'))" />
   </Target>
 </Project>
