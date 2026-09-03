@@ -42,6 +42,9 @@ startup (it refuses to run when broken) — start it once as the final check.
 
 - [ ] `dotnet build -c Debug` succeeds and a Debug start prints no stray-json refusal.
 - [ ] Publish output (any RID) has no root config json before the release.
+- [ ] Local archive downloads use **`download-release.ps1`** (background-safe, verifies
+      integrity with `tar -tzf` before extraction) — a foreground download of the ~950 MB
+      archives can be killed mid-transfer and leave a silently truncated `.tar.gz`.
 - [ ] Docs stay truthful: file locations in docs/ (user) and docs-dev/ (developer) match the
       layout above; `IsPrerelease` gate handled per AGENTS.md.
 - [ ] Tool plugins still resolve after the change (start the app, `/v1/models` lists the
