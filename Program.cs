@@ -116,6 +116,11 @@ if (args.Contains("-h") || args.Contains("--help") || args.Contains("/?"))
                                   Skip the DocumentsPath index build/refresh + file watcher
                                   at startup (true|false) — use during debug/dev when no
                                   document searches are needed (large folders index for minutes)
+          --DocumentsPath <path>  Sandbox root for document indexing and file tools (default:
+                                  the persisted rag_settings.json value, else the OS Documents
+                                  folder). Validated and persisted like the TUI "Documents
+                                  path" setting; a folder without an index is built once on
+                                  first use (minutes on large trees)
           --no-update              Disable the automatic update check at startup (default on;
                                   use for services/CI that manage the binary themselves)
           --enable-log             Enable AIOrchestrator file logging (logs/&lt;pid&gt;.txt) — the TUI
@@ -271,6 +276,29 @@ for (int i = 0; i < args.Length; i++)
     break;
 }
 Setup.SkipIndexingOnStartup = skipIndexing || builder.Configuration.GetValue<bool>("SkipIndexingOnStartup");
+
+// Startup sandbox override from CLI/appsettings "DocumentsPath" (default: the persisted
+// rag_settings.json value, else the OS Documents folder). Applied BEFORE the shared
+// RagDocumentProcessor is created (see Setup.SkipIndexingOnStartup for the same contract):
+// the processor is lazy, so this early assignment makes it start directly on the chosen
+// root — no build of the previous default root is ever kicked off. Same CLI conventions as
+// above: "--DocumentsPath <path>" or "--DocumentsPath=<path>" (quotes stripped, spaces kept).
+var documentsPathOverride = (string?)null;
+for (int i = 0; i < args.Length; i++)
+{
+    if (!args[i].StartsWith("--DocumentsPath", StringComparison.OrdinalIgnoreCase)) continue;
+    if (args[i].Contains('='))
+        documentsPathOverride = args[i].Split('=', 2)[1].Trim().Trim('"');
+    else if (i + 1 < args.Length)
+        documentsPathOverride = args[i + 1].Trim().Trim('"');
+    break;
+}
+documentsPathOverride ??= builder.Configuration["DocumentsPath"];
+if (!string.IsNullOrWhiteSpace(documentsPathOverride)
+    && !Setup.TrySetDocumentsPathEarly(documentsPathOverride, out var documentsPathError))
+{
+    Console.WriteLine($"DocumentsPath override rejected: {documentsPathError}");
+}
 
 // This host has no settings UI of its own: load credentials persisted by the previous
 // run (Setup.Save) from %LocalAppData%\{app}\setup.json — SMTP/IMAP for EMailTool.
