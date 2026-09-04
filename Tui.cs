@@ -3138,6 +3138,22 @@ public static class ConsoleTui
                     }
                 }
             };
+            // In v2.4.17 keyboard Enter on a focused ListView does NOT raise Accepted:
+            // the inherited Enter→Accept is not handled by the list, so the key bubbles
+            // to the Dialog which closes with no result. This bites as soon as the user
+            // clicks a row (focus moves to the list) after the filter has narrowed the
+            // results — the exact "Invio chiude senza eseguire" case. Handle Enter here
+            // explicitly (same pattern as RunIndexPickerDialog); Accepted stays for the
+            // mouse double-click.
+            list.KeyDown += (_, key) =>
+            {
+                if (key == Key.Enter)
+                {
+                    key.Handled = true;
+                    RunCommandLine(CommandTextFromDialog(filter.Text, visible, list));
+                    _app.RequestStop(dlg);
+                }
+            };
             list.Accepted += (_, e) =>
             {
                 e.Handled = true;
