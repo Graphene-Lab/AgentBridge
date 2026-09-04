@@ -12,6 +12,11 @@ on:
 
 permissions:
   contents: write
+  # DO NOT add a "workflows" key here — it is NOT a valid value in a workflow's permissions
+  # block (only PATs / GitHub Apps have it). Doing so makes the whole file invalid and every
+  # run fails with 0 jobs ("Invalid workflow file ... Unexpected value 'workflows'",
+  # 2026-09-04). If the tag-pin push is ever refused for a workflow-file change, pin the tag
+  # to a commit whose .github/workflows matches the default branch instead.
 
 # Serializes runs of this workflow per branch: with cancel-in-progress: false a NEW run (the
 # gate-restore push, a manual push during the build) never cancels the QUEUED or RUNNING
