@@ -23,6 +23,12 @@
          wait is skipped. Default true (conservative: a manual gate-off push without
          release.ps1 still waits). -->
     <NuGetWait>true</NuGetWait>
+    <!-- NuGetWaitPackages: the comma-separated package ids the release build waits for when
+         <NuGetWait> is true. release.ps1 narrows it to the repos that actually changed today so
+         the wait exits as soon as those propagate instead of burning the full 30 minutes on
+         repos that never publish today's version; the default (all wait-checked packages) is
+         the conservative fallback for a manual gate-off push. -->
+    <NuGetWaitPackages>graphene.aiorchestrator,alltomarkdown,mermaidrendering,graphene.reversemarkdown,uisupportgeneric,systemextra</NuGetWaitPackages>
     <!-- Naiad (transitive dep of Graphene.AIOrchestrator) SponsorCheck: the property is
          required when building Release; set in every project consuming the package. -->
     <Papyrine_SponsorshipLicenseIgnored>true</Papyrine_SponsorshipLicenseIgnored>

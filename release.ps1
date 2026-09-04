@@ -149,7 +149,9 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $csprojPath = Join-Path $root 'AgentBridge.csproj'
 $gateRegex = '<IsPrerelease>\s*(true|false)\s*</IsPrerelease>'
 $nugetWaitRegex = '<NuGetWait>\s*(true|false)\s*</NuGetWait>'
+$waitPackagesRegex = '(<NuGetWaitPackages[^>]*>)[^<]*</NuGetWaitPackages>'
 $releaseDateRegex = '(?<open><ReleaseDate[^>]*>)[^<]*</ReleaseDate>'
+$script:waitPackagesDefault = 'graphene.aiorchestrator,alltomarkdown,mermaidrendering,graphene.reversemarkdown,uisupportgeneric,systemextra'
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $syncMsg = "Update at $(Get-Date -Format HH:mm)"
 
@@ -245,7 +247,7 @@ function Test-PackageVisible([string]$pkg, [string]$ver) {
 function Assert-CorePackagesReady {
     $v = Get-TodayVersion
     $script:needsNuGetWait = $false
-    $waiting = @()
+    $script:waiting = @()
     $script:tagActions = @()
     foreach ($r in $script:coreRepos) {
         $dir = Join-Path $root "..\$($r.Dir)"
@@ -272,7 +274,7 @@ function Assert-CorePackagesReady {
                         Write-Host "core OK (package $($v.Norm) visible on nuget.org): $($r.Dir)"
                     } else {
                         $script:needsNuGetWait = $true
-                        $waiting += $r.Dir
+                        $script:waiting += $r.Dir
                         Write-Host "core WAIT (package $($v.Norm) still propagating): $($r.Dir)"
                     }
                 } else {
@@ -298,14 +300,14 @@ function Assert-CorePackagesReady {
             # A stale local tag is force-moved — it was never published, nothing depends on it.
             $script:tagActions += @{ Dir = $r.Dir; Tag = $todayTag }
             $script:needsNuGetWait = $true
-            $waiting += $r.Dir
+            $script:waiting += $r.Dir
             Write-Host "core TAG (tag $todayTag created + pushed after the sync): $($r.Dir)"
         } finally {
             Pop-Location
         }
     }
     if ($script:needsNuGetWait) {
-        Write-Host "NuGet wait needed for: $($waiting -join ', ')"
+        Write-Host "NuGet wait needed for: $($script:waiting -join ', ')"
     } else {
         Write-Host "No NuGet wait needed — release will skip the 30-min dependency wait."
     }
@@ -334,6 +336,18 @@ function Publish-CoreTags {
 
 function Set-NuGetWait([string]$value) {
     $content = [regex]::Replace([System.IO.File]::ReadAllText($csprojPath), $nugetWaitRegex, "<NuGetWait>$value</NuGetWait>", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    # Narrow the wait list to the repos that actually changed today (recorded by
+    # Assert-CorePackagesReady), so release.yml stops waiting as soon as their packages
+    # propagate instead of burning the full 30 minutes on repos that never publish today's
+    # version. Default (manual gate-off / restore) = every wait-checked package.
+    $list = $script:waitPackagesDefault
+    if ($value -eq 'true' -and $script:waiting -is [array] -and $script:waiting.Count -gt 0) {
+        $pkgByDir = @{}
+        foreach ($r in $script:coreRepos) { $pkgByDir[$r.Dir] = $r.Pkg }
+        $changed = @($script:waiting | Where-Object { $pkgByDir.ContainsKey($_) } | ForEach-Object { $pkgByDir[$_] })
+        if ($changed.Count -gt 0) { $list = ($changed -join ',') }
+    }
+    $content = [regex]::Replace($content, $waitPackagesRegex, ('${open}' + $list + '</NuGetWaitPackages>'), [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     [System.IO.File]::WriteAllText($csprojPath, $content, $utf8NoBom)
 }
 
@@ -408,13 +422,14 @@ try {
     # raced GitHub's queue on 2026-08-26 — the runs were created in inverted order and the
     # gate-off run was failed while queued, so the release never happened). The NuGetWait
     # marker is reset to its conservative default (true) so a manual gate-off push without
-    # release.ps1 still waits.
+    # release.ps1 still waits (the package list reverts to the full default set too).
+    $script:waiting = @()
     Set-NuGetWait 'true'
     Set-IsPrerelease 'true' -Push -SkipCi
 } catch {
     # Failure: restore the gate locally only (no push — a retry must start from the gate-off
     # state) and rethrow the real error so the terminal shows the actual cause.
-    try { Set-NuGetWait 'true'; Set-IsPrerelease 'true' } catch { Write-Warning "could not restore IsPrerelease=true — set it manually: $_" }
+    try { $script:waiting = @(); Set-NuGetWait 'true'; Set-IsPrerelease 'true' } catch { Write-Warning "could not restore IsPrerelease=true — set it manually: $_" }
     throw
 }
 Write-Host "Done. Release runs in GitHub Actions (https://github.com/Graphene-Lab/AgentBridge/actions)."

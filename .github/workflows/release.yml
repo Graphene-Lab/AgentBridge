@@ -38,6 +38,7 @@ jobs:
       version: ${{ steps.ver.outputs.version }}
       do_release: ${{ steps.gate.outputs.do_release }}
       need_nuget_wait: ${{ steps.nuget.outputs.need_nuget_wait }}
+      wait_packages: ${{ steps.nuget.outputs.wait_packages }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -87,6 +88,11 @@ jobs:
         run: |
           WAIT=$(dotnet msbuild AgentBridge/AgentBridge.csproj -getProperty:NuGetWait -nologo | grep -oE 'true|false' | head -n1)
           echo "need_nuget_wait=${WAIT:-true}" >> "$GITHUB_OUTPUT"
+          # release.ps1 narrows the list to the packages whose repos actually changed today,
+          # so the wait below exits as soon as THEY propagate (repos that did not change never
+          # publish today's version and must not hold the wait). Default = the full set.
+          PKGS=$(dotnet msbuild AgentBridge/AgentBridge.csproj -getProperty:NuGetWaitPackages -nologo | head -n1)
+          echo "wait_packages=${PKGS:-graphene.aiorchestrator,alltomarkdown,mermaidrendering,graphene.reversemarkdown,uisupportgeneric,systemextra}" >> "$GITHUB_OUTPUT"
 
   build:
     needs: check-version
@@ -132,10 +138,12 @@ jobs:
       # (official figures: up to 30 minutes). The wait runs ONLY when release.ps1 detected a
       # changed core repo whose today's package is still propagating (<NuGetWait> marker):
       # with no core change the wait would burn 30 minutes for packages that will never exist.
-      # The 30-minute window checks ALL packages each cycle and ends as soon as every one is
-      # visible; after the window, packages still missing are reported with a warning and the
-      # build proceeds (the floating 1.* restore picks the latest available version, which for
-      # an unchanged repo is identical to today's version).
+      # release.ps1 ALSO narrows the list (NuGetWaitPackages) to the packages of the repos
+      # that changed today, so the window ends as soon as THEY become visible — repos that
+      # did not change never publish today's version and would otherwise hold the loop for the
+      # full 30 minutes. After the window, still-missing packages are reported with a warning
+      # and the build proceeds (the floating 1.* restore picks the latest available version,
+      # which for an unchanged repo is identical to today's version).
       # The list is ONLY the packages the build actually restores (the Graphene.AIOrchestrator
       # closure + SystemExtra): the tool plugins (DocumentTool, SpreadsheetTool, OfficeTool,
       # PresentationTool, OfficeSupportTool) are NOT build dependencies — they are fetched as
@@ -145,12 +153,13 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
+          WAIT_PACKAGES: ${{ needs.check-version.outputs.wait_packages }}
         run: |
           NVER=$(printf '%s' "$VERSION" | awk -F. '{for(i=1;i<=NF;i++){gsub(/^0+/,"",$i); if($i=="")$i=0; printf "%s%s",(i>1?".":""),$i} print ""}')
           echo "Waiting for dependency packages at version $NVER ..."
           for i in $(seq 1 60); do
             missing=""
-            for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric systemextra; do
+            for pkg in $(printf '%s' "$WAIT_PACKAGES" | tr ',' ' '); do
               if curl -fsS --max-time 20 "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" | grep -q "\"$NVER\""; then
                 echo "$pkg $NVER available (attempt $i)"
               else
