@@ -400,6 +400,13 @@ if (!CrashReporter.LoadState())
 CrashReporter.Repo = app.Configuration["CrashReport:Repo"] ?? CrashReporter.Repo;
 CrashReporter.Token = app.Configuration["CrashReport:Token"];
 
+// Agent-tool errors (a tool method execution that threw and was surfaced to the agent) flow
+// into the SAME GitHub-issue pipeline as critical errors: ToolErrorReporter (AIOrchestrator)
+// subscribes to UISupportGeneric's method-execution events and reports through CrashReporter,
+// honouring the CrashReport:Enabled toggle above (a new signature — tool method + exception
+// HResult — is reported once). Host opt-in: only AgentBridge enables it.
+ToolErrorReporter.Enable();
+
 app.UseCors();
 
 // ─────────────────────────────────────────────────────────────────────
