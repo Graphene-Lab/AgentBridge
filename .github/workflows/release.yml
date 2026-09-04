@@ -12,12 +12,6 @@ on:
 
 permissions:
   contents: write
-  # The release job pins a tag to the triggering commit with GITHUB_TOKEN. When that commit's
-  # .github/workflows/release.yml differs from the default branch's (a workflow change landed
-  # between the gate-off commit and the release run), GitHub refuses the tag push without this
-  # permission ("refusing to allow a GitHub App to create or update workflow ..."). Only the
-  # release workflow carries it — the tag push is the sole workflow-file-touching operation.
-  workflows: write
 
 # Serializes runs of this workflow per branch: with cancel-in-progress: false a NEW run (the
 # gate-restore push, a manual push during the build) never cancels the QUEUED or RUNNING
@@ -201,7 +195,7 @@ jobs:
           for tool in DocumentTool SpreadsheetTool OfficeTool PresentationTool OfficeSupportTool PodcastTool; do
             # Latest release tag via the /releases/latest redirect (no API call, no rate limit).
             tag=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/Graphene-Lab/$tool/releases/latest" \
-                  | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1 || true)
+                  | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1)
             if [ -z "$tag" ]; then
               echo "::warning::$tool has no GitHub release yet — tool will be missing from Tools/"
               continue
@@ -239,11 +233,8 @@ jobs:
         if: matrix.rid == 'win-x64'
         shell: bash
         run: |
-          # /releases/latest returns 404 while the upstream only has a DRAFT release: the
-          # pipeline must degrade to a warning, never fail the whole win build (pipefail would
-          # abort on the 404 curl). The empty-tag branch below prints the warning and exits 0.
           tag=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/Graphene-Lab/AIOffice.VoiceAgent.Win/releases/latest" \
-                | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1 || true)
+                | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1)
           if [ -z "$tag" ]; then
             echo "::warning::AIOffice.VoiceAgent.Win has no release yet — /voice will be unavailable in this archive"
             exit 0
