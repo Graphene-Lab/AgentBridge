@@ -12,11 +12,6 @@ on:
 
 permissions:
   contents: write
-  # DO NOT add a "workflows" key here — it is NOT a valid value in a workflow's permissions
-  # block (only PATs / GitHub Apps have it). Doing so makes the whole file invalid and every
-  # run fails with 0 jobs ("Invalid workflow file ... Unexpected value 'workflows'",
-  # 2026-09-04). If the tag-pin push is ever refused for a workflow-file change, pin the tag
-  # to a commit whose .github/workflows matches the default branch instead.
 
 # Serializes runs of this workflow per branch: with cancel-in-progress: false a NEW run (the
 # gate-restore push, a manual push during the build) never cancels the QUEUED or RUNNING
@@ -200,7 +195,7 @@ jobs:
           for tool in DocumentTool SpreadsheetTool OfficeTool PresentationTool OfficeSupportTool PodcastTool; do
             # Latest release tag via the /releases/latest redirect (no API call, no rate limit).
             tag=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/Graphene-Lab/$tool/releases/latest" \
-                  | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1 || true)
+                  | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1)
             if [ -z "$tag" ]; then
               echo "::warning::$tool has no GitHub release yet — tool will be missing from Tools/"
               continue
@@ -239,7 +234,7 @@ jobs:
         shell: bash
         run: |
           tag=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/Graphene-Lab/AIOffice.VoiceAgent.Win/releases/latest" \
-                | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1 || true)
+                | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1)
           if [ -z "$tag" ]; then
             echo "::warning::AIOffice.VoiceAgent.Win has no release yet — /voice will be unavailable in this archive"
             exit 0
