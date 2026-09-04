@@ -149,6 +149,7 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $csprojPath = Join-Path $root 'AgentBridge.csproj'
 $gateRegex = '<IsPrerelease>\s*(true|false)\s*</IsPrerelease>'
 $nugetWaitRegex = '<NuGetWait>\s*(true|false)\s*</NuGetWait>'
+$releaseDateRegex = '(?<open><ReleaseDate[^>]*>)[^<]*</ReleaseDate>'
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $syncMsg = "Update at $(Get-Date -Format HH:mm)"
 
@@ -161,6 +162,13 @@ Write-Host ""
 
 function Set-IsPrerelease([string]$value, [switch]$Push, [switch]$SkipCi) {
     $content = [regex]::Replace([System.IO.File]::ReadAllText($csprojPath), $gateRegex, "<IsPrerelease>$value</IsPrerelease>", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    # The date-based version must match the LOCAL push day: CI's release.yml evaluates the
+    # csproj with DateTime.Now = UTC, which between local midnight and 02:00 is still the
+    # previous day — the runner would derive yesterday's version, find its tag already on
+    # origin and skip the release (2026-09-04 incident). The gate-off commit pins
+    # <ReleaseDate> to the local date; the restore commit clears it (empty = auto date).
+    $releaseDate = if ($value -eq 'false') { Get-Date -Format 'yy.MM.dd' } else { '' }
+    $content = [regex]::Replace($content, $releaseDateRegex, ('${open}' + $releaseDate + '</ReleaseDate>'), [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     [System.IO.File]::WriteAllText($csprojPath, $content, $utf8NoBom)
     Push-Location $root
     try {
