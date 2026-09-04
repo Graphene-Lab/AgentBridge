@@ -16,7 +16,7 @@
          off triggers release.yml automatically (tag v1.yy.MM.dd created by the workflow).
          Date-based auto version, same scheme as UISupportBlazor/UISupportGeneric
          (1.yy.MM.dd, e.g. 1.26.08.09). -->
-    <IsPrerelease>false</IsPrerelease>
+    <IsPrerelease>true</IsPrerelease>
     <!-- NuGet wait marker (release.ps1 / release.yml): true = the release build must wait for
          today's core dependency packages on nuget.org (a core repo changed today and its
          package is still propagating); false = no core repo changed since its last tag, so the
@@ -31,7 +31,7 @@
          pins it to the LOCAL push date in the gate-off commit, so CI (DateTime.Now = UTC)
          can never derive the previous UTC day across the local/UTC-midnight boundary and
          reuse an already-released version (release.yml would skip it). -->
-    <ReleaseDate Condition="'$(ReleaseDate)' == ''">26.09.04</ReleaseDate>
+    <ReleaseDate Condition="'$(ReleaseDate)' == ''"></ReleaseDate>
     <Version Condition="'$(IsPrerelease)' == 'true'">1.$(ReleaseDate)-prerelease</Version>
     <Version Condition="'$(IsPrerelease)' != 'true'">1.$(ReleaseDate)</Version>
   </PropertyGroup>
