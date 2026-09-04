@@ -1,7 +1,7 @@
-# AgentBridge (codename "AGENT") — promises to replace humans in offices
+# AgentBridge (codename "AGENT") — AI personal assistant that promises to replace humans in office work
 
-**Add agentic power to your work! Automate tasks and your work without sacrificing your privacy.
-We're happy to put this powerful tool in your hands to automate your business while reducing staff costs, providing you with the most advanced AI technology in the office automation industry.**
+Add agentic power to your work! An **AI personal assistant** that automates tasks and your work without sacrificing privacy.
+We're happy to put this powerful tool in your hands to automate your business while reducing staff costs, providing you with the most advanced AI technology in the office automation industry.
 
 AgentBridge is a self-hosted server that runs AI agents with two interfaces in a single process: a full-screen chat terminal (TUI) and a standard HTTP API compatible with OpenAI.
 
