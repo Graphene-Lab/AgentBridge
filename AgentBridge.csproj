@@ -28,7 +28,7 @@
          the wait exits as soon as those propagate instead of burning the full 30 minutes on
          repos that never publish today's version; the default (all wait-checked packages) is
          the conservative fallback for a manual gate-off push. -->
-    ${open}graphene.aiorchestrator,uisupportgeneric,alltomarkdown,mermaidrendering,graphene.reversemarkdown</NuGetWaitPackages>
+    <NuGetWaitPackages>graphene.aiorchestrator,alltomarkdown,mermaidrendering,graphene.reversemarkdown,uisupportgeneric,systemextra</NuGetWaitPackages>
     <!-- Naiad (transitive dep of Graphene.AIOrchestrator) SponsorCheck: the property is
          required when building Release; set in every project consuming the package. -->
     <Papyrine_SponsorshipLicenseIgnored>true</Papyrine_SponsorshipLicenseIgnored>
@@ -37,7 +37,7 @@
          pins it to the LOCAL push date in the gate-off commit, so CI (DateTime.Now = UTC)
          can never derive the previous UTC day across the local/UTC-midnight boundary and
          reuse an already-released version (release.yml would skip it). -->
-    <ReleaseDate Condition="'$(ReleaseDate)' == ''"></ReleaseDate>
+    <ReleaseDate Condition="'$(ReleaseDate)' == ''">$([System.DateTime]::Now.ToString('yy.MM.dd'))</ReleaseDate>
     <Version Condition="'$(IsPrerelease)' == 'true'">1.$(ReleaseDate)-prerelease</Version>
     <Version Condition="'$(IsPrerelease)' != 'true'">1.$(ReleaseDate)</Version>
   </PropertyGroup>
