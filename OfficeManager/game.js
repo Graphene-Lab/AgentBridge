@@ -241,6 +241,7 @@ class Person {
     this.speed = isBoss ? BOSS_SPEED : EMP_SPEED;
     /* server-driven role: "idle" | "session" | "stateless" | "subagent" */
     this.empId = null;
+    this.agentId = null;   // bound agent instance key; null = no agent behind this employee
     this.kind = "idle";
     this.label = "";
     this.running = false;
@@ -465,6 +466,7 @@ function spawnEmployee(m) {
   const [x, y] = doorSpot();
   const e = new Person(m.label || "employee", IMG.chars[EMP_SPRITES[m.sprite % EMP_SPRITES.length]], x, y, false);
   e.empId = m.empId;
+  e.agentId = m.agentId || null;
   e.kind = m.kind || "idle";
   e.label = m.label || "";
   e.running = !!m.running;
@@ -482,6 +484,7 @@ function assignEmployee(m) {
   const e = employees.find(e => e.empId === m.empId);
   if (!e) return;
   e.kind = "session";
+  e.agentId = m.agentId || e.agentId;
   e.label = m.label || e.label;
   e.name = e.label || e.name;
   Chat.say("", e.name + " is now an agent — a new employee appeared at the door", "sys");
@@ -516,6 +519,7 @@ function closeEmployee(empId) {
   e.homePath = null;
   e.bubble = null;
   e.running = false;
+  e.agentId = null;                              // agent gone: the "unoccupied" badge is hidden anyway (returningHome)
   e.blockedUntil = 0;
   e.stuckT = 0; e.lastX = e.x; e.lastY = e.y;
 }
@@ -1021,24 +1025,36 @@ function drawPerson(p) {
   ctx.restore();
 }
 
-/* the "boss" nameplate is hidden ONLY while the boss is keyboard-driven: during the
-   auto-pilot (and while standing still) it stays visible to identify him */
+/* Unified head-badge system: drawBadge renders the gold-framed plate above a person and
+   badgeText decides WHICH text (if any) that person carries:
+     - the boss carries "boss" while he is not keyboard-driven (labelVisible);
+     - an employee WITHOUT a bound agent (agentId === null) carries "unoccupied" — the server
+       is supposed to keep one agent per employee, so this flags the momentary gap instead of
+       pretending the desk is staffed; hidden while the employee walks home.
+   Bubbles are drawn AFTER badges and stacked above them (see drawBubble), so a badge never
+   covers the bubble text. Future badge kinds only need a new branch in badgeText. */
 function labelVisible() {
   return !phoneActive && !(keys.up || keys.down || keys.left || keys.right);
 }
 
-function drawLabel() {
-  if (!labelVisible()) return;
+function badgeText(p) {
+  if (p.isBoss) return labelVisible() ? "boss" : null;
+  return !p.agentId && !p.returningHome ? "unoccupied" : null;
+}
+
+function drawBadge(p) {
+  const text = badgeText(p);
+  if (!text) return;
   ctx.font = PIX_FONT;
-  const w = ctx.measureText("boss").width + 8, h = 11;
-  const x = boss.fx - w / 2, y = boss.fy - CHAR_H - h - 2;
+  const w = ctx.measureText(text).width + 8, h = 11;
+  const x = p.fx - w / 2, y = p.fy - CHAR_H - h - 2;
   ctx.fillStyle = "#111";
   ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = "#baa272";
   ctx.lineWidth = 1;
   ctx.strokeRect(x, y, w, h);
   ctx.fillStyle = "#baa272";
-  ctx.fillText("boss", x + 4, y + h - 2);
+  ctx.fillText(text, x + 4, y + h - 2);
 }
 
 /* agent nameplate (short id) shown ONLY when the mouse hovers the employee — it is
@@ -1046,7 +1062,7 @@ function drawLabel() {
 let hoveredEmp = null;
 
 function drawEmployeeLabel(p) {
-  if (!p.label || p.returningHome || p !== hoveredEmp) return;
+  if (!p.label || p.returningHome || p !== hoveredEmp || badgeText(p)) return;
   ctx.font = PIX_FONT;
   const w = ctx.measureText(p.label).width + 6, h = 10;
   const x = p.fx - w / 2, y = p.fy - CHAR_H - h - 2;
@@ -1082,7 +1098,7 @@ function drawBubble(p) {
   const { lines, w, h } = wrapBubble(b.text);
 
   let baseY = p.fy - CHAR_H - 4;
-  if (p.isBoss && labelVisible()) baseY -= 13;      // stack above the "boss" nameplate
+  if (badgeText(p)) baseY -= 13;                                  // stack above the always-on head badge
   else if (!p.isBoss && p === hoveredEmp && p.label && !p.returningHome) baseY -= 12;   // above the hovered nameplate
   const x = p.fx - w / 2;
   let y = baseY - h;
@@ -1158,9 +1174,9 @@ function render() {
   }
   if (cursor < H) ctx.drawImage(IMG.top, 0, cursor, W, H - cursor, 0, cursor, W, H - cursor);
   drawClock();
-  drawLabel();
+  for (const p of all) if (badgeText(p)) drawBadge(p);   // unified badges: "boss" / "unoccupied"
   for (const p of employees) drawEmployeeLabel(p);
-  for (const p of all) drawBubble(p);
+  for (const p of all) drawBubble(p);                    // bubbles on top of badges — text is never hidden
   if (engaged) drawEngagedMark();                    // "!" above the hired employee (clears any bubble)
 }
 
