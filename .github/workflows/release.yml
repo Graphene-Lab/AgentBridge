@@ -12,6 +12,12 @@ on:
 
 permissions:
   contents: write
+  # The release job pins a tag to the triggering commit with GITHUB_TOKEN. When that commit's
+  # .github/workflows/release.yml differs from the default branch's (a workflow change landed
+  # between the gate-off commit and the release run), GitHub refuses the tag push without this
+  # permission ("refusing to allow a GitHub App to create or update workflow ..."). Only the
+  # release workflow carries it — the tag push is the sole workflow-file-touching operation.
+  workflows: write
 
 # Serializes runs of this workflow per branch: with cancel-in-progress: false a NEW run (the
 # gate-restore push, a manual push during the build) never cancels the QUEUED or RUNNING
