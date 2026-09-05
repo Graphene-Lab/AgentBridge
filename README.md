@@ -344,13 +344,13 @@ nothing leaves at all.
 ![The LLM agent team behind AgentBridge](media/our_team.png)
 
 Anyone reviewing this project might object that it has no team, and that this
-weakens its credibility. That assessment would be wrong: it is a bias inherited
-from a pattern repeated across millions of repositories — so common that it has
-become the de-facto standard — but a standard that, applied to a project whose
-purpose is to **replace human work**, is a contradiction in terms. A project
+weakens its credibility. That assessment would be wrong: it comes from a bias
+inherited from a pattern repeated across millions of repositories, so common that
+it has become the de facto standard. Applied to a project whose purpose is to
+**replace human work**, that very standard is a contradiction in terms — a project
 that promises to replace humans, yet could only be built by a large human
-organization, would be denying the feasibility of its own goal — and with it,
-its own effectiveness.
+organization, would be denying the feasibility of its own goal, and with it its
+own effectiveness.
 
 Assembling a project of this kind with hundreds of contributors would make it
 not only unbelievable relative to its purpose, but also fragile: each individual
