@@ -168,8 +168,9 @@ function Set-IsPrerelease([string]$value, [switch]$Push, [switch]$SkipCi) {
     # csproj with DateTime.Now = UTC, which between local midnight and 02:00 is still the
     # previous day — the runner would derive yesterday's version, find its tag already on
     # origin and skip the release (2026-09-04 incident). The gate-off commit pins
-    # <ReleaseDate> to the local date; the restore commit clears it (empty = auto date).
-    $releaseDate = if ($value -eq 'false') { Get-Date -Format 'yy.MM.dd' } else { '' }
+    # <ReleaseDate> to the local date; the restore commit restores its dynamic MSBuild
+    # date expression for ordinary prerelease builds.
+    $releaseDate = if ($value -eq 'false') { Get-Date -Format 'yy.MM.dd' } else { '$([System.DateTime]::Now.ToString("yy.MM.dd"))' }
     $content = [regex]::Replace($content, $releaseDateRegex, ('${open}' + $releaseDate + '</ReleaseDate>'), [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     [System.IO.File]::WriteAllText($csprojPath, $content, $utf8NoBom)
     Push-Location $root

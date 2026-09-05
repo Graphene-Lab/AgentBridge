@@ -37,7 +37,7 @@
          pins it to the LOCAL push date in the gate-off commit, so CI (DateTime.Now = UTC)
          can never derive the previous UTC day across the local/UTC-midnight boundary and
          reuse an already-released version (release.yml would skip it). -->
-    <ReleaseDate Condition="'$(ReleaseDate)' == ''"></ReleaseDate>
+    <ReleaseDate Condition="'$(ReleaseDate)' == ''">$([System.DateTime]::Now.ToString("yy.MM.dd"))</ReleaseDate>
     <Version Condition="'$(IsPrerelease)' == 'true'">1.$(ReleaseDate)-prerelease</Version>
     <Version Condition="'$(IsPrerelease)' != 'true'">1.$(ReleaseDate)</Version>
   </PropertyGroup>
