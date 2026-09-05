@@ -1668,7 +1668,15 @@ object BuildCapabilities()
             listening = SipBridge.IsListening,
             status = SipBridge.Status
         },
-        sessions = SessionStore.Count
+        sessions = SessionStore.Count,
+        // Runtime data payload readiness (voices/kokoro.onnx/Lingua models ship in the
+        // release archive). Additive: older installs missing a payload report it here so
+        // the TUI/web can explain the state in human terms instead of showing errors.
+        assets = new
+        {
+            complete = RuntimeAssets.IsComplete,
+            missing = RuntimeAssets.Missing
+        }
     };
 }
 

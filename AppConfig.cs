@@ -28,6 +28,9 @@ public static class AppConfig
     public static string TelegramFile => Path.Combine(PersistentDir, "telegram.json");
     /// <summary>Per-tool policy file (persistent, user-editable).</summary>
     public static string ToolsFile => Path.Combine(PersistentDir, "tools.json");
+    /// <summary>TUI agent tool-set file — the last /tools selection (custom combination or
+    /// agent-set preset), restored at startup so the enabled tools survive a restart.</summary>
+    public static string ToolsetFile => Path.Combine(PersistentDir, "toolset.json");
     /// <summary>Telegram session file (auth keys, written on the first login).</summary>
     public static string TelegramSessionFile => Path.Combine(PersistentDir, "telegram.session");
 

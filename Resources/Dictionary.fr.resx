@@ -120,6 +120,7 @@ Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichie
   <data name="PickSwitchAgent" xml:space="preserve"><value>Changer d'ensemble d'agents</value></data>
   <data name="NoteUnknownAgentSet" xml:space="preserve"><value>ensemble d'agents '{0}' inconnu — {1}</value></data>
   <data name="NoteAgentSet" xml:space="preserve"><value>ensemble d'agents : {0}</value></data>
+  <data name="NoteAssetsIncomplete" xml:space="preserve"><value>Certains modèles système ne sont pas encore installés ({0}). L'application continue de fonctionner — les fonctions concernées (voix, podcast, recherche multilingue) s'activeront automatiquement lors de la prochaine mise à jour.</value></data>
   <data name="NoteVoiceUnavailable" xml:space="preserve"><value>voix indisponible : {0}</value></data>
   <data name="NoteVoiceDisabled" xml:space="preserve"><value>POST /v1/voice/listen est désactivé</value></data>
   <data name="NoteListening" xml:space="preserve"><value>à l'écoute… (micro du serveur) — parlez maintenant</value></data>

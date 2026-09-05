@@ -120,6 +120,7 @@ Nachricht eingeben und Eingabetaste drücken · / öffnet Befehle · @ Dateien �
   <data name="PickSwitchAgent" xml:space="preserve"><value>Agentensatz wechseln</value></data>
   <data name="NoteUnknownAgentSet" xml:space="preserve"><value>unbekannter Agentensatz '{0}' — {1}</value></data>
   <data name="NoteAgentSet" xml:space="preserve"><value>Agentensatz: {0}</value></data>
+  <data name="NoteAssetsIncomplete" xml:space="preserve"><value>Einige Systemmodelle sind noch nicht installiert ({0}). Die App funktioniert weiter — die betroffenen Funktionen (Sprache, Podcast, mehrsprachige Suche) werden mit dem nächsten Update automatisch aktiviert.</value></data>
   <data name="NoteVoiceUnavailable" xml:space="preserve"><value>Sprache nicht verfügbar: {0}</value></data>
   <data name="NoteVoiceDisabled" xml:space="preserve"><value>POST /v1/voice/listen ist deaktiviert</value></data>
   <data name="NoteListening" xml:space="preserve"><value>höre zu… (Server-Mikrofon) — sprechen Sie jetzt</value></data>

@@ -235,6 +235,26 @@
          (runtimes/win-x64/native/*.lib) — build-time only, junk in the archive. -->
     <Delete Files="$(PublishDir)onnxruntime.lib;$(PublishDir)onnxruntime_providers_shared.lib;$(PublishDir)onnxruntime_providers_cuda.lib;$(PublishDir)onnxruntime_providers_tensorrt.lib" Condition="Exists('$(PublishDir)onnxruntime.lib')" />
   </Target>
+  <!-- SearchPioneer.Lingua language models (Lingua/LanguageModels/<lang>/*.json.br): the
+       package's own build/ target copies them ONLY into the output of projects that reference
+       it directly — Graphene.AIOrchestrator is a transitive dependency here (restored via
+       NuGet in CI, where the sibling project is absent), so released archives never carry
+       Lingua\ and the first LanguageDetector call (podcast topic language, document
+       language-word tracking) throws "Could not find a part of the path ... Lingua\
+       LanguageModels\<lang>\...". Copy the models explicitly, like the TTS assets above.
+       Source: the restored package content (version kept in sync with AIOrchestrator.csproj). -->
+  <Target Name="CopyLinguaModelsToOutput" AfterTargets="Build" Condition="'$(NuGetPackageRoot)' != '' and Exists('$(NuGetPackageRoot)searchpioneer.lingua\2.0.0\contentFiles\any\any\Lingua')">
+    <ItemGroup>
+      <_LinguaModelFiles Include="$(NuGetPackageRoot)searchpioneer.lingua\2.0.0\contentFiles\any\any\Lingua\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_LinguaModelFiles)" DestinationFiles="@(_LinguaModelFiles->'$(OutputPath)Lingua\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="CopyLinguaModelsToPublish" AfterTargets="Publish" Condition="'$(PublishDir)' != '' and Exists('$(NuGetPackageRoot)searchpioneer.lingua\2.0.0\contentFiles\any\any\Lingua')">
+    <ItemGroup>
+      <_LinguaPublish Include="$(NuGetPackageRoot)searchpioneer.lingua\2.0.0\contentFiles\any\any\Lingua\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_LinguaPublish)" DestinationFiles="@(_LinguaPublish->'$(PublishDir)Lingua\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
   <!-- Optional Windows voice bridge: when the sibling AIOffice.VoiceAgent.Win build output
        exists, copy its whole output (exe + voices/ + espeak/ + kokoro.onnx + runtime deps)
        into a voiceagent/ subfolder so POST /v1/voice/listen can spawn it. The subfolder is

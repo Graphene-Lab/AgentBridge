@@ -94,6 +94,10 @@ public static class ConsoleTui
         private bool _ttsAvailable, _voiceAvailable;
         private string _ttsDetail = "", _voiceDetail = "";
         private string _statusNote = "";
+        // Runtime payload tokens missing from this install (from capabilities.assets); empty
+        // when complete. Shown to the user in human terms, never as a technical error.
+        private string[] _assetsMissing = Array.Empty<string>();
+        private bool _assetsNoteShown;
         // SIP telephony state (from GET /v1/sip/status; polled while the server reports it available).
         private bool _sipAvailable;
         private string _sipState = "";
@@ -319,6 +323,11 @@ public static class ConsoleTui
             _history.Add(new Entry { Role = "system", Text = string.Format(Dictionary.ServerNote, _serverUrl) });
             if (!string.IsNullOrEmpty(_hostError))
                 _history.Add(new Entry { Role = "system", Text = string.Format(Dictionary.HostErrorNote, _hostError) });
+
+            // The /tools selection is persistent (toolset.json under PersistentData): the
+            // custom combination or preset chosen in the last run is applied now, before the
+            // first chat request, so the enabled tools survive a TUI restart.
+            RestoreAgentSelection();
         }
 
         public Task RunAsync()
@@ -2035,7 +2044,75 @@ public static class ConsoleTui
             _agentSet = id;
             _customTools = null;
             AddNote(string.Format(Dictionary.NoteAgentSet, id));
+            SaveAgentSelection();
             UpdateStatusUi();
+        }
+
+        // ── /tools selection persistence ──
+        // The active agent-tool selection (the last preset id, or the custom combination
+        // picked in the checklist) is saved to PersistentData\toolset.json on every change
+        // and restored at startup — the settings menu choice must survive a TUI restart.
+        // Format: {"agent_set": "default-agent", "tools": ["PodcastTool", ...]} — "tools"
+        // present (non-empty) = the custom combination (overrides the preset); absent/empty
+        // = the named preset resolves the tools.
+        private void SaveAgentSelection()
+        {
+            try
+            {
+                var node = new JsonObject
+                {
+                    ["agent_set"] = _agentSet,
+                    ["tools"] = _customTools is { Count: > 0 }
+                        ? new JsonArray(_customTools.Select(t => JsonValue.Create(t)).ToArray())
+                        : null,
+                };
+                Directory.CreateDirectory(Path.GetDirectoryName(AppConfig.ToolsetFile)!);
+                File.WriteAllText(AppConfig.ToolsetFile,
+                    node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"TUI /tools: cannot persist the tool selection ({ex.Message})");
+            }
+        }
+
+        private void RestoreAgentSelection()
+        {
+            try
+            {
+                if (!File.Exists(AppConfig.ToolsetFile)) return;
+                using var doc = JsonDocument.Parse(File.ReadAllText(AppConfig.ToolsetFile));
+                var root = doc.RootElement;
+
+                var marked = new List<string>();
+                if (root.TryGetProperty("tools", out var tools) && tools.ValueKind == JsonValueKind.Array)
+                    foreach (var t in tools.EnumerateArray())
+                        if (t.ValueKind == JsonValueKind.String && t.GetString() is { Length: > 0 } name)
+                            marked.Add(name);
+
+                // A tool that is no longer loaded (plugin removed from Tools/) drops out of
+                // the combination instead of lingering as a dead entry in every request.
+                var loaded = AgentTools.Catalog().Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var restored = marked.Where(loaded.Contains).ToList();
+                if (restored.Count > 0)
+                {
+                    _customTools = restored;
+                    _agentSet = "default-agent";   // the `tools` field overrides the preset
+                    Log.LogStep($"TUI /tools restored custom set: {string.Join(", ", restored)}", monitor: true);
+                    return;
+                }
+                if (root.TryGetProperty("agent_set", out var preset) && preset.ValueKind == JsonValueKind.String
+                    && preset.GetString() is { Length: > 0 } id
+                    && AgentTools.AllIds.Any(p => string.Equals(p, id, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _agentSet = id.ToLowerInvariant();
+                    Log.LogStep($"TUI /tools restored preset: {_agentSet}", monitor: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"TUI /tools: cannot restore the saved tool selection ({ex.Message})");
+            }
         }
 
         private Task ShowToolsDialogAsync()
@@ -2126,6 +2203,7 @@ public static class ConsoleTui
             {
                 _customTools = null;
             }
+            SaveAgentSelection();   // the selection must survive a restart (settings → tools)
             Log.LogStep("TUI /agent tools dialog closed");
             UpdateStatusUi();
 
@@ -2375,6 +2453,8 @@ public static class ConsoleTui
                 $"{"".PadRight(18)}server: {_serverUrl} {(_connected ? Dictionary.Connected : Dictionary.Unreachable)}",
                 string.Format(Dictionary.StatusPromptHistory.PadRight(18) + "{0}", _promptHistory.Count),
             };
+            if (_assetsMissing.Length > 0)
+                lines.Add(string.Format(Dictionary.NoteAssetsIncomplete, string.Join(", ", _assetsMissing)));
             return ShowPageUiAsync(Dictionary.PageAgentStatus, lines);
         }
 
@@ -3760,6 +3840,23 @@ public static class ConsoleTui
                     // Telegram is an in-process chat medium (no HTTP surface): availability
                     // mirrors the telegram.json Enabled flag, refreshed directly from the bridge.
                     _telegramAvailable = TelegramBridge.IsEnabled;
+                }
+                // Runtime payload readiness: when an older install misses shipped models the
+                // user is told ONCE, in plain language, that those features will activate with
+                // the next update — never a technical error about missing files.
+                if (caps.TryGetProperty("assets", out var assets)
+                    && assets.TryGetProperty("missing", out var missingEl) && missingEl.ValueKind == JsonValueKind.Array)
+                {
+                    var missing = missingEl.EnumerateArray()
+                        .Select(m => m.GetString() ?? "")
+                        .Where(m => m.Length > 0)
+                        .ToArray();
+                    _assetsMissing = missing;
+                    if (missing.Length > 0 && !_assetsNoteShown)
+                    {
+                        _assetsNoteShown = true;
+                        AddNote(string.Format(Dictionary.NoteAssetsIncomplete, string.Join(", ", missing)));
+                    }
                 }
                 UpdateStatusUi();
             }

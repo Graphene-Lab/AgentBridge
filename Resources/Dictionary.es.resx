@@ -120,6 +120,7 @@ Escribe un mensaje y pulsa Intro · / abre comandos · @ archivos · ? atajos ·
   <data name="PickSwitchAgent" xml:space="preserve"><value>Cambiar conjunto de agentes</value></data>
   <data name="NoteUnknownAgentSet" xml:space="preserve"><value>conjunto de agentes '{0}' desconocido — {1}</value></data>
   <data name="NoteAgentSet" xml:space="preserve"><value>conjunto de agentes: {0}</value></data>
+  <data name="NoteAssetsIncomplete" xml:space="preserve"><value>Algunos modelos del sistema aún no están instalados ({0}). La aplicación sigue funcionando — las funciones afectadas (voz, podcast, búsqueda multilingüe) se activarán automáticamente con la próxima actualización.</value></data>
   <data name="NoteVoiceUnavailable" xml:space="preserve"><value>voz no disponible: {0}</value></data>
   <data name="NoteVoiceDisabled" xml:space="preserve"><value>POST /v1/voice/listen está desactivado</value></data>
   <data name="NoteListening" xml:space="preserve"><value>escuchando… (micrófono del servidor) — habla ahora</value></data>

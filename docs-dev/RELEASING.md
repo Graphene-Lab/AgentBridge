@@ -41,9 +41,9 @@ an auto-updater) must respect them:
 
 | Tier | Location | Purpose | Update rule |
 |---|---|---|---|
-| **User-editable configuration** | `<app folder>\PersistentData\` | Every JSON/settings file a user can edit or the app persists that must survive updates: `appsettings.json` (server config), `providers.json` (LLM providers), `telegram.json` + `telegram.session` (Telegram medium), `tools.json` (per-tool policy), `rag_settings.json` (persisted DocumentsPath) | **Never delete or overwrite** — not part of the archive, never touched |
+| **User-editable configuration** | `<app folder>\PersistentData\` | Every JSON/settings file a user can edit or the app persists that must survive updates: `appsettings.json` (server config), `providers.json` (LLM providers), `telegram.json` + `telegram.session` (Telegram medium), `tools.json` (per-tool policy), `toolset.json` (TUI agent tool-set), `rag_settings.json` (persisted DocumentsPath) | **Never delete or overwrite** — not part of the archive, never touched |
 | **Application data & secrets** | OS app-data folder, `<AppData>\<AppName>\` (Windows `%LocalAppData%\<AppName>`, Linux `~/.local/share/<AppName>`, macOS `~/Library/Application Support/<AppName>`) | App-owned state and credentials — `setup.json` (SMTP/IMAP, DPAPI-encrypted on Windows, provider name; legacy per-provider API keys as fallback only — keys live per-provider in `providers.json`), `autoupdate.json`, `crashreport.json`, `sipstate.json` | **Never touch** — outside the app folder by construction |
-| **Distribution content** | `<app folder>\` (everything the archive ships) | The runtime: `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `.playwright/`, `docs/`, `Tools/`, the SDK-generated `agent.staticwebassets.endpoints.json`, … | **Replace on every update** — no exceptions, no whitelist |
+| **Distribution content** | `<app folder>\` (everything the archive ships) | The runtime: `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `Lingua/` (SearchPioneer.Lingua language models), `assets/`, `.playwright/`, `docs/`, `Tools/`, the SDK-generated `agent.staticwebassets.endpoints.json`, … | **Replace on every update** — no exceptions, no whitelist |
 
 The folder name of the app-data tier is the **entry-assembly name of the running
 executable** (`agent` for AgentBridge → `%LocalAppData%\agent\setup.json`), not the
@@ -256,6 +256,12 @@ the new repo is pushed by the pre-push hook without any script edit.
   managed wrapper — without that reference the archives ship TTS that fails at inference).
   Any other runtime content must stay next to the executable (single-file bundles only the
   managed code).
+- **Lingua language models missing in the archives**: SearchPioneer.Lingua copies its
+  per-language models (`Lingua/LanguageModels/…`) only into the output of a project that
+  references the package directly; via the Graphene.AIOrchestrator NuGet dependency nothing
+  is copied, so without `CopyLinguaModelsToOutput`/`CopyLinguaModelsToPublish` the first
+  LanguageDetector call fails with "Could not find a part of the path …\Lingua\LanguageModels\
+  \<lang>\…" (podcast language detection, document language-word tracking).
 - **linux-arm64**: released since KokoroSharp 0.8.4 — the phonemizer is the pure-managed
   MisakiSharp (no `espeak-ng-linux-arm64` binary needed) and `Microsoft.ML.OnnxRuntime`
   ships `libonnxruntime.so` for linux-arm64.

@@ -125,6 +125,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="PickSwitchAgent" xml:space="preserve"><value>Cambia set di agenti</value></data>
   <data name="NoteUnknownAgentSet" xml:space="preserve"><value>set di agenti '{0}' sconosciuto — {1}</value></data>
   <data name="NoteAgentSet" xml:space="preserve"><value>set di agenti: {0}</value></data>
+  <data name="NoteAssetsIncomplete" xml:space="preserve"><value>Alcuni modelli di sistema non sono ancora installati ({0}). L'app continua a funzionare — le funzioni interessate (voce, podcast, ricerca multilingue) si attiveranno automaticamente dopo il prossimo aggiornamento.</value></data>
   <data name="NoteVoiceUnavailable" xml:space="preserve"><value>voce non disponibile: {0}</value></data>
   <data name="NoteVoiceDisabled" xml:space="preserve"><value>POST /v1/voice/listen è disabilitato</value></data>
   <data name="NoteListening" xml:space="preserve"><value>in ascolto… (microfono del server) — parla ora</value></data>

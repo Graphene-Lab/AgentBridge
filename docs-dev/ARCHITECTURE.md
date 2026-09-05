@@ -67,7 +67,8 @@ between all instances on the machine — the SIP PIN lockout state is machine-wi
 ## Configuration
 
 Configuration files are user-editable and live under **`<app folder>\PersistentData\`**
-(`appsettings.json`, `providers.json`, `telegram.json` + `telegram.session`, `tools.json`) —
+(`appsettings.json`, `providers.json`, `telegram.json` + `telegram.session`, `tools.json`,
+and the TUI's agent tool-set `toolset.json`) —
 never next to the executable (single-directory rule, see "Where files live" below and
 RELEASE-CHECKLIST.md). `AppConfig.Initialize()` seeds the default `appsettings.json` and
 migrates legacy root files on the first run; every key is overridable from the command line.
@@ -195,7 +196,8 @@ summary:
   live per-provider in `providers.json` — see the AIOrchestrator `docs/providers-config.md`;
   the legacy key fields of `setup.json` remain only as a fallback.)
 - **Distribution content** — everything else next to the executable (what the archive
-  ships): `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `.playwright/`,
+  ships): `agent(.exe)`, `agent.xml`, `voices/`, `kokoro.onnx`, `assets/`, `Lingua/`
+  (SearchPioneer.Lingua language models), `.playwright/`,
   `docs/`, `Tools/`, `voiceagent/` (Windows), the SDK-generated `agent.staticwebassets.endpoints.json`. Replaced on
   every update with **no exceptions and no whitelist** — user config is never in the
   archive, so replacing the distribution tier cannot touch it. All `.json` at the archive

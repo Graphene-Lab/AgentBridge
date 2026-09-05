@@ -177,6 +177,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="PickSwitchAgent" xml:space="preserve"><value>Switch agent set</value></data>
   <data name="NoteUnknownAgentSet" xml:space="preserve"><value>unknown agent set '{0}' — {1}</value></data>
   <data name="NoteAgentSet" xml:space="preserve"><value>agent set: {0}</value></data>
+  <data name="NoteAssetsIncomplete" xml:space="preserve"><value>Some system models are not installed yet ({0}). The app keeps working — the affected features (voice, podcast, multilingual search) will activate automatically after the next update.</value></data>
   <data name="NoteVoiceUnavailable" xml:space="preserve"><value>voice unavailable: {0}</value></data>
   <data name="NoteVoiceDisabled" xml:space="preserve"><value>POST /v1/voice/listen is disabled</value></data>
   <data name="NoteListening" xml:space="preserve"><value>listening… (server microphone) — speak now</value></data>

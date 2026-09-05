@@ -103,6 +103,33 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to '[generating…]'.
+        /// </summary>
+        public static string BusyGenerating {
+            get {
+                return ResourceManager.GetString("BusyGenerating", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '[indexing…]'.
+        /// </summary>
+        public static string BusyIndexing {
+            get {
+                return ResourceManager.GetString("BusyIndexing", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '[listening…]'.
+        /// </summary>
+        public static string BusyListening {
+            get {
+                return ResourceManager.GetString("BusyListening", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Cancel'.
         /// </summary>
         public static string Cancel {
@@ -139,7 +166,7 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to 'Choose the agent tools: pick a quick preset or toggle individual tools'.
+        ///   Looks up a localized string similar to 'Pick the tools the agent can use: quick preset or toggle individual tools'.
         /// </summary>
         public static string CmdAgent {
             get {
@@ -238,7 +265,7 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to 'Configure LLM models & providers (add/edit/remove, active model, API keys)'.
+        ///   Looks up a localized string similar to 'Open the main settings: LLM models & providers, e-mail (SMTP/IMAP) and the documents path'.
         /// </summary>
         public static string CmdModelSetup {
             get {
@@ -895,15 +922,6 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to '_Tools (/tools)'.
-        /// </summary>
-        public static string MenuTools {
-            get {
-                return ResourceManager.GetString("MenuTools", resourceCulture);
-            }
-        }
-
-        /// <summary>
         ///   Looks up a localized string similar to '_Attach (/attach)'.
         /// </summary>
         public static string MenuAttach {
@@ -1111,6 +1129,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to '_Settings'.
+        /// </summary>
+        public static string MenuSettings {
+            get {
+                return ResourceManager.GetString("MenuSettings", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to '_Shortcuts (/shortcuts)'.
         /// </summary>
         public static string MenuShortcuts {
@@ -1147,11 +1174,11 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to '_Settings'.
+        ///   Looks up a localized string similar to '_Tools (/tools)'.
         /// </summary>
-        public static string MenuSettings {
+        public static string MenuTools {
             get {
-                return ResourceManager.GetString("MenuSettings", resourceCulture);
+                return ResourceManager.GetString("MenuTools", resourceCulture);
             }
         }
 
@@ -1242,6 +1269,15 @@ namespace AgentBridge.Resources {
         public static string NoteAlreadyOn {
             get {
                 return ResourceManager.GetString("NoteAlreadyOn", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Some system models are not installed yet ({0}). The app keeps working — the affected features (voice, podcast, multilingual search) will activate automatically after the next update.'.
+        /// </summary>
+        public static string NoteAssetsIncomplete {
+            get {
+                return ResourceManager.GetString("NoteAssetsIncomplete", resourceCulture);
             }
         }
 
@@ -1584,6 +1620,24 @@ namespace AgentBridge.Resources {
         public static string NoteSessionFeatures {
             get {
                 return ResourceManager.GetString("NoteSessionFeatures", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'set default failed: {0}'.
+        /// </summary>
+        public static string NoteSetDefaultFailed {
+            get {
+                return ResourceManager.GetString("NoteSetDefaultFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'set default failed (HTTP {0}): {1}'.
+        /// </summary>
+        public static string NoteSetDefaultFailedHttp {
+            get {
+                return ResourceManager.GetString("NoteSetDefaultFailedHttp", resourceCulture);
             }
         }
 
@@ -2272,6 +2326,33 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'New chats use the default; /model changes only this chat'.
+        /// </summary>
+        public static string SetupDefaultHint {
+            get {
+                return ResourceManager.GetString("SetupDefaultHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to ' (default)'.
+        /// </summary>
+        public static string SetupDefaultMarker {
+            get {
+                return ResourceManager.GetString("SetupDefaultMarker", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'default provider: {0}'.
+        /// </summary>
+        public static string SetupDefaultSet {
+            get {
+                return ResourceManager.GetString("SetupDefaultSet", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Documents path'.
         /// </summary>
         public static string SetupDocumentsPath {
@@ -2515,6 +2596,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'select a provider first'.
+        /// </summary>
+        public static string SetupSelectForDefault {
+            get {
+                return ResourceManager.GetString("SetupSelectForDefault", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'select a provider to edit'.
         /// </summary>
         public static string SetupSelectToEdit {
@@ -2529,6 +2619,15 @@ namespace AgentBridge.Resources {
         public static string SetupSelectToRemove {
             get {
                 return ResourceManager.GetString("SetupSelectToRemove", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Set default'.
+        /// </summary>
+        public static string SetupSetDefault {
+            get {
+                return ResourceManager.GetString("SetupSetDefault", resourceCulture);
             }
         }
 
@@ -2587,7 +2686,7 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to 'Models & Providers setup'.
+        ///   Looks up a localized string similar to 'Main settings'.
         /// </summary>
         public static string SetupTitle {
             get {
@@ -3357,96 +3456,6 @@ namespace AgentBridge.Resources {
         public static string WindowTitle {
             get {
                 return ResourceManager.GetString("WindowTitle", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to '[indexing…]'.
-        /// </summary>
-        public static string BusyIndexing {
-            get {
-                return ResourceManager.GetString("BusyIndexing", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to '[generating…]'.
-        /// </summary>
-        public static string BusyGenerating {
-            get {
-                return ResourceManager.GetString("BusyGenerating", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to '[listening…]'.
-        /// </summary>
-        public static string BusyListening {
-            get {
-                return ResourceManager.GetString("BusyListening", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'Set default'.
-        /// </summary>
-        public static string SetupSetDefault {
-            get {
-                return ResourceManager.GetString("SetupSetDefault", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to ' (default)'.
-        /// </summary>
-        public static string SetupDefaultMarker {
-            get {
-                return ResourceManager.GetString("SetupDefaultMarker", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'New chats use the default; /model changes only this chat'.
-        /// </summary>
-        public static string SetupDefaultHint {
-            get {
-                return ResourceManager.GetString("SetupDefaultHint", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'select a provider first'.
-        /// </summary>
-        public static string SetupSelectForDefault {
-            get {
-                return ResourceManager.GetString("SetupSelectForDefault", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'default provider: {0}'.
-        /// </summary>
-        public static string SetupDefaultSet {
-            get {
-                return ResourceManager.GetString("SetupDefaultSet", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'set default failed: {0}'.
-        /// </summary>
-        public static string NoteSetDefaultFailed {
-            get {
-                return ResourceManager.GetString("NoteSetDefaultFailed", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'set default failed (HTTP {0}): {1}'.
-        /// </summary>
-        public static string NoteSetDefaultFailedHttp {
-            get {
-                return ResourceManager.GetString("NoteSetDefaultFailedHttp", resourceCulture);
             }
         }
     }

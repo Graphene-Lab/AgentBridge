@@ -120,6 +120,7 @@
   <data name="PickSwitchAgent" xml:space="preserve"><value>Переключить набор агентов</value></data>
   <data name="NoteUnknownAgentSet" xml:space="preserve"><value>неизвестный набор агентов '{0}' — {1}</value></data>
   <data name="NoteAgentSet" xml:space="preserve"><value>набор агентов: {0}</value></data>
+  <data name="NoteAssetsIncomplete" xml:space="preserve"><value>Некоторые системные модели ещё не установлены ({0}). Приложение продолжает работать — затронутые функции (голос, подкаст, многоязычный поиск) активируются автоматически после следующего обновления.</value></data>
   <data name="NoteVoiceUnavailable" xml:space="preserve"><value>голос недоступен: {0}</value></data>
   <data name="NoteVoiceDisabled" xml:space="preserve"><value>POST /v1/voice/listen отключён</value></data>
   <data name="NoteListening" xml:space="preserve"><value>слушаю… (микрофон сервера) — говорите сейчас</value></data>
