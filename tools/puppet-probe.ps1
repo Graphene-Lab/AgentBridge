@@ -3,7 +3,7 @@ param([string]$Body = '{"type":"capture"}', [int]$TimeoutMs = 5000)
 $client = New-Object System.Net.Sockets.TcpClient
 $client.ReceiveTimeout = $TimeoutMs
 $client.SendTimeout = $TimeoutMs
-$client.Connect('127.0.0.1', 5291)
+$client.Connect('127.0.0.1', 5292)
 $stream = $client.GetStream()
 $bytes = [System.Text.Encoding]::UTF8.GetBytes($Body)
 $stream.Write($bytes, 0, $bytes.Length)

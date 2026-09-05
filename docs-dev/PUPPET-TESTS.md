@@ -1,7 +1,7 @@
 # Puppet Tests — Index (ToC)
 
 End-to-end tests that drive the **AgentBridge TUI automatically** through the
-[puppet mode](PUPPET-MODE-GUIDE.md) (DEBUG-only TCP surface on `localhost:5291`:
+[puppet mode](PUPPET-MODE-GUIDE.md) (DEBUG-only TCP surface on `localhost:5292`:
 screen capture + key/text/mouse injection, exactly what a real user can do).
 
 This document is the **table of contents of the launchable puppet tests**. It lists
@@ -19,7 +19,7 @@ what a passing run looks like.
   `dotnet build AgentBridge.csproj -c Debug --no-incremental`.
 - The **LLM provider is reachable** — the DeepSeekBridge on `127.0.0.1:8787` (or
   another configured provider in `providers.json`); the agent needs an LLM.
-- **Port `5291` free** (no other agent instance running).
+- **Port `5292` free** (no other agent instance running).
 - A fresh `Tools/` state: the build copies the plugins automatically (see the
   `ShipToolPlugins` target — the plugin's own assemblies are always refreshed).
 - The harnesses launch `agent.exe --enable-log --SkipIndexingOnStartup true

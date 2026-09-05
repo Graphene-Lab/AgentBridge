@@ -3,7 +3,7 @@
 // agent says and does (SSE transcript) plus the server log, for diagnosis.
 //
 // Usage:
-//   dotnet run --project e2e/HfOrgHarness [--exe <agent.exe>] [--urls http://localhost:5290]
+//   dotnet run --project e2e/HfOrgHarness [--exe <agent.exe>] [--urls http://localhost:5291]
 //       [--prompt <file>] [--session <id>] [--provider Gemini] [--no-launch] [--interactive]
 //
 // The agent's browser (WebTool) opens visible on the user's screen; when the task needs a
@@ -21,7 +21,7 @@ string? Arg(string name)
 }
 
 var exe = Arg("--exe") ?? FindAgentExe();
-var urls = Arg("--urls") ?? "http://localhost:5290";
+var urls = Arg("--urls") ?? "http://localhost:5291";
 var provider = Arg("--provider") ?? "Gemini";
 var sessionArg = Arg("--session");
 var promptArg = Arg("--prompt");

@@ -17,7 +17,7 @@
 
 ## Metodo di Test
 - **Build**: DEBUG, avviata con `--enable-log` (log in `logs/<pid>.txt`).
-- **Driver**: modalità Puppet — socket TCP `localhost:5291` (`tools/puppet.ps1`): cattura ASCII dello schermo + iniezione tasti/testo/mouse, marshalled sul main loop di Terminal.Gui dalla **pompa** (timer 250 ms, nessun deadlock coi dialog modali).
+- **Driver**: modalità Puppet — socket TCP `localhost:5292` (`tools/puppet.ps1`): cattura ASCII dello schermo + iniezione tasti/testo/mouse, marshalled sul main loop di Terminal.Gui dalla **pompa** (timer 250 ms, nessun deadlock coi dialog modali).
 - **Verifica a doppio canale**: (1) catture ASCII dello schermo, (2) file di log con `LogStep` nei punti strategici che prova la **propagazione funzionale** (ogni azione TUI → comando → esecuzione → completamento).
 - **Processi**: agent.exe (istanze multiple; sessione finale PID 34736, chiusa con `/exit`).
 

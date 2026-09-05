@@ -198,6 +198,23 @@ builder.Configuration.Sources.Insert(0, new JsonConfigurationSource
     ReloadOnChange = false
 });
 
+// ── Port separation — DEBUG and RELEASE are designed to coexist on one machine ──
+// The installed release keeps the documented default ports (Urls http://localhost:5290,
+// Sip:ListenPort 5060). A DEBUG build shifts those DEFAULTS (Urls 5291, Sip 6071) so a dev
+// instance never fights the running release for the same resource. The shift applies only
+// when the effective value is still the release default — an explicit override (CLI
+// --Urls / --Sip:ListenPort, ASPNETCORE_URLS, a hand-edited appsettings.json) always wins.
+// Every consumer that derives its address from this configuration — the TUI attachment,
+// the /OfficeManager web app, the Giraffe web-client endpoint — follows the instance that
+// launched it automatically. Resource table: docs-dev/ARCHITECTURE.md "Release and DEBUG
+// coexistence".
+#if DEBUG
+if (string.Equals(builder.Configuration["Urls"], "http://localhost:5290", StringComparison.OrdinalIgnoreCase))
+    builder.Configuration["Urls"] = "http://localhost:5291";
+if (builder.Configuration["Sip:ListenPort"] == "5060")
+    builder.Configuration["Sip:ListenPort"] = "6071";
+#endif
+
 // The TUI (Tui.cs) is built on Terminal.Gui v2 — before changing anything about
 // it, read docs-dev/TUI-DEVELOPMENT.md (local developer guide, offline reference).
 // Terminal UI mode: by default the console opens the Qwen-Code-style TUI (chat +
@@ -1384,7 +1401,12 @@ if (useTui)
     // so DON'T use it: the TUI must talk to the same port Kestrel binds to.
     // (LESSON: this was a real bug — the TUI connected to :5000 and reported the
     // server unreachable while the server was fine on :5290.)
-    var tuiUrl = app.Configuration["urls"] ?? "http://localhost:5290";
+    var tuiUrl = app.Configuration["urls"]
+#if DEBUG
+        ?? "http://localhost:5291";
+#else
+        ?? "http://localhost:5290";
+#endif
     try
     {
         await app.StartAsync();
@@ -1400,19 +1422,21 @@ if (useTui)
     try
     {
 #if DEBUG
-        // ── Puppet-mode TCP listener (port 5291) — DEBUG BUILDS ONLY ──
-        // Accepts JSON commands on localhost:5291 and injects them into
+        // ── Puppet-mode TCP listener (port 5292) — DEBUG BUILDS ONLY ──
+        // Accepts JSON commands on localhost:5292 and injects them into
         // Terminal.Gui's event loop via PuppetMode (Tui.cs), which marshals
         // every call onto the UI thread with Application.Invoke. The release
         // binary has no puppet surface at all: this listener never starts.
+        // (5292, NOT 5291: a DEBUG instance serves HTTP on 5291 by default — see
+        // the port-separation block above — so the puppet surface must not clash.)
         PuppetMode.Enabled = true;
         var puppetCts = new CancellationTokenSource();
         var puppetTask = Task.Run(async () =>
         {
-            using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 5291);
+            using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 5292);
             listener.Start();
-            Console.WriteLine("[Puppet] TCP listener started on localhost:5291");
-            Log.LogStep("Puppet TCP listener started on localhost:5291", monitor: true);
+            Console.WriteLine("[Puppet] TCP listener started on localhost:5292");
+            Log.LogStep("Puppet TCP listener started on localhost:5292", monitor: true);
             while (!puppetCts.Token.IsCancellationRequested)
             {
                 try
@@ -1704,7 +1728,7 @@ object SessionState(ActiveSession session)
 
 // ─────────────────────────────────────────────────────────────────────
 // PUPPET MODE TCP HANDLER — debug-only: injects keyboard/mouse events and
-// returns screen captures over localhost:5291. All work is marshalled onto
+// returns screen captures over localhost:5292. All work is marshalled onto
 // the Terminal.Gui main loop by PuppetMode (Tui.cs). One JSON command per
 // connection, read until EOF:
 //   {"type":"capture"}                                  → current screen as text

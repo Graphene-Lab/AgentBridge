@@ -40,15 +40,36 @@ Standalone client ──HTTP──▶ AgentBridge (this project)
 When the UI starts while another instance already owns the port, it connects to
 that instance instead of failing (useful to attach a UI to a running service).
 
-## Debugging — separate ports from the running instance
+## Release and DEBUG coexistence (resource conflicts)
 
-Running a debug build on the same machine as an installed AgentBridge **conflicts on the
-HTTP port** (`Urls`, default `5290`) and, when SIP is enabled, on **`Sip:ListenPort`**
-(default `5060`/`6070`). In TUI mode the second instance silently attaches to the running
-one (your breakpoints never fire); in `--headless` mode it fails with a bind exception.
+**Release and DEBUG builds are designed to coexist on the same machine.** The installed
+release keeps the documented default ports; a DEBUG build automatically shifts its own
+defaults so the two never fight for the same resource. The shift happens in `Program.cs`
+at configuration load and applies only when the effective value is still the release
+default — an explicit override (CLI `--Urls` / `--Sip:ListenPort`, `ASPNETCORE_URLS`, a
+hand-edited `appsettings.json`) always wins:
 
-The repo ships debug profiles that use **separate ports** — `5291` for HTTP, `6071` for
-SIP — so the installed agent can keep running untouched:
+| Resource | Release default | DEBUG default | Where it lives |
+|---|---|---|---|
+| HTTP server (`Urls`) | `http://localhost:5290` | `http://localhost:5291` | AgentBridge `Program.cs` (config shift, `#if DEBUG`) |
+| SIP (`Sip:ListenPort`) | `5060` | `6071` | AgentBridge `Program.cs` (config shift, `#if DEBUG`) |
+| Puppet TCP (TUI automation tests) | — never compiled in | `5292` | AgentBridge `Program.cs` (`#if DEBUG` listener) |
+| WebTool CDP browser port | `9222` | `9223` | AIOrchestrator `API/WebTool.cs` (`CdpPort`) |
+| WebTool persistent browser profile | `%TEMP%\aioffice_webtool_session` | `%TEMP%\aioffice_webtool_session_9223` | AIOrchestrator `API/WebTool.cs` |
+
+What this means for the user-visible flows:
+
+- A second instance no longer silently attaches to the running one (TUI mode, breakpoints
+  never fired) nor fails with a bind exception (`--headless` mode): each instance hosts its
+  own server and the launching instance's TUI attaches to itself.
+- The clients the TUI launches follow the launching instance automatically, because they
+  derive the URL from the same `urls` configuration value that drives the bind (Tui.cs
+  `_serverUrl`): `/officemanager` opens `{serverUrl}/OfficeManager` (served by that same
+  server) and the Giraffe web client is told that instance's `/v1/chat/completions`
+  endpoint.
+
+The IDE debug profiles below are no longer required (the DEBUG default already shifts), but
+they stay valid — explicit flags always win — and document the scheme:
 
 | IDE | File | How it launches |
 |---|---|---|

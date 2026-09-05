@@ -3,7 +3,7 @@
 //  + OfficeSupportTool plugin.
 //
 //  Scenario: a company employee uses the AgentBridge TUI — driven through the
-//  puppet TCP surface on localhost:5291, injecting exactly the keys/text a
+//  puppet TCP surface on localhost:5292, injecting exactly the keys/text a
 //  human would type — to create TWO office documents from the OfficeSupportTool
 //  templates (invoice, employment contract). Each chat message carries the
 //  document material as an attached file (/files add), so the agent can fill
@@ -18,7 +18,7 @@
 //       via PersistentData\rag_settings.json (backed up/restored afterwards).
 //    3. Launch agent.exe (Debug) in its own console window: --enable-log
 //       --SkipIndexingOnStartup true --no-update --tui.
-//    4. Wait for the puppet listener (5291) and the TUI session ("ctx 0/").
+//    4. Wait for the puppet listener (5292) and the TUI session ("ctx 0/").
 //    5. /agent → enable the OfficeSupportTool tool in the checklist (real UI).
 //    6. Per document: /files add <context file> → prompt → Enter → wait for
 //       "TUI chat finished" in logs/<pid>.txt → verify the .docx (path from
@@ -41,7 +41,7 @@ using System.Text.RegularExpressions;
 
 internal static class Program
 {
-    private const int PuppetPort = 5291;
+    private const int PuppetPort = 5292;
     private const string ToolToEnable = "OfficeSupportTool";
 
     // Scenario: the two documents the "company" creates (edit freely between runs).
@@ -129,7 +129,7 @@ internal static class Program
 
             // 4) Wait for the puppet listener + the HTTP server + the session state.
             if (!await WaitForAsync(() => CanConnect(PuppetPort), TimeSpan.FromSeconds(90)))
-            { Fail("launch", "puppet listener (5291) never came up — DEBUG build? another instance?"); Dump(agentExe); return 1; }
+            { Fail("launch", "puppet listener (5292) never came up — DEBUG build? another instance?"); Dump(agentExe); return 1; }
             var logFile = Path.Combine(agentBin, "logs", $"{proc.Id}.txt");
             if (!await WaitForAsync(() => File.Exists(logFile), TimeSpan.FromSeconds(30)))
             { Fail("launch", $"log file not found: {logFile}"); Dump(agentExe); return 1; }
@@ -265,7 +265,7 @@ internal static class Program
         return Process.Start(psi)!;
     }
 
-    // ── Puppet TCP protocol (localhost:5291, DEBUG builds only) ─────────
+    // ── Puppet TCP protocol (localhost:5292, DEBUG builds only) ─────────
 
     private static string Puppet(string json)
     {
@@ -460,7 +460,7 @@ internal static class Program
         try
         {
             using var hc = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
-            using var resp = await hc.GetAsync("http://localhost:5290/v1/files");
+            using var resp = await hc.GetAsync("http://localhost:5291/v1/files");
             if (!resp.IsSuccessStatusCode) return false;
             using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
             if (!doc.RootElement.TryGetProperty("data", out var data)) return false;
