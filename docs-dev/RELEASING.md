@@ -262,6 +262,14 @@ the new repo is pushed by the pre-push hook without any script edit.
   is copied, so without `CopyLinguaModelsToOutput`/`CopyLinguaModelsToPublish` the first
   LanguageDetector call fails with "Could not find a part of the path …\Lingua\LanguageModels\
   \<lang>\…" (podcast language detection, document language-word tracking).
+- **Playwright driver missing in the archives**: the package's build targets place the
+  per-RID node driver under `.playwright\` at build time, but publish does not carry it
+  over — released archives shipped an incomplete `.playwright` and WebTool browser launch
+  failed with a bare NullReferenceException inside the single-file exe (the driver node.exe
+  was absent). `CopyPlaywrightToPublish` copies the whole `.playwright` payload; each RID
+  build carries its own driver (`win32_x64`/`linux-x64`/`darwin-*`), so every platform
+  archive gets the right one. Check the archive for `.playwright\node\<rid>\node.exe` when
+  the browser feature regresses.
 - **linux-arm64**: released since KokoroSharp 0.8.4 — the phonemizer is the pure-managed
   MisakiSharp (no `espeak-ng-linux-arm64` binary needed) and `Microsoft.ML.OnnxRuntime`
   ships `libonnxruntime.so` for linux-arm64.

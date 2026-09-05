@@ -255,6 +255,20 @@
     </ItemGroup>
     <Copy SourceFiles="@(_LinguaPublish)" DestinationFiles="@(_LinguaPublish->'$(PublishDir)Lingua\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
+  <!-- Microsoft.Playwright driver (.playwright/): the package's build targets place the
+       per-RID node driver + package under $(OutputPath).playwright, but dotnet publish does
+       not carry them over — released archives shipped an incomplete .playwright (only the
+       package + LICENSE) and the first Playwright.CreateAsync() inside the single-file exe
+       threw NullReferenceException (WebTool browser launch failed; observed on the win-x64
+       install 2026-09-05). Copy the whole payload into the publish dir like the TTS assets.
+       Each RID build carries its own driver (win32_x64/linux-x64/darwin-*) so the Linux and
+       macOS archives get theirs too. -->
+  <Target Name="CopyPlaywrightToPublish" AfterTargets="Publish" Condition="'$(PublishDir)' != '' and Exists('$(OutputPath).playwright')">
+    <ItemGroup>
+      <_PlaywrightFiles Include="$(OutputPath).playwright\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_PlaywrightFiles)" DestinationFiles="@(_PlaywrightFiles->'$(PublishDir).playwright\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
   <!-- Optional Windows voice bridge: when the sibling AIOffice.VoiceAgent.Win build output
        exists, copy its whole output (exe + voices/ + espeak/ + kokoro.onnx + runtime deps)
        into a voiceagent/ subfolder so POST /v1/voice/listen can spawn it. The subfolder is
