@@ -15,27 +15,6 @@ It is the first **agentic** **harness** system for next-generation artificial in
 > **Why teams choose this architecture**
 > AgentBridge is built on the AIOrchestrator library model: one runtime, one agent core, and one consistent operational flow across terminal and API. The result is faster execution, lower integration overhead, and stronger control than traditional multi-server MCP setups. Read the white paper: [Why the AIOrchestrator Library Model Outperforms Traditional MCP Deployments](docs/AIORCHESTRATOR-WHITEPAPER.md).
 
-## Our team
-
-![The LLM agent team behind AgentBridge](media/our_team.png)
-
-Anyone reviewing this project might object that it has no team, and that this
-weakens its credibility. That assessment would be wrong: it is a bias inherited
-from a pattern repeated across millions of repositories — so common that it has
-become the de-facto standard — but a standard that, applied to a project whose
-purpose is to **replace human work**, is a contradiction in terms. A project
-that promises to replace humans, yet could only be built by a large human
-organization, would be denying the feasibility of its own goal — and with it,
-its own effectiveness.
-
-Assembling a project of this kind with hundreds of contributors would make it
-not only unbelievable relative to its purpose, but also fragile: each individual
-contribution is a potential source of bugs, whether accidental or deliberate,
-and no single contributor can ever hold a complete view of what everyone else is
-doing. AgentBridge is instead built the way it preaches — by the small team of
-LLM agents pictured above, with minimal human resources — proving that the very
-work it automates can indeed be automated.
-
 ## Install & download
 
 [![Download for your OS](https://img.shields.io/badge/Download%20for%20your%20OS-238636?style=for-the-badge&logo=download&logoColor=white)](https://graphenelab.it/AgentBridge/download/)
@@ -359,6 +338,27 @@ sequenceDiagram
 **Your data stays yours.** Agents run on your machine inside an application-level sandbox;
 only the model call leaves it — and only when you pick a cloud provider. With local models,
 nothing leaves at all.
+
+## Our team
+
+![The LLM agent team behind AgentBridge](media/our_team.png)
+
+Anyone reviewing this project might object that it has no team, and that this
+weakens its credibility. That assessment would be wrong: it is a bias inherited
+from a pattern repeated across millions of repositories — so common that it has
+become the de-facto standard — but a standard that, applied to a project whose
+purpose is to **replace human work**, is a contradiction in terms. A project
+that promises to replace humans, yet could only be built by a large human
+organization, would be denying the feasibility of its own goal — and with it,
+its own effectiveness.
+
+Assembling a project of this kind with hundreds of contributors would make it
+not only unbelievable relative to its purpose, but also fragile: each individual
+contribution is a potential source of bugs, whether accidental or deliberate,
+and no single contributor can ever hold a complete view of what everyone else is
+doing. AgentBridge is instead built the way it preaches — by the small team of
+LLM agents pictured above, with minimal human resources — proving that the very
+work it automates can indeed be automated.
 
 ## FAQ
 
