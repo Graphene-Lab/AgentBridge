@@ -8,7 +8,7 @@
 //
 //  Usage:
 //    dotnet run --project e2e\TuiSmoke [path-to-agent.exe] [base-url]
-//  Exit code 0 = all checks passed. Requires port 5290 to be free.
+//  Exit code 0 = all checks passed. Requires port 5291 to be free.
 //
 //  LESSONS LEARNED (read before touching ConPTY code — each one cost a bug):
 //  1. CreateProcess needs EXTENDED_STARTUPINFO_PRESENT = 0x00080000, NOT
@@ -88,7 +88,7 @@ internal static class Program
             : Path.Combine(root, "bin", "Debug", "net10.0", "agent.exe");
         // Arguments after the exe are the command line, unless the first one is a URL.
         var rest = args.Skip(1).ToArray();
-        var baseUrl = rest.Length > 0 && rest[0].StartsWith("http") ? rest[0] : "http://localhost:5290";
+        var baseUrl = rest.Length > 0 && rest[0].StartsWith("http") ? rest[0] : "http://localhost:5291";
         var cmdArgs = rest.Length > 0 && rest[0].StartsWith("http") ? string.Join(' ', rest.Skip(1)) : string.Join(' ', rest);
         if (string.IsNullOrWhiteSpace(cmdArgs) && exe.Contains("agent.exe")) cmdArgs = "--SkipIndexingOnStartup true";
 

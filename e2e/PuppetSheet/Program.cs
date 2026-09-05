@@ -3,7 +3,7 @@
 //  + SpreadsheetTool plugin.
 //
 //  Scenario: a company employee uses the AgentBridge TUI — driven through the
-//  puppet TCP surface on localhost:5291, injecting exactly the keys/text a
+//  puppet TCP surface on localhost:5292, injecting exactly the keys/text a
 //  human would type — to ask the agent to create an Excel workbook: ONE
 //  worksheet with a SMALL dataset + ONE chart, everything in ENGLISH, fitting
 //  a single A4 page (the file is meant to be converted to PNG and shown in
@@ -16,7 +16,7 @@
 //       via PersistentData\rag_settings.json (backed up/restored afterwards).
 //    3. Launch agent.exe (Debug) in its own console window: --enable-log
 //       --SkipIndexingOnStartup true --no-update --tui.
-//    4. Wait for the puppet listener (5291) and the TUI session ("ctx 0/").
+//    4. Wait for the puppet listener (5292) and the TUI session ("ctx 0/").
 //    5. /agent → enable the SpreadsheetTool tool in the checklist (real UI,
 //       idempotent: toggled only when it is not already checked).
 //    6. Send the prompt (ENGLISH, explicitly asking for an ENGLISH worksheet,
@@ -44,7 +44,7 @@ using System.Xml;
 
 internal static class Program
 {
-    private const int PuppetPort = 5291;
+    private const int PuppetPort = 5292;
     private const string ToolToEnable = "SpreadsheetTool";
 
     // The single scenario: a normal user asks the agent (in English) for a
@@ -120,7 +120,7 @@ internal static class Program
 
             // 4) Wait for the puppet listener + the HTTP server + the session state.
             if (!await WaitForAsync(() => CanConnect(PuppetPort), TimeSpan.FromSeconds(90)))
-            { Fail("launch", "puppet listener (5291) never came up — DEBUG build? another instance?"); Dump(agentExe); return 1; }
+            { Fail("launch", "puppet listener (5292) never came up — DEBUG build? another instance?"); Dump(agentExe); return 1; }
             var logFile = Path.Combine(agentBin, "logs", $"{proc.Id}.txt");
             if (!await WaitForAsync(() => File.Exists(logFile), TimeSpan.FromSeconds(30)))
             { Fail("launch", $"log file not found: {logFile}"); Dump(agentExe); return 1; }
@@ -221,7 +221,7 @@ internal static class Program
         return Process.Start(psi)!;
     }
 
-    // ── Puppet TCP protocol (localhost:5291, DEBUG builds only) ─────────
+    // ── Puppet TCP protocol (localhost:5292, DEBUG builds only) ─────────
 
     private static string Puppet(string json)
     {

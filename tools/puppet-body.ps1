@@ -3,7 +3,7 @@
 param([Parameter(Mandatory=$true)][string]$JsonFile)
 $ErrorActionPreference = 'Stop'
 $body = Get-Content $JsonFile -Raw -Encoding UTF8
-$client = New-Object System.Net.Sockets.TcpClient('127.0.0.1', 5291)
+$client = New-Object System.Net.Sockets.TcpClient('127.0.0.1', 5292)
 try {
     $stream = $client.GetStream()
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)

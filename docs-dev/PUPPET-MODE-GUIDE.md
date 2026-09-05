@@ -5,7 +5,7 @@
 
 ## Overview
 
-Puppet Mode lets an agent (LLM or script) test the AgentBridge TUI automatically without manual interaction. The tester drives the TUI through a **TCP socket on localhost:5291**: it captures the screen as text, injects keys/mouse and types text. Each command is one JSON object sent on a connection and closed at EOF; the response is the resulting JSON/ASCII.
+Puppet Mode lets an agent (LLM or script) test the AgentBridge TUI automatically without manual interaction. The tester drives the TUI through a **TCP socket on localhost:5292**: it captures the screen as text, injects keys/mouse and types text. Each command is one JSON object sent on a connection and closed at EOF; the response is the resulting JSON/ASCII.
 
 **Active ONLY in DEBUG builds** (`#if DEBUG`): the release build has no listener, no puppet surface, no PrintScreen binding. Never exposed to end users.
 
@@ -142,12 +142,12 @@ Write the report with this structure (in `docs-dev/TUI-TEST-REPORT.md`):
 │  └───────────────────────────────────────────────────────┘  │
 │                              ▲ TCP                          │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │     TCP listener localhost:5291 (Program.cs, DEBUG)   │  │
+│  │     TCP listener localhost:5292 (Program.cs, DEBUG)   │  │
 │  │     one JSON per connection, response on close        │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                               ▲
-                              │ TCP localhost:5291
+                              │ TCP localhost:5292
                               │
                     ┌─────────────────┐
                     │  Test Runner    │
@@ -157,11 +157,11 @@ Write the report with this structure (in `docs-dev/TUI-TEST-REPORT.md`):
 
 ---
 
-## TCP Protocol (localhost:5291)
+## TCP Protocol (localhost:5292)
 
 One connection = one command:
 
-1. Open the socket on `127.0.0.1:5291`.
+1. Open the socket on `127.0.0.1:5292`.
 2. Send the JSON body (UTF-8), then **shutdown the send side** (`Socket.Shutdown(Send)`) to signal EOF: the server reads until EOF, executes, writes the response, then closes.
 3. Read the response until EOF.
 
@@ -311,7 +311,7 @@ Get-Content logs\<pid>.txt -Encoding UTF8 | Select-String -Pattern 'TUI|Puppet'
 import json, socket, time
 
 def puppet(cmd: dict) -> str:
-    s = socket.create_connection(("127.0.0.1", 5291), timeout=10)
+    s = socket.create_connection(("127.0.0.1", 5292), timeout=10)
     s.sendall(json.dumps(cmd).encode("utf-8"))
     s.shutdown(socket.SHUT_WR)              # EOF: the server executes and responds
     data = b""
@@ -348,7 +348,7 @@ key("escape")             # close
 
 | Problem | Cause / Solution |
 |---|---|
-| `Connection refused` on 5291 | RELEASE build (no listener) or app not started. Use the DEBUG build: `bin\Debug\net10.0\agent.exe`. |
+| `Connection refused` on 5292 | RELEASE build (no listener) or app not started. Use the DEBUG build: `bin\Debug\net10.0\agent.exe`. |
 | Response timeout | The server executes the command but waits for EOF: you must shut down the send side (`shutdown(SHUT_WR)`). |
 | Capture shows a stale screen | Snapshot refreshed every 250 ms: wait ≥ 300 ms after the action. |
 | Injections have no effect with a dialog open | Check the pump is running: look for `[Pump] executed` in the log (if there was a regression to the Invoke design, re-read the "Why the pump" section). |
