@@ -181,14 +181,33 @@ Think of the documents area as your company's brain. It is a simple folder on di
 
 ## Comparison with Main Alternative Products
 
-| Product | Target Audience | Key Strength | Main Integrations |
-| :--- | :--- | :--- | :--- |
-| **Agent Bridge** | Businesses and individuals | Self-hosted all-in-one AI agent platform | Preferred AI, company archives |
-| **Claude for Small Business** | Small businesses | Ready-to-use workflows for operational tasks | QuickBooks, PayPal, HubSpot, Canva, DocuSign |
-| **Microsoft Scout** | Microsoft 365 companies | Autonomous, proactive AI agent always active | Outlook, Teams, SharePoint, OneDrive |
-| **Nono CoWork** | Power users and developers | Proactive agent always active on VPS | Email, synced folders, Telegram |
-| **171305 Cowork** | Power users and developers | Local AI workspace, privacy-first | Gmail, Calendar, Drive, Sheets, Ollama |
-| **Templafy** | Large enterprises | Platform for compliant, branded documents | Office, CRM, Claude, Copilot, ChatGPT |
+AgentBridge belongs to the category of **personal AI agent assistants**. The table is an honest,
+feature-by-feature comparison with the closest alternatives in that space.
+
+| **Aspect** | **AgentBridge** | **OpenHuman** | **Claude Cowork** | **OpenClaw** | **Hermes Agent** |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **One‑line positioning** | Self‑hosted AI personal assistant built to **replace humans in office work** — chat terminal and OpenAI‑compatible server in one process | Personal AI super‑intelligence – desktop "AI workstation" | AI colleague bringing Claude Code to non‑technical knowledge work | "Digital employee" – autonomous agent from chat to execution | Self‑evolving agent with built‑in learning loop |
+| **Developer / backer** | Andrea Bruno (Graphene‑Lab) | tinyhumansai team | Anthropic | Peter Steinberger | Nous Research |
+| **Open‑source / license** | ✅ Open‑source (**AGPL v3.0**) — core and plugin tool engine fully open | ✅ Open‑source (GNU) | ❌ Proprietary | ✅ Open‑source (MIT) | ✅ Open‑source (MIT) |
+| **Target audience** | Businesses & professionals who want to automate **real office work** on their own hardware; privacy‑sensitive individuals | Knowledge workers who want out‑of‑the‑box UX & data sovereignty | Paid Claude users (Mac/Windows) needing complex file tasks | Developers & tech enthusiasts seeking flexibility & control | Developers & technical users wanting a long‑term self‑improving assistant |
+| **Ease of setup** | **Low** – one self‑contained archive (no .NET install) or one‑line installer; run the executable and chat | **Low (UI‑first)** – graphical desktop, one‑click OAuth | **Medium** – requires Claude desktop app | **High (CLI‑first)** – terminal, API keys, manual config | **High (CLI‑first)** – command‑line install & config |
+| **Key differentiator** | **Deterministic memory** (never forgets, zero wasted recall) + **structural sandbox** enforced by code, not prompts; one process = TUI + OpenAI API + MCP | Proactive pre‑loading; **Memory Tree** (hierarchical KG); TokenJuice compression (up to 80% cost saving) | Cloud‑persistent sessions (tasks continue after device close); sub‑agent coordination | Powerful execution (files, code, browser); 20+ messaging channels | **Closed learning loop** (creates/refines skills); cross‑session FTS5 memory |
+| **Memory system** | **Proprietary Deterministic Memory** – indexes people, facts, documents, style & sessions into your own folders; exact‑context retrieval, no model re‑elaboration | **Memory Tree** – local SQLite + Obsidian‑compatible Markdown vault | **Projects** – persistent, isolated workspaces | Layered memory (transient, short‑term, long‑term, procedural) | Agent‑curated memory with periodic reminders & cross‑session recall |
+| **Tools / integrations** | DocumentTool (Word), SpreadsheetTool (Excel), PresentationTool, PDF reports, podcasts, WebTool, EMailTool (own SMTP/IMAP), FileTool, GitTool, TaskSchedulerTool, MapTool; MCP connector + any OpenAI client | 118+ third‑party services (one‑click); built‑in web search, code tools | Local file ops (read/edit/create); spreadsheets & presentations | Plugin‑based skills; built‑in sandbox | Multi‑channel messaging (Telegram, Discord, etc.); cron‑like scheduled tasks |
+| **Platform support** | Self‑hosted: Windows x64, Linux x64/ARM64, macOS (Intel / Apple Silicon); mini‑PC & edge class (RK3588 → Ryzen AI Max+ 395) | Desktop: macOS, Linux, Windows | Desktop: macOS, Windows; Web, mobile (iOS/Android), Chrome sidebar | Self‑hosted (local or private server) | $5 VPS, GPU clusters, serverless |
+| **Pricing model** | **Free** & fully open‑source (**AGPL v3.0**) — no subscription, BYOK/BYOM | **Freemium** – free OSS + optional unified subscription (auto‑routing) | **Subscription** – included in Claude Pro ($20/mo) and Max ($100–200/mo) | **100% free** – open‑source, BYOK | **100% free** – open‑source, BYOK |
+| **Security / privacy** | **Local‑first & trustless** – files, memory and the agent run on your machine; fully offline with a local model; GDPR‑ready anonymisation before any cloud model call; structural sandbox | **Local‑first** – data encrypted locally, fully offline capable | Folder‑level authorisation; commercial hosted service | **Local‑first** – all data on your machine, offline capable | Self‑hosted – full data sovereignty |
+| **Where execution happens (trust model)** | **On your machine** – agent loop, tools, files and memory run locally; a cloud model call happens only if you choose one (anonymised); **no vendor cloud can reach your data** | Hybrid – app & data on your device, but inference defaults to **routed cloud models**; one‑switch Privacy Mode forces on‑device (Ollama, LM Studio, MLX) | **Anthropic cloud** – desktop agent acts on granted local folders; web/mobile tasks execute in Anthropic's cloud (or your Bedrock/Vertex/Foundry); permissioned, **not trustless** | **On your machine** – local Gateway, state on your device; hosted or local model providers; sandboxing opt‑in | **On your infrastructure** – local, Docker, SSH, serverless; BYO keys or local Ollama for full privacy |
+| **End‑to‑end office deliverables** | **Built‑in from a plain prompt** – invoices & contracts (DOCX), spreadsheets with charts (XLSX), detailed PDF market/financial reports, slide decks, podcasts (MP3 + RSS feed) | Consumes documents & email into memory; no native finished‑document generation claimed | Creates & edits real Word, Excel, PowerPoint, PDF files in the folders you grant — not templated business documents from your own archive | File read/write & shell; office‑document production is not a built‑in core feature | Not a built‑in core feature – general file/shell/automation skills |
+| **Headless control / API** | ✅ Native `POST /v1/chat/completions` on `localhost` — any OpenAI SDK, script or bot drives the same agents; native MCP connector included | Desktop app; no local OpenAI‑compatible server documented | Hosted product – no local OpenAI‑compatible endpoint for consumers | CLI, local Gateway & chat channels; no OpenAI‑compatible server documented | CLI/terminal + remote backends; no OpenAI‑compatible endpoint documented |
+
+> **Why AGPL v3.0?** The choice is deliberate. Permissive licenses (MIT/Apache) let anyone take a
+> community's work, close it, and run it as proprietary software or a proprietary service. AGPL v3.0
+> bans that *enclosure*: any derivative work — including one offered over a network (section 13) —
+> must stay open source. Nobody wants to contribute to a project that someone else will lock up
+> somewhere else. AGPL keeps the work of this community the work of this community, while still
+> granting the four freedoms (use, study, modify, share) and leaving full room for business — as long
+> as the code stays open.
 
 ## What you can do with it
 
@@ -325,9 +344,9 @@ nothing leaves at all.
 - **What is AgentBridge?** A self-hosted server that runs AI agents behind a full-screen
   terminal chat and a standard OpenAI-compatible HTTP API — one process, your machine,
   your agents, plus a native MCP connector for standard MCP clients.
-- **Is AgentBridge free?** The download is free and the source is released as open source
-  for personal use under the [Andrea Bruno License 1.4](LICENSE.md); commercial use of the
-  code requires a royalty agreement with the author.
+- **Is AgentBridge free?** Yes — fully open-source under the
+  [GNU Affero General Public License v3.0](LICENSE.md). The **plugin tools** — the agent's
+  action engine — ship under the same **AGPL v3.0** license (each `*Tool` repository).
 - **Which LLMs does it support?** DeepSeek, Z.ai, Gemini, Anthropic and any
   OpenAI-compatible endpoint — plus local models via Ollama, ExLlamaV2 or a local bridge,
   switchable on the fly.
