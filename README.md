@@ -101,6 +101,14 @@ who seems to be working very hard… at pretending. 😉
 
 ![OfficeManager — the agents' office](media/office-manager-demo.gif)
 
+**Autonomous web publishing — a real LinkedIn post, end to end** — the agent opens
+LinkedIn, signs in with its saved credentials and publishes a real post announcing that
+AgentBridge is now fully open-source under AGPL v3.0. WebTool drives the visible browser and
+every step is verified deterministically: composer open → text read back → post published
+and confirmed on the profile.
+
+![Agent publishing a real LinkedIn post via WebTool](media/linkedin-post-demo.gif)
+
 ## Agent Bridge: Your AI Assistant for Office Work
 
 Agent Bridge is a tool that allows you to connect to your preferred AI, transforming it into your personal assistant: a tireless worker capable of handling office tasks such as drafting complex documents, working with spreadsheets, interacting with email, and performing internet-based activities—all while having full awareness of your company's knowledge base: clients, documents, products, and everything stored in your archive.
