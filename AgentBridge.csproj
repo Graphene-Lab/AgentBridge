@@ -16,13 +16,13 @@
          off triggers release.yml automatically (tag v1.yy.MM.dd created by the workflow).
          Date-based auto version, same scheme as UISupportBlazor/UISupportGeneric
          (1.yy.MM.dd, e.g. 1.26.08.09). -->
-    <IsPrerelease>true</IsPrerelease>
+    <IsPrerelease>false</IsPrerelease>
     <!-- NuGet wait marker (release.ps1 / release.yml): true = the release build must wait for
          today's core dependency packages on nuget.org (a core repo changed today and its
          package is still propagating); false = no core repo changed since its last tag, so the
          wait is skipped. Default true (conservative: a manual gate-off push without
          release.ps1 still waits). -->
-    <NuGetWait>true</NuGetWait>
+    <NuGetWait>false</NuGetWait>
     <!-- NuGetWaitPackages: the comma-separated package ids the release build waits for when
          <NuGetWait> is true. release.ps1 narrows it to the repos that actually changed today so
          the wait exits as soon as those propagate instead of burning the full 30 minutes on
@@ -37,7 +37,7 @@
          pins it to the LOCAL push date in the gate-off commit, so CI (DateTime.Now = UTC)
          can never derive the previous UTC day across the local/UTC-midnight boundary and
          reuse an already-released version (release.yml would skip it). -->
-    <ReleaseDate Condition="'$(ReleaseDate)' == ''">$([System.DateTime]::Now.ToString("yy.MM.dd"))</ReleaseDate>
+    <ReleaseDate Condition="'$(ReleaseDate)' == ''">26.09.06</ReleaseDate>
     <Version Condition="'$(IsPrerelease)' == 'true'">1.$(ReleaseDate)-prerelease</Version>
     <Version Condition="'$(IsPrerelease)' != 'true'">1.$(ReleaseDate)</Version>
   </PropertyGroup>
