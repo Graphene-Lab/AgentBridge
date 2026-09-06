@@ -146,9 +146,13 @@ jobs:
       # release.ps1 ALSO narrows the list (NuGetWaitPackages) to the packages of the repos
       # that changed today, so the window ends as soon as THEY become visible — repos that
       # did not change never publish today's version and would otherwise hold the loop for the
-      # full 30 minutes. After the window, still-missing packages are reported with a warning
-      # and the build proceeds (the floating 1.* restore picks the latest available version,
-      # which for an unchanged repo is identical to today's version).
+      # full 30 minutes. After the window, a still-missing package is a HARD FAILURE: the wait
+      # list only contains packages that SHOULD be at today's version, so expiry means that
+      # repo's publish.yml run failed or nuget.org exceeded its documented window — proceeding
+      # would restore YESTERDAY's engine and either crash the build with misleading errors
+      # (2026-09-06: "CrashReporter does not exist" after the AIOrchestrator publish died
+      # waiting for uisupportgeneric) or, worse, ship it silently. Fix the failed publish and
+      # re-run release.ps1 — the wait is skipped as soon as the package is visible.
       # The list is ONLY the packages the build actually restores (the Graphene.AIOrchestrator
       # closure + SystemExtra): the tool plugins (DocumentTool, SpreadsheetTool, OfficeTool,
       # PresentationTool, OfficeSupportTool) are NOT build dependencies — they are fetched as
@@ -175,7 +179,9 @@ jobs:
             sleep 30
           done
           if [ -n "$missing" ]; then
-            echo "::warning::after 30 min these packages are not yet at $NVER; proceeding with the latest available version (no publish for these repos today):$missing"
+            echo "::error::after 30 min these packages are still not at $NVER:$missing"
+            echo "::error::this release REQUIRES today's version of every package in <NuGetWaitPackages> — release.ps1 narrows it to the repos that changed today. A missing package means that repo's 'Publish NuGet Package' run failed or nuget.org propagation exceeded its documented window; proceeding would restore yesterday's engine (misleading build crash or silent stale release, 2026-09-06). Check the failed publish run of the repo above, fix it, then re-run release.ps1 — the wait is skipped as soon as the package is visible."
+            exit 1
           fi
 
       # Builds against the published NuGet packages (Graphene.AIOrchestrator 1.* and its

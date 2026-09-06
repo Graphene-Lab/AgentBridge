@@ -101,9 +101,13 @@ release.ps1 leaves the marker at its conservative default (`true`).
 
 When the wait does run, it uses a **global 30-minute window** (nuget.org's official
 propagation time): every cycle (30 s) it checks **all** packages at today's version and stops
-as soon as every one is visible; after the window, packages still missing are reported with a
-`::warning::` and the build **proceeds** with the latest available version (for an unchanged
-repo identical to today's version).
+as soon as every one is visible. After the window, a still-missing package is a **hard
+failure**: the wait list only contains packages that should be at today's version (release.ps1
+narrows `<NuGetWaitPackages>` to the repos that changed today), so expiry means that repo's
+`publish.yml` run failed or nuget.org exceeded its documented window — proceeding would
+restore yesterday's engine and either crash the build with misleading errors (2026-09-06:
+"CrashReporter does not exist") or ship it silently. Fix the failed publish and re-run
+release.ps1; the wait is skipped as soon as the package is visible.
 
 Consequence: a release on a day when **no core repo changed** skips the wait entirely
 (fast); when a core repo changed, its today-tag is created + pushed automatically and the
