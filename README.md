@@ -101,11 +101,13 @@ who seems to be working very hard… at pretending. 😉
 
 ![OfficeManager — the agents' office](media/office-manager-demo.gif)
 
-**Autonomous web publishing — a real LinkedIn post, end to end** — the agent opens
-LinkedIn, signs in with its saved credentials and publishes a real post announcing that
-AgentBridge is now fully open-source under AGPL v3.0. WebTool drives the visible browser and
-every step is verified deterministically: composer open → text read back → post published
-and confirmed on the profile.
+**WebTool — the agent's hands on the web** — WebTool is the instrument that lets an agent
+carry out complex tasks directly in a real, visible browser: navigate, sign in, fill forms,
+click, publish, research. Publishing to a social network is just **one** of the possible use
+cases. The animation below shows a real example executed end to end: the agent opens
+LinkedIn, signs in with its saved credentials and publishes a post announcing that
+AgentBridge is now fully open-source under AGPL v3.0 — every step verified deterministically
+(composer open → text read back → post confirmed on the profile).
 
 ![Agent publishing a real LinkedIn post via WebTool](media/linkedin-post-demo.gif)
 
