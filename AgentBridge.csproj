@@ -16,7 +16,7 @@
          off triggers release.yml automatically (tag v1.yy.MM.dd created by the workflow).
          Date-based auto version, same scheme as UISupportBlazor/UISupportGeneric
          (1.yy.MM.dd, e.g. 1.26.08.09). -->
-    <IsPrerelease>false</IsPrerelease>
+    <IsPrerelease>true</IsPrerelease>
     <!-- NuGet wait marker (release.ps1 / release.yml): true = the release build must wait for
          today's core dependency packages on nuget.org (a core repo changed today and its
          package is still propagating); false = no core repo changed since its last tag, so the
@@ -28,7 +28,7 @@
          the wait exits as soon as those propagate instead of burning the full 30 minutes on
          repos that never publish today's version; the default (all wait-checked packages) is
          the conservative fallback for a manual gate-off push. -->
-    <NuGetWaitPackages>graphene.aiorchestrator,uisupportgeneric,graphene.reversemarkdown</NuGetWaitPackages>
+    <NuGetWaitPackages>graphene.aiorchestrator,alltomarkdown,mermaidrendering,graphene.reversemarkdown,uisupportgeneric,systemextra</NuGetWaitPackages>
     <!-- Naiad (transitive dep of Graphene.AIOrchestrator) SponsorCheck: the property is
          required when building Release; set in every project consuming the package. -->
     <Papyrine_SponsorshipLicenseIgnored>true</Papyrine_SponsorshipLicenseIgnored>
@@ -37,7 +37,7 @@
          pins it to the LOCAL push date in the gate-off commit, so CI (DateTime.Now = UTC)
          can never derive the previous UTC day across the local/UTC-midnight boundary and
          reuse an already-released version (release.yml would skip it). -->
-    <ReleaseDate Condition="'$(ReleaseDate)' == ''">26.09.06</ReleaseDate>
+    <ReleaseDate Condition="'$(ReleaseDate)' == ''">$([System.DateTime]::Now.ToString("yy.MM.dd"))</ReleaseDate>
     <Version Condition="'$(IsPrerelease)' == 'true'">1.$(ReleaseDate)-prerelease</Version>
     <Version Condition="'$(IsPrerelease)' != 'true'">1.$(ReleaseDate)</Version>
   </PropertyGroup>
