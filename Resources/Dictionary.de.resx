@@ -311,4 +311,12 @@ Der vorherige Dokumentbereich ist weiterhin aktiv — es wurde nichts geändert.
   <data name="HttpStatusRateLimited" xml:space="preserve"><value>Anfragenlimit erreicht (HTTP {0})</value></data>
   <data name="HttpStatusServer" xml:space="preserve"><value>Serverfehler (HTTP {0})</value></data>
   <data name="HttpStatusOther" xml:space="preserve"><value>Anfrage fehlgeschlagen (HTTP {0})</value></data>
+  <data name="CmdOpen" xml:space="preserve"><value>Öffnet eine vom Agenten gelieferte Datei oder den Anhänge-Ordner</value></data>
+  <data name="MenuOpenAttachments" xml:space="preserve"><value>Anhänge öffnen</value></data>
+  <data name="ChatAttachmentHint" xml:space="preserve"><value>Öffnen mit Strg+O (Anhänge-Ordner) oder /open &lt;Name&gt;</value></data>
+  <data name="ShortOpenAttachments" xml:space="preserve"><value>Öffnet die vom Agenten gelieferten Anhänge (Ordner)</value></data>
+  <data name="NoteOpenedAttachments" xml:space="preserve"><value>Anhänge-Ordner geöffnet: {0}</value></data>
+  <data name="NoteOpenedFile" xml:space="preserve"><value>Geöffnet: {0}</value></data>
+  <data name="NoteOpenFileNotFound" xml:space="preserve"><value>Kein empfangener Anhang zu "{0}" in {1}</value></data>
+  <data name="NoteOpenFailed" xml:space="preserve"><value>Öffnen fehlgeschlagen: {0}</value></data>
 </root>

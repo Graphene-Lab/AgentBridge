@@ -311,4 +311,12 @@ Powered by Terminal.Gui</value></data>
   <data name="HttpStatusRateLimited" xml:space="preserve"><value>превышен лимит запросов (HTTP {0})</value></data>
   <data name="HttpStatusServer" xml:space="preserve"><value>ошибка сервера (HTTP {0})</value></data>
   <data name="HttpStatusOther" xml:space="preserve"><value>запрос не удался (HTTP {0})</value></data>
+  <data name="CmdOpen" xml:space="preserve"><value>Открыть файл, присланный агентом в ответе, или папку вложений</value></data>
+  <data name="MenuOpenAttachments" xml:space="preserve"><value>Открыть вложения</value></data>
+  <data name="ChatAttachmentHint" xml:space="preserve"><value>Открыть: Ctrl+O (папка вложений) или /open &lt;имя&gt;</value></data>
+  <data name="ShortOpenAttachments" xml:space="preserve"><value>Открывает вложения, присланные агентом (папка)</value></data>
+  <data name="NoteOpenedAttachments" xml:space="preserve"><value>Открыта папка вложений: {0}</value></data>
+  <data name="NoteOpenedFile" xml:space="preserve"><value>Открыто: {0}</value></data>
+  <data name="NoteOpenFileNotFound" xml:space="preserve"><value>Нет полученного вложения, соответствующего "{0}", в {1}</value></data>
+  <data name="NoteOpenFailed" xml:space="preserve"><value>Не удалось открыть: {0}</value></data>
 </root>

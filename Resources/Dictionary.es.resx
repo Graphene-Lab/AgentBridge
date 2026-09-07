@@ -311,4 +311,12 @@ El área de documentos anterior sigue activa — no se ha cambiado nada.</value>
   <data name="HttpStatusRateLimited" xml:space="preserve"><value>límite de peticiones superado (HTTP {0})</value></data>
   <data name="HttpStatusServer" xml:space="preserve"><value>error del servidor (HTTP {0})</value></data>
   <data name="HttpStatusOther" xml:space="preserve"><value>la solicitud falló (HTTP {0})</value></data>
+  <data name="CmdOpen" xml:space="preserve"><value>Abre un archivo entregado por el agente en una respuesta, o la carpeta de adjuntos</value></data>
+  <data name="MenuOpenAttachments" xml:space="preserve"><value>Abrir adjuntos</value></data>
+  <data name="ChatAttachmentHint" xml:space="preserve"><value>Abrir con Ctrl+O (carpeta de adjuntos) o /open &lt;nombre&gt;</value></data>
+  <data name="ShortOpenAttachments" xml:space="preserve"><value>Abre los adjuntos entregados por el agente (carpeta)</value></data>
+  <data name="NoteOpenedAttachments" xml:space="preserve"><value>Carpeta de adjuntos abierta: {0}</value></data>
+  <data name="NoteOpenedFile" xml:space="preserve"><value>Abierto: {0}</value></data>
+  <data name="NoteOpenFileNotFound" xml:space="preserve"><value>Ningún adjunto recibido coincide con "{0}" en {1}</value></data>
+  <data name="NoteOpenFailed" xml:space="preserve"><value>No se puede abrir: {0}</value></data>
 </root>

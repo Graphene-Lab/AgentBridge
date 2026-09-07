@@ -450,4 +450,12 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="SetupDefaultSet" xml:space="preserve"><value>default provider: {0}</value></data>
   <data name="NoteSetDefaultFailed" xml:space="preserve"><value>set default failed: {0}</value></data>
   <data name="NoteSetDefaultFailedHttp" xml:space="preserve"><value>set default failed (HTTP {0}): {1}</value></data>
+  <data name="CmdOpen" xml:space="preserve"><value>Open a file the agent delivered in a reply, or the attachments folder</value></data>
+  <data name="MenuOpenAttachments" xml:space="preserve"><value>Open attachments</value></data>
+  <data name="ChatAttachmentHint" xml:space="preserve"><value>Open with Ctrl+O (attachments folder) or /open &lt;name&gt;</value></data>
+  <data name="ShortOpenAttachments" xml:space="preserve"><value>Open the attachments the agent delivered (folder)</value></data>
+  <data name="NoteOpenedAttachments" xml:space="preserve"><value>Opened the attachments folder: {0}</value></data>
+  <data name="NoteOpenedFile" xml:space="preserve"><value>Opened: {0}</value></data>
+  <data name="NoteOpenFileNotFound" xml:space="preserve"><value>No received attachment matching "{0}" in {1}</value></data>
+  <data name="NoteOpenFailed" xml:space="preserve"><value>Cannot open: {0}</value></data>
 </root>

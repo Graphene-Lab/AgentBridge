@@ -311,4 +311,12 @@ La zone de documents précédente est toujours active — rien n'a été modifi�
   <data name="HttpStatusRateLimited" xml:space="preserve"><value>limite de débit atteinte (HTTP {0})</value></data>
   <data name="HttpStatusServer" xml:space="preserve"><value>erreur serveur (HTTP {0})</value></data>
   <data name="HttpStatusOther" xml:space="preserve"><value>échec de la requête (HTTP {0})</value></data>
+  <data name="CmdOpen" xml:space="preserve"><value>Ouvre un fichier livré par l'agent dans une réponse, ou le dossier des pièces jointes</value></data>
+  <data name="MenuOpenAttachments" xml:space="preserve"><value>Ouvrir les pièces jointes</value></data>
+  <data name="ChatAttachmentHint" xml:space="preserve"><value>Ouvrir avec Ctrl+O (dossier pièces jointes) ou /open &lt;nom&gt;</value></data>
+  <data name="ShortOpenAttachments" xml:space="preserve"><value>Ouvre les pièces jointes livrées par l'agent (dossier)</value></data>
+  <data name="NoteOpenedAttachments" xml:space="preserve"><value>Dossier des pièces jointes ouvert : {0}</value></data>
+  <data name="NoteOpenedFile" xml:space="preserve"><value>Ouvert : {0}</value></data>
+  <data name="NoteOpenFileNotFound" xml:space="preserve"><value>Aucune pièce jointe reçue ne correspond à « {0} » dans {1}</value></data>
+  <data name="NoteOpenFailed" xml:space="preserve"><value>Ouverture impossible : {0}</value></data>
 </root>

@@ -370,4 +370,12 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="SetupDefaultSet" xml:space="preserve"><value>provider predefinito: {0}</value></data>
   <data name="NoteSetDefaultFailed" xml:space="preserve"><value>impostazione del predefinito non riuscita: {0}</value></data>
   <data name="NoteSetDefaultFailedHttp" xml:space="preserve"><value>impostazione del predefinito non riuscita (HTTP {0}): {1}</value></data>
+  <data name="CmdOpen" xml:space="preserve"><value>Apre un file consegnato dall'agente in una risposta, oppure la cartella degli allegati</value></data>
+  <data name="MenuOpenAttachments" xml:space="preserve"><value>Apri allegati</value></data>
+  <data name="ChatAttachmentHint" xml:space="preserve"><value>Apri con Ctrl+O (cartella allegati) o /open &lt;nome&gt;</value></data>
+  <data name="ShortOpenAttachments" xml:space="preserve"><value>Apre gli allegati consegnati dall'agente (cartella)</value></data>
+  <data name="NoteOpenedAttachments" xml:space="preserve"><value>Aperta la cartella allegati: {0}</value></data>
+  <data name="NoteOpenedFile" xml:space="preserve"><value>Aperto: {0}</value></data>
+  <data name="NoteOpenFileNotFound" xml:space="preserve"><value>Nessun allegato ricevuto corrisponde a "{0}" in {1}</value></data>
+  <data name="NoteOpenFailed" xml:space="preserve"><value>Impossibile aprire: {0}</value></data>
 </root>

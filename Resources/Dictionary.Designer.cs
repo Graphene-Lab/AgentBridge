@@ -3458,5 +3458,77 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("WindowTitle", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Open a file the agent delivered in a reply, or the attachments folder'.
+        /// </summary>
+        public static string CmdOpen {
+            get {
+                return ResourceManager.GetString("CmdOpen", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Open attachments'.
+        /// </summary>
+        public static string MenuOpenAttachments {
+            get {
+                return ResourceManager.GetString("MenuOpenAttachments", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Open with Ctrl+O (attachments folder) or /open &lt;name&gt;'.
+        /// </summary>
+        public static string ChatAttachmentHint {
+            get {
+                return ResourceManager.GetString("ChatAttachmentHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Open the attachments the agent delivered (folder)'.
+        /// </summary>
+        public static string ShortOpenAttachments {
+            get {
+                return ResourceManager.GetString("ShortOpenAttachments", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Opened the attachments folder: {0}'.
+        /// </summary>
+        public static string NoteOpenedAttachments {
+            get {
+                return ResourceManager.GetString("NoteOpenedAttachments", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Opened: {0}'.
+        /// </summary>
+        public static string NoteOpenedFile {
+            get {
+                return ResourceManager.GetString("NoteOpenedFile", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'No received attachment matching "{0}" in {1}'.
+        /// </summary>
+        public static string NoteOpenFileNotFound {
+            get {
+                return ResourceManager.GetString("NoteOpenFileNotFound", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Cannot open: {0}'.
+        /// </summary>
+        public static string NoteOpenFailed {
+            get {
+                return ResourceManager.GetString("NoteOpenFailed", resourceCulture);
+            }
+        }
     }
 }

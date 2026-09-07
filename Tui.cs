@@ -181,6 +181,10 @@ public static class ConsoleTui
                 MenuGroup: "file", MenuTitle: Dictionary.MenuFiles),
             new("attach", "[id]", Dictionary.CmdAttach, (t, a) => t.AttachAsync(a),
                 MenuGroup: "file", MenuTitle: Dictionary.MenuAttach),
+            // Files the agent delivered in a reply are saved under attachments/ next to the
+            // executable; /open reveals them (folder by default, a specific file by name).
+            new("open", "[name]", Dictionary.CmdOpen, (t, a) => t.OpenAsync(a),
+                MenuGroup: "file", MenuTitle: Dictionary.MenuOpenAttachments, Shortcut: Key.O.WithCtrl),
             // Settings (menu Impostazioni/Settings): main setup, tool selection, voice and
             // the SIP/Telegram bridges. /model stays under Session: it switches the CURRENT
             // chat on the fly and never touches the default provider configured here.
@@ -269,6 +273,7 @@ public static class ConsoleTui
             ("Ctrl+C", Dictionary.ShortCtrlC),
             ("Ctrl+D", Dictionary.ShortCtrlD),
             ("Ctrl+Y", Dictionary.ShortCtrlY),
+            ("Ctrl+O", Dictionary.ShortOpenAttachments),
             ("Ctrl+R", Dictionary.ShortCtrlR),
             ("Up / Down", Dictionary.ShortUpDown),
             ("Left / Right", Dictionary.ShortLeftRight),
@@ -480,6 +485,7 @@ public static class ConsoleTui
                 {
                     CommandMenuItem("files"),
                     CommandMenuItem("attach"),
+                    CommandMenuItem("open"),
                 }),
                 new(Dictionary.MenuSettings, new MenuItem[]
                 {
@@ -852,6 +858,13 @@ public static class ConsoleTui
                 key.Handled = true;
                 _ = ShowHelpAsync();
             }
+            else if (key == Key.O.WithCtrl)
+            {
+                // Open the attachments the agent delivered in replies (the folder; a specific
+                // file via /open <name>). Ctrl+O is the plain "open" convention.
+                key.Handled = true;
+                _ = OpenAsync("");
+            }
             else if (key == Key.P.WithCtrl || (key == Key.CursorUp && CaretOnFirstLine()))
             {
                 key.Handled = true;
@@ -1140,9 +1153,8 @@ public static class ConsoleTui
                                         continue;
                                     var name = att.TryGetProperty("name", out var n) ? n.GetString() : "attachment";
                                     var safe = string.Concat((name ?? "attachment").Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
-                                    var dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "attachments");
-                                    Directory.CreateDirectory(dir);
-                                    var path = Path.Combine(dir, $"{DateTime.Now:yyyyMMdd-HHmmss}-{safe}");
+                                    Directory.CreateDirectory(AttachmentsDir);
+                                    var path = Path.Combine(AttachmentsDir, $"{DateTime.Now:yyyyMMdd-HHmmss}-{safe}");
                                     await File.WriteAllBytesAsync(path, Convert.FromBase64String(blob.GetString()!), _chatCts.Token);
                                     (_pending!.Attachments ??= new List<string>()).Add(path);
                                 }
@@ -1243,6 +1255,11 @@ public static class ConsoleTui
                 _chatView.CaretOffset = Math.Max(0, (_chatView.Document?.TextLength ?? 1) - 1);
         }
 
+        // Agent-delivered files (the done method's "attachments") are saved here, next to
+        // the executable, so the terminal user can open or copy them (see /open and Ctrl+O).
+        private static string AttachmentsDir =>
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "attachments");
+
         private static void AppendEntry(StringBuilder sb, Entry e)
         {
             sb.Append(e.Role switch
@@ -1254,9 +1271,11 @@ public static class ConsoleTui
             sb.Append(e.Text.Replace("\r\n", "\n")).Append("\n\n");
             if (e.Attachments is { Count: > 0 })
             {
+                // Full paths, not just the names: the user must see WHERE each delivered
+                // file was saved so they can open or copy it (see /open and Ctrl+O).
                 foreach (var path in e.Attachments)
-                    sb.Append(string.Format(Dictionary.ChatAttachmentMarker, Path.GetFileName(path))).Append('\n');
-                sb.Append('\n');
+                    sb.Append(string.Format(Dictionary.ChatAttachmentMarker, path)).Append('\n');
+                sb.Append(Dictionary.ChatAttachmentHint).Append("\n\n");
             }
         }
 
@@ -2604,6 +2623,46 @@ public static class ConsoleTui
             AddNote(attached
                 ? string.Format(Dictionary.NoteAttached, f.FileName)
                 : string.Format(Dictionary.NoteDetached, f.FileName));
+        }
+
+        // Opens a file the agent delivered in a reply. Agent-attached files are saved under
+        // the attachments/ folder next to the executable (see AttachmentsDir); the reply
+        // markers show their full paths. Without an argument the whole folder opens in the
+        // OS file manager; with a name the newest matching file opens directly.
+        private Task OpenAsync(string args)
+        {
+            var query = args.Trim().Trim('"');
+            try
+            {
+                Directory.CreateDirectory(AttachmentsDir);
+                var target = AttachmentsDir;
+                var isFile = false;
+                if (query.Length > 0)
+                {
+                    var newest = Directory.EnumerateFiles(AttachmentsDir)
+                        .Where(f => Path.GetFileName(f).Contains(query, StringComparison.OrdinalIgnoreCase))
+                        .OrderByDescending(File.GetLastWriteTimeUtc)
+                        .FirstOrDefault();
+                    if (newest == null)
+                    {
+                        AddNote(string.Format(Dictionary.NoteOpenFileNotFound, query, AttachmentsDir));
+                        return Task.CompletedTask;
+                    }
+                    target = newest;
+                    isFile = true;
+                }
+                Log.LogStep($"TUI Open: opening '{target}'", monitor: true);
+                Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+                AddNote(isFile
+                    ? string.Format(Dictionary.NoteOpenedFile, target)
+                    : string.Format(Dictionary.NoteOpenedAttachments, target));
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"TUI Open FAILED: {ex.Message}");
+                AddNote(string.Format(Dictionary.NoteOpenFailed, ex.Message));
+            }
+            return Task.CompletedTask;
         }
 
         private Task RetryAsync()
