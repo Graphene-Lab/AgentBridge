@@ -25,7 +25,11 @@ powershell -File tools\store\New-StoreInstaller.ps1 -PayloadDir D:\win-x64 -Vers
 param(
     [Parameter(Mandatory)][string]$PayloadDir,
     [Parameter(Mandatory)][string]$Version,
-    [string]$OutDir
+    [string]$OutDir,
+    # Cabinet compression: 'high' (LZX, smaller) is fine for small payloads; 'low'
+    # (mszip) is more robust for very large payloads (WiX wixnative cabbing of ~1 GB+
+    # trees has failed with "failed to compress cabinet" under 'high').
+    [ValidateSet('low', 'high')][string]$Compression = 'low'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -76,7 +80,7 @@ $pkg.Add([System.Xml.Linq.XElement]::new($X + 'MajorUpgrade',
     [System.Xml.Linq.XAttribute]::new('DowngradeErrorMessage', 'A newer version of Graphene AgentBridge is already installed.')))
 $pkg.Add([System.Xml.Linq.XElement]::new($X + 'MediaTemplate',
     [System.Xml.Linq.XAttribute]::new('EmbedCab', 'yes'),
-    [System.Xml.Linq.XAttribute]::new('CompressionLevel', 'high')))
+    [System.Xml.Linq.XAttribute]::new('CompressionLevel', $Compression)))
 $pkg.Add([System.Xml.Linq.XElement]::new($X + 'StandardDirectory', [System.Xml.Linq.XAttribute]::new('Id', 'ProgramFiles64Folder')))
 $pkg.Add([System.Xml.Linq.XElement]::new($X + 'StandardDirectory', [System.Xml.Linq.XAttribute]::new('Id', 'ProgramMenuFolder')))
 $pkg.Add([System.Xml.Linq.XElement]::new($X + 'StandardDirectory', [System.Xml.Linq.XAttribute]::new('Id', 'DesktopFolder')))
@@ -158,9 +162,18 @@ $xw.Save($wxs)
 Push-Location $root
 try {
     dotnet tool restore | Out-Null
-    $msi = Join-Path $OutDir ("GrapheneAgentBridge-" + $Version.TrimStart('v') + '.msi')
-    & dotnet tool run wix build $wxs -o $msi -arch x64
-    if ($LASTEXITCODE -ne 0) { throw "wix build failed (exit $LASTEXITCODE)" }
-    Write-Host ("MSI created: {0} ({1:N1} MB)" -f $msi, ((Get-Item $msi).Length / 1MB))
+    # WiX stages the cabinet in %TEMP%; a short staging path avoids long-path and
+    # wixnative "failed to compress cabinet" failures on very large payloads.
+    $oldTmp = $env:TMP; $oldTemp = $env:TEMP
+    $wixTmp = Join-Path (Split-Path -Parent $root) '.wix-tmp'
+    New-Item -ItemType Directory -Force -Path $wixTmp | Out-Null
+    $env:TMP = $wixTmp; $env:TEMP = $wixTmp
+    try {
+        $msi = Join-Path $OutDir ("GrapheneAgentBridge-" + $Version.TrimStart('v') + '.msi')
+        & dotnet tool run wix build $wxs -o $msi -arch x64
+        if ($LASTEXITCODE -ne 0) { throw "wix build failed (exit $LASTEXITCODE)" }
+        Write-Host ("MSI created: {0} ({1:N1} MB)" -f $msi, ((Get-Item $msi).Length / 1MB))
+    }
+    finally { $env:TMP = $oldTmp; $env:TEMP = $oldTemp }
 }
 finally { Pop-Location }
