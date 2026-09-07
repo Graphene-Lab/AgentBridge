@@ -103,7 +103,7 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to '[generating…]'.
+        ///   Looks up a localized string similar to '[generating...]'.
         /// </summary>
         public static string BusyGenerating {
             get {
@@ -112,7 +112,7 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to '[indexing…]'.
+        ///   Looks up a localized string similar to '[indexing...]'.
         /// </summary>
         public static string BusyIndexing {
             get {
@@ -121,7 +121,7 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to '[listening…]'.
+        ///   Looks up a localized string similar to '[listening...]'.
         /// </summary>
         public static string BusyListening {
             get {

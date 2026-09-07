@@ -316,6 +316,15 @@ public static class ConsoleTui
                 Normal = new TuiAttribute(Color.Gray, Color.Black),
                 Focus = new TuiAttribute(Color.Gray, Color.Black),
             });
+            // Busy indicator (top-right of the menu-bar row): its background is the MENU
+            // BAR's own background (read from the theme's "Menu" scheme) rather than opaque
+            // black, and the ink is dark gray — readable, yet distinct from the black menu
+            // item labels it sits next to.
+            SchemeManager.AddScheme("Busy", new Scheme
+            {
+                Normal = new TuiAttribute(Color.DarkGray, MenuBarBackground()),
+                Focus = new TuiAttribute(Color.DarkGray, MenuBarBackground()),
+            });
             for (int i = 0; i < Math.Min(AsciiArtLines.Length, AsciiArtColors.Length); i++)
                 SchemeManager.AddScheme($"Ascii{i}", new Scheme { Normal = AsciiArtColors[i] });
 
@@ -525,12 +534,15 @@ public static class ConsoleTui
             // Busy indicator on the right end of the menu-bar row. Terminal.Gui's MenuBar
             // has no right-side widget slot, so a small overlay label (added after the menu,
             // therefore drawn above it) shows the current operation; it is hidden when idle.
+            // The "Busy" scheme paints dark-gray ink over the MENU BAR's OWN background (see
+            // MenuBarBackground) — the label's clear+fill is then invisible against the bar,
+            // no black rectangle, and switching between operations cannot leave ghost text.
             _busyLabel = new Label
             {
                 Text = "",
                 X = Pos.AnchorEnd(BusyLabelWidth), Y = 0, Width = BusyLabelWidth,
                 TextAlignment = Alignment.End,
-                SchemeName = "Hint",
+                SchemeName = "Busy",
                 Visible = false,
             };
             _mainWindow.Add(_busyLabel);
@@ -1404,6 +1416,13 @@ public static class ConsoleTui
             }
             _busyLabel.Visible = text.Length > 0;
             _busyLabel.Text = text;
+        }
+
+        /// <summary>The background color of the menu-bar row (the theme's "Menu" scheme), so
+        /// the busy overlay can paint with the same backdrop instead of an opaque box.</summary>
+        private static Color MenuBarBackground()
+        {
+            return SchemeManager.TryGetScheme("Menu", out var menu) ? menu.Normal.Background : Color.Black;
         }
 
         // Puppet mode (PrintScreen): dumps the current screen to a timestamped file

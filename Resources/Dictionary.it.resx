@@ -359,9 +359,9 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="HttpStatusServer" xml:space="preserve"><value>errore del server (HTTP {0})</value></data>
   <data name="HttpStatusOther" xml:space="preserve"><value>richiesta non riuscita (HTTP {0})</value></data>
   <!-- Indicatore busy in alto a destra (riga menu) durante un'operazione. -->
-  <data name="BusyIndexing" xml:space="preserve"><value>[indicizzazione…]</value></data>
-  <data name="BusyGenerating" xml:space="preserve"><value>[generazione…]</value></data>
-  <data name="BusyListening" xml:space="preserve"><value>[ascolto…]</value></data>
+  <data name="BusyIndexing" xml:space="preserve"><value>[indicizzazione...]</value></data>
+  <data name="BusyGenerating" xml:space="preserve"><value>[generazione...]</value></data>
+  <data name="BusyListening" xml:space="preserve"><value>[ascolto...]</value></data>
   <!-- Impostazioni principali (tab LLM): provider predefinito persistente esplicito. -->
   <data name="SetupSetDefault" xml:space="preserve"><value>Imposta come predefinito</value></data>
   <data name="SetupDefaultMarker" xml:space="preserve"><value> (predefinito)</value></data>

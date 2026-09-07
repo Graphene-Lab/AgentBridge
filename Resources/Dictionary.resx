@@ -439,9 +439,9 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="HttpStatusServer" xml:space="preserve"><value>server error (HTTP {0})</value></data>
   <data name="HttpStatusOther" xml:space="preserve"><value>request failed (HTTP {0})</value></data>
   <!-- Top-right busy indicator (menu-bar row) while an operation runs. -->
-  <data name="BusyIndexing" xml:space="preserve"><value>[indexing…]</value></data>
-  <data name="BusyGenerating" xml:space="preserve"><value>[generating…]</value></data>
-  <data name="BusyListening" xml:space="preserve"><value>[listening…]</value></data>
+  <data name="BusyIndexing" xml:space="preserve"><value>[indexing...]</value></data>
+  <data name="BusyGenerating" xml:space="preserve"><value>[generating...]</value></data>
+  <data name="BusyListening" xml:space="preserve"><value>[listening...]</value></data>
   <!-- Main settings (LLM tab): explicit persistent default provider. -->
   <data name="SetupSetDefault" xml:space="preserve"><value>Set default</value></data>
   <data name="SetupDefaultMarker" xml:space="preserve"><value> (default)</value></data>
