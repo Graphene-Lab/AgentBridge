@@ -92,3 +92,10 @@ MigrationBackup/
 
 # Local secrets (SSH keys for the SIP entry-point server, etc.) — never committed
 secrets/
+
+# Microsoft Store tooling (tools/store): generated artifacts + local secrets
+tools/store/AgentBridge.wxs
+tools/store/*.wixobj
+tools/store/obj/
+tools/store/store-secrets.local.json
+tools/store/store-msi/
