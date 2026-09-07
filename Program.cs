@@ -603,6 +603,11 @@ app.MapPost("/v1/chat/completions", async (
             if (session != null)
                 await session.Gate.WaitAsync(ct);
 
+            // A settings edit of the provider in use (new key/endpoint/model, written to
+            // providers.json) must reach this conversation now, not after a restart or a switch:
+            // reload the pipeline from the current entry when it changed (no-op otherwise).
+            session?.Orchestrator.ReloadProviderConfig();
+
             var orchestrator = session?.Orchestrator ?? owned!;
             // isLocalUser: the caller is at the desktop only when it reaches us from a loopback
             // address (same machine). Remote callers (including the SIP phone bridge) get false,
