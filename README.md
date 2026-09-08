@@ -3,10 +3,12 @@
 Add agentic power to your work! An **AI personal assistant** that automates tasks and your work without sacrificing privacy.
 We're happy to put this powerful tool in your hands to automate your business while reducing staff costs, providing you with the most advanced AI technology in the office automation industry.
 
-AgentBridge is a self-hosted server that runs AI agents with two interfaces in a single process: a full-screen chat terminal (TUI) and a standard HTTP API compatible with OpenAI.
+AgentBridge is a self-hosted server that runs its own AI agents behind two primary interfaces in a single process: a full-screen chat terminal (TUI) and an HTTP API that speaks the standard OpenAI protocol, so any OpenAI-compatible client drives the same agents.
 
 Chat in the terminal while scripts, bots, and apps use the same agents on the same port:
 same process, same conversations, no bridges, no synchronization.
+
+To be explicit about what the compatibility is and is not: AgentBridge is OpenAI-standard on the outside, not on the inside. It *is* a standard OpenAI server to any OpenAI client — SDKs, bots and scripts talk plain `POST /v1/chat/completions` and reach the same agents. It does **not** run on a standard agent system: the agent core is our own engine (AIOrchestrator/AgentHarness), and its defining concept is that an agent's abilities are **compiled .NET assemblies** loaded as plugins from the `Tools/` folder and driven in-process — no interpreters, no remote tool servers, no standard agent glue between the agent and its actions. That is the Universal Tool System described below, and it is the architectural difference that sets this product apart.
 
 It is the first **agentic** **harness** system for next-generation artificial intelligence that introduces significant innovations, raising the bar for all competitors in the industry. The system encapsulates agentic functions in a well-designed sandbox that prevents companies from suffering damage from an AI that is not properly controlled, while at the same time allowing them to entrust real business tasks to the AI, with a very high level of privacy and confidentiality.
 
@@ -293,6 +295,7 @@ client connects to localhost — is in the **[user manual](docs/MANUAL.md)**.
 | [Telegram chat](docs/telegram.md) | Connect the agents to Telegram: config, first login, allow-list, attachments |
 | [Architecture & operations](docs-dev/ARCHITECTURE.md) | *(developers — not shipped)* Launch modes, configuration keys, build & publish, project layout |
 | [Releases & NuGet pipeline](docs-dev/RELEASING.md) | *(developers — not shipped)* how updates and releases work |
+| [Full architecture diagram](diagram.md) | *(repository)* Mermaid component map of the whole system — every node names the source file behind it |
 
 The user guides above (`docs/`) ship next to the executable in every release archive;
 the developer guides (`docs-dev/`) stay in the repository only.
@@ -349,6 +352,12 @@ sequenceDiagram
 only the model call leaves it — and only when you pick a cloud provider. With local models,
 nothing leaves at all.
 
+**Full component map.** The simplified view above is one slice of the system. The complete
+architecture — every module, the source file behind it and the connections that really
+exist between them (terminal UI, HTTP API, the OfficeManager web office, Telegram and SIP
+bridges, shared session store, plugin loader, update services and the AIOrchestrator
+engine) — is in the [architecture diagram](diagram.md).
+
 ## Our team
 
 ![The LLM agent team behind AgentBridge](media/our_team.png)
@@ -373,8 +382,11 @@ work it automates can indeed be automated.
 ## FAQ
 
 - **What is AgentBridge?** A self-hosted server that runs AI agents behind a full-screen
-  terminal chat and a standard OpenAI-compatible HTTP API — one process, your machine,
-  your agents, plus a native MCP connector for standard MCP clients.
+  terminal chat and an HTTP API speaking the standard OpenAI protocol — one process, your
+  machine, your agents, plus a native MCP connector for standard MCP clients. The OpenAI
+  compatibility is protocol-level only: the product *is* a standard OpenAI server to any
+  client, but it does not use a standard agent system — the agents run on the proprietary
+  harness whose tools are compiled .NET assemblies driven as plugins.
 - **Is AgentBridge free?** Yes — fully open-source under the
   [GNU Affero General Public License v3.0](LICENSE.md). The **plugin tools** — the agent's
   action engine — ship under the same **AGPL v3.0** license (each `*Tool` repository).
