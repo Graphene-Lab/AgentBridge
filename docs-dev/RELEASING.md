@@ -27,11 +27,45 @@ AgentBridge release (automatic): push master with IsPrerelease=false in the comm
         2. wait for today's dependency packages on nuget.org (GLOBAL 30-min window, see below)
         3. build 5 single-file archives (win-x64, linux-x64, linux-arm64, osx-x64, osx-arm64)
            with the Kokoro TTS assets → create the GitHub release (tag auto-created)
+        4. store-msi job: build GrapheneAgentBridge-<v>.msi (WiX v5, tools/store) from the
+           win-x64 payload → attached to the GitHub release too
+        5. store-submit job: update the Microsoft Store draft package to the stable MSI URL
+           and submit for certification (see "Microsoft Store channel" below)
+
+Store users: after certification is published by Microsoft, the Store delivers the update
+automatically (no action needed). GitHub-release users: unchanged (archives + now the MSI).
 ```
 
 > **General rule (see AIOrchestrator `github-push-and-release.md`):** the dependency repos
 > publish **only on a `v*` tag push** — plain master pushes never publish, and no
 > project-file changes are ever needed (current or future repos).
+
+## Microsoft Store channel — MSI creation & Store updates
+
+In addition to the GitHub archives, every release also produces a Windows installer and
+updates the **Microsoft Store** app ("Graphene AgentBridge", win32 EXE/MSI product).
+
+- **MSI creation.** release.yml's `store-msi` job (windows-latest, `continue-on-error`)
+  runs `tools/store/New-StoreInstaller.ps1` (WiX v5, manifest `tools/store/dotnet-tools.json`)
+  over the published win-x64 payload and uploads the MSI; the `release` job attaches
+  `GrapheneAgentBridge-<version>.msi` to the GitHub release. An installer problem never
+  blocks the archives release.
+- **Store updates.** Store EXE/MSI products reference the installer by an external
+  **package URL** that must answer HTTP 200 **without redirects** — GitHub download URLs
+  are rejected because they always redirect. The MSI is therefore streamed by a small
+  python3 proxy on the AIOffice VPS (`tools/store/vps/mirror-msi.py`, systemd
+  `agentbridge-mirror`) at **https://aitechnology.it/agentbridge/msi**: it always serves
+  the MSI of the LATEST GitHub release, nothing is stored on the VPS disk. After the
+  release is out, the `store-submit` job calls `tools/store/Submit-Store.ps1` (Store
+  Submission API, `api.store.microsoft.com`): swap the draft package URL → commit →
+  submit. Microsoft certifies; once PUBLISHED, Store users update automatically.
+- **Store credentials** are the repo secrets `STORE_TENANT_ID`, `STORE_CLIENT_ID`,
+  `STORE_CLIENT_SECRET`, `STORE_PRODUCT_ID`, `STORE_SELLER_ID` (local runs can use
+  `tools/store/store-secrets.local.json`, gitignored). The Entra ID app must hold the
+  Manager role in Partner Center.
+
+Operational details (account setup, proxy install, manual runs): `tools/store/README.md`
+and `tools/store/vps/`.
 
 ## What an update must never touch — the file storage tiers
 
