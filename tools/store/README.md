@@ -16,8 +16,11 @@ release.yml
    ├─ store-msi  (windows)        → New-StoreInstaller.ps1 → GrapheneAgentBridge-<v>.msi
    │                                 (WiX v5, tools/store/dotnet-tools.json)
    ├─ release    (ubuntu)         → GitHub Release (5 archives + the MSI asset)
-   └─ store-submit (ubuntu)       → Submit-Store.ps1 → points the Partner Center draft
-                                     package at the stable MSI URL + submits for certification
+   └─ store-submit (ubuntu)       → ONLY when the STORE_* secrets exist: Submit-Store.ps1
+                                     points the Partner Center draft package at the stable
+                                     MSI URL + submits for certification. Without secrets the
+                                     job exits cleanly (continue-on-error) and the Store update
+                                     is done manually (~3 min, see section 4).
 
 VPS proxy (tools/store/vps/): a python3 daemon (systemd, 127.0.0.1:8686) resolves
 the LATEST Graphene-Lab/AgentBridge release (redirect-based, no GitHub API) and
@@ -108,6 +111,33 @@ Files to deploy (versioned under `tools/store/vps/`):
 
 Smoke test after install: `curl -sI https://aitechnology.it/agentbridge/msi` must
 answer `200 OK` + `Content-Type: application/octet-stream`.
+
+## 4. Manual fallback (no Entra app — individual developer accounts)
+
+Individual developers with a personal Microsoft account cannot create the Entra ID
+app that the Store API/CLI requires (no tenant; the M365 Dev Program sandbox is not
+granted to every account). Until a tenant is available the Store update is a ~3 minute
+manual step per release — the MSI itself is always built and attached to the GitHub
+release by CI, so nothing else is needed:
+
+1. Mint the non-redirecting URL of the MSI (GitHub download URLs are rejected by
+   Partner Center because they redirect; the signed CDN URL answers 200 and is valid
+   ~1 hour):
+
+   ```powershell
+   powershell -File tools\store\New-SignedMsiUrl.ps1 -ToClipboard   # latest release
+   ```
+
+2. Partner Center → product **Graphene AgentBridge** → start a **new submission** →
+   section **Packages** → edit the existing MSI package row → replace the **Package URL**
+   with the URL just copied (keep Architecture `x64`, languages, silent install).
+3. Save → complete/submit the submission for certification.
+
+The VPS streaming proxy (`https://aitechnology.it/agentbridge/msi`) is NOT used by this
+manual flow (it serves whatever GitHub's latest release is); it exists for the automatic
+`Submit-Store.ps1` path. If a tenant becomes available later (e.g. the Dev Program
+sandbox flips to eligible), set the `STORE_*` secrets and the `store-submit` job takes
+over automatically.
 
 ## Store certification notes
 

@@ -382,11 +382,14 @@ jobs:
   # answers 200 with the latest release MSI — Partner Center rejects redirecting URLs,
   # see tools/store/vps/) and submit for certification. Gated on store-msi having
   # succeeded (the MSI must be on the GitHub release before the Store is told to fetch
-  # it); continue-on-error keeps the run green — the GitHub release is already out and a
-  # failed Store submission must never look like a failed release.
+  # it) AND on the STORE_* secrets existing — individual developer accounts without an
+  # Entra tenant have no secrets, so the job is skipped and the Store update is manual
+  # (see tools/store/README.md "Manual fallback"); continue-on-error keeps the run green
+  # in any case: the GitHub release is already out and a failed Store submission must
+  # never look like a failed release.
   store-submit:
     needs: [check-version, store-msi, release]
-    if: needs.store-msi.result == 'success'
+    if: needs.store-msi.result == 'success' && secrets.STORE_TENANT_ID != ''
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
