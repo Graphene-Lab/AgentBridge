@@ -109,10 +109,16 @@ Flathub builds from source only. The model below was validated end-to-end by the
 offline, doctor OK) before the submission PR was opened.
 
 Submission: **flathub/flathub#10129** (branch `new-pr`, app id
-`io.github.graphene_lab.agentbridge`). Update path afterwards: the manifest git source
-carries `x-checker-data` (git tag pattern `^v([\d.]+)$`), so flathubbot opens the update
-PRs automatically; a maintainer then re-runs the pinned-hash generators (see
-`packaging/flathub/README.md` in AgentBridge-Linux) and bumps the payload/feed hashes.
+`io.github.graphene_lab.agentbridge`). Status: the PR was closed/locked by the Flathub
+maintainers ("Do not submit again. It will be rejected.") — do **not** open new
+submission PRs without explicit Flathub guidance. The drop-in is fully validated
+(official linter clean; the exact manifest builds end-to-end on
+`org.gnome.Platform//50` in CI) and kept ready in AgentBridge-Linux
+`packaging/flathub/`. Update path afterwards (if a listing is ever accepted): the
+manifest git source carries `x-checker-data` (git tag pattern `^v([\d.]+)$`), so
+flathubbot opens the update PRs automatically; a maintainer then re-runs the pinned-hash
+generators (see `packaging/flathub/README.md` in AgentBridge-Linux) and bumps the
+payload/feed hashes.
 
 ### Manifest design decisions (do not change casually)
 
