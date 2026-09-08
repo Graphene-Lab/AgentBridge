@@ -122,10 +122,11 @@ release by CI, so nothing else is needed:
 
 1. Mint the non-redirecting URL of the MSI (GitHub download URLs are rejected by
    Partner Center because they redirect; the signed CDN URL answers 200 and is valid
-   ~1 hour):
+   ~1 hour). The helper copies the URL to the clipboard and can open the Partner Center
+   product page in the default browser:
 
    ```powershell
-   powershell -File tools\store\New-SignedMsiUrl.ps1 -ToClipboard   # latest release
+   powershell -File tools\store\New-SignedMsiUrl.ps1 -ToClipboard -OpenPage   # latest release
    ```
 
 2. Partner Center → product **Graphene AgentBridge** → start a **new submission** →
