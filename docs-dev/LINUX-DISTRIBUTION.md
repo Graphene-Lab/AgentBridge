@@ -116,7 +116,9 @@ PRs automatically; a maintainer then re-runs the pinned-hash generators (see
 
 ### Manifest design decisions (do not change casually)
 
-- **Runtime `org.gnome.Platform//48`** (WebKitGTK GUI). 
+- **Runtime `org.gnome.Platform//50`** (store submission; 48 is EOL per the Flathub
+  linter). The self-hosted channel still uses 48 — both need the WebKitGTK GUI that only
+  the GNOME runtime provides (verified in the doctor smoke test). 
 - **Official .NET SDK 10.0.400 tarball as a module source**: the
   `org.freedesktop.Sdk.Extension.dotnet10` extension belongs to the freedesktop SDK, not
   the GNOME one; the tarball works with the GNOME runtime and makes the build SDK
@@ -133,6 +135,11 @@ PRs automatically; a maintainer then re-runs the pinned-hash generators (see
 - **`agentbridge-payload` module**: `Tools/` plugins and the `.playwright` driver are
   prebuilt data overlaid from the same version's official release archive; only data
   folders are copied, never the prebuilt `agent`.
+- **Sandbox differs per channel**: the store submission uses the narrowed finish-args the
+  Flathub linter requires (wayland + fallback-x11, xdg-documents/xdg-download only; no
+  `--filesystem=home`, no explicit X11, no xdg-cache RW) while the self-hosted release
+  bundle keeps the broader sandbox. `flatpak-builder-lint` (manifest + appstream) is run
+  in CI before submissions (`flathub-lint.yml`, image `ghcr.io/flathub/flatpak-builder-lint`).
 - `flathub.json` skips aarch64 until an arm64 feed is pinned too.
 
 ### Updating a new version on Flathub
