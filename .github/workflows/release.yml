@@ -380,10 +380,10 @@ jobs:
   # Microsoft Store submission: once the release exists with the MSI attached, point the
   # Partner Center draft package at the stable MSI URL (the AIOffice VPS streaming proxy
   # answers 200 with the latest release MSI — Partner Center rejects redirecting URLs,
-  # see tools/store/vps/) and submit for certification. The real gate is inside the step
-  # (secrets are not allowed in job-level if): the STORE_* secrets exist only for
-  # accounts that could register the Entra app the Store API requires — individual
-  # developer accounts have none, so the step is skipped and the Store update is manual
+  # see tools/store/vps/) and submit for certification. The real gate is inside the run
+  # script (the secrets context is not allowed in job/step if): the STORE_* secrets exist
+  # only for accounts that could register the Entra app the Store API requires — individual
+  # developer accounts have none, so the step exits early and the Store update is manual
   # (see tools/store/README.md "Manual fallback"); continue-on-error keeps the run green
   # in any case: the GitHub release is already out and a failed Store submission must
   # never look like a failed release.
@@ -398,7 +398,6 @@ jobs:
           path: AgentBridge
 
       - name: Submit to Microsoft Store
-        if: secrets.STORE_TENANT_ID != ''
         shell: pwsh
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
@@ -408,6 +407,13 @@ jobs:
           STORE_PRODUCT_ID: ${{ secrets.STORE_PRODUCT_ID }}
           STORE_SELLER_ID: ${{ secrets.STORE_SELLER_ID }}
         run: |
+          # The secrets context is not usable in if: conditions — gate on the env var
+          # instead. Without the Entra app credentials (individual accounts) the Store
+          # update stays manual (see tools/store/README.md "Manual fallback").
+          if ([string]::IsNullOrEmpty($env:STORE_TENANT_ID)) {
+            Write-Host 'STORE_TENANT_ID not configured - skipping Store submission (manual fallback).'
+            exit 0
+          }
           & "$env:GITHUB_WORKSPACE/AgentBridge/tools/store/Submit-Store.ps1" `
             -PackageUrl "https://aitechnology.it/agentbridge/msi" `
             -Version $env:VERSION
