@@ -292,8 +292,56 @@ jobs:
           name: agentbridge-${{ matrix.rid }}
           path: agentbridge-${{ matrix.rid }}.tar.gz
 
-  release:
+  # Windows Store MSI: separate job (not inside the win-x64 matrix build) so an
+  # installer/WiX problem can never block the archives + GitHub release — and
+  # continue-on-error keeps the run green when the MSI step fails (the MSI is an
+  # extra delivery channel; the release itself must not depend on it). Payload =
+  # the win-x64 archive the build already produced (single source of truth: the
+  # exact tree that ships). Later this job also hosts the MSI behind the stable
+  # graphelenab.it URL and submits it to Partner Center (see tools/store).
+  store-msi:
     needs: [check-version, build]
+    if: needs.check-version.outputs.do_release == 'true'
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: AgentBridge
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: agentbridge-win-x64
+          path: win-payload
+
+      - name: Extract win-x64 payload
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path payload | Out-Null
+          tar -xzf win-payload/agentbridge-win-x64.tar.gz -C payload
+
+      - name: Build Windows Store MSI
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          & "$env:GITHUB_WORKSPACE/AgentBridge/tools/store/New-StoreInstaller.ps1" `
+            -PayloadDir "$env:GITHUB_WORKSPACE/payload" `
+            -Version $env:VERSION `
+            -OutDir "$env:GITHUB_WORKSPACE/store-msi"
+
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-msi
+          path: store-msi
+
+  release:
+    needs: [check-version, build, store-msi]
     if: needs.check-version.outputs.do_release == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -314,12 +362,17 @@ jobs:
         run: |
           git tag "v${{ needs.check-version.outputs.version }}" "$GITHUB_SHA"
           git push origin "v${{ needs.check-version.outputs.version }}"
-      # Creates the GitHub release (the tag already exists) with all 5 platform archives.
-      # generate_release_notes: auto-notes from merged PRs/commits — every release ships
-      # with a changelog (read by users and AI engines alike).
+      # Creates the GitHub release (the tag already exists) with all 5 platform
+      # archives + the Windows Store MSI when store-msi produced one (the job is
+      # continue-on-error, so the archives release must not depend on it — an
+      # absent MSI artifact just uploads the archives). generate_release_notes:
+      # auto-notes from merged PRs/commits — every release ships with a changelog
+      # (read by users and AI engines alike).
       - name: Create GitHub Release v${{ needs.check-version.outputs.version }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
-          files: artifacts/**/*.tar.gz
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.msi
           generate_release_notes: true
