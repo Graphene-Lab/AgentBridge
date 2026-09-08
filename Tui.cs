@@ -43,6 +43,14 @@ public static class ConsoleTui
     {
         private readonly IApplication _app;
         private readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(10) };
+        // The streamed chat call has NO total-time cap: the server executes agent tools
+        // synchronously and only streams the reply once the work finishes, so a long run
+        // (e.g. a CPU TTS podcast, several minutes without a single byte) would otherwise
+        // be cancelled client-side at the fixed 10-minute timeout of _http while the work
+        // was still progressing. The run stays cancellable via Esc (_chatCts) and ends on
+        // connection loss (the local server always terminates the stream). All the short
+        // control calls keep the capped _http client above.
+        private readonly HttpClient _chatHttp = new() { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
         private readonly string _serverUrl;
         private readonly string? _hostError;
 
@@ -290,6 +298,7 @@ public static class ConsoleTui
             _serverUrl = serverUrl;
             _hostError = hostError;
             _http.BaseAddress = new Uri(serverUrl);
+            _chatHttp.BaseAddress = new Uri(serverUrl);
             _app = Application.Create().Init();
             PuppetMode._app = _app;  // Share instance with PuppetMode (debug-only control surface)
             if (PuppetMode.Enabled) PuppetMode.StartPump();
@@ -389,6 +398,7 @@ public static class ConsoleTui
             CancelChat();
             try { _app.Dispose(); } catch { }
             _http.Dispose();
+            _chatHttp.Dispose();
         }
 
         private void CancelChat()
@@ -1128,7 +1138,7 @@ public static class ConsoleTui
                 {
                     Content = new StringContent(body, Encoding.UTF8, "application/json"),
                 };
-                using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, _chatCts.Token);
+                using var response = await _chatHttp.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, _chatCts.Token);
 
                 if (!response.IsSuccessStatusCode)
                 {

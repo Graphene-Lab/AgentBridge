@@ -220,6 +220,11 @@ public static class AutoUpdate
                 Log.LogStep($"AutoUpdate: plugin refresh failed — {ex.Message}");
             }
 
+            // The plugin refresh refused busy agents before the download, but a run can also
+            // start during it — refuse here too (no apply, no exit) instead of killing the run.
+            if (AgentHarness.ActiveExecutions > 0 || AgentTaskRegistry.RunningCount > 0)
+                return new(ManualUpdateStatus.AgentsBusy, current.ToString(), tag, null);
+
             await ApplyAsync(rid, tag);
             // ApplyAsync spawns the updater and exits the process when an update applies;
             // reaching this line means the process is still alive (defensive fallback).
@@ -300,6 +305,7 @@ public static class AutoUpdate
         // version up.
         if (IsServiceSupervised)
         {
+            if (DeferIfAgentsBusy()) return;
             Log.LogStep($"AutoUpdate: service-managed run — applying {tag} in place", monitor: true);
             Status(string.Format(Dictionary.UpdateServiceRestart, tag));
             foreach (var src in Directory.EnumerateFiles(extract, "*", SearchOption.AllDirectories))
@@ -321,6 +327,7 @@ public static class AutoUpdate
         // temp area) swaps the files once this process is gone — the executable last, via
         // a .old rename for rollback — and restarts with the original command line,
         // minus --no-update.
+        if (DeferIfAgentsBusy()) return;
         File.WriteAllText(Path.Combine(extract, RestartArgsFile), JsonSerializer.Serialize(
             Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--no-update").ToArray()));
 
@@ -391,6 +398,18 @@ public static class AutoUpdate
     }
 
     private static bool _retryScheduled;
+
+    // Long agent/tool runs (e.g. a CPU-TTS podcast) can start or outlive the download phase,
+    // so exiting the process now would kill the run mid-work. Defer and retry in 30 minutes —
+    // the same busy signal and cadence as the plugin-refresh refusal in CheckAndApplyAsync.
+    // Returns true when the apply was deferred (the caller must not exit).
+    private static bool DeferIfAgentsBusy()
+    {
+        if (AgentHarness.ActiveExecutions == 0 && AgentTaskRegistry.RunningCount == 0) return false;
+        Log.LogStep("AutoUpdate: agents are executing — postponing the update");
+        ScheduleRetryIn(TimeSpan.FromMinutes(30));
+        return true;
+    }
 
     // Postpones the whole update: runs the check again after the delay (agents may still be
     // busy — then it defers again, but concurrent retries never stack). The process usually
