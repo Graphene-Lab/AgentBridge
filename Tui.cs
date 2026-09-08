@@ -12,6 +12,7 @@ using Terminal.Gui.Configuration;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Editor;
 using Terminal.Gui.Editor.Document;
+using Terminal.Gui.Editor.Rendering;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -614,6 +615,9 @@ public static class ConsoleTui
                 CanFocus = false,
                 SchemeName = "Dark",
             };
+            // User messages are repainted in the menu-bar celeste so they never read as
+            // agent text (both are otherwise the same white-on-black scheme).
+            _chatView.LineTransformers.Add(new ChatRoleColorizer(_chatView, MenuBarBackground()));
             chatFrame.Add(_chatView);
             // Auto-follow the stream only while the user is at the bottom; scrolling
             // up (wheel or PgUp) stops the yank until they scroll down or send a message.
@@ -1433,6 +1437,56 @@ public static class ConsoleTui
         private static Color MenuBarBackground()
         {
             return SchemeManager.TryGetScheme("Menu", out var menu) ? menu.Normal.Background : Color.Black;
+        }
+
+        // The chat history lives in one read-only Editor, which paints every visual line
+        // with a single attribute — per-message colors therefore go through a visual-line
+        // transformer. The role of each document line is derived from the block headers
+        // that AppendEntry writes (❯/◆/✗/"·" on their own line); user blocks are repainted
+        // in the menu-bar celeste, so they stand apart from the white agent text.
+        private sealed class ChatRoleColorizer(Editor chat, Color userColor) : IVisualLineTransformer
+        {
+            private const string UserRole = "user";
+            private TuiAttribute? _userAttribute;
+            private string _text = "";
+            private string[] _roles = [];
+
+            public void Transform(CellVisualLine line)
+            {
+                string text = chat.Document.Text;
+                if (text != _text)
+                {
+                    _text = text;
+                    _roles = ComputeRoles(text);
+                }
+                int index = line.DocumentLine.LineNumber - 1;
+                if (index < 0 || index >= _roles.Length || _roles[index] != UserRole) return;
+                _userAttribute ??= new TuiAttribute(userColor, Color.Black);
+                foreach (CellVisualLineElement element in line.Elements)
+                    element.Attribute = _userAttribute.Value;
+            }
+
+            // One role per document line: the trimmed line is a role header → switch the
+            // block; anything else (body, blanks, attachments) inherits the block's role.
+            private static string[] ComputeRoles(string text)
+            {
+                var roles = new List<string>();
+                var isUser = false;
+                var start = 0;
+                for (var i = 0; i <= text.Length; i++)
+                {
+                    if (i < text.Length && text[i] != '\n') continue;
+                    var line = text.AsSpan(start, i - start).TrimEnd('\r').Trim();
+                    start = i + 1;
+                    if (line.SequenceEqual(Dictionary.HistoryYou)) isUser = true;
+                    else if (line.SequenceEqual(Dictionary.HistoryAgent)
+                        || line.SequenceEqual(Dictionary.HistoryError)
+                        || line.SequenceEqual("·"))
+                        isUser = false;
+                    roles.Add(isUser ? UserRole : "");
+                }
+                return roles.ToArray();
+            }
         }
 
         // Puppet mode (PrintScreen): dumps the current screen to a timestamped file
@@ -3412,10 +3466,19 @@ public static class ConsoleTui
                 for (int i = 0; i < AsciiArtLines.Length; i++)
                     dlg.Add(new Label { Text = AsciiArtLines[i], X = 2, Y = y++, SchemeName = $"Ascii{i}" });
                 dlg.Add(new Label { Text = Dictionary.AboutText, X = 2, Y = y + 1, Width = Dim.Fill() - 4 });
+                // AboutText spans two screen rows (it contains a line break); the version
+                // and copyright lines follow below it.
+                dlg.Add(new Label
+                {
+                    Text = string.Format(Dictionary.AboutVersion,
+                        System.Reflection.Assembly.GetExecutingAssembly().GetName().Version),
+                    X = 2, Y = y + 3, Width = Dim.Fill() - 4,
+                    SchemeName = "Hint",
+                });
                 dlg.Add(new Label
                 {
                     Text = string.Format(Dictionary.AboutCopyright, DateTime.Now.Year),
-                    X = 2, Y = y + 3, Width = Dim.Fill() - 4,
+                    X = 2, Y = y + 4, Width = Dim.Fill() - 4,
                     SchemeName = "Hint",
                 });
                 var ok = new Button { Text = Dictionary.Ok, IsDefault = true };
