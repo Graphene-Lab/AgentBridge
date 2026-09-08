@@ -1,0 +1,13 @@
+[Unit]
+Description=AgentBridge MSI mirror proxy (streams the latest GitHub release MSI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=agent
+ExecStart=/usr/bin/python3 /home/agent/store-proxy/mirror-msi.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

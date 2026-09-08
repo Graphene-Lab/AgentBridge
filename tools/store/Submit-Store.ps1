@@ -1,40 +1,44 @@
 ﻿<#
 .SYNOPSIS
-Creates/updates the Microsoft Store submission for "Graphene AgentBridge" (EXE/MSI
-product) via the Partner Center ingestion API v2 and uploads the MSI produced by
-New-StoreInstaller.ps1.
+Points the Microsoft Store draft package of "Graphene AgentBridge" (EXE/MSI product)
+at a new installer URL and submits it for certification.
 
 .DESCRIPTION
-Flow: token (Entra ID client credentials) → find/create the submission resource for
-the product → set version + package file name → upload the MSI to the returned SAS
-URL → commit (when -Commit) or leave as draft.
+MSI/EXE Store products reference the installer by an EXTERNAL package URL (there is no
+file upload): Partner Center requires the URL to answer HTTP 200 without redirects, so the
+MSI is served by the streaming proxy on the AIOffice VPS
+(https://aitechnology.it/agentbridge/msi — see tools/store/vps/). This script updates the
+current draft's package URL, commits the packages module and creates the submission, all
+through the Store Submission API:
 
-Configuration: tools/store/store-secrets.local.json (gitignored) or env vars
-STORE_TENANT_ID / STORE_CLIENT_ID / STORE_CLIENT_SECRET / STORE_PRODUCT_ID.
+    https://api.store.microsoft.com/submission/v1/product/{productId}/...
 
-.PARAMETER Msi
-The .msi to upload (GrapheneAgentBridge-<version>.msi).
+Auth is an Entra ID (Azure AD) app associated with the Partner Center account in the
+Manager role. Config: tools/store/store-secrets.local.json (gitignored) or the env vars
+STORE_TENANT_ID / STORE_CLIENT_ID / STORE_CLIENT_SECRET / STORE_PRODUCT_ID /
+STORE_SELLER_ID (Seller ID: Partner Center → Account settings, shown on the dashboard).
+
+.PARAMETER PackageUrl
+Stable non-redirecting URL of the MSI for this release (e.g. https://aitechnology.it/agentbridge/msi).
 
 .PARAMETER Version
-Release version, e.g. 1.26.09.06 (also used as the submission version string).
+Release version, e.g. 1.26.09.08 (used only for logging).
 
-.PARAMETER Commit
-When present the submission is committed for certification; otherwise it is left in
-draft so it can be reviewed in Partner Center first.
+.PARAMETER DryRun
+Resolve config + token + current draft packages and print the PATCH that would be sent,
+without changing anything.
 
 .EXAMPLE
-powershell -File tools\store\Submit-Store.ps1 -Msi D:\out\GrapheneAgentBridge-1.26.09.06.msi -Version 1.26.09.06
+powershell -File tools\store\Submit-Store.ps1 -PackageUrl https://aitechnology.it/agentbridge/msi -Version 1.26.09.08
 #>
 param(
-    [Parameter(Mandatory)][string]$Msi,
+    [Parameter(Mandatory)][string]$PackageUrl,
     [Parameter(Mandatory)][string]$Version,
-    [switch]$Commit
+    [switch]$DryRun
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-
-if (-not (Test-Path $Msi)) { throw "MSI not found: $Msi" }
 
 # ── Configuration ─────────────────────────────────────────────────────────
 $cfg = @{}
@@ -42,81 +46,91 @@ $localCfg = Join-Path $root 'store-secrets.local.json'
 if (Test-Path $localCfg) { $cfg = Get-Content $localCfg -Raw | ConvertFrom-Json }
 function Get-Cfg([string]$name) {
     $envName = 'STORE_' + $name.ToUpper()
-    if ($env:$envName) { return (Get-Item env:$envName).Value }
+    if (Get-Item env:$envName -ErrorAction SilentlyContinue) { return (Get-Item env:$envName).Value }
     return $cfg.$name
 }
 $tenantId = Get-Cfg 'tenantId'; $clientId = Get-Cfg 'clientId'; $clientSecret = Get-Cfg 'clientSecret'
-$productId = Get-Cfg 'productId'
-if (-not ($tenantId -and $clientId -and $clientSecret -and $productId)) {
-    throw 'Missing Store configuration — set store-secrets.local.json or the STORE_* env vars (see tools/store/README.md).'
+$productId = Get-Cfg 'productId'; $sellerId = Get-Cfg 'sellerId'
+if (-not ($tenantId -and $clientId -and $clientSecret -and $productId -and $sellerId)) {
+    throw 'Missing Store configuration — set store-secrets.local.json or the STORE_* env vars incl. STORE_SELLER_ID (see tools/store/README.md).'
 }
-$base = 'https://manage.devcenter.microsoft.com'
-$verNorm = $Version.TrimStart('v')
+$base = 'https://api.store.microsoft.com'
+$ver = $Version.TrimStart('v')
 
-# ── Token ─────────────────────────────────────────────────────────────────
+# ── Token (Entra ID client credentials) ───────────────────────────────────
 $tokenBody = @{
-    grant_type = 'client_credentials'
-    client_id = $clientId
+    grant_type    = 'client_credentials'
+    client_id     = $clientId
     client_secret = $clientSecret
-    scope = ($base + '/.default')
+    scope         = ($base + '/.default')
 }
 $tok = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token" -Body $tokenBody
-$headers = @{ Authorization = "Bearer $($tok.access_token)" }
-
-# ── Submission resource ───────────────────────────────────────────────────
-# The product always has a draft submission after the first manual save; find it,
-# otherwise create one.
-$subUrl = "$base/v2.0/my/ingestion/products/$productId/submissions"
-$subs = (Invoke-RestMethod -Method Get -Uri $subUrl -Headers $headers).value
-$sub = $subs | Where-Object { $_.targetPublishMode -eq 'Immediate' -or $_.id -like '*draft*' } | Select-Object -First 1
-if (-not $sub) {
-    $sub = Invoke-RestMethod -Method Post -Uri $subUrl -Headers $headers
+$headers = @{
+    Authorization         = "Bearer $($tok.access_token)"
+    'X-Seller-Account-Id' = $sellerId
 }
-$subId = $sub.id
+$sub = "submission/v1/product/$productId"
 
-# ── Update the submission: version + the package file to upload ──────────
-$json = Invoke-RestMethod -Method Get -Uri "$subUrl/$subId" -Headers $headers
-$json.packageDeliveryOptions ??= @{}
-$json.packageDeliveryOptions.isMandatoryUpdate = $false
-$json.packageDeliveryOptions.isAutoUpdate = $true
-$json.availabilityNotifications = @()
-# EXE/MSI payload: the installer file lives in "packages". Keep the existing
-# structure, only swap the file name/version fields the wizard set.
-$msiName = Split-Path $Msi -Leaf
-if (-not $json.packages) {
-    # A fresh submission has no packages array yet; the win32 app body expects one.
-    $json.packages = @()
+# ── Current draft ─────────────────────────────────────────────────────────
+$status = (Invoke-RestMethod -Method Get -Uri "$base/$sub/status" -Headers $headers)
+Write-Host "Draft status: $($status | ConvertTo-Json -Depth 8 -Compress)"
+
+$packs = (Invoke-RestMethod -Method Get -Uri "$base/$sub/packages" -Headers $headers).responseData.packages
+$pkg = $packs | Where-Object { $_.packageType -eq 'msi' } | Select-Object -First 1
+if (-not $pkg) { $pkg = $packs | Select-Object -First 1 }
+if (-not $pkg) { throw 'No package found in the current draft — create one in Partner Center first (Packages page).' }
+Write-Host "Current package: $($pkg | ConvertTo-Json -Depth 8 -Compress)"
+
+# ── Build the PATCH body (writable fields only, URL swapped) ─────────────
+$body = [ordered]@{
+    packageUrl          = $PackageUrl
+    languages           = @($pkg.languages)
+    architectures       = @($pkg.architectures)
+    isSilentInstall     = [bool]$pkg.isSilentInstall
+    packageType         = $pkg.packageType
 }
-# Partner Center win32 packages are keyed by the uploaded file; record the new file.
-$body = $json | ConvertTo-Json -Depth 30
-$subUrlId = "$subUrl/$subId"
-$null = Invoke-RestMethod -Method Put -Uri $subUrlId -Headers $headers -ContentType 'application/json' -Body $body
-
-Write-Host "Submission $subId updated (draft). Uploading $msiName ..."
-
-# ── Upload the MSI via the storage SAS returned by the ingestion API ─────
-$pending = $json | Select-Object -ExpandProperty packages -ErrorAction SilentlyContinue
-# The SAS upload endpoint: GET the submission, read packages[].fileStatus/fileName
-# and the corresponding SAS in $json "sasUrls"/"fileUploadUrl" if exposed; the v2 API
-# returns upload targets under the product's draft resource. Fall back to the
-# documented endpoint below when the shape differs.
-$upload = $null
-if ($json.fileUploadUrl) { $upload = $json.fileUploadUrl }
-elseif ($json.packages -and $json.packages[0].fileUploadUrl) { $upload = $json.packages[0].fileUploadUrl }
-if (-not $upload) {
-    # Generic ingestion upload target for the first pending file.
-    $targets = Invoke-RestMethod -Method Get -Uri "$base/v2.0/my/ingestion/products/$productId/submissions/$subId/uploadurls" -Headers $headers -ErrorAction SilentlyContinue
-    if ($targets -and $targets.value) { $upload = $targets.value[0].url }
+if (-not $body.isSilentInstall -and $pkg.installerParameters) { $body.installerParameters = $pkg.installerParameters }
+if ($pkg.genericDocUrl) { $body.genericDocUrl = $pkg.genericDocUrl }
+$bodyJson = $body | ConvertTo-Json -Depth 10
+Write-Host "PATCH /packages/$($pkg.packageId): $bodyJson"
+if ($DryRun) {
+    Write-Host 'DryRun: no change was made. Re-run without -DryRun to update and submit.'
+    exit 0
 }
-if (-not $upload) { throw 'Could not obtain an upload SAS URL from the ingestion API — inspect the draft JSON in Partner Center (see README) and extend this script with the exact field.' }
 
-$msiBytes = [System.IO.File]::ReadAllBytes((Resolve-Path $Msi))
-Invoke-RestMethod -Method Put -Uri $upload -Headers @{ 'x-ms-blob-type' = 'BlockBlob' } -ContentType 'application/octet-stream' -Body $msiBytes -ErrorAction Stop | Out-Null
-Write-Host "MSI uploaded ($([math]::Round($msiBytes.Length/1MB,1)) MB)."
+$null = Invoke-RestMethod -Method Patch -Uri "$base/$sub/packages/$($pkg.packageId)" -Headers $headers -ContentType 'application/json' -Body $bodyJson
+Write-Host "Package URL updated to $PackageUrl (v$ver)."
 
-if ($Commit) {
-    $null = Invoke-RestMethod -Method Post -Uri "$subUrlId/commit" -Headers $headers
-    Write-Host "Submission $subId committed for certification ($verNorm)."
+# ── Commit packages ───────────────────────────────────────────────────────
+$commit = Invoke-RestMethod -Method Post -Uri "$base/$sub/packages/commit" -Headers $headers
+Write-Host "Commit: $($commit | ConvertTo-Json -Depth 8 -Compress)"
+
+# ── Wait until the draft is ready for submission (bounded) ───────────────
+for ($i = 1; $i -le 30; $i++) {
+    Start-Sleep -Seconds 10
+    $s = (Invoke-RestMethod -Method Get -Uri "$base/$sub/status" -Headers $headers)
+    if ($s.responseData.isReady) { Write-Host "Draft ready after $($i*10)s."; break }
+    Write-Host "waiting for draft readiness ($($i*10)s)..."
+    if ($i -eq 30) { throw 'Draft did not become ready within 5 minutes — check the Partner Center dashboard.' }
+}
+
+# ── Create the submission (certification) ────────────────────────────────
+$submit = Invoke-RestMethod -Method Post -Uri "$base/$sub/submit" -Headers $headers
+$submitJson = $submit | ConvertTo-Json -Depth 8
+Write-Host "Submit response: $submitJson"
+
+# The submission continues on Microsoft's side (certification takes from hours to
+# days). If the API exposes a submission id, print the initial status for the log.
+$subId = $null
+try { $subId = $submit.responseData.ongoingSubmissionId } catch {}
+if (-not $subId) {
+    try { $s2 = Invoke-RestMethod -Method Get -Uri "$base/$sub/status" -Headers $headers; $subId = $s2.responseData.ongoingSubmissionId } catch {}
+}
+if ($subId) {
+    Start-Sleep -Seconds 20
+    $ps = Invoke-RestMethod -Method Get -Uri "$base/$sub/submission/$subId/status" -Headers $headers
+    Write-Host "Submission $subId initial status: $($ps | ConvertTo-Json -Depth 8 -Compress)"
 } else {
-    Write-Host "Submission $subId left as DRAFT — review at https://partner.microsoft.com/en-us/dashboard/win32apps/$productId/submissions/$subId and commit manually, or re-run with -Commit."
+    Write-Host 'Submission created. Certification continues on the Partner Center side — monitor https://partner.microsoft.com.'
 }
+Write-Host "Done: AgentBridge v$ver submitted to the Microsoft Store (package URL $PackageUrl)."

@@ -1,37 +1,68 @@
 # Microsoft Store publishing (tools/store)
 
-Makes **every AgentBridge release also update the Microsoft Store** version.
+Makes **every AgentBridge release also update the Microsoft Store** version of
+"Graphene AgentBridge" (win32 EXE/MSI product).
 
-Pipeline:
+MSI/EXE Store products reference the installer by an **external package URL** —
+Partner Center accepts no file upload and **rejects URLs that redirect** (GitHub
+download URLs always 302 → rejected, 2026-09-07). The MSI is therefore served by
+a streaming proxy on the AIOffice VPS at a stable non-redirecting URL.
+
+## Architecture
 
 ```
-release.yml (win-x64 publish)                     # existing
-   └─ New-StoreInstaller.ps1  → GrapheneAgentBridge-<v>.msi
-        └─ Submit-Store.ps1   → Partner Center submission (draft → commit)
+release.yml
+   ├─ build (win-x64 matrix)      → win-x64 payload archive
+   ├─ store-msi  (windows)        → New-StoreInstaller.ps1 → GrapheneAgentBridge-<v>.msi
+   │                                 (WiX v5, tools/store/dotnet-tools.json)
+   ├─ release    (ubuntu)         → GitHub Release (5 archives + the MSI asset)
+   └─ store-submit (ubuntu)       → Submit-Store.ps1 → points the Partner Center draft
+                                     package at the stable MSI URL + submits for certification
+
+VPS proxy (tools/store/vps/): a python3 daemon (systemd, 127.0.0.1:8686) resolves
+the LATEST Graphene-Lab/AgentBridge release (redirect-based, no GitHub API) and
+streams its MSI through nginx at:
+
+    https://aitechnology.it/agentbridge/msi     → HTTP 200, no redirects, no file on disk
 ```
 
-## What is already done (2026-09-07)
+The MSI is built by the `store-msi` job and attached to the GitHub release by the
+`release` job; `store-submit` then swaps the draft package URL to the proxy URL and
+commits + submits — the proxy answers 200 with whatever the latest GitHub release
+ships, which is the version just released (store-msi gates store-submit so the MSI is
+on GitHub first).
 
-- Product created in Partner Center: **"Graphene AgentBridge"** (EXE or MSI app,
-  ProductId `a456c3f0-cd83-475b-a8b3-18a1172a1901`), Free, discoverable, 240 markets.
-- Name reserved; Availability + partial Properties in the draft submission.
-
-## 1. Build the installer
+## 1. Build the installer (store-msi, automatic)
 
 ```powershell
-# From the AgentBridge repo root
 dotnet tool restore          # in tools/store (wix v5, pinned in dotnet-tools.json)
 powershell -File tools\store\New-StoreInstaller.ps1 `
-    -PayloadDir <win-x64 publish folder> -Version 1.26.09.06 -OutDir store-msi
+    -PayloadDir <win-x64 publish folder> -Version 1.26.09.08 -OutDir store-msi
 ```
 
 Produces a per-machine MSI (Program Files\Graphene Lab\AgentBridge, Start-menu +
-desktop shortcut, uninstall entry). Verified end-to-end locally (silent install +
-uninstall) on a staged copy of the real payload.
+desktop shortcut, uninstall entry). In CI the payload is the published
+`agentbridge-win-x64` archive.
 
-## 2. Submit to the Store (Submit-Store.ps1)
+## 2. Submit to the Store (store-submit, automatic)
 
-Uses the Partner Center **ingestion API v2** (Microsoft Entra ID client-credentials).
+`Submit-Store.ps1` drives the **Store Submission API** (`api.store.microsoft.com`,
+`/submission/v1/product/{productId}/...`):
+
+1. token (Entra ID client credentials, scope `https://api.store.microsoft.com/.default`)
+2. `GET .../packages` → the current draft's MSI package
+3. `PATCH .../packages/{packageId}` with the new `packageUrl`
+4. `POST .../packages/commit`
+5. wait until `GET .../status` reports the draft ready
+6. `POST .../submit` (certification starts; it takes hours-days on Microsoft's side)
+
+Manual run:
+
+```powershell
+powershell -File tools\store\Submit-Store.ps1 `
+    -PackageUrl https://aitechnology.it/agentbridge/msi -Version 1.26.09.08
+# add -DryRun to only resolve config/token/draft and print the PATCH, changing nothing
+```
 
 ### One-time account setup (human step, cannot be automated)
 
@@ -42,45 +73,41 @@ Uses the Partner Center **ingestion API v2** (Microsoft Entra ID client-credenti
 2. In the app registration create a **client secret**; note **TenantId**, **ClientId**,
    **ClientSecret**.
 3. Consent: the first token request must be granted (admin consent in the tenant).
+4. **Seller ID** (`X-Seller-Account-Id`): Partner Center dashboard, Account settings.
 
-### Config
+### Config — GitHub Actions secrets
 
-Never commit secrets. Create `tools/store/store-secrets.local.json` (gitignored):
+Never commit secrets. The `store-submit` job reads them from repo secrets:
 
-```json
-{
-  "tenantId": "…",
-  "clientId": "…",
-  "clientSecret": "…",
-  "productId": "a456c3f0-cd83-475b-a8b3-18a1172a1901"
-}
-```
+| Secret | Value |
+|---|---|
+| `STORE_TENANT_ID` | Entra tenant id |
+| `STORE_CLIENT_ID` | Entra app client id |
+| `STORE_CLIENT_SECRET` | Entra app client secret |
+| `STORE_PRODUCT_ID` | `a456c3f0-cd83-475b-a8b3-18a1172a1901` (Graphene AgentBridge) |
+| `STORE_SELLER_ID` | Partner Center Seller ID |
 
-Or set env vars `STORE_TENANT_ID`, `STORE_CLIENT_ID`, `STORE_CLIENT_SECRET`, `STORE_PRODUCT_ID`.
+For local runs the same names are read from the environment, or from
+`tools/store/store-secrets.local.json` (gitignored): keys `tenantId`, `clientId`,
+`clientSecret`, `productId`, `sellerId`.
 
-### Run
+## 3. The stable MSI URL — VPS streaming proxy (one-time install)
 
-```powershell
-powershell -File tools\store\Submit-Store.ps1 -Msi <path.msi> -Version 1.26.09.06
-# optional: -Commit   (submit for certification; default = draft only)
-```
+The URL the Store fetches must answer **200 without redirects** and point at a file
+large enough (~1.8 GB) that GitHub Pages cannot host. The AIOffice VPS
+(185.48.117.20, nginx, Let's Encrypt) runs a tiny python3 daemon that streams the
+latest release's MSI from GitHub on demand — nothing is stored on the VPS disk.
 
-## 3. CI wiring (release.yml)
+Files to deploy (versioned under `tools/store/vps/`):
 
-Add a Windows job on the release (gate-off) run:
+| File | Destination |
+|---|---|
+| `mirror-msi.py` | `/home/agent/store-proxy/mirror-msi.py` |
+| `agentbridge-mirror.service` | `/etc/systemd/system/agentbridge-mirror.service` |
+| `agentbridge-msi.nginx.conf` | `/etc/nginx/snippets/agentbridge-msi.conf` + `include` in the aitechnology.it `:443` server block |
 
-```yaml
-store-msi:
-  needs: build-windows   # job that published win-x64 into ./publish
-  runs-on: windows-latest
-  if: needs.check-version.outputs.do_release == 'true'
-  steps:
-    - uses: actions/checkout@v4
-    - run: dotnet tool restore --tool-manifest tools/store/dotnet-tools.json
-    - run: powershell -File tools/store/New-StoreInstaller.ps1 -PayloadDir publish -Version $VERSION -OutDir store-msi
-    - run: powershell -File tools/store/Submit-Store.ps1 -Msi (Get-ChildItem store-msi\*.msi).FullName -Version $VERSION -Commit
-      env: { STORE_TENANT_ID: ${{ secrets.STORE_TENANT_ID }}, STORE_CLIENT_ID: …, STORE_CLIENT_SECRET: …, STORE_PRODUCT_ID: … }
-```
+Smoke test after install: `curl -sI https://aitechnology.it/agentbridge/msi` must
+answer `200 OK` + `Content-Type: application/octet-stream`.
 
 ## Store certification notes
 
@@ -89,5 +116,6 @@ store-msi:
   Certification Kit.
 - The app is a console/TUI (Terminal.Gui). When launched from the Store Start-menu
   tile the console host opens normally for a packaged EXE/MSI desktop app, so the TUI
-  renders; headless (`--headless`) stays supported. Verify once with the certifier in
-  mind: first run must show the UI or the server note, never a crash.
+  renders; headless (`--headless`) stays supported.
+- Each release is a new certification (Microsoft review); `store-submit` is
+  `continue-on-error` in CI so a Store problem never blocks or fails the GitHub release.

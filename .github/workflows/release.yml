@@ -297,8 +297,8 @@ jobs:
   # continue-on-error keeps the run green when the MSI step fails (the MSI is an
   # extra delivery channel; the release itself must not depend on it). Payload =
   # the win-x64 archive the build already produced (single source of truth: the
-  # exact tree that ships). Later this job also hosts the MSI behind the stable
-  # graphelenab.it URL and submits it to Partner Center (see tools/store).
+  # exact tree that ships). The Store submission (store-submit job below) points
+  # Partner Center at the VPS streaming proxy URL (see tools/store).
   store-msi:
     needs: [check-version, build]
     if: needs.check-version.outputs.do_release == 'true'
@@ -376,3 +376,34 @@ jobs:
             artifacts/**/*.tar.gz
             artifacts/**/*.msi
           generate_release_notes: true
+
+  # Microsoft Store submission: once the release exists with the MSI attached, point the
+  # Partner Center draft package at the stable MSI URL (the AIOffice VPS streaming proxy
+  # answers 200 with the latest release MSI — Partner Center rejects redirecting URLs,
+  # see tools/store/vps/) and submit for certification. Gated on store-msi having
+  # succeeded (the MSI must be on the GitHub release before the Store is told to fetch
+  # it); continue-on-error keeps the run green — the GitHub release is already out and a
+  # failed Store submission must never look like a failed release.
+  store-submit:
+    needs: [check-version, store-msi, release]
+    if: needs.store-msi.result == 'success'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: AgentBridge
+
+      - name: Submit to Microsoft Store
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+          STORE_TENANT_ID: ${{ secrets.STORE_TENANT_ID }}
+          STORE_CLIENT_ID: ${{ secrets.STORE_CLIENT_ID }}
+          STORE_CLIENT_SECRET: ${{ secrets.STORE_CLIENT_SECRET }}
+          STORE_PRODUCT_ID: ${{ secrets.STORE_PRODUCT_ID }}
+          STORE_SELLER_ID: ${{ secrets.STORE_SELLER_ID }}
+        run: |
+          & "$env:GITHUB_WORKSPACE/AgentBridge/tools/store/Submit-Store.ps1" `
+            -PackageUrl "https://aitechnology.it/agentbridge/msi" `
+            -Version $env:VERSION
