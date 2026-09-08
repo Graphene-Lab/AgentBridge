@@ -144,3 +144,11 @@ automatic update + release system (full details in docs-dev/RELEASING.md):
 
 `sync-all.ps1` discovers the new repo automatically via the ProjectReference scan — no
 script edits needed.
+
+## Linux distribution
+
+The Linux Flatpak packaging (release-pipeline + Flathub source-build submission) is
+documented in docs-dev/LINUX-DISTRIBUTION.md — read it before touching anything
+Linux-related; the packaging itself lives in Graphene-Lab/AgentBridge-Linux and is
+triggered automatically by the GitHub release (no changes needed here except version
+bumps).

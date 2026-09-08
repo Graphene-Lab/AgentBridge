@@ -40,6 +40,30 @@ The one-liners download the latest release for your platform into `~/.agentbridg
 [![macOS Intel](https://img.shields.io/badge/macOS%20Intel-000000?style=flat-square&logo=apple&logoColor=white)](https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-osx-x64.tar.gz)
 [![macOS Apple Silicon](https://img.shields.io/badge/macOS%20Apple%20Silicon-000000?style=flat-square&logo=apple&logoColor=white)](https://github.com/Graphene-Lab/AgentBridge/releases/latest/download/agentbridge-osx-arm64.tar.gz)
 
+### Linux also as a desktop app (Flatpak)
+
+AgentBridge is published for Linux as a **Flatpak desktop application** — the engine plus
+the bundled Giraffe AI web client in its own window (WebKitGTK), with an application
+icon in the launcher. Builds are **automatic at every release** (x86_64 & aarch64):
+
+[![Linux Flatpak x86_64](https://img.shields.io/badge/Flatpak%20x86__64-1f6feb?style=flat-square&logo=flatpak&logoColor=white)](https://github.com/Graphene-Lab/AgentBridge-Linux/releases/latest/download/agentbridge-linux-x86_64.flatpak)
+[![Linux Flatpak aarch64](https://img.shields.io/badge/Flatpak%20ARM64-1f6feb?style=flat-square&logo=flatpak&logoColor=white)](https://github.com/Graphene-Lab/AgentBridge-Linux/releases/latest/download/agentbridge-linux-aarch64.flatpak)
+
+```bash
+# one time: add the Flathub remote (shared runtime)
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+# install the latest desktop bundle (x86_64; use the -aarch64 asset on ARM64)
+flatpak install --user -y \
+  https://github.com/Graphene-Lab/AgentBridge-Linux/releases/latest/download/agentbridge-linux-x86_64.flatpak
+```
+
+Launcher entries: **AgentBridge** (desktop chat window, engine auto-started headless) and
+**AgentBridge (Terminal)** (classic TUI). Releases are published in
+[Graphene-Lab/AgentBridge-Linux](https://github.com/Graphene-Lab/AgentBridge-Linux); a
+submission to the **Flathub store** is in review
+([flathub/flathub#10129](https://github.com/flathub/flathub/pull/10129)) for native
+integration with GNOME Software / KDE Discover.
+
 Built on the [AIOffice](https://github.com/Graphene-Lab/AIOffice) agent orchestrator
 (`AIOrchestrator`), AgentBridge brings the agents to **everything**:
 
