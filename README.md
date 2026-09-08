@@ -58,11 +58,10 @@ flatpak install --user -y \
 ```
 
 Launcher entries: **AgentBridge** (desktop chat window, engine auto-started headless) and
-**AgentBridge (Terminal)** (classic TUI). Releases are published in
-[Graphene-Lab/AgentBridge-Linux](https://github.com/Graphene-Lab/AgentBridge-Linux); a
-submission to the **Flathub store** is in review
-([flathub/flathub#10129](https://github.com/flathub/flathub/pull/10129)) for native
-integration with GNOME Software / KDE Discover.
+**AgentBridge (Terminal)** (classic TUI). Releases are published automatically in
+[Graphene-Lab/AgentBridge-Linux](https://github.com/Graphene-Lab/AgentBridge-Linux)
+(dual-arch bundles for x86_64 & ARM64). A listing on the Flathub store is under
+evaluation.
 
 Built on the [AIOffice](https://github.com/Graphene-Lab/AIOffice) agent orchestrator
 (`AIOrchestrator`), AgentBridge brings the agents to **everything**:
