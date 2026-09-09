@@ -196,6 +196,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="UpdateUseExecutable" xml:space="preserve"><value>Per aggiornare, avvia AgentBridge con agent.exe (non con dotnet).</value></data>
   <data name="UpdateDebugBuild" xml:space="preserve"><value>Aggiornamenti disabilitati nelle build di debug.</value></data>
   <data name="UpdateGitHubUnreachable" xml:space="preserve"><value>Impossibile contattare GitHub — controlla la connessione e riprova.</value></data>
+  <data name="UpdateInProgress" xml:space="preserve"><value>È già in corso un aggiornamento — AgentBridge si chiuderà e riaprirà da sola al termine.</value></data>
   <data name="UpdateAgentsBusy" xml:space="preserve"><value>Gli agenti stanno ancora lavorando — ripeti /update quando hanno finito.</value></data>
   <data name="UpdateAnotherInstance" xml:space="preserve"><value>È già in esecuzione un'altra istanza di AgentBridge — chiudila (anche quella dell'avvio automatico) e ripeti /update.</value></data>
   <data name="UpdateFailed" xml:space="preserve"><value>Aggiornamento non riuscito: {0}</value></data>

@@ -36,6 +36,14 @@ public static class AutoUpdate
     /// <summary>Raised on update progress/state changes (the TUI shows them in the status bar).</summary>
     public static event Action<string>? OnStatus;
 
+    // Serializes the whole update pipeline — the startup check (Program.cs), the 30-minute
+    // retry (ScheduleRetryIn) and the TUI /update command all funnel here. Without it two
+    // flows could download in parallel and collide on the same temp archive: the second
+    // File.Create failed with a sharing violation ("...being used by another process") that
+    // surfaced as a bogus "update failed" while the first download kept running unseen.
+    // Same single-flight pattern as WebClientUpdater.Gate.
+    private static readonly SemaphoreSlim UpdateGate = new(1, 1);
+
     // The toggle lives in the OS app-data folder (never in the app folder), so updates
     // cannot touch it — same tier as setup.json (see docs-dev/RELEASING.md, storage tiers).
     private static string StatePath => Path.Combine(
@@ -123,12 +131,47 @@ public static class AutoUpdate
         catch { }
     }
 
+    // Best-effort removal of stale update leftovers before a fresh attempt: orphaned
+    // per-attempt folders (crashed runs) and pre-1.26.09.10 archives that sat at the root.
+    // Files still held by a live updater fail to delete and are skipped — the next app
+    // start removes them via CleanupOnStartup.
+    private static void CleanupStaleUpdateArea()
+    {
+        try
+        {
+            if (!Directory.Exists(TempRoot)) return;
+            foreach (var dir in Directory.EnumerateDirectories(TempRoot))
+                try { Directory.Delete(dir, true); } catch { }
+            foreach (var file in Directory.EnumerateFiles(TempRoot))
+                try { File.Delete(file); } catch { }
+        }
+        catch { }
+    }
+
+    // Opens the downloaded archive for extraction, retrying on transient sharing violations
+    // (an antivirus real-time scan of the freshly written file). Bounded: ~2 s worst case.
+    private static FileStream OpenArchiveForRead(string path)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try { return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read); }
+            catch (IOException) when (attempt < 4) { Thread.Sleep(400); }
+        }
+    }
+
     /// <summary>Startup check: latest GitHub release newer than the running version → update.
     /// Skipped entirely on Debug builds and under <c>dotnet run</c> (see
     /// <see cref="IsPublished"/>/<see cref="IsDebugBuild"/>).</summary>
     public static async Task CheckAndApplyAsync()
     {
         if (!Enabled || !IsPublished || IsDebugBuild || Rid() is not { } rid) return;
+        // The TUI /update command (or a previous retry) is already downloading — it will
+        // apply the update and restart the app, so there is nothing left to do here.
+        if (!await UpdateGate.WaitAsync(0))
+        {
+            Log.LogStep("AutoUpdate: an update is already in progress — skipping");
+            return;
+        }
         try
         {
             var current = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
@@ -177,6 +220,10 @@ public static class AutoUpdate
         {
             Log.LogStep($"AutoUpdate: check failed — {ex.Message}");
         }
+        finally
+        {
+            UpdateGate.Release();
+        }
     }
 
     /// <summary>Manual update check (TUI /update): unlike <see cref="CheckAndApplyAsync"/>
@@ -191,6 +238,11 @@ public static class AutoUpdate
         if (!IsPublished) return new(ManualUpdateStatus.NotPublished, current.ToString(), null, null);
         if (IsDebugBuild) return new(ManualUpdateStatus.DebugBuild, current.ToString(), null, null);
         if (Rid() is not { } rid) return new(ManualUpdateStatus.NoArchive, current.ToString(), null, null);
+        // The startup check or an earlier /update is already downloading: report it instead
+        // of opening the same temp archive a second time (sharing violation). The running
+        // flow applies the update and restarts the app when it finishes.
+        if (!await UpdateGate.WaitAsync(0))
+            return new(ManualUpdateStatus.UpdateInProgress, current.ToString(), null, null);
         try
         {
             var tag = await GetLatestTagAsync();
@@ -234,6 +286,10 @@ public static class AutoUpdate
         {
             return new(ManualUpdateStatus.Failed, current.ToString(), null, ex.Message);
         }
+        finally
+        {
+            UpdateGate.Release();
+        }
     }
 
     // Redirect trick: /releases/latest answers with a redirect whose Location header
@@ -251,9 +307,17 @@ public static class AutoUpdate
     private static async Task ApplyAsync(string rid, string tag)
     {
         var url = $"{Repo}/releases/download/{tag}/agentbridge-{rid}.tar.gz";
-        var archive = Path.Combine(TempRoot, $"agentbridge-{rid}.tar.gz");
-        var extract = Path.Combine(TempRoot, "extract");
-        Directory.CreateDirectory(TempRoot);
+
+        // Each attempt works in its own subfolder under the shared temp root: two update
+        // flows can never open the same archive (the old fixed path let a second /update
+        // collide with an in-flight download — a sharing violation reported as a bogus
+        // "update failed"). The updater deletes its own subfolder when done; the next app
+        // start removes the whole root (CleanupOnStartup), orphaned folders included.
+        CleanupStaleUpdateArea();
+        var work = Path.Combine(TempRoot, $"update-{Guid.NewGuid():N}");
+        var archive = Path.Combine(work, $"agentbridge-{rid}.tar.gz");
+        var extract = Path.Combine(work, "extract");
+        Directory.CreateDirectory(work);
 
         // Download with visible progress (the archive is large — runtime, kokoro.onnx,
         // plugins, OfficeManager). Status events reach the TUI status bar.
@@ -281,9 +345,10 @@ public static class AutoUpdate
             }
         }
 
-        if (Directory.Exists(extract)) Directory.Delete(extract, true);
         Directory.CreateDirectory(extract);
-        using (var gz = new GZipStream(File.OpenRead(archive), CompressionMode.Decompress))
+        // Antivirus real-time scans can hold the freshly written archive for a moment after
+        // the download closes; retry the open instead of failing the update on a transient lock.
+        using (var gz = new GZipStream(OpenArchiveForRead(archive), CompressionMode.Decompress))
             TarFile.ExtractToDirectory(gz, extract, overwriteFiles: true);
 
         // Legacy archives (pre-PersistentData layout) still carried the root config json
@@ -319,7 +384,7 @@ public static class AutoUpdate
                     File.Copy(src, dst, true);
                 }
             }
-            try { Directory.Delete(TempRoot, true); } catch { }
+            try { Directory.Delete(work, true); } catch { }
             Environment.Exit(0);
         }
 
@@ -350,45 +415,70 @@ public static class AutoUpdate
         var target = args[1];
         var extract = args[2];
 
-        // The old process's exe stays locked until it fully terminates — wait for it.
-        var deadline = DateTime.UtcNow.AddSeconds(120);
-        while (IsAlive(oldPid) && DateTime.UtcNow < deadline) Thread.Sleep(500);
-        if (IsAlive(oldPid))
+        // This process runs from the transient temp extract: LogStep would write next to
+        // THIS executable (→ %TEMP%…) and AIOrchestrator.Log is disabled here anyway, so a
+        // failure used to vanish together with the temp area. Report into the install's own
+        // logs folder instead — the same place the app's logs live.
+        var updateLog = Path.Combine(target, "logs", "autoupdate-updater.log");
+        void UpdaterLog(string message)
         {
-            Log.LogStep("AutoUpdate: old process did not exit — update aborted");
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(updateLog)!);
+                File.AppendAllText(updateLog, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
+            }
+            catch { }
+        }
+
+        try
+        {
+            // The old process's exe stays locked until it fully terminates — wait for it.
+            var deadline = DateTime.UtcNow.AddSeconds(120);
+            while (IsAlive(oldPid) && DateTime.UtcNow < deadline) Thread.Sleep(500);
+            if (IsAlive(oldPid))
+            {
+                UpdaterLog($"old process {oldPid} did not exit within 120 s — update aborted");
+                return 1;
+            }
+
+            // Changed files first, the executable last (with a .old rollback copy).
+            var exeName = Path.GetFileName(Environment.ProcessPath)!;
+            foreach (var src in Directory.EnumerateFiles(extract, "*", SearchOption.AllDirectories))
+            {
+                var rel = Path.GetRelativePath(extract, src);
+                if (rel == RestartArgsFile || string.Equals(rel, exeName, StringComparison.OrdinalIgnoreCase)) continue;
+                var dst = Path.Combine(target, rel);
+                if (!File.Exists(dst) || !SameContent(src, dst))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(dst)!);
+                    File.Copy(src, dst, true);
+                }
+            }
+            var exeDst = Path.Combine(target, exeName);
+            var exeOld = exeDst + ".old";
+            File.Delete(exeOld);
+            File.Move(exeDst, exeOld);
+            File.Copy(Path.Combine(extract, exeName), exeDst);
+            UpdaterLog($"files swapped into {target} (old executable kept as {Path.GetFileName(exeOld)} for rollback)");
+
+            // Restart with the original command line; the new start cleans up temp and .old.
+            var restart = Array.Empty<string>();
+            try { restart = JsonSerializer.Deserialize<string[]>(File.ReadAllText(Path.Combine(extract, RestartArgsFile))) ?? restart; } catch { }
+            var psi = new ProcessStartInfo(exeDst) { UseShellExecute = false, WorkingDirectory = target };
+            foreach (var a in restart) psi.ArgumentList.Add(a);
+            Process.Start(psi);
+            UpdaterLog($"restarted {exeDst} — update complete");
+
+            // Best-effort: the updater's own exe is inside the extract, so on Windows the
+            // deletion of the temp area only succeeds after this process exits.
+            try { Directory.Delete(Path.GetDirectoryName(extract)!, true); } catch { }
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            UpdaterLog($"update FAILED: {ex}");
             return 1;
         }
-
-        // Changed files first, the executable last (with a .old rollback copy).
-        var exeName = Path.GetFileName(Environment.ProcessPath)!;
-        foreach (var src in Directory.EnumerateFiles(extract, "*", SearchOption.AllDirectories))
-        {
-            var rel = Path.GetRelativePath(extract, src);
-            if (rel == RestartArgsFile || string.Equals(rel, exeName, StringComparison.OrdinalIgnoreCase)) continue;
-            var dst = Path.Combine(target, rel);
-            if (!File.Exists(dst) || !SameContent(src, dst))
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(dst)!);
-                File.Copy(src, dst, true);
-            }
-        }
-        var exeDst = Path.Combine(target, exeName);
-        var exeOld = exeDst + ".old";
-        File.Delete(exeOld);
-        File.Move(exeDst, exeOld);
-        File.Copy(Path.Combine(extract, exeName), exeDst);
-
-        // Restart with the original command line; the new start cleans up temp and .old.
-        var restart = Array.Empty<string>();
-        try { restart = JsonSerializer.Deserialize<string[]>(File.ReadAllText(Path.Combine(extract, RestartArgsFile))) ?? restart; } catch { }
-        var psi = new ProcessStartInfo(exeDst) { UseShellExecute = false, WorkingDirectory = target };
-        foreach (var a in restart) psi.ArgumentList.Add(a);
-        Process.Start(psi);
-
-        // Best-effort: the updater's own exe is inside the extract, so on Windows the
-        // deletion of the temp area only succeeds after this process exits.
-        try { Directory.Delete(Path.GetDirectoryName(extract)!, true); } catch { }
-        return 0;
     }
 
     private static bool IsAlive(int pid)
@@ -518,6 +608,8 @@ public static class AutoUpdate
         AgentsBusy,
         /// <summary>Another agent instance holds the app folder.</summary>
         AnotherInstance,
+        /// <summary>An update flow (the startup check or a previous /update) is already running.</summary>
+        UpdateInProgress,
         /// <summary>Unexpected failure (see Detail).</summary>
         Failed,
     }

@@ -2465,6 +2465,7 @@ public static class ConsoleTui
                 AutoUpdate.ManualUpdateStatus.NewerThanLatest => string.Format(Dictionary.UpdateNewerThanLatest, result.CurrentVersion, result.LatestVersion),
                 AutoUpdate.ManualUpdateStatus.AgentsBusy => Dictionary.UpdateAgentsBusy,
                 AutoUpdate.ManualUpdateStatus.AnotherInstance => Dictionary.UpdateAnotherInstance,
+                AutoUpdate.ManualUpdateStatus.UpdateInProgress => Dictionary.UpdateInProgress,
                 _ => string.Format(Dictionary.UpdateFailed, result.Detail ?? "unknown error"),
             });
         }

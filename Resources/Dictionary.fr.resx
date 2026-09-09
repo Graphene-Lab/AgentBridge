@@ -167,6 +167,7 @@ Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichie
   <data name="NoteLaunchingWebClient" xml:space="preserve"><value>lancement du client web depuis {0}…</value></data>
   <data name="NoteWebClientFailed" xml:space="preserve"><value>client web échoué : {0}</value></data>
   <data name="NoteLoadFilesFailed" xml:space="preserve"><value>impossible de charger les fichiers : {0}</value></data>
+  <data name="UpdateInProgress" xml:space="preserve"><value>Une mise à jour est déjà en cours : AgentBridge va se fermer puis se rouvrir tout seul à la fin.</value></data>
   <data name="HelpQuickStart" xml:space="preserve"><value>DÉMARRAGE RAPIDE</value></data>
   <data name="HelpQuickStart1" xml:space="preserve"><value>  • Saisissez un message et appuyez sur Entrée pour discuter avec les agents (default/web/search/word/spreadsheet/email/multi).</value></data>
   <data name="HelpQuickStart2" xml:space="preserve"><value>  • / ouvre la palette de commandes (filtre pendant la saisie) : /model change le LLM, /files envoie des documents, /voice dicte, /tts prononce.</value></data>

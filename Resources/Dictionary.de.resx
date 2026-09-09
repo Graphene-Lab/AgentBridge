@@ -167,6 +167,7 @@ Nachricht eingeben und Eingabetaste drücken · / öffnet Befehle · @ Dateien �
   <data name="NoteLaunchingWebClient" xml:space="preserve"><value>Webclient wird aus {0} gestartet…</value></data>
   <data name="NoteWebClientFailed" xml:space="preserve"><value>Webclient fehlgeschlagen: {0}</value></data>
   <data name="NoteLoadFilesFailed" xml:space="preserve"><value>Dateien konnten nicht geladen werden: {0}</value></data>
+  <data name="UpdateInProgress" xml:space="preserve"><value>Es läuft bereits ein Update — AgentBridge schließt sich und startet danach von selbst neu.</value></data>
   <data name="HelpQuickStart" xml:space="preserve"><value>SCHNELLSTART</value></data>
   <data name="HelpQuickStart1" xml:space="preserve"><value>  • Nachricht eingeben und Enter drücken, um mit den Agenten zu sprechen (default/web/search/word/spreadsheet/email/multi).</value></data>
   <data name="HelpQuickStart2" xml:space="preserve"><value>  • / öffnet die Befehls-Palette (filtert während der Eingabe): /model wechselt das LLM, /files lädt Dokumente hoch, /voice diktiert, /tts spricht.</value></data>

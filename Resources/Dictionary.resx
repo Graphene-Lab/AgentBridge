@@ -269,6 +269,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="UpdateUseExecutable" xml:space="preserve"><value>To update, start AgentBridge with agent.exe (not dotnet).</value></data>
   <data name="UpdateDebugBuild" xml:space="preserve"><value>Updates are disabled on debug builds.</value></data>
   <data name="UpdateGitHubUnreachable" xml:space="preserve"><value>Could not reach GitHub — check the connection and try again.</value></data>
+  <data name="UpdateInProgress" xml:space="preserve"><value>An update is already in progress — AgentBridge will close and restart by itself when it finishes.</value></data>
   <data name="UpdateAgentsBusy" xml:space="preserve"><value>The agents are still working — run /update again when they finish.</value></data>
   <data name="UpdateAnotherInstance" xml:space="preserve"><value>Another AgentBridge instance is running — close it (the auto-start one too) and run /update again.</value></data>
   <data name="UpdateFailed" xml:space="preserve"><value>Update failed: {0}</value></data>

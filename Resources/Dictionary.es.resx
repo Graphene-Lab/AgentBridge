@@ -167,6 +167,7 @@ Escribe un mensaje y pulsa Intro · / abre comandos · @ archivos · ? atajos ·
   <data name="NoteLaunchingWebClient" xml:space="preserve"><value>lanzando el cliente web desde {0}…</value></data>
   <data name="NoteWebClientFailed" xml:space="preserve"><value>cliente web fallido: {0}</value></data>
   <data name="NoteLoadFilesFailed" xml:space="preserve"><value>no se pudieron cargar los archivos: {0}</value></data>
+  <data name="UpdateInProgress" xml:space="preserve"><value>Ya hay una actualización en curso: AgentBridge se cerrará y se volverá a abrir sola al terminar.</value></data>
   <data name="HelpQuickStart" xml:space="preserve"><value>INICIO RÁPIDO</value></data>
   <data name="HelpQuickStart1" xml:space="preserve"><value>  • Escribe un mensaje y pulsa Intro para hablar con los agentes (default/web/search/word/spreadsheet/email/multi).</value></data>
   <data name="HelpQuickStart2" xml:space="preserve"><value>  • / abre la paleta de comandos (filtra mientras escribes): /model cambia LLM, /files sube documentos, /voice dicta, /tts pronuncia.</value></data>

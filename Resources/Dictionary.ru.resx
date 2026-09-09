@@ -167,6 +167,7 @@
   <data name="NoteLaunchingWebClient" xml:space="preserve"><value>запуск веб-клиента из {0}…</value></data>
   <data name="NoteWebClientFailed" xml:space="preserve"><value>веб-клиент не удался: {0}</value></data>
   <data name="NoteLoadFilesFailed" xml:space="preserve"><value>не удалось загрузить файлы: {0}</value></data>
+  <data name="UpdateInProgress" xml:space="preserve"><value>Обновление уже выполняется — AgentBridge закроется и откроется сам после завершения.</value></data>
   <data name="HelpQuickStart" xml:space="preserve"><value>БЫСТРЫЙ СТАРТ</value></data>
   <data name="HelpQuickStart1" xml:space="preserve"><value>  • Введите сообщение и нажмите Enter, чтобы поговорить с агентами (default/web/search/word/spreadsheet/email/multi).</value></data>
   <data name="HelpQuickStart2" xml:space="preserve"><value>  • / открывает палитру команд (фильтрует по мере ввода): /model меняет LLM, /files загружает документы, /voice диктует, /tts озвучивает.</value></data>

@@ -110,7 +110,21 @@ each outcome:
   - **start the app with `agent(.exe)`, not `dotnet`** — the check refuses under the
     dotnet host, because the swap would target `dotnet` itself. Release installs run
     from the apphost: launch `agent.exe` (Windows) / `agent` (Linux/macOS);
+  - **an update is already in progress** — the startup check or an earlier `/update` is
+    still downloading; the running flow will apply it and restart the app by itself, so
+    the second `/update` does nothing;
   - **GitHub unreachable / agents busy / another instance is running** (see below).
+
+### Why two `/update` can never collide
+
+The whole pipeline (startup check, the 30-minute retry and `/update`) is serialized by a
+single-flight gate, and every attempt downloads into its **own** subfolder under
+`%TEMP%\agentbridge-update\`. Before the gate existed two flows could download in parallel
+against one fixed archive path, and the second `File.Create` failed with a Windows sharing
+violation ("*The process cannot access the file …tar.gz because it is being used by another
+process*") that surfaced as a bogus "update failed" while the first download kept running
+unseen — closing and reopening the app "fixed" it because the startup check then ran alone.
+The gate turns that into an honest "already in progress" note.
 
 ## Running as a service (systemd / launchd) or with auto-start
 

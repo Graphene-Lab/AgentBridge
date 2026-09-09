@@ -3388,6 +3388,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'An update is already in progress — AgentBridge will close and restart by itself when it finishes.'.
+        /// </summary>
+        public static string UpdateInProgress {
+            get {
+                return ResourceManager.GetString("UpdateInProgress", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'No newer version is published yet — this build ({0}) is newer than the latest GitHub release ({1}).'.
         /// </summary>
         public static string UpdateNewerThanLatest {
