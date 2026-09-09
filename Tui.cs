@@ -2036,8 +2036,10 @@ public static class ConsoleTui
             var cancel = new Button { Text = Dictionary.Cancel };
             cancel.Accepted += (_, _) => _app.RequestStop(dlg);
             dlg.Add(field, hint);
-            dlg.AddButton(ok);
+            // AddButton makes the LAST button the Enter default: Cancel first, OK last so
+            // Enter confirms (same convention as the provider edit dialog).
             dlg.AddButton(cancel);
+            dlg.AddButton(ok);
             dlg.Initialized += (_, _) => field.SetFocus();
             _app.Run(dlg);
             dlg.Dispose();
@@ -3784,8 +3786,11 @@ public static class ConsoleTui
             };
             var close = new Button { Text = Dictionary.Close };
             close.Accepted += (_, _) => { Log.LogStep("TUI ModelSetup dialog closed (Cancel)"); _app.RequestStop(dlg); };
-            dlg.AddButton(save);
+            // AddButton in Terminal.Gui v2.4.17 makes the LAST button the dialog default
+            // (the one Enter triggers). Close first, Save last, so Enter saves instead of
+            // silently discarding the edits (issue #8: console edits "not saving").
             dlg.AddButton(close);
+            dlg.AddButton(save);
 
             tabs.Add(llmTab, emailTab, imapTab, generalTab);
             dlg.Add(tabs);
@@ -3876,9 +3881,19 @@ public static class ConsoleTui
                 {
                     ProviderName = providerName,
                     Protocol = proto,
+                    // Editing must never silently drop fields the dialog does not expose
+                    // (issue #8: after a console edit the provider lost CacheType /
+                    // ForceTextToolDefinitions / PauseBetweenRequests). For an ADD the
+                    // provider does not exist yet, so those stay at their defaults.
+                    CacheType = existing?.CacheType
+                        ?? (ProviderConfigs.TryGet(providerName, out var currentAdd) ? currentAdd.CacheType : ProviderCacheType.PrefixCache),
                     AgentInteractionMode = mode,
                     // Editing a provider must never silently drop its default marker.
                     IsDefault = existing?.IsDefault ?? false,
+                    ForceTextToolDefinitions = existing?.ForceTextToolDefinitions
+                        ?? (ProviderConfigs.TryGet(providerName, out var currentForce) ? currentForce.ForceTextToolDefinitions : false),
+                    PauseBetweenRequests = existing?.PauseBetweenRequests
+                        ?? (ProviderConfigs.TryGet(providerName, out var currentPause) ? currentPause.PauseBetweenRequests : TimeSpan.Zero),
                     ModelName = (modelField.Text ?? "").Trim(),
                     BaseAddress = uri,
                     EndPoint = (endPointField.Text ?? "").Trim(),
@@ -3891,8 +3906,11 @@ public static class ConsoleTui
             };
             var cancel = new Button { Text = Dictionary.Cancel };
             cancel.Accepted += (_, _) => { Log.LogStep("TUI Provider dialog cancelled"); _app.RequestStop(dlg); };
-            dlg.AddButton(ok);
+            // Last-added button becomes the Enter default (TG v2.4.17): Cancel first,
+            // OK last so Enter CONFIRMS the edit (issue #8: edits appeared to not save
+            // because Enter triggered Annulla instead).
             dlg.AddButton(cancel);
+            dlg.AddButton(ok);
             dlg.Initialized += (_, _) => nameField.SetFocus();
             _app.Run(dlg);
             dlg.Dispose();

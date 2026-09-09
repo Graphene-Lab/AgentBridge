@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>SetupPersistence.Test</AssemblyName>
+  </PropertyGroup>
+
+  <!-- In-process harness: exercises ProviderConfigs exactly as the TUI /setup dialog does
+       (Add/Upsert/SetDefault with persist), against a throwaway config directory. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\AIOrchestrator\AIOrchestrator.csproj" />
+  </ItemGroup>
+
+</Project>
