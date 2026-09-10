@@ -171,7 +171,7 @@ unrelated one-shot runs, the server correlates stateless requests **by content**
 - the next request's transcript **minus its last message** (the "previous part" the client
   resends) is hashed the same way; on a hit the request is routed to that conversation — a
   session is created and **seeded** with the resent transcript when the first message was
-  processed one-shot (`AgentHarness.SeedHistory`).
+  processed one-shot (`AgentHarness.SeedHistory`, reported as `session_resumed: true`).
 
 The correlation only applies when the client **resends the accumulated transcript** (most
 OpenAI-style SDKs do). A request carrying no prior assistant reply stays a true one-shot:

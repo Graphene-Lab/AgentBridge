@@ -611,9 +611,15 @@ app.MapPost("/v1/chat/completions", async (
                 if (correlated != null)
                 {
                     // Known conversation → its session; pending transcript → start + seed it.
-                    session = correlated.Length > 0
-                        ? SessionStore.Get(correlated)
-                        : CreateSeededSession(request.Messages, provider);
+                    if (correlated.Length > 0)
+                    {
+                        session = SessionStore.Get(correlated);
+                    }
+                    else
+                    {
+                        session = CreateSeededSession(request.Messages, provider);
+                        sessionResumed = true;   // the earlier turns really came back
+                    }
                     if (session == null)
                         owned = new AgentHarness(provider, anonymize);
                 }
@@ -622,6 +628,7 @@ app.MapPost("/v1/chat/completions", async (
                     // A multi-turn transcript we have never seen (server restart, or the first
                     // message was a true one-shot): start the conversation from the resent history.
                     session = CreateSeededSession(request.Messages, provider);
+                    sessionResumed = true;       // the earlier turns really came back
                 }
                 else
                 {
