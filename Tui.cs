@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AIOrchestrator;
+using AgentBridge;
 using AgentBridge.Resources;
 using Terminal.Gui;
 using Terminal.Gui.App;
@@ -1228,17 +1229,18 @@ public static class ConsoleTui
                             {
                                 try
                                 {
-                                    if (!att.TryGetProperty("resource", out var res) ||
-                                        !res.TryGetProperty("blob", out var blob) || blob.ValueKind != JsonValueKind.String)
-                                        continue;
                                     var name = att.TryGetProperty("name", out var n) ? n.GetString() : "attachment";
                                     var safe = string.Concat((name ?? "attachment").Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
                                     Directory.CreateDirectory(AttachmentsDir);
                                     var path = Path.Combine(AttachmentsDir, $"{DateTime.Now:yyyyMMdd-HHmmss}-{safe}");
-                                    await File.WriteAllBytesAsync(path, Convert.FromBase64String(blob.GetString()!), _chatCts.Token);
+                                    if (!await SaveAttachmentAsync(att, path, _chatCts.Token))
+                                    {
+                                        Log.LogStep($"TUI chat: attachment '{name}' delivered with no payload and not found in the workspace");
+                                        continue;
+                                    }
                                     (_pending!.Attachments ??= new List<string>()).Add(path);
                                 }
-                                catch { /* a broken attachment must never break the chat */ }
+                                catch (Exception ex) { Log.LogStep($"TUI chat: attachment save failed — {ex.Message}"); }
                             }
                         }
                         var delta = doc.RootElement.GetProperty("choices")[0].GetProperty("delta");
@@ -1339,6 +1341,27 @@ public static class ConsoleTui
         // the executable, so the terminal user can open or copy them (see /open and Ctrl+O).
         private static string AttachmentsDir =>
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "attachments");
+
+        /// <summary>
+        /// Saves one delivered attachment (the done method's "attachments") to <paramref name="target"/>
+        /// via <see cref="AttachmentDelivery"/> — the workspace copy first (the server shares this
+        /// machine, and a file above the inline limit arrives as a local reference with no payload), the
+        /// inlined base64 payload as the fallback.
+        /// </summary>
+        private static async Task<bool> SaveAttachmentAsync(JsonElement att, string target, CancellationToken ct)
+        {
+            var (source, temporary) = await AttachmentDelivery.ResolveAsync(att, ct);
+            if (source == null) return false;
+            try
+            {
+                File.Copy(source, target, overwrite: true);
+                return true;
+            }
+            finally
+            {
+                if (temporary) try { File.Delete(source); } catch { }
+            }
+        }
 
         private static void AppendEntry(StringBuilder sb, Entry e)
         {

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AIOrchestrator;
+using AgentBridge;
 using AgentBridge.Resources;
 using TL;
 using UISupportGeneric;
@@ -591,32 +592,37 @@ public static class TelegramBridge
                 await _client!.SendMessageAsync(peer, reply);
 
                 // Outgoing attachments: the done method's MCP-shaped resources are uploaded and
-                // sent as Telegram documents, exactly like the HTML client downloads them.
+                // sent as Telegram documents, exactly like the HTML client downloads them. A file
+                // above the inline limit (a podcast MP3) arrives as a local reference — this bridge
+                // runs next to the server, so it uploads from the workspace instead of the payload.
                 if (result.Attachments is { Count: > 0 })
                 {
                     foreach (var att in result.Attachments)
                     {
-                        var resource = att.Resource;
-                        if (resource?.Blob == null) continue;
-                        string tmp = "";
                         try
                         {
-                            tmp = Path.Combine(Path.GetTempPath(), "agent-telegram-" + Guid.NewGuid().ToString("N")[..8] + "-" + SanitizeName(att.Name));
-                            await File.WriteAllBytesAsync(tmp, Convert.FromBase64String(resource.Blob));
-                            // UploadFileAsync(stream, filename) preserves the original file name
-                            // on the Telegram side — the tmp path name must never leak into the chat.
-                            await using var fs = File.OpenRead(tmp);
-                            var inputFile = await _client!.UploadFileAsync(fs, att.Name);
-                            await _client!.SendMediaAsync(peer, null, inputFile);
+                            var (source, temporary) = await AttachmentDelivery.ResolveAsync(att);
+                            if (source == null)
+                            {
+                                Log.LogStep($"Telegram: attachment '{att.Name}' has no payload and is not in the workspace — skipped");
+                                continue;
+                            }
+                            try
+                            {
+                                // UploadFileAsync(stream, filename) preserves the original file
+                                // name on the Telegram side — the temp path must never leak.
+                                await using var fs = File.OpenRead(source);
+                                var inputFile = await _client!.UploadFileAsync(fs, att.Name);
+                                await _client!.SendMediaAsync(peer, null, inputFile);
+                            }
+                            finally
+                            {
+                                if (temporary) try { File.Delete(source); } catch { }
+                            }
                         }
                         catch (Exception ex)
                         {
                             Log.LogStep($"Telegram: failed to send attachment '{att.Name}': {ex.Message}");
-                        }
-                        finally
-                        {
-                            if (tmp.Length > 0)
-                                try { File.Delete(tmp); } catch { }
                         }
                     }
                 }
@@ -744,9 +750,6 @@ public static class TelegramBridge
         return ext.Length > 0 && ext.Length <= 8 ? ext : "bin";
     }
 
-    private static string SanitizeName(string name) =>
-        string.Concat((name ?? "attachment").Where(c => !Path.GetInvalidFileNameChars().Contains(c) && c != ' '));
-
     private static void SetPhase(TelegramPhase phase)
     {
         lock (Sync) _phase = phase;
@@ -756,6 +759,6 @@ public static class TelegramBridge
     private const int MaxAgentIterations = 50;
 
     /// <summary>Cap on incoming Telegram documents (bytes). Files above it are refused with a
-    /// notice instead of being downloaded into memory — mirrors the harness's outgoing cap.</summary>
+    /// notice instead of being downloaded into memory.</summary>
     private const long MaxTelegramIncomingBytes = 25 * 1024 * 1024;
 }
