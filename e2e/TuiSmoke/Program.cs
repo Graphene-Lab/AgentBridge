@@ -162,7 +162,10 @@ internal static class Program
         // The slash palette lists the CANONICAL command names ("/tools ...") which are
         // NOT translated. The old aliases (/agent, /modelsetup) still run when typed
         // but never appear in the palette rows.
-        const string paletteMarker = "/tools ";
+        // The marker is the FIRST row (the list is alphabetical: /attach comes first), because
+        // the palette is scrollable and rows further down (/tools, /setup, ...) are off-screen in
+        // a short console — asserting on those made this check depend on the terminal height.
+        const string paletteMarker = "/attach ";
 
         // 2) "/model" opens the provider picker (the slash-command palette opens live
         //    on "/", the rest of the line goes to its filter field).
@@ -259,30 +262,32 @@ internal static class Program
         // 4) The palette lists the commands in ALPHABETICAL order (user request).
         //    Only the fresh frames after "/" are inspected (the accumulated stream
         //    also carries earlier palette/dialog frames that would break the order).
-        //    Wait for a mid-list row so the ListView finished rendering before capture.
+        //    The check works on the rows that ARE rendered: the palette scrolls, so the
+        //    visible tail depends on the console height — every rendered command row must be
+        //    in alphabetical order, and at least a handful of them must be there.
         conpty.Mark();
         conpty.Send("/");
         await conpty.WaitForNewTextAsync("/clear ", TimeSpan.FromSeconds(5));
         await Task.Delay(300);
         var palette = conpty.ScreenSinceMark();
         Check("palette opens and lists commands", palette.Contains(paletteMarker));
-        var idx = new List<int>
-        {
-            palette.IndexOf("/tools "),
-            palette.IndexOf("/attach "),
-            palette.IndexOf("/clear "),
-            palette.IndexOf("/docs "),
-            palette.IndexOf("/exit "),
-            palette.IndexOf("/features "),
-        };
-        if (idx.Any(i => i < 0) || !idx.SequenceEqual(idx.OrderBy(i => i)))
+        // Command rows look like "┃/name [args]  —  description": canonical lowercase names,
+        // never translated. The scan is anchored on the row's box border and stops at the NEXT
+        // border, so slashes INSIDE a description (e.g. "Attiva/disattiva") are not commands —
+        // and it does not depend on newlines between rows (the capture is one long line).
+        var paletteCommands = System.Text.RegularExpressions.Regex
+            .Matches(palette, @"[│┃]/([a-z][a-z0-9]*)\b[^│┃\n]*—")
+            .Select(m => m.Groups[1].Value)
+            .Distinct()
+            .ToList();
+        var paletteSorted = paletteCommands.Count >= 5
+            && paletteCommands.SequenceEqual(paletteCommands.OrderBy(n => n, StringComparer.Ordinal));
+        if (!paletteSorted)
         {
             Console.WriteLine($"[diag] palette ({palette.Length} chars):\n" + palette);
-            var raw = conpty.OutputSinceMark();
-            var ci = raw.IndexOf("/clear");
-            Console.WriteLine($"[diag] raw /clear at {ci}: " + (ci >= 0 ? string.Join(",", raw.Skip(Math.Max(0, ci - 6)).Take(20).Select(c => ((int)c).ToString())) : "raw NOT FOUND"));
+            Console.WriteLine($"[diag] palette command rows ({paletteCommands.Count}): {string.Join(", ", paletteCommands)}");
         }
-        Check("commands sorted alphabetically in palette", idx.All(i => i >= 0) && idx.SequenceEqual(idx.OrderBy(i => i)));
+        Check("commands sorted alphabetically in palette", paletteSorted);
 
         // 4b) USER BUG REPORT: filtering the palette to NO matches used to crash the
         //     TUI (the list's SelectedItem setter threw on an empty result set).
@@ -320,14 +325,18 @@ internal static class Program
         conpty.Send("\x1b");
         await Task.Delay(400);
 
-        // 5c) USER REQUEST: /tools opens the TOOLS dialog — untranslated preset ids and
-        //     tool names (API contract) prove the checklist rendered; Esc closes it.
+        // 5c) USER REQUEST: /tools opens the TOOLS dialog — tool API names are untranslated
+        //     (API contract), so they prove the checklist rendered; Esc closes it. The dialog
+        //     does NOT list preset ids (only named presets exist, applied by /tools <name>):
+        //     it shows the always-on core tools line plus one row per switchable tool.
         conpty.Send("/tools\r");
-        await conpty.WaitForNewTextAsync("default-agent", TimeSpan.FromSeconds(15));
+        await conpty.WaitForNewTextAsync("FileTool", TimeSpan.FromSeconds(15));
         var toolsDlg = conpty.ScreenSinceMark();
-        if (!toolsDlg.Contains("default-agent") || !toolsDlg.Contains("FileTool"))
+        var toolNameRows = System.Text.RegularExpressions.Regex.Matches(toolsDlg, @"\b\w+Tool\b").Count;
+        if (!toolsDlg.Contains("FileTool") || toolNameRows < 2)
             Console.WriteLine("[diag] tools dialog screen:\n" + (toolsDlg.Length > 2500 ? toolsDlg[^2500..] : toolsDlg));
-        Check("tools dialog lists presets and tools", toolsDlg.Contains("default-agent") && toolsDlg.Contains("FileTool"));
+        Check("tools dialog lists core tools and switchable tool rows",
+            toolsDlg.Contains("FileTool") && toolNameRows >= 2);
         CheckAlive(conpty, "process alive after /tools tools dialog");
         conpty.Send("\x1b");
         await Task.Delay(500);
