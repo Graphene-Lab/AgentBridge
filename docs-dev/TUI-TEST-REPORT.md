@@ -332,5 +332,20 @@ Elementi presenti nel codice ma non ancora esercitati nei blocchi precedenti —
 
 ---
 
+## BLOCCO 5 — override di configurazione da riga di comando (2026-09-10)
+
+| # | Elemento | Interazione | Esito | Evidenza |
+|---|----------|-------------|-------|----------|
+| C1 | **Sintomo** | `agent --headless --LLM:Anonymize true` (o `--Urls`, `--Sip:ListenPort`, `--Tts:Engine`) | ❌ | l'override veniva ignorato in silenzio; la stessa impostazione passata come **variabile d'ambiente** funzionava (`set Tts__Engine=bogusengine` → avviso "engine unknown") |
+| C2 | **Causa** (dal codice, non da ipotesi) | probe temporaneo su `builder.Configuration` dopo `CreateBuilder` | ✅ | il provider .NET della command line **accoppia ogni `--chiave` con il token successivo**: un flag nudo dell'app (`--headless`, `--tui`, `--no-update`, `--enable-log`, `--no-gui`) si mangiava la chiave seguente → `headless = "--LLM:Anonymize"`, oppure `no-update = "--Tts:Engine"`. Isolato con un progetto di probe separato (`WebApplicationOptions.Args` da solo funziona: il difetto era nell'ordine degli argomenti dell'app) |
+| C3 | **Fix** | `Program.cs`: i flag nudi vengono consegnati alla configurazione come `--flag=true` (restano letti da `args` per il comportamento) | ✅ | accoppiamento esatto, nessun cambio di semantica per i flag stessi |
+| C4 | **Test di regressione** | `e2e/CliFlags` (app DEBUG in **puppet mode**, TCP 5292) con ogni override subito dopo un flag nudo | ✅ | **0/3 prima del fix → 3/3 dopo**: `--Urls` verificato via `/health` + status bar TUI (`localhost:5391`), `--Sip:ListenPort` via `GET /v1/sip/config` (`6073`) |
+| C5 | **Harness TuiSmoke** | 3 asserzioni obsolete/dipendenti dalla viewport | ✅ | baseline sul **binario release precedente**: stessi 3 FAIL (38/43) → non erano una regressione delle modifiche; aggiornate (marker `/attach`, ordine sulle righe realmente renderizzate, dialog `/tools` senza id di preset) → **43/43** sul build DEBUG |
+
+**Nota operativa**: i test TUI/puppet vanno eseguiti **solo su build DEBUG** (`bin\Debug\net10.0\agent.exe`, con `UseShellExecute=true` per dare alla TUI una console propria, come fa `e2e/CliFlags`). Non usare mai il binario installato (`D:\agentbridge-win-x64`): gli harness iniettano tasti reali (cambio provider, dialog, chat) e riscrivono stato persistente (`toolset.json`) dell'installazione dell'utente.
+
+---
+
+
 
 
