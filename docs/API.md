@@ -120,7 +120,10 @@ curl -N http://localhost:5290/v1/chat/completions \
 > updates (same pattern as `telegram.json`). The dynamic `all-files` preset resolves to
 > every loaded tool the config leaves enabled.
 
-Responses carry an additive `session_id` field when a session was used.
+Responses carry an additive `session_id` field when a session was used (on `stream: true`
+it arrives in a dedicated **first** SSE chunk, so the client knows its id before any text).
+`session_resumed: true` marks a continuation where the previous turns were restored from the
+transcript (see [expired sessions](#expired-sessions-continuation)).
 
 > **Streaming caveat**: LLM-native streaming (`SendQueryStream`) does not support
 > anonymization and throws for Gemini — the `/v1/chat/completions` SSE endpoint here is
@@ -140,7 +143,21 @@ By default every request is stateless (fresh orchestrator, fresh history). Passi
 
 Sessions are in-memory, expire after **1 hour** of inactivity (the AIOrchestrator suggested
 conversation timeout, `AgentHarness.SuggestedConversationTimeout` — the same value the AIOffice
-voice panel uses), and are serialized (one chat at a time per session). Unknown `session_id` → `404`.
+voice panel uses), and are serialized (one chat at a time per session).
+
+### Expired sessions: continuation
+
+A chat request carrying an **unknown** `session_id` (idle expiry or server restart) is not
+refused: the server continues the conversation on a **new** session and returns its id in the
+response, so the client rebinds and the chat never shows a break. When the request resends its
+accumulated `messages` (OpenAI-style) the new session is **seeded with that transcript**
+(`AgentHarness.SeedHistory`, `session_resumed: true`) — only the final user/assistant turns come
+back, tool-level detail of the earlier turns is not recoverable — and the context-window guard
+is applied to the transcript *before* the session is created (a continuation that does not fit
+returns the usual `409` and creates nothing). A request that resends only the newest message
+gets a fresh, history-less session (`session_resumed: false`): the run still succeeds.
+The rest of `/v1/control` on an expired id keeps answering `404`; the chat request is the
+entry point that revives the conversation.
 
 ### Stateless clients: dynamic transcript-hash correlation
 

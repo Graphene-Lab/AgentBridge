@@ -139,6 +139,7 @@ Escribe un mensaje y pulsa Intro · / abre comandos · @ archivos · ? atajos ·
   <data name="NotePlaybackWindowsOnly" xml:space="preserve"><value>la reproducción aquí es solo para Windows — abre el archivo con tu reproductor multimedia</value></data>
   <data name="NoteTtsFailed" xml:space="preserve"><value>tts fallido: {0}</value></data>
   <data name="NoteSessionFeatures" xml:space="preserve"><value>funciones de sesión: {0}</value></data>
+  <data name="NoteSessionResumed" xml:space="preserve"><value>sesión anterior caducada — conversación reanudada como {0}</value></data>
   <data name="NoteFeatureSet" xml:space="preserve"><value>función {0} = {1}</value></data>
   <data name="NoteFailedHttp" xml:space="preserve"><value>fallido (HTTP {0}): {1}</value></data>
   <data name="NoteCreateSessionFailed" xml:space="preserve"><value>no se pudo crear la sesión (HTTP {0})</value></data>

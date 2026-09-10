@@ -1096,6 +1096,25 @@ public static class ConsoleTui
         // ── Chat ──
         private void StartChat(string prompt) => _ = Task.Run(() => SendChatAsync(prompt));
 
+        // Transcript of the conversation as every chat request sends it (OpenAI `messages` shape):
+        // every user turn plus every successful agent reply — system notes, errors and progress
+        // entries stay out. Sending the accumulated transcript (not just the newest prompt) is what
+        // lets the server resume the conversation on a NEW session when the old one expired
+        // (AgentBridge /v1/chat/completions seeds a fresh session from it). UI thread only: it
+        // reads _history, which is owned by the main loop.
+        private List<object> BuildTranscript()
+        {
+            var messages = new List<object>();
+            foreach (var e in _history)
+            {
+                if (e.Role == "user" && !string.IsNullOrWhiteSpace(e.Text))
+                    messages.Add(new { role = "user", content = e.Text });
+                else if (e.Role == "agent" && !e.Error && !string.IsNullOrWhiteSpace(e.Text))
+                    messages.Add(new { role = "assistant", content = e.Text });
+            }
+            return messages;
+        }
+
         private async Task SendChatAsync(string prompt)
         {
             if (Interlocked.CompareExchange(ref _chatRunning, 1, 0) != 0)
@@ -1109,6 +1128,11 @@ public static class ConsoleTui
             lock (_stateLock) _chatCts = new CancellationTokenSource();
             SetBusy("generating", true);
             var sw = Stopwatch.StartNew();
+            // The transcript is snapshotted ON the UI thread — the only owner of _history — inside
+            // the same marshalled block that appends the user turn, and handed back through the task:
+            // Ui() only QUEUES the action when called from a background thread, so the snapshot must
+            // never be read from here directly.
+            var transcript = new TaskCompletionSource<List<object>>(TaskCreationOptions.RunContinuationsAsynchronously);
             Ui(() =>
             {
                 StartSpinner();
@@ -1116,6 +1140,7 @@ public static class ConsoleTui
                 _pending = new Entry { Role = "agent", Text = "" };
                 RefreshHistory();
                 UpdateStatus();
+                transcript.TrySetResult(BuildTranscript());
             });
 
             try
@@ -1123,6 +1148,12 @@ public static class ConsoleTui
                 if (!_connected) await RefreshServerStateAsync();
                 if (string.IsNullOrEmpty(_sessionId))
                     throw new InvalidOperationException("no session — server unreachable");
+
+                // Prompt-only fallback: the UI is gone (disposed) and will never run the block above,
+                // so the request degrades to the historical single-message behaviour.
+                List<object> outgoing;
+                try { outgoing = await transcript.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+                catch { outgoing = new List<object> { new { role = "user", content = prompt } }; }
 
                 var attached = SnapshotAttached();
                 // Additive extension: an explicit tool combination (custom checklist
@@ -1132,7 +1163,12 @@ public static class ConsoleTui
                 {
                     model = _agentSet,
                     tools = custom,
-                    messages = new[] { new { role = "user", content = prompt } },
+                    // The accumulated transcript, not just the newest prompt: if the session expired
+                    // server-side (or the server restarted) the conversation is resumed on a fresh
+                    // session seeded from it, so the agent keeps the whole context. On a live session
+                    // the server only uses the last user message as the prompt, so nothing is applied
+                    // twice (see BuildTranscript).
+                    messages = outgoing,
                     session_id = _sessionId,
                     file_ids = attached.Count > 0 ? attached : (List<string>?)null,
                     stream = true,
@@ -1166,6 +1202,24 @@ public static class ConsoleTui
                     try
                     {
                         using var doc = JsonDocument.Parse(data);
+                        // The server echoes the session id on a dedicated first chunk. A DIFFERENT id
+                        // means the previous session had expired (or the server restarted) and a new
+                        // one took over; session_resumed tells whether the previous turns came back
+                        // from the transcript we sent. Rebind so the next prompt keeps the chat going,
+                        // and note it discreetly in the log.
+                        if (doc.RootElement.TryGetProperty("session_id", out var sidEl) && sidEl.ValueKind == JsonValueKind.String)
+                        {
+                            var sid = sidEl.GetString();
+                            if (!string.IsNullOrEmpty(sid) && !string.Equals(sid, _sessionId, StringComparison.Ordinal))
+                            {
+                                _sessionId = sid;
+                                var shortId = sid[..Math.Min(8, sid.Length)];
+                                var resumed = doc.RootElement.TryGetProperty("session_resumed", out var rs)
+                                    && rs.ValueKind == JsonValueKind.True;
+                                AddNote(string.Format(
+                                    resumed ? Dictionary.NoteSessionResumed : Dictionary.NoteNewSession, shortId));
+                            }
+                        }
                         // Agent-attached files (standard MCP embedded-resource shape): saved to
                         // disk next to the executable so the terminal user can open/download them.
                         if (doc.RootElement.TryGetProperty("attachments", out var atts) && atts.ValueKind == JsonValueKind.Array)

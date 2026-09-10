@@ -144,6 +144,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="NotePlaybackWindowsOnly" xml:space="preserve"><value>la riproduzione è solo per Windows qui — apri il file con il tuo lettore multimediale</value></data>
   <data name="NoteTtsFailed" xml:space="preserve"><value>tts non riuscito: {0}</value></data>
   <data name="NoteSessionFeatures" xml:space="preserve"><value>funzionalità di sessione: {0}</value></data>
+  <data name="NoteSessionResumed" xml:space="preserve"><value>sessione precedente scaduta — conversazione ripresa come {0}</value></data>
   <data name="NoteFeatureSet" xml:space="preserve"><value>funzionalità {0} = {1}</value></data>
   <data name="NoteFailedHttp" xml:space="preserve"><value>non riuscito (HTTP {0}): {1}</value></data>
   <data name="NoteCreateSessionFailed" xml:space="preserve"><value>impossibile creare la sessione (HTTP {0})</value></data>

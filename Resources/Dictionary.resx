@@ -196,6 +196,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="NotePlaybackWindowsOnly" xml:space="preserve"><value>playback is Windows-only here — open the file with your media player</value></data>
   <data name="NoteTtsFailed" xml:space="preserve"><value>tts failed: {0}</value></data>
   <data name="NoteSessionFeatures" xml:space="preserve"><value>session features: {0}</value></data>
+  <data name="NoteSessionResumed" xml:space="preserve"><value>previous session expired — conversation resumed as {0}</value></data>
   <data name="NoteFeatureSet" xml:space="preserve"><value>feature {0} = {1}</value></data>
   <data name="NoteFailedHttp" xml:space="preserve"><value>failed (HTTP {0}): {1}</value></data>
   <data name="NoteCreateSessionFailed" xml:space="preserve"><value>could not create session (HTTP {0})</value></data>

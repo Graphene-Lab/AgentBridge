@@ -139,6 +139,7 @@
   <data name="NotePlaybackWindowsOnly" xml:space="preserve"><value>здесь воспроизведение только для Windows — откройте файл в медиаплеере</value></data>
   <data name="NoteTtsFailed" xml:space="preserve"><value>tts не удался: {0}</value></data>
   <data name="NoteSessionFeatures" xml:space="preserve"><value>функции сессии: {0}</value></data>
+  <data name="NoteSessionResumed" xml:space="preserve"><value>предыдущая сессия истекла — разговор продолжен как {0}</value></data>
   <data name="NoteFeatureSet" xml:space="preserve"><value>функция {0} = {1}</value></data>
   <data name="NoteFailedHttp" xml:space="preserve"><value>не удалось (HTTP {0}): {1}</value></data>
   <data name="NoteCreateSessionFailed" xml:space="preserve"><value>не удалось создать сессию (HTTP {0})</value></data>

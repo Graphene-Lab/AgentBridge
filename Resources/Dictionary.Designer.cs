@@ -1633,6 +1633,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'previous session expired — conversation resumed as {0}'.
+        /// </summary>
+        public static string NoteSessionResumed {
+            get {
+                return ResourceManager.GetString("NoteSessionResumed", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'set default failed: {0}'.
         /// </summary>
         public static string NoteSetDefaultFailed {

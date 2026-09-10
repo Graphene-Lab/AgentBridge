@@ -139,6 +139,7 @@ Nachricht eingeben und Eingabetaste drücken · / öffnet Befehle · @ Dateien �
   <data name="NotePlaybackWindowsOnly" xml:space="preserve"><value>Wiedergabe hier nur unter Windows — Datei mit Ihrem Mediaplayer öffnen</value></data>
   <data name="NoteTtsFailed" xml:space="preserve"><value>tts fehlgeschlagen: {0}</value></data>
   <data name="NoteSessionFeatures" xml:space="preserve"><value>Sitzungsfunktionen: {0}</value></data>
+  <data name="NoteSessionResumed" xml:space="preserve"><value>vorherige Sitzung abgelaufen — Gespräch fortgesetzt als {0}</value></data>
   <data name="NoteFeatureSet" xml:space="preserve"><value>Funktion {0} = {1}</value></data>
   <data name="NoteFailedHttp" xml:space="preserve"><value>fehlgeschlagen (HTTP {0}): {1}</value></data>
   <data name="NoteCreateSessionFailed" xml:space="preserve"><value>Sitzung konnte nicht erstellt werden (HTTP {0})</value></data>

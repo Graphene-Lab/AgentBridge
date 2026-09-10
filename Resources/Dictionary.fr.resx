@@ -139,6 +139,7 @@ Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichie
   <data name="NotePlaybackWindowsOnly" xml:space="preserve"><value>la lecture est réservée à Windows ici — ouvrez le fichier avec votre lecteur multimédia</value></data>
   <data name="NoteTtsFailed" xml:space="preserve"><value>tts échoué : {0}</value></data>
   <data name="NoteSessionFeatures" xml:space="preserve"><value>fonctionnalités de session : {0}</value></data>
+  <data name="NoteSessionResumed" xml:space="preserve"><value>session précédente expirée — conversation reprise en tant que {0}</value></data>
   <data name="NoteFeatureSet" xml:space="preserve"><value>fonctionnalité {0} = {1}</value></data>
   <data name="NoteFailedHttp" xml:space="preserve"><value>échec (HTTP {0}) : {1}</value></data>
   <data name="NoteCreateSessionFailed" xml:space="preserve"><value>impossible de créer la session (HTTP {0})</value></data>

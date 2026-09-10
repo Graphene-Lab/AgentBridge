@@ -548,13 +548,44 @@ app.MapPost("/v1/chat/completions", async (
 
         ActiveSession? session = null;
         AgentHarness? owned = null;
+        var sessionResumed = false;
         try
         {
             if (!string.IsNullOrEmpty(request.SessionId))
             {
                 session = SessionStore.Get(request.SessionId);
                 if (session == null)
-                    return Results.NotFound(new { error = $"Session '{request.SessionId}' not found. Omit session_id to start a new session, or create one via POST /v1/control." });
+                {
+                    // The session expired (idle timeout) or the server restarted: the client is
+                    // still holding a dead id. Instead of failing with a 404 — which would leave it
+                    // stuck on that id for every following prompt — the conversation CONTINUES on a
+                    // new session. A client that resends its transcript (the OpenAI-style full
+                    // `messages` array) gets the previous turns back via SeedHistory, the same
+                    // continuation the stateless dynamic-hash path uses (StatelessConversation.cs);
+                    // a client that resends only the newest message gets a fresh conversation. The
+                    // new id travels back with the response (and in the SSE stream), so the client
+                    // rebinds with no visible interruption.
+                    if (HasAssistantHistory(request.Messages))
+                    {
+                        // The resent transcript is about to BECOME the new history, so the
+                        // context-window guard is checked on it BEFORE the session exists: a refused
+                        // continuation must not leave an orphan session behind (it would linger until
+                        // the idle timeout, spawn an employee in OfficeManager and record a memory
+                        // conversation at disposal, all for a run that never happened).
+                        var seedEstimate = EstimateTokens(
+                            string.Join("\n", SeedTurns(request.Messages).Select(t => t.Content)) + "\n" + prompt);
+                        var seedFitError = ContextFitErrorFor(seedEstimate, provider);
+                        if (seedFitError != null)
+                            return Results.Json(seedFitError, statusCode: 409);
+
+                        session = CreateSeededSession(request.Messages, provider);
+                        sessionResumed = true;   // the previous turns really came back
+                    }
+                    else
+                    {
+                        session = SessionStore.Create(provider, anonymize);
+                    }
+                }
 
                 // Switch the LLM in use on the fly (history preserved), but refuse when the
                 // conversation overflows the target provider's context window.
@@ -582,7 +613,7 @@ app.MapPost("/v1/chat/completions", async (
                     // Known conversation → its session; pending transcript → start + seed it.
                     session = correlated.Length > 0
                         ? SessionStore.Get(correlated)
-                        : CreateSeededSession(request.Messages);
+                        : CreateSeededSession(request.Messages, provider);
                     if (session == null)
                         owned = new AgentHarness(provider, anonymize);
                 }
@@ -590,7 +621,7 @@ app.MapPost("/v1/chat/completions", async (
                 {
                     // A multi-turn transcript we have never seen (server restart, or the first
                     // message was a true one-shot): start the conversation from the resent history.
-                    session = CreateSeededSession(request.Messages);
+                    session = CreateSeededSession(request.Messages, provider);
                 }
                 else
                 {
@@ -639,6 +670,28 @@ app.MapPost("/v1/chat/completions", async (
                 return Results.Stream(async stream =>
                 {
                     var model = request.Model ?? "default-agent";
+                    // The session id (and, when the requested session had expired, the resumed flag)
+                    // travels in a dedicated FIRST chunk: the client learns the id it must use for the
+                    // next prompt before any text arrives, so a conversation resumed on a new session
+                    // continues seamlessly. Absent on session-less requests.
+                    if (sessionId != null)
+                    {
+                        var sessionChunk = new
+                        {
+                            id = $"chatcmpl-{Guid.NewGuid():N}",
+                            @object = "chat.completion.chunk",
+                            created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                            model,
+                            session_id = sessionId,
+                            session_resumed = sessionResumed,
+                            choices = new[]
+                            {
+                                new { index = 0, delta = new { content = (string?)null }, finish_reason = (string?)null }
+                            }
+                        };
+                        await stream.WriteAsync(Encoding.UTF8.GetBytes($"data: {JsonSerializer.Serialize(sessionChunk, jsonOptions)}\n\n"), ct);
+                        await stream.FlushAsync(ct);
+                    }
                     foreach (var word in content.Split(' '))
                     {
                         if (ct.IsCancellationRequested) break;
@@ -701,6 +754,7 @@ app.MapPost("/v1/chat/completions", async (
                 created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 model = request.Model ?? "default-agent",
                 session_id = sessionId,
+                session_resumed = sessionResumed,
                 // Agent-attached files in the standard MCP embedded-resource shape (same payload
                 // the streaming path sends as a dedicated chunk).
                 attachments = result.Attachments,
@@ -1532,14 +1586,27 @@ static bool HasAssistantHistory(List<RequestMessage>? messages) =>
     messages is { Count: > 1 }
     && messages.SkipLast(1).Any(m => m.Role == "assistant" && !string.IsNullOrWhiteSpace(ExtractTextContent(m.Content)));
 
-// Starts a real conversation for a stateless client and seeds it with the transcript the client
-// resends (the earlier turns are preserved for the LLM). The session store fires SessionCreated,
-// so OfficeManager spawns the persistent employee for the chat.
-ActiveSession CreateSeededSession(List<RequestMessage>? messages)
+// The turns of a resent transcript that must become the seeded history: everything BEFORE the
+// message used as the prompt (the LAST user message — same rule as the prompt extraction at the
+// top of /v1/chat/completions). Excluding the prompt message itself matters when a transcript
+// ends with an assistant reply (or with anything but a user turn): taking "everything but the
+// last message" would leave the prompt inside the history too, so the LLM would see the same
+// question twice.
+static IEnumerable<(string Role, string Content)> SeedTurns(List<RequestMessage>? messages)
 {
-    var s = SessionStore.Create(startupProvider, anonymize);
-    if (messages is { Count: > 1 })
-        s.Orchestrator.SeedHistory(messages.Take(messages.Count - 1).Select(m => (m.Role, ExtractTextContent(m.Content))));
+    var promptIndex = messages?.FindLastIndex(m => m.Role == "user") ?? -1;
+    for (int i = 0; i < promptIndex; i++)
+        yield return (messages![i].Role, ExtractTextContent(messages[i].Content));
+}
+
+// Starts a real conversation and seeds it with the transcript the client resends (the earlier
+// turns are preserved for the LLM). Used by the stateless dynamic-hash path and when an expired
+// session_id is resumed. The session store fires SessionCreated, so OfficeManager spawns the
+// persistent employee for the chat.
+ActiveSession CreateSeededSession(List<RequestMessage>? messages, string provider)
+{
+    var s = SessionStore.Create(provider, anonymize);
+    s.Orchestrator.SeedHistory(SeedTurns(messages));
     return s;
 }
 
@@ -1563,9 +1630,15 @@ static string? ResolveProvider(string? requested, string startupProvider, out st
 // the conversation fits.
 static object? ContextFitError(ActiveSession session, string targetProvider, string newPrompt)
 {
-    var window = ProviderConfigs.Get(targetProvider).ContextWindow;
     var history = session.Orchestrator.GetHistory();
-    var estimate = EstimateTokens(string.Join("\n", history.Select(h => h.Content)) + "\n" + newPrompt);
+    return ContextFitErrorFor(EstimateTokens(string.Join("\n", history.Select(h => h.Content)) + "\n" + newPrompt), targetProvider);
+}
+
+// The same guard over a raw token estimate: used for the transcript a resumed session is about
+// to be seeded with (see the expired-session branch of /v1/chat/completions).
+static object? ContextFitErrorFor(int estimate, string targetProvider)
+{
+    var window = ProviderConfigs.Get(targetProvider).ContextWindow;
     if (estimate <= window) return null;
 
     return new
