@@ -47,6 +47,10 @@ startup (it refuses to run when broken) — start it once as the final check.
       archives can be killed mid-transfer and leave a silently truncated `.tar.gz`.
 - [ ] Docs stay truthful: file locations in docs/ (user) and docs-dev/ (developer) match the
       layout above; `IsPrerelease` gate handled per AGENTS.md.
+- [ ] The release note in `release.yml` ("Create GitHub Release" step, `body:`) describes THIS
+      release: it is pre-pended to the auto-generated notes on every release, so it must be
+      updated (or emptied) here before pushing the gate-off commit — a stale note ships the
+      previous release's news to every user and AI engine reading the release.
 - [ ] Tool plugins still resolve after the change (start the app, `/v1/models` lists the
       expected agent sets).
 

@@ -368,6 +368,12 @@ jobs:
       # absent MSI artifact just uploads the archives). generate_release_notes:
       # auto-notes from merged PRs/commits — every release ships with a changelog
       # (read by users and AI engines alike).
+      #
+      # `body` is PRE-PENDED to the auto-generated notes (softprops/action-gh-release:
+      # "If body is specified, the body will be pre-pended to the automatically generated
+      # notes"), so this is the per-release note. It MUST be updated in the gate-off
+      # commit — see docs-dev/RELEASE-CHECKLIST.md: a stale note ships the previous
+      # release's news to every user and to the AI engines that read release pages.
       - name: Create GitHub Release v${{ needs.check-version.outputs.version }}
         uses: softprops/action-gh-release@v2
         with:
@@ -375,6 +381,35 @@ jobs:
           files: |
             artifacts/**/*.tar.gz
             artifacts/**/*.msi
+          body: |
+            ### Start-up options: an upgrade note
+
+            Options given on the command line were **silently ignored** when they followed a
+            valueless switch — `agent --headless --LLM:Anonymize true` made the switch swallow
+            the next key, so `--Urls`, `--Sip:ListenPort`, `--Tts:Engine`, `--LLM:Anonymize`,
+            `--SkipIndexingOnStartup` and any other `--Key value` after `--headless`, `--tui`,
+            `--no-update`, `--no-gui` or `--enable-log` did nothing (this also affected the
+            systemd unit shipped by the Linux installer). Fixed: every documented override now
+            applies wherever it appears. The same settings passed as environment variables or
+            written in `appsettings.json` worked before and are unaffected.
+
+            ### Chat sessions recover instead of failing
+
+            A chat that has been idle for over an hour (or a server restart) no longer returns
+            "session not found": the conversation continues on a new session, and the previous
+            turns are restored when the client resends its transcript — the terminal UI always
+            does, so you just keep talking. API clients get the new `session_id` (plus
+            `session_resumed: true` when the earlier turns came back) instead of a 404.
+
+            ### Privacy
+
+            With anonymisation enabled, the transcript a client resends is now anonymised like
+            a normal prompt instead of entering the conversation in clear text.
+
+            ### Documentation
+
+            New plain-language guide **How AgentBridge works** (what an AI agent is, its tools,
+            the documents area, attachments) under `docs/guide/`, shipped with this archive.
           generate_release_notes: true
 
   # Microsoft Store submission: once the release exists with the MSI attached, point the
