@@ -10,6 +10,7 @@ A series of short guides written in plain language for anyone who uses AgentBrid
 
 | Guide | What it covers |
 |---|---|
+| [How AgentBridge works](guide/00-How-It-Works.md) | What an AI agent is, what tools are and how to enable them, the documents area, attachments |
 | [Getting started](guide/01-Getting-Started.md) | Download, first start, the first indexing |
 | [Choosing your AI](guide/02-Choosing-Your-AI.md) | Cloud and local providers, API keys, switching |
 | [Chatting with your agent](guide/03-Chatting-with-Your-Agent.md) | The chat window, files, sessions, the web version |

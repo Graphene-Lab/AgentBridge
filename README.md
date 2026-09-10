@@ -311,6 +311,7 @@ client connects to localhost — is in the **[user manual](docs/MANUAL.md)**.
 | Document | Audience / contents |
 |---|---|
 | [User manual](docs/MANUAL.md) | **Start here.** Install, configure the JSON files, use the terminal UI, connect a client |
+| [How AgentBridge works](docs/guide/00-How-It-Works.md) | Plain-language basics: what an AI agent is, what its tools are and how to enable them, the documents area, attachments |
 | [Text-to-speech](docs/TTS.md) | The two TTS engines, what each machine supports, platform prerequisites (Windows/Linux/macOS) and troubleshooting |
 | [Terminal UI reference](docs/TUI.md) | Every command, shortcut and mouse action |
 | [HTTP API reference](docs/API.md) | All endpoints: chat, sessions, LLM switching, TTS, voice, files, MCP connector |
