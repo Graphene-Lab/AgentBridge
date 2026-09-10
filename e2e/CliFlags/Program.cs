@@ -120,10 +120,19 @@ internal static class Program
                 sipJson != null && sipJson.Contains($"\"listen_port\":{SipPort}"),
                 sipJson == null ? "no /v1/sip/config response" : $"reports: {sipJson[..Math.Min(160, sipJson.Length)]}");
 
-            // 3) The override reaches the TUI (puppet capture of the status bar).
-            var ready = await WaitAsync(async () => Puppet("{\"type\":\"capture\"}").Contains("ctx 0/"),
-                                        TimeSpan.FromSeconds(90));
-            var screen = ready ? Puppet("{\"type\":\"capture\"}") : "";
+            // 3) The override reaches the TUI (puppet capture of the status bar). The puppet
+            //    socket answers only once the TUI is up, so a refused connection is "not ready
+            //    yet", not a test failure: the lambda swallows it and the wait retries.
+            var ready = await WaitAsync(async () =>
+            {
+                try { return Puppet("{\"type\":\"capture\"}").Contains("ctx 0/"); }
+                catch { return false; }
+            }, TimeSpan.FromSeconds(90));
+            var screen = "";
+            if (ready)
+            {
+                try { screen = Puppet("{\"type\":\"capture\"}"); } catch { }
+            }
             Check($"--Urls honored in the TUI status bar (localhost:{ServerPort})",
                 screen.Contains($"localhost:{ServerPort}"),
                 ready ? "status bar does not show the override port" : "TUI session not ready");
