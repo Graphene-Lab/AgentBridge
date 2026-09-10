@@ -177,11 +177,28 @@ AppConfig.GuardNoStrayRootJson();
 ProviderConfigs.ConfigDirectory = AppConfig.PersistentDir;
 ProviderConfigs.EnsureDefaultFile();
 
+// ── Command line → configuration: neutralize the app's own bare switches ──
+// --enable-log/--tui/--headless/--no-gui/--no-update carry no value, but the .NET command-line
+// configuration provider pairs EVERY "--key" with the NEXT token as its value: left as they are a
+// bare switch swallows the key that follows it, so with the documented start line
+//
+//     agent --headless --LLM:Anonymize true
+//
+// the configuration got `headless = "--LLM:Anonymize"` and the override was silently ignored
+// (same for --Urls, --Sip:ListenPort, --Tts:Engine, any --Key:Sub after a bare switch), while the
+// same values as environment variables worked. The switches themselves are read from args
+// directly (see the flag checks below), so for the configuration they only need neutralizing:
+// an explicit "=true" keeps the pairing exact. Regression test: e2e/CliFlags.
+string[] bareSwitches = { "--headless", "--no-gui", "--tui", "--no-update", "--enable-log" };
+var configArgs = args
+    .Select(a => bareSwitches.Contains(a, StringComparer.OrdinalIgnoreCase) ? a + "=true" : a)
+    .ToArray();
+
 // Content root = the executable's folder (not the CWD): the standalone exe must find its
 // content even when launched from another directory (double click, services, tests).
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
-    Args = args,
+    Args = configArgs,
     ContentRootPath = AppContext.BaseDirectory
 });
 
