@@ -29,7 +29,9 @@ AgentBridge release (automatic): push master with IsPrerelease=false in the comm
            with the Kokoro TTS assets → create the GitHub release (tag auto-created)
         4. store-msi job: build GrapheneAgentBridge-<v>.msi (WiX v5, tools/store) from the
            win-x64 payload → attached to the GitHub release too
-        5. store-submit job: update the Microsoft Store draft package to the stable MSI URL
+        5. store-msix job: build GrapheneAgentBridge-<v>.msix (Microsoft Store MSIX, PSF included)
+           from the same payload → CI artifact only (see "Microsoft Store channel" below)
+        6. store-submit job: update the Microsoft Store draft package to the stable MSI URL
            and submit for certification (see "Microsoft Store channel" below)
 
 Store users: after certification is published by Microsoft, the Store delivers the update

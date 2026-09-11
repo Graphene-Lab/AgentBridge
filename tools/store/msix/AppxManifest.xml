@@ -43,7 +43,7 @@
   <Applications>
     <Application
         Id="AgentBridge"
-        Executable="agent.exe"
+        Executable="{{EXECUTABLE}}"
         EntryPoint="Windows.FullTrustApplication"
         uap10:RuntimeBehavior="packagedClassicApp"
         uap10:TrustLevel="mediumIL">

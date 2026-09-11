@@ -1,0 +1,28 @@
+{
+  "applications": [
+    {
+      "id": "AgentBridge",
+      "executable": "agent.exe"
+    }
+  ],
+  "processes": [
+    {
+      "executable": ".*",
+      "fixups": [
+        {
+          "dll": "FileRedirectionFixup.dll",
+          "config": {
+            "redirectedPaths": {
+              "packageRelative": [
+                { "base": "PersistentData", "patterns": [".*"] },
+                { "base": "attachments", "patterns": [".*"] },
+                { "base": "tui-screenshots", "patterns": [".*"] },
+                { "base": "GiraffeAIWebClient", "patterns": [".*"] }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

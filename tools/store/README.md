@@ -177,11 +177,14 @@ automatically.
 - Each release is a new certification (Microsoft review); `store-submit` is
   `continue-on-error` in CI so a Store problem never blocks or fails the GitHub release.
 
-## MSIX (evaluated alternative, not usable yet)
+## MSIX (the licence-free Store channel)
 
-`tools/store/msix/AppxManifest.xml` + `tools/store/New-StoreMsix.ps1` build a Store **MSIX** from
-the same win-x64 payload — the one channel where the Store signs the package for you. It is not
-submittable yet: the app keeps its user configuration inside the install directory
-(`PersistentData\`), which MSIX makes read-only, so a Package Support Framework file-redirection
-fixup is required first. Details, verified findings and the remaining decisions:
-`docs-dev/STORE-PUBLISHING.md` §8.
+`tools/store/msix/AppxManifest.xml` + `tools/store/msix/config.json` + `tools/store/New-StoreMsix.ps1`
+build a Store **MSIX** from the same win-x64 payload — the one Store channel where Microsoft signs
+the package for you, so no certificate and no open-source condition apply. The script bundles the
+Package Support Framework (pinned NuGet, MIT) and redirects the app's in-package writes
+(`PersistentData\`, `attachments\`, `tui-screenshots\`, `GiraffeAIWebClient\`) to the per-user VFS,
+because an MSIX package is read-only. The `store-msix` CI job builds it on every release (artifact
+only: an unsigned MSIX cannot be sideloaded, so it is not attached to the release). What remains is
+account-side — PSF acceptance, product reservation, the `STORE_IDENTITY_NAME`/`STORE_PUBLISHER`
+secrets and the artwork: `docs-dev/STORE-PUBLISHING.md` §8 and §8b.

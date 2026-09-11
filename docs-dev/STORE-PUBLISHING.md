@@ -118,7 +118,7 @@ The signed MSI embeds every component below:
 | AgentBridge | public, AGPL-3.0 | yes |
 | Tool plugins (DocumentTool, SpreadsheetTool, OfficeTool, PresentationTool, OfficeSupportTool, PodcastTool) | public, AGPL-3.0 | yes |
 | AIOffice.VoiceAgent (STT) | public, AGPL-3.0 | yes |
-| AIOffice.VoiceAgent.Win (voice bridge) | public, **no LICENSE file** | no |
+| AIOffice.VoiceAgent.Win (voice bridge) | public, AGPL-3.0 since 2026-09-11 (the file was missing) | yes |
 | **AIOrchestrator** (the engine, inside `agent.exe`) | **private**, "Andrea Bruno License 1.4" | **no** |
 | Third-party binary blobs (NVIDIA cuDNN/cuBLAS via `Microsoft.ML.OnnxRuntime.Gpu.Windows`, the Kokoro model, Playwright's node driver) | not ours | to disclose; System Libraries are allowed but a redistributable-GPU-runtime argument must be made explicitly |
 
@@ -200,24 +200,59 @@ Consequences:
 - The current Partner Center product is type "EXE or MSI app"; an MSIX submission may need a **new
   product reservation** (new listing, new reviews).
 
+**PSF is integrated in the tooling** (Store-only): `New-StoreMsix.ps1` fetches the pinned x64 PSF
+binaries (`Microsoft.PackageSupportFramework` `1.0.240212.1`, MIT, cached in
+`%LOCALAPPDATA%\AgentBridge\psf`), copies `PSFLauncher64.exe` + `PsfRuntime64.dll` +
+`FileRedirectionFixup64.dll` into the layout, makes **PSFLauncher64.exe** the manifest entry point
+and writes `config.json` (`tools/store/msix/config.json`) redirecting `PersistentData\`,
+`attachments\`, `tui-screenshots\` and `GiraffeAIWebClient\` to the per-user VFS. `-SkipPsf` builds
+the bare structure without it. The `store-msix` CI job (release.yml) does this on every release
+from the same win-x64 archive and uploads `store-msix/*.msix` as a CI artifact (not on the GitHub
+release: an unsigned MSIX cannot be sideloaded).
+
 **Artifacts ready today** (Store-only, nothing installed):
 
 ```powershell
-# Build + validate the package structure from a payload (stub or the real one; -Verify round-trips it)
+# Build + validate the package from a payload (stub or the real one; -Verify round-trips it)
 powershell -File tools\store\New-StoreMsix.ps1 -PayloadDir <win-x64 payload> -Version 1.26.09.12 [-Verify]
 # Real Store values (from Partner Center > View app identity details):
 #   -IdentityName <Package/Identity Name>  -Publisher "<Publisher DN>"
+# Bare structure without the file-redirection fixup (not usable as an app):
+#   ... -SkipPsf
 ```
 
-Verified 2026-09-11 on a stub payload: `makeappx pack` succeeds (it validates the manifest against
-the schema), the round-trip unpack returns `AppxManifest.xml`, and the seeded
-`PersistentData\appsettings.json` has `AutoUpdate.Enabled=false`.
+Verified 2026-09-11: on a stub payload, `makeappx pack` succeeds (it validates the manifest against
+the schema), the round-trip unpack returns `AppxManifest.xml`, the layout carries the PSF trio +
+`config.json`, the manifest entry point is `PSFLauncher64.exe`, and the seeded
+`PersistentData\appsettings.json` has `AutoUpdate.Enabled=false`. A full-size run on the real
+1.31 GB payload is the remaining scale check.
 
-**Still missing before this package could be submitted:** the PSF fixup, real branding assets
-(`New-StoreMsix.ps1` generates flat placeholders), the real identity/publisher values, a decision
-on the features above, and a local install test — which needs a self-signed certificate whose
-subject equals the manifest Publisher plus trusting it on the machine (admin, deliberate manual
-step).
+**Still missing before this package could be submitted:** confirmation from Partner Center that a
+PSF-bearing package is acceptable, real branding assets (`New-StoreMsix.ps1` generates flat
+placeholders), the two identity secrets, a decision on the features listed above, and a local
+install test — which needs a self-signed certificate whose subject equals the manifest Publisher
+plus trusting it on the machine (admin, deliberate manual step).
+
+## 8b. The last mile: what only the account owner can do
+
+Everything up to the upload is automated. Partner Center itself cannot be automated for this
+account: an individual developer account has no Entra tenant, so the Store Submission API
+(`Submit-Store.ps1`) is unavailable, and the product identity values live behind the account login
+(+ MFA). Remaining manual steps, in order:
+
+1. **Decide the product type.** The existing product (id `a456c3f0-…`) is "EXE or MSI app". An MSIX
+   submission of the same app likely needs a **new product reservation** in Partner Center
+   (new name/listing; reviews start over). Confirm with Partner Center support before reserving.
+2. **Copy the identity values** from Partner Center → *View app identity details*:
+   `Package/Identity/Name` → secret `STORE_IDENTITY_NAME`, `Package/Identity/Publisher` → secret
+   `STORE_PUBLISHER` (`gh secret set … --repo Graphene-Lab/AgentBridge`).
+3. **Run a release** (`IsPrerelease=false`, tag `v1.yy.MM.dd`). The `store-msix` job then produces
+   `GrapheneAgentBridge-<version>.msix` as a CI artifact, built with the real identity.
+4. **Upload** that `.msix` in Partner Center → Packages → submit for certification. The Store
+   re-signs it; no certificate and no licence conditions apply to this channel.
+5. Optional but recommended before step 4: **install it locally** (self-signed certificate whose
+   subject equals the Publisher) to see the PSF redirection working — this is also the quickest way
+   to find anything in the app that assumes a writable install directory.
 
 ## 9. Pitfalls learned (do not repeat)
 
@@ -236,14 +271,16 @@ step).
 
 ## 10. Open items (resume here)
 
-1. **Certificate** (§6): SignPath is blocked by the AIOrchestrator licence — decide first whether the
-   engine (and AIOffice.VoiceAgent.Win, which ships without any licence file) may be released under
-   an OSI licence; if yes, wire the two signing steps in `store-msi`; if no, buy an OV certificate
-   (no licensing conditions) or make MSIX the Store channel (Store re-signs, §8). Until an
-   installer is signed, a resubmission will fail 10.2.9.
-2. **MSIX**: confirm PSF eligibility with Partner Center, decide about the scheduled-task feature
-   and child processes, add the PSF fixup + real branding, then build the package on the real
-   payload (add `-Verify` only if disk allows: it unpacks the whole 1.3 GB package).
+1. **Certificate** (§6): SignPath is blocked by the AIOrchestrator licence — the engine is now the
+   only non-OSI component in the payload (AIOffice.VoiceAgent.Win was licensed AGPL-3.0 on
+   2026-09-11). Decide whether the engine may be released under an OSI licence; if yes, wire the two
+   signing steps in `store-msi`; if no, MSIX is the free Store route (Store re-signs, §8) or buy an
+   OV certificate (no licensing conditions). Until an installer is signed, a resubmission of the
+   MSI/EXE product fails 10.2.9.
+2. **MSIX**: the tooling is complete (PSF included, `store-msix` job in CI). What remains is
+   Partner Center-facing: confirm that a PSF-bearing package is accepted, reserve the MSIX product
+   if needed, set `STORE_IDENTITY_NAME`/`STORE_PUBLISHER`, replace the placeholder artwork, and do
+   the local install test — see §8b for the ordered click-list.
 3. **Resubmission**: after a signed MSI exists, `IsPrerelease=false` release → tag `v1.yy.MM.dd`
    → MSI on the versioned URL → Partner Center resubmit (or `store-submit` with the `STORE_*`
    secrets).
@@ -268,3 +305,6 @@ sudo bash /home/agent/store-proxy/install-agentbridge-mirror.sh
 powershell -File tools\store\New-StoreInstaller.ps1 -PayloadDir <payload> -Version 1.26.09.12
 powershell -File tools\store\New-StoreMsix.ps1      -PayloadDir <payload> -Version 1.26.09.12 -Verify
 ```
+
+CI artifacts of a release run: `store-msi` (the `.msi` for the EXE/MSI product, attached to the
+GitHub release) and `store-msix` (the `.msix` for the MSIX product, CI-only).

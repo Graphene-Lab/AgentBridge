@@ -367,6 +367,67 @@ jobs:
           name: store-msi
           path: store-msi
 
+  # MSIX package for the Microsoft Store — the one Store channel where Microsoft signs for us
+  # ("The Microsoft Store will automatically re-sign your MSIX/AppX packages with a Microsoft
+  # certificate"), so no code-signing certificate is needed. Same shape as store-msi: separate job,
+  # continue-on-error, so a packaging problem can never block or fail the GitHub release.
+  #
+  # IdentityName/Publisher MUST match Partner Center (View app identity details) or the upload is
+  # rejected: set the STORE_IDENTITY_NAME and STORE_PUBLISHER secrets. Without them the package is
+  # still built (placeholder identity) and uploaded as a CI artifact, but it is not submittable.
+  # The package is intentionally NOT attached to the GitHub release: an unsigned MSIX cannot be
+  # sideloaded by users, so publishing it would only create support noise.
+  # See docs-dev/STORE-PUBLISHING.md section 8.
+  store-msix:
+    needs: [check-version, build]
+    if: needs.check-version.outputs.do_release == 'true'
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: AgentBridge
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: agentbridge-win-x64
+          path: win-payload
+
+      - name: Extract win-x64 payload
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path payload | Out-Null
+          tar -xzf win-payload/agentbridge-win-x64.tar.gz -C payload
+
+      - name: Build MSIX
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+          STORE_IDENTITY_NAME: ${{ secrets.STORE_IDENTITY_NAME }}
+          STORE_PUBLISHER: ${{ secrets.STORE_PUBLISHER }}
+        run: |
+          if (-not $env:STORE_IDENTITY_NAME -or -not $env:STORE_PUBLISHER) {
+            Write-Warning 'STORE_IDENTITY_NAME / STORE_PUBLISHER are not set: the package carries placeholder identity values and Partner Center would reject the upload.'
+          }
+          $msixArgs = @{}
+          if ($env:STORE_IDENTITY_NAME) { $msixArgs.IdentityName = $env:STORE_IDENTITY_NAME }
+          if ($env:STORE_PUBLISHER) { $msixArgs.Publisher = $env:STORE_PUBLISHER }
+          & "$env:GITHUB_WORKSPACE/AgentBridge/tools/store/New-StoreMsix.ps1" `
+            -PayloadDir "$env:GITHUB_WORKSPACE/payload" `
+            -Version $env:VERSION `
+            -OutDir "$env:GITHUB_WORKSPACE/store-msix" `
+            @msixArgs
+
+      - name: Upload MSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-msix
+          path: store-msix/*.msix
+
   release:
     needs: [check-version, build, store-msi]
     if: needs.check-version.outputs.do_release == 'true'

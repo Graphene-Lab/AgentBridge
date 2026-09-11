@@ -19,11 +19,14 @@ NOTE: this file is intentionally ASCII-only outside comments. Windows PowerShell
 files as ANSI and mis-decodes non-ASCII bytes; a UTF-8 em dash inside a string literal even ends
 the string (CP1252 0x94 becomes a typographic quote). Keep literals ASCII.
 
-KNOWN LIMITATION - read docs-dev/STORE-PUBLISHING.md first: AgentBridge keeps its user
-configuration under PersistentData\ INSIDE the install directory, which MSIX makes read-only.
-Without a Package Support Framework FileRedirectionFixup (the remedy Microsoft documents for
-exactly this case) the packaged app cannot save any setting. This script builds and validates the
-package STRUCTURE; it does not add PSF, and it does not install anything.
+PACKAGE SUPPORT FRAMEWORK (on by default, -SkipPsf to disable): the app keeps its configuration
+inside the install directory (PersistentData\, attachments\, tui-screenshots\,
+GiraffeAIWebClient\); an MSIX package is read-only, so Microsoft's documented remedy is a PSF
+FileRedirectionFixup. The manifest entry point becomes PSFLauncher64.exe and the fixup redirects
+those writes into the per-user VFS under %LOCALAPPDATA%. The x64 PSF binaries (MIT) come from the
+pinned NuGet package Microsoft.PackageSupportFramework, cached in %LOCALAPPDATA%\AgentBridge\psf.
+Store eligibility of a PSF-bearing package is not documented either way: confirm with Partner
+Center (docs-dev/STORE-PUBLISHING.md section 8). This script installs nothing.
 
 .PARAMETER PayloadDir
 Absolute path of the win-x64 payload (must contain agent.exe at its root).
@@ -48,6 +51,11 @@ Also unpack the finished package into <OutDir>\verify and check that AppxManifes
 out (round-trip check). Off by default: `makeappx pack` already validates the manifest against the
 schema, and unpacking the real 1.3 GB payload costs disk and time.
 
+.PARAMETER SkipPsf
+Build without the Package Support Framework: the manifest entry point stays agent.exe and no
+config.json is written. The package then cannot save any setting (read-only install directory) -
+use it only to inspect the bare structure.
+
 .EXAMPLE
 powershell -File tools\store\New-StoreMsix.ps1 -PayloadDir D:\ab-msi-payload -Version 1.26.09.12
 #>
@@ -57,7 +65,8 @@ param(
     [string]$OutDir,
     [string]$IdentityName = 'GrapheneLab.AgentBridge',
     [string]$Publisher = 'CN=Graphene Lab, O=Graphene Lab, C=IT',
-    [switch]$Verify
+    [switch]$Verify,
+    [switch]$SkipPsf
 )
 
 $ErrorActionPreference = 'Stop'
@@ -87,11 +96,53 @@ Write-Host "Staging payload into $layout ..."
 robocopy $PayloadDir $layout /E /NFL /NDL /NJH /NJS /NP /R:1 /W:1 | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" }
 
+# ── Package Support Framework: file redirection for the in-package writes ──
+# PersistentData\ (AppConfig.cs), attachments\ and tui-screenshots\ (Tui.cs),
+# GiraffeAIWebClient\ (WebClientUpdater.cs) all live inside the package, which MSIX mounts
+# read-only. The launcher starts agent.exe and FileRedirectionFixup redirects those writes to the
+# per-user VFS, so the app keeps working unchanged.
+$psfVersion = '1.0.240212.1'
+$psfNeeded = @('PsfLauncher64.exe', 'PsfRuntime64.dll', 'FileRedirectionFixup64.dll')
+$exeName = 'agent.exe'
+if (-not $SkipPsf) {
+    $psfDir = Join-Path $env:LOCALAPPDATA "AgentBridge\psf\$psfVersion"
+    $exeName = 'PSFLauncher64.exe'
+    if (@($psfNeeded | Where-Object { -not (Test-Path (Join-Path $psfDir $_)) }).Count -gt 0) {
+        New-Item -ItemType Directory -Force -Path $psfDir | Out-Null
+        $nupkg = Join-Path $OutDir 'psf.nupkg'
+        $url = "https://api.nuget.org/v3-flatcontainer/microsoft.packagesupportframework/$psfVersion/microsoft.packagesupportframework.$psfVersion.nupkg"
+        Write-Host "Fetching the Package Support Framework $psfVersion (NuGet, MIT) ..."
+        & curl.exe -fsSL -o $nupkg $url
+        if ($LASTEXITCODE -ne 0) { throw "cannot download the PSF package from $url" }
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $zip = [System.IO.Compression.ZipFile]::OpenRead($nupkg)
+        try {
+            foreach ($n in $psfNeeded) {
+                $entry = $zip.Entries | Where-Object { $_.FullName -eq "bin/$n" }
+                if (-not $entry) { throw "PSF package does not contain bin/$n" }
+                $target = Join-Path $psfDir $n
+                if (Test-Path $target) { Remove-Item $target -Force }
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target)
+            }
+        }
+        finally { $zip.Dispose() }
+        Remove-Item $nupkg -Force -ErrorAction SilentlyContinue
+    }
+    foreach ($n in $psfNeeded) { Copy-Item (Join-Path $psfDir $n) (Join-Path $layout $n) -Force }
+    $psfConfig = Get-Content (Join-Path $root 'msix\config.json') -Raw
+    [System.IO.File]::WriteAllText((Join-Path $layout 'config.json'), $psfConfig, $utf8NoBom)
+    Write-Host "PSF file redirection enabled (entry point $exeName)"
+}
+else {
+    Write-Warning 'Building WITHOUT the PSF fixup: the packaged app cannot write PersistentData\ (structure test only).'
+}
+
 # ── Manifest ─────────────────────────────────────────────────────────────
 $template = Get-Content (Join-Path $root 'msix\AppxManifest.xml') -Raw
 $manifest = $template.Replace('{{IDENTITY_NAME}}', $IdentityName).
                      Replace('{{PUBLISHER}}', $Publisher).
-                     Replace('{{VERSION}}', $msixVersion)
+                     Replace('{{VERSION}}', $msixVersion).
+                     Replace('{{EXECUTABLE}}', $exeName)
 [System.IO.File]::WriteAllText((Join-Path $layout 'AppxManifest.xml'), $manifest, $utf8NoBom)
 
 # ── Assets (flat placeholders: real branding is a Store submission requirement) ──
@@ -154,4 +205,5 @@ if ($Verify) {
 Write-Host ("MSIX created: {0} ({1:N1} MB)" -f $msix, ((Get-Item $msix).Length / 1MB))
 Write-Host 'Store submission: upload this .msix (or a .msixbundle) in Partner Center - the Store re-signs it.'
 Write-Host 'Local install test: sign it with a certificate whose subject equals the manifest Publisher, then trust that certificate (admin) - see docs-dev/STORE-PUBLISHING.md.'
-Write-Host 'Reminder: without a Package Support Framework file-redirection fixup the packaged app cannot write PersistentData\ (read-only package).'
+if ($SkipPsf) { Write-Host 'WARNING: no PSF in this package - the app cannot save configuration (structure test only).' }
+else { Write-Host 'PSF included: writes to PersistentData\, attachments\, tui-screenshots\, GiraffeAIWebClient\ go to the per-user VFS.' }
