@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Template for the AgentBridge MSIX package. tools/store/New-StoreMsix.ps1 substitutes the
+     {{...}} tokens and copies the result to the layout root as AppxManifest.xml.
+     Notes (verified 2026-09-11, learn.microsoft.com):
+     - MSIX packages submitted to the Store are re-signed by Microsoft, so no certificate is
+       needed for this channel ("The Microsoft Store will automatically re-sign your MSIX/AppX
+       packages with a Microsoft certificate").
+     - Identity Name/Publisher must match the Partner Center "app identity details" of the
+       product; the Publisher below is a placeholder for local tests.
+     - packagedClassicApp + mediumIL + runFullTrust is the full-trust packaged desktop app
+       combination (the app runs with the user token, no elevation).
+     - The package is read-only at runtime: AgentBridge writes PersistentData\ next to its
+       executable, which MSIX does not allow. A Package Support Framework FileRedirectionFixup
+       is the documented remedy (learn.microsoft.com/windows/msix/psf/package-support-framework)
+       and must be added before this package is usable — see docs-dev/STORE-PUBLISHING.md. -->
+<Package
+    xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+    xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+    xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+    IgnorableNamespaces="uap uap10 rescap">
+
+  <Identity
+      Name="{{IDENTITY_NAME}}"
+      Publisher="{{PUBLISHER}}"
+      Version="{{VERSION}}"
+      ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Graphene AgentBridge</DisplayName>
+    <PublisherDisplayName>Graphene Lab</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application
+        Id="AgentBridge"
+        Executable="agent.exe"
+        EntryPoint="Windows.FullTrustApplication"
+        uap10:RuntimeBehavior="packagedClassicApp"
+        uap10:TrustLevel="mediumIL">
+      <uap:VisualElements
+          DisplayName="Graphene AgentBridge"
+          Description="Local-first AI assistant"
+          BackgroundColor="transparent"
+          Square150x150Logo="Assets\Square150x150Logo.png"
+          Square44x44Logo="Assets\Square44x44Logo.png"
+          AppListEntry="default" />
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- Required by any mediumIL (full-trust) packaged desktop app. -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

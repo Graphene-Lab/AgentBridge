@@ -1,5 +1,8 @@
 # Microsoft Store publishing (tools/store)
 
+**Full reference: `docs-dev/STORE-PUBLISHING.md`** — mechanisms, policy requirements, decision log,
+open items and the MSIX evaluation. This file is the short operational version.
+
 Makes **every AgentBridge release also update the Microsoft Store** version of
 "Graphene AgentBridge" (win32 EXE/MSI product).
 
@@ -173,3 +176,12 @@ automatically.
   renders; headless (`--headless`) stays supported.
 - Each release is a new certification (Microsoft review); `store-submit` is
   `continue-on-error` in CI so a Store problem never blocks or fails the GitHub release.
+
+## MSIX (evaluated alternative, not usable yet)
+
+`tools/store/msix/AppxManifest.xml` + `tools/store/New-StoreMsix.ps1` build a Store **MSIX** from
+the same win-x64 payload — the one channel where the Store signs the package for you. It is not
+submittable yet: the app keeps its user configuration inside the install directory
+(`PersistentData\`), which MSIX makes read-only, so a Package Support Framework file-redirection
+fixup is required first. Details, verified findings and the remaining decisions:
+`docs-dev/STORE-PUBLISHING.md` §8.
