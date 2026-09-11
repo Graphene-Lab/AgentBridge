@@ -225,7 +225,8 @@ Verified 2026-09-11: on a stub payload, `makeappx pack` succeeds (it validates t
 the schema), the round-trip unpack returns `AppxManifest.xml`, the layout carries the PSF trio +
 `config.json`, the manifest entry point is `PSFLauncher64.exe`, and the seeded
 `PersistentData\appsettings.json` has `AutoUpdate.Enabled=false`. A full-size run on the real
-1.31 GB payload is the remaining scale check.
+1.34 GB payload (`D:\ab-msi-payload`, v1.26.9.6) produced `GrapheneAgentBridge-1.26.09.06.msix`
+(**906 MB**) with every piece in place — well inside the 25 GB MSIX limit.
 
 **Still missing before this package could be submitted:** confirmation from Partner Center that a
 PSF-bearing package is acceptable, real branding assets (`New-StoreMsix.ps1` generates flat
