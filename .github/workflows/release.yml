@@ -278,31 +278,6 @@ jobs:
             && echo "voiceagent payload ready: $(du -sh publish/voiceagent | cut -f1)" \
             || echo "::warning::voiceagent/ does not contain AIOffice.VoiceAgent.Win.exe"
 
-      # Payload diet — nothing functional is lost:
-      #  - voiceagent/kokoro.onnx (310 MB) duplicates the server's own copy: the voice agent's
-      #    KokoroSharp downloads the model on first use when it is missing
-      #    (AIOffice.VoiceAgent/Dependencies.cs: "the Kokoro ONNX model is NOT handled here:
-      #    KokoroSharp downloads it itself on first use"), and Windows SAPI remains the fallback.
-      #  - the tool-plugin zips carry ownaudio/ownvst3 natives for every OS and architecture
-      #    (~85 MB of osx/linux .dylib/.so in a Windows payload): keep only the folders the RID
-      #    graph of this build can resolve — the exact RID plus its family root (osx, linux, win).
-      - name: Trim payload
-        shell: bash
-        env:
-          RID: ${{ matrix.rid }}
-        run: |
-          before=$(du -sm publish | cut -f1)
-          rm -f publish/voiceagent/kokoro.onnx
-          fam="${RID%%-*}"
-          for d in publish/Tools/*/runtimes/*/; do
-            [ -d "$d" ] || continue
-            case "$(basename "$d")" in
-              "$RID"|"$fam") ;;
-              *) rm -rf "$d" ;;
-            esac
-          done
-          echo "payload: ${before} MB -> $(du -sm publish | cut -f1) MB"
-
       - name: Package
         shell: bash
         run: |
@@ -348,6 +323,23 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path payload | Out-Null
           tar -xzf win-payload/agentbridge-win-x64.tar.gz -C payload
+
+      # Store package diet — applies ONLY here, never to the published archives: the
+      # win-x64 archive carries kokoro.onnx twice (the server's own copy, which STAYS,
+      # plus the one inside the voiceagent/ payload) and the podcast plugin ships
+      # ownaudio/ownvst3 natives for every OS/arch (~64 MB of osx/linux .dylib/.so).
+      # Nothing functional is lost in the Store package: the voice agent's KokoroSharp
+      # downloads the model on first use and the foreign natives cannot load on Windows.
+      - name: Trim Store payload
+        shell: pwsh
+        run: |
+          $before = [int](((Get-ChildItem payload -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB)
+          Remove-Item payload/voiceagent/kokoro.onnx -ErrorAction SilentlyContinue
+          foreach ($d in (Get-ChildItem payload/Tools/*/runtimes/* -Directory -ErrorAction SilentlyContinue)) {
+            if ($d.Name -notin @('win-x64', 'win')) { Remove-Item $d.FullName -Recurse -Force }
+          }
+          $after = [int](((Get-ChildItem payload -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB)
+          Write-Host "store payload: $before MB -> $after MB"
 
       - name: Build Windows Store MSI
         shell: pwsh
