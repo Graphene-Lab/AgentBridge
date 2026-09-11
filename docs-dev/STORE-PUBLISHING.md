@@ -221,6 +221,11 @@ step).
    secrets).
 4. Nice-to-have: `HEAD`/range smoke test in `install-agentbridge-mirror.sh` is already there;
    extend the release notes with the Store URL.
+5. **Check the MSI channel with a standard (non-admin) user.** The MSI installs per-machine into
+   `%ProgramFiles%\Graphene Lab\AgentBridge` and the app writes `PersistentData\` next to
+   `agent.exe` (`AppConfig.cs:21`); a standard user may not be allowed to write there, so the
+   configuration could fail to save. Reproduce with a plain user account (and note the same root
+   cause blocks MSIX, where the package directory is read-only by design).
 
 ## 11. Useful commands
 
