@@ -49,7 +49,18 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $exe = Join-Path $PayloadDir 'agent.exe'
 if (-not (Test-Path $exe)) { throw "agent.exe not found at '$exe' — is this a win-x64 AgentBridge payload?" }
 if (-not $OutDir) { $OutDir = Join-Path (Split-Path -Parent $PayloadDir) 'store-msi' }
-$ver = ($Version.TrimStart('v') -split '\.')[0..2] -join '.'
+# MSI ProductVersion has only three sections (major.minor.build), so the release's date-based
+# fourth section must be folded into the build field: 1.26.09.06 -> 1.26.906, 1.26.09.11 ->
+# 1.26.911. Taking just the first three sections made every release within one month share a
+# single ProductVersion, and MajorUpgrade does not detect same-version products, so installing
+# a newer build over an older one left duplicate Add/Remove Programs entries and orphaned
+# components instead of upgrading. MM*100+DD stays well under the 65535 build limit.
+$vp = $Version.TrimStart('v') -split '\.'
+if ($vp.Count -ge 4 -and $vp[2] -match '^\d+$' -and $vp[3] -match '^\d+$') {
+    $ver = '{0}.{1}.{2}' -f [int]$vp[0], [int]$vp[1], ([int]$vp[2] * 100 + [int]$vp[3])
+} else {
+    $ver = ($vp[0..([Math]::Min(2, $vp.Count - 1))]) -join '.'
+}
 
 # ── Code signing configuration ────────────────────────────────────────────
 if (-not $SignPfx) { $SignPfx = $env:SIGN_PFX }
