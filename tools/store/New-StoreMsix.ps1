@@ -46,6 +46,15 @@ Publisher DN; for the Store it must match the Partner Center publisher identity.
 placeholder for local tests (a locally installed test package must be signed with a certificate
 whose subject matches this value and that is trusted by the machine).
 
+.PARAMETER PsfBinDir
+Directory holding the three x64 PSF binaries already built from source (PsfLauncher64.exe,
+PsfRuntime64.dll, FileRedirectionFixup64.dll). When set they are used as-is and NuGet is not
+contacted. This is the preferred path: Microsoft ties PSF telemetry collection to the binaries
+taken from the NuGet package (those carry Microsoft's telemetry provider GUID), while a build from
+the repo leaves the provider id in include/Telemetry.h as the zeroed placeholder. The CI
+build-psf job produces this directory. Without -PsfBinDir the script falls back to the NuGet
+package and emits a warning.
+
 .PARAMETER Verify
 Also unpack the finished package into <OutDir>\verify and check that AppxManifest.xml comes back
 out (round-trip check). Off by default: `makeappx pack` already validates the manifest against the
@@ -65,6 +74,7 @@ param(
     [string]$OutDir,
     [string]$IdentityName = 'GrapheneLab.AgentBridge',
     [string]$Publisher = 'CN=Graphene Lab, O=Graphene Lab, C=IT',
+    [string]$PsfBinDir,
     [switch]$Verify,
     [switch]$SkipPsf
 )
@@ -105,28 +115,42 @@ $psfVersion = '1.0.240212.1'
 $psfNeeded = @('PsfLauncher64.exe', 'PsfRuntime64.dll', 'FileRedirectionFixup64.dll')
 $exeName = 'agent.exe'
 if (-not $SkipPsf) {
-    $psfDir = Join-Path $env:LOCALAPPDATA "AgentBridge\psf\$psfVersion"
     $exeName = 'PSFLauncher64.exe'
-    if (@($psfNeeded | Where-Object { -not (Test-Path (Join-Path $psfDir $_)) }).Count -gt 0) {
-        New-Item -ItemType Directory -Force -Path $psfDir | Out-Null
-        $nupkg = Join-Path $OutDir 'psf.nupkg'
-        $url = "https://api.nuget.org/v3-flatcontainer/microsoft.packagesupportframework/$psfVersion/microsoft.packagesupportframework.$psfVersion.nupkg"
-        Write-Host "Fetching the Package Support Framework $psfVersion (NuGet, MIT) ..."
-        & curl.exe -fsSL -o $nupkg $url
-        if ($LASTEXITCODE -ne 0) { throw "cannot download the PSF package from $url" }
-        Add-Type -AssemblyName System.IO.Compression.FileSystem
-        $zip = [System.IO.Compression.ZipFile]::OpenRead($nupkg)
-        try {
-            foreach ($n in $psfNeeded) {
-                $entry = $zip.Entries | Where-Object { $_.FullName -eq "bin/$n" }
-                if (-not $entry) { throw "PSF package does not contain bin/$n" }
-                $target = Join-Path $psfDir $n
-                if (Test-Path $target) { Remove-Item $target -Force }
-                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target)
-            }
+    if ($PsfBinDir) {
+        # Binaries built from source (see the build-psf job in release.yml). Preferred: the NuGet
+        # copy is the one Microsoft's own docs tie telemetry collection to, because the shipped
+        # binaries carry Microsoft's telemetry provider GUID. Built from the repo the provider id in
+        # include/Telemetry.h stays the zeroed placeholder, so there is nowhere to send anything.
+        $psfDir = (Resolve-Path $PsfBinDir).Path
+        $missing = @($psfNeeded | Where-Object { -not (Test-Path (Join-Path $psfDir $_)) })
+        if ($missing.Count -gt 0) {
+            throw "-PsfBinDir '$psfDir' is missing: $($missing -join ', ') (expected the x64 Release build output)"
         }
-        finally { $zip.Dispose() }
-        Remove-Item $nupkg -Force -ErrorAction SilentlyContinue
+        Write-Host "Using PSF binaries built from source in $psfDir"
+    } else {
+        $psfDir = Join-Path $env:LOCALAPPDATA "AgentBridge\psf\$psfVersion"
+        if (@($psfNeeded | Where-Object { -not (Test-Path (Join-Path $psfDir $_)) }).Count -gt 0) {
+            New-Item -ItemType Directory -Force -Path $psfDir | Out-Null
+            $nupkg = Join-Path $OutDir 'psf.nupkg'
+            $url = "https://api.nuget.org/v3-flatcontainer/microsoft.packagesupportframework/$psfVersion/microsoft.packagesupportframework.$psfVersion.nupkg"
+            Write-Host "Fetching the Package Support Framework $psfVersion (NuGet, MIT) ..."
+            & curl.exe -fsSL -o $nupkg $url
+            if ($LASTEXITCODE -ne 0) { throw "cannot download the PSF package from $url" }
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $zip = [System.IO.Compression.ZipFile]::OpenRead($nupkg)
+            try {
+                foreach ($n in $psfNeeded) {
+                    $entry = $zip.Entries | Where-Object { $_.FullName -eq "bin/$n" }
+                    if (-not $entry) { throw "PSF package does not contain bin/$n" }
+                    $target = Join-Path $psfDir $n
+                    if (Test-Path $target) { Remove-Item $target -Force }
+                    [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target)
+                }
+            }
+            finally { $zip.Dispose() }
+            Remove-Item $nupkg -Force -ErrorAction SilentlyContinue
+        }
+        Write-Warning "Using NuGet-sourced PSF binaries: these carry Microsoft's telemetry provider id. Pass -PsfBinDir with a from-source build to avoid it (docs-dev/STORE-PUBLISHING.md, PSF telemetry)."
     }
     foreach ($n in $psfNeeded) { Copy-Item (Join-Path $psfDir $n) (Join-Path $layout $n) -Force }
     $psfConfig = Get-Content (Join-Path $root 'msix\config.json') -Raw

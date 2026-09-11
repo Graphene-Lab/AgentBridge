@@ -403,6 +403,50 @@ jobs:
           New-Item -ItemType Directory -Path payload | Out-Null
           tar -xzf win-payload/agentbridge-win-x64.tar.gz -C payload
 
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Compile PSF (x64 Release) instead of taking it from NuGet
+        shell: pwsh
+        run: |
+          # Why from source: Microsoft ties PSF telemetry collection to the binaries taken from the
+          # NuGet package -- those are built with Microsoft's real telemetry provider GUID injected
+          # into include/Telemetry.h (see psf-public-nuget-build.yml in the PSF repo). Building from
+          # the repo leaves that provider id as the zeroed placeholder, so the packaged app has
+          # nowhere to send telemetry. There is no runtime switch for it: PsfRuntime reads only
+          # 'fixups' from config.json.
+          $ErrorActionPreference = 'Continue'
+          $psfTag = '1.0.240212.1'
+          git clone --depth 1 --branch $psfTag `
+            https://github.com/microsoft/MSIX-PackageSupportFramework.git psf-src
+          if ($LASTEXITCODE -ne 0) { Write-Warning 'PSF clone failed - falling back to NuGet'; exit 0 }
+
+          Invoke-WebRequest 'https://dist.nuget.org/win-x86-commandline/v6.9.1/nuget.exe' `
+            -OutFile nuget.exe -UseBasicParsing
+          & .\nuget.exe restore "psf-src\CentennialFixups.sln"
+          if ($LASTEXITCODE -ne 0) { Write-Warning 'PSF restore failed - falling back to NuGet'; exit 0 }
+
+          # The projects pin the VS2019 toolset (v142); windows-latest ships v143.
+          msbuild "psf-src\CentennialFixups.sln" -p:Configuration=Release -p:Platform=x64 `
+            -p:PlatformToolset=v143 -m /v:minimal
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "PSF build failed (exit $LASTEXITCODE) - falling back to NuGet"; exit 0
+          }
+
+          New-Item -ItemType Directory -Force -Path psf-bin | Out-Null
+          foreach ($f in 'PsfLauncher64.exe','PsfRuntime64.dll','FileRedirectionFixup64.dll') {
+            $src = Get-ChildItem -Path psf-src -Recurse -Filter $f -ErrorAction SilentlyContinue |
+                   Where-Object { $_.FullName -match '\\x64\\Release\\' } |
+                   Select-Object -First 1
+            if (-not $src) {
+              Write-Warning "PSF build did not produce $f - falling back to NuGet"
+              Remove-Item psf-bin -Recurse -Force -ErrorAction SilentlyContinue
+              exit 0
+            }
+            Copy-Item $src.FullName psf-bin\ -Force
+          }
+          Write-Host "PSF built from source into psf-bin (no Microsoft telemetry provider id)"
+
       - name: Build MSIX
         shell: pwsh
         env:
@@ -416,6 +460,12 @@ jobs:
           $msixArgs = @{}
           if ($env:STORE_IDENTITY_NAME) { $msixArgs.IdentityName = $env:STORE_IDENTITY_NAME }
           if ($env:STORE_PUBLISHER) { $msixArgs.Publisher = $env:STORE_PUBLISHER }
+          if (Test-Path "$env:GITHUB_WORKSPACE/psf-bin/PsfLauncher64.exe") {
+            $msixArgs.PsfBinDir = "$env:GITHUB_WORKSPACE/psf-bin"
+            Write-Host 'Packaging with the from-source PSF binaries.'
+          } else {
+            Write-Warning 'From-source PSF unavailable: falling back to the NuGet package, whose binaries carry Microsoft''s telemetry provider id.'
+          }
           & "$env:GITHUB_WORKSPACE/AgentBridge/tools/store/New-StoreMsix.ps1" `
             -PayloadDir "$env:GITHUB_WORKSPACE/payload" `
             -Version $env:VERSION `
