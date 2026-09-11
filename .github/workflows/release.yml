@@ -324,23 +324,6 @@ jobs:
           New-Item -ItemType Directory -Path payload | Out-Null
           tar -xzf win-payload/agentbridge-win-x64.tar.gz -C payload
 
-      # Store package diet — applies ONLY here, never to the published archives: the
-      # win-x64 archive carries kokoro.onnx twice (the server's own copy, which STAYS,
-      # plus the one inside the voiceagent/ payload) and the podcast plugin ships
-      # ownaudio/ownvst3 natives for every OS/arch (~64 MB of osx/linux .dylib/.so).
-      # Nothing functional is lost in the Store package: the voice agent's KokoroSharp
-      # downloads the model on first use and the foreign natives cannot load on Windows.
-      - name: Trim Store payload
-        shell: pwsh
-        run: |
-          $before = [int](((Get-ChildItem payload -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB)
-          Remove-Item payload/voiceagent/kokoro.onnx -ErrorAction SilentlyContinue
-          foreach ($d in (Get-ChildItem payload/Tools/*/runtimes/* -Directory -ErrorAction SilentlyContinue)) {
-            if ($d.Name -notin @('win-x64', 'win')) { Remove-Item $d.FullName -Recurse -Force }
-          }
-          $after = [int](((Get-ChildItem payload -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB)
-          Write-Host "store payload: $before MB -> $after MB"
-
       - name: Build Windows Store MSI
         shell: pwsh
         env:
