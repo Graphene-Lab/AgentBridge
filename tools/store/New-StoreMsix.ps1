@@ -146,8 +146,11 @@ $manifest = $template.Replace('{{IDENTITY_NAME}}', $IdentityName).
 [System.IO.File]::WriteAllText((Join-Path $layout 'AppxManifest.xml'), $manifest, $utf8NoBom)
 
 # ── Assets (flat placeholders: real branding is a Store submission requirement) ──
+# StoreAssets, NOT Assets: the payload already carries its own assets\ folder and NTFS is
+# case-insensitive, so "Assets" would silently merge into it (the manifest would then reference a
+# path that only resolves by case-insensitivity).
 Add-Type -AssemblyName System.Drawing
-$assets = Join-Path $layout 'Assets'
+$assets = Join-Path $layout 'StoreAssets'
 New-Item -ItemType Directory -Force -Path $assets | Out-Null
 function New-AssetPng([string]$Path, [int]$Width, [int]$Height) {
     $bmp = New-Object System.Drawing.Bitmap($Width, $Height)

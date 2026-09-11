@@ -29,7 +29,7 @@
   <Properties>
     <DisplayName>Graphene AgentBridge</DisplayName>
     <PublisherDisplayName>Graphene Lab</PublisherDisplayName>
-    <Logo>Assets\StoreLogo.png</Logo>
+    <Logo>StoreAssets\StoreLogo.png</Logo>
   </Properties>
 
   <Dependencies>
@@ -51,8 +51,8 @@
           DisplayName="Graphene AgentBridge"
           Description="Local-first AI assistant"
           BackgroundColor="transparent"
-          Square150x150Logo="Assets\Square150x150Logo.png"
-          Square44x44Logo="Assets\Square44x44Logo.png"
+          Square150x150Logo="StoreAssets\Square150x150Logo.png"
+          Square44x44Logo="StoreAssets\Square44x44Logo.png"
           AppListEntry="default" />
     </Application>
   </Applications>
