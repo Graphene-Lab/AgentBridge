@@ -101,10 +101,36 @@ certificates, which do not satisfy 10.2.9.
 
 | Route | Cost | Status / blocker |
 |---|---|---|
-| **SignPath Foundation** | free | applies to OSI-licensed projects without commercial dual-licensing (AGPL-3.0 qualifies); signs with **their** certificate (subject "SignPath Foundation" — acceptable: 10.2.9 requires a trusted-root chain, not a publisher match for MSI/EXE) |
-| **OV/EV certificate from a CA** (DigiCert, Sectigo, SSL.com, Certum, GlobalSign) | ~one hundred €/year | works for individuals; hardware token or cloud HSM is mandatory |
+| **SignPath Foundation** | free | **blocked by licensing, see below** |
+| **OV/EV certificate from a CA** (DigiCert, Sectigo, SSL.com, Certum, GlobalSign) | ~one hundred €/year | works for individuals; hardware token or cloud HSM is mandatory; no open-source condition |
 | **Azure Artifact Signing** (ex Trusted Signing) | cheapest | **excluded**: Public Trust for individuals only in the US/Canada; in Italy it needs a legal entity |
-| MSIX route | free | Store re-signs (§4) — but see §8 for what packaging would require |
+| MSIX route | free | Store re-signs (§4) — no certificate **and no open-source condition**, but see §8 for what packaging would require |
+
+### Why SignPath is not available as things stand (checked 2026-09-11)
+
+SignPath's criteria (signpath.org/terms) require an "OSI-approved open source license **for all
+components**, without commercial dual-licensing" and "no proprietary code … especially code
+published by the maintainer or an affiliated person/organization" (System Libraries excepted).
+The signed MSI embeds every component below:
+
+| Component in the payload | Repository / license | Meets the criteria? |
+|---|---|---|
+| AgentBridge | public, AGPL-3.0 | yes |
+| Tool plugins (DocumentTool, SpreadsheetTool, OfficeTool, PresentationTool, OfficeSupportTool, PodcastTool) | public, AGPL-3.0 | yes |
+| AIOffice.VoiceAgent (STT) | public, AGPL-3.0 | yes |
+| AIOffice.VoiceAgent.Win (voice bridge) | public, **no LICENSE file** | no |
+| **AIOrchestrator** (the engine, inside `agent.exe`) | **private**, "Andrea Bruno License 1.4" | **no** |
+| Third-party binary blobs (NVIDIA cuDNN/cuBLAS via `Microsoft.ML.OnnxRuntime.Gpu.Windows`, the Kokoro model, Playwright's node driver) | not ours | to disclose; System Libraries are allowed but a redistributable-GPU-runtime argument must be made explicitly |
+
+"Andrea Bruno License 1.4" is source-available, personal use only, royalties for any other use —
+not OSI-approved, i.e. exactly the commercial dual-licensing the criteria exclude. SignPath also
+state they are not obliged to accept any project, and that every release needs manual approval by
+an approver. The practical consequence: **SignPath requires either releasing the engine (and the
+voice bridge) under an OSI license, or buying an OV certificate.** MSIX is the one free route that
+does not care about licensing at all.
+
+If SignPath is pursued anyway (the form is open to anyone), disclose the AIOrchestrator licence
+first: the answer decides whether any of the wiring in §6 is worth doing.
 
 ### Ready-to-apply SignPath plan (not wired yet, deliberately)
 
@@ -210,9 +236,11 @@ step).
 
 ## 10. Open items (resume here)
 
-1. **Certificate / SignPath** (§6): apply to SignPath Foundation, ask the three questions, then
-   wire the two signing steps in `store-msi`. Until an installer is signed, a resubmission will
-   fail 10.2.9.
+1. **Certificate** (§6): SignPath is blocked by the AIOrchestrator licence — decide first whether the
+   engine (and AIOffice.VoiceAgent.Win, which ships without any licence file) may be released under
+   an OSI licence; if yes, wire the two signing steps in `store-msi`; if no, buy an OV certificate
+   (no licensing conditions) or make MSIX the Store channel (Store re-signs, §8). Until an
+   installer is signed, a resubmission will fail 10.2.9.
 2. **MSIX**: confirm PSF eligibility with Partner Center, decide about the scheduled-task feature
    and child processes, add the PSF fixup + real branding, then build the package on the real
    payload (add `-Verify` only if disk allows: it unpacks the whole 1.3 GB package).
