@@ -183,6 +183,9 @@ mirrors the AIOffice settings panel:
   provider as the persistent default (stored as `IsDefault` in `providers.json`; when no
   provider is marked, the first one in the list is the default). The provider currently
   selected in the dropdown is shown as the active model.
+- **Save** applies a provider you change in the dropdown as the provider in use: it becomes
+  the default for new chats and the chat that is open right now follows it. So the choice
+  made here survives closing and reopening the settings and restarting the app.
 - `/model` switches **only the current chat** on the fly — it never changes the default
   configured here. New chats (Chat → New Chat, `/new`) always start from the default.
 - Field edits (email, general) apply when you press **Save**; **Close** discards them.

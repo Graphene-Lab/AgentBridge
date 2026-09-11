@@ -3647,12 +3647,16 @@ public static class ConsoleTui
 
                 // API keys are set per-provider in the Add/Edit dialog below (providers.json);
                 // local providers (localhost/127.0.0.1 endpoint) simply leave the field empty.
-                int y = 3;
+                // The rows below must fit the tab page's visible content (12 rows on a 30-row
+                // console): provider row, model row, list caption, list, blank, Add/Edit/Remove,
+                // Set default, hint — otherwise the LAST rows are clipped off screen (the
+                // persistent-default button was unreachable that way).
+                int y = 2;
                 llmTab.Add(new Label { Text = Dictionary.SetupConfiguredProviders, X = 1, Y = y, Width = Dim.Fill() });
                 y++;
-                providersList.X = 1; providersList.Y = y; providersList.Width = 62; providersList.Height = 6;
+                providersList.X = 1; providersList.Y = y; providersList.Width = 62; providersList.Height = 5;
                 llmTab.Add(providersList);
-                y += 7;
+                y += 6;
                 var addBtn = new Button { Text = Dictionary.SetupAdd, X = 1, Y = y };
                 var editBtn = new Button { Text = Dictionary.SetupEdit, X = Pos.Right(addBtn) + 1, Y = y };
                 var removeBtn = new Button { Text = Dictionary.SetupRemove, X = Pos.Right(editBtn) + 1, Y = y };
@@ -3856,7 +3860,21 @@ public static class ConsoleTui
 
                 var chosen = (providerDropdown.Text ?? "").Trim();
                 if (chosen.Length > 0 && !string.Equals(chosen, _provider, StringComparison.OrdinalIgnoreCase))
+                {
+                    // The dropdown opens on the provider in use, so a different value means the
+                    // user picked one here. That choice is the provider the PROGRAM uses, not a
+                    // one-shot session switch: adopt it as the persistent default (new chats
+                    // start from it, providers.json keeps IsDefault) and follow it in the chat
+                    // open right now. Without the persist the choice was lost on restart and the
+                    // settings came back showing the previous provider. /model stays the
+                    // session-only switch; "Set default" does the same without touching the chat.
+                    if (!string.Equals(chosen, ProviderConfigs.Default.ProviderName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ProviderConfigs.SetDefault(chosen, persist: true);
+                        _ = SetDefaultProviderAsync(chosen);
+                    }
                     _ = SwitchModelAsync(chosen);   // same path as /model (HTTP /v1/control)
+                }
 
                 AddNote(pathNote == null ? Dictionary.SetupSaved : string.Format(Dictionary.SetupSavedWithNote, pathNote));
                 Log.LogStep($"TUI ModelSetup saved (provider: {providerDropdown.Text})", monitor: true);

@@ -32,6 +32,7 @@ what a passing run looks like.
 | 1 | **PuppetSheet** (`e2e/PuppetSheet`) | The agent creates a **spreadsheet** (single English worksheet: small dataset + one chart, A4 page setup) from a plain prompt. The harness verifies the produced `.xlsx` structurally: all-sheet data cells, namespace-aware chart series, A4 page setup on the data sheet, well-formed XML — and reports the file path. | `dotnet run --project e2e\PuppetSheet` (optional `--agent-exe <path>`, `--keep`, `--smoke`) |
 | 2 | **PuppetDocs** (`e2e/PuppetDocs`) | The agent creates **office documents** (invoice + employment contract) from the OfficeSupportTool templates, with the material attached via `/files add`; verifies the `.docx` content. | `dotnet run --project e2e\PuppetDocs` (optional `--agent-exe <path>`, `--keep`) |
 | 3 | **TuiSmoke** (`e2e/TuiSmoke`) | Smoke test of the terminal UI itself via a Windows **pseudoconsole (ConPTY)**: logo + input line render, the model picker opens and closes, a chat message is sent. | `dotnet run --project e2e\TuiSmoke [agent-exe] [base-url]` |
+| 4 | **SetupProviderSwitch** (`e2e/SetupProviderSwitch`) | The provider chosen in the **Main settings** dialog (`/setup` → LLM tab → "Provider attivo" → Save) is the provider the program uses: it reaches the running session (status bar + "provider now" note) **and** is persisted as the default, so closing and reopening the settings — and restarting the app — show the same provider. | `dotnet run --project e2e\SetupProviderSwitch` (optional `--agent-exe <path>`, `--keep`, `--trace`) |
 
 ## Verification pattern
 

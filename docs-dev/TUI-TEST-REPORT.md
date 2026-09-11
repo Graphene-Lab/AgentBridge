@@ -346,6 +346,20 @@ Elementi presenti nel codice ma non ancora esercitati nei blocchi precedenti —
 
 ---
 
+## BLOCCO 6 — provider attivo dal dialog Impostazioni (2026-09-11)
+
+| # | Passo | Azione | Esito | Evidenza |
+|---|-------|--------|-------|----------|
+| P1 | **Sintomo (utente)** | si cambia provider attivo in `/setup` (es. DeepSeekBridge → Gemini), si salva, si rientra nelle impostazioni | ❌ | il provider salvato non era quello mostrato: cambiando chat/sessione (o riavviando) tornava il provider precedente — "le impostazioni della TUI non si riflettono nelle impostazioni di programma" |
+| P2 | **Causa** (dal codice) | Save del tab LLM (`ShowModelSetupDialog`) | ✅ | invocava **solo** `SwitchModelAsync` (POST `/v1/control` `llm_provider` = switch della **sessione**); il default persistente (`IsDefault` in `providers.json` + `set_default_provider`) era raggiungibile **solo** dal bottone separato "Imposta come predefinito", che in una console da 30 righe cadeva **fuori dall'area visibile** del tab (hit-test: contenuto tab = 12 righe, il bottone era a riga 12 e l'hint a 13) |
+| P3 | **Fix 1 — semantica** | `Tui.cs`: il Save adotta il provider scelto come **default del programma** (`ProviderConfigs.SetDefault(persist: true)` + `set_default_provider` al server) **e** lo segue nella chat aperta ora (`SwitchModelAsync`). `/model` resta lo switch di sola sessione | ✅ | il provider scelto è quello usato dalla sessione corrente **e** quello da cui partono le nuove chat/sessioni |
+| P4 | **Fix 2 — layout** | `Tui.cs`: righe del tab LLM compattate (lista provider 6→5 righe, caption a riga 2, `y += 6`) → contenuto 12 righe, il bottone "Imposta come predefinito" + hint tornano visibili nella stessa altezza dialog (78%) | ✅ | capture: `⟦ Imposta come predefinito ⟧` + "Le nuove chat usano il predefinito; /model cambia solo questa chat" visibili; niente più righe tagliate |
+| P5 | **Test di regressione** | `e2e/SetupProviderSwitch` (DEBUG in puppet mode, TCP 5292; seed `providers.json` con DeepSeekBridge=default + TestGemini) | ✅ | **3 FAIL prima del fix → ALL OK dopo**: check 0 (dropdown = provider attivo all'apertura), interazione (dropdown → TestGemini), propagazione (status bar, nota "provider ora: TestGemini", log `TUI ModelSetup saved (provider: TestGemini)`, `IsDefault` su TestGemini), close/reopen (dropdown = TestGemini), **riavvio app** (nuova sessione e impostazioni = TestGemini), ripristino |
+
+**Nota interazione (documentata nel test)**: nella `DropDownList` ReadOnly di Terminal.Gui v2.4.17 il popover si apre con **Space** (Activate); **Enter** è Accept e risale al bottone di default del dialog (Salva) — quindi Enter sul dropdown salva e chiude senza cambiare nulla. Il test usa la sequenza reale: Space → frecce → Enter (scelta), Enter (Salva).
+
+---
+
 
 
 
