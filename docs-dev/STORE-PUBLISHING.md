@@ -94,6 +94,63 @@ Three defects were found; two are fixed and verified, one is open:
 
 Note: the download speed was *not* a defect — see §3.
 
+## 5b. Payload audit of the flagged package (2026-09-12)
+
+Run while waiting on `reportapp@microsoft.com`, to try to find the file behind the 10.2.3 flag,
+which named neither a file nor a detection.
+
+Package under audit: `GrapheneAgentBridge-1.26.9.6.msi`, 896,618,740 bytes,
+SHA-256 `e32abbd509aa8cdb3e5b07578d13de493d4c74b112a33029b9d65ddb386d8323`, as served by
+`https://aitechnology.it/agentbridge/msi/1.26.09.06`.
+
+**How to read an MSI without installing it** (repeatable, nothing executed):
+
+- Tables and streams: the `WindowsInstaller.Installer` COM object, `OpenDatabase(path, 0)`. In
+  PowerShell 5.1 the `InvokeMember` flags must be `[System.Reflection.BindingFlags]::InvokeMethod`
+  and `::GetProperty` — `'GetMethod'` is not a valid `BindingFlags` and fails at the cast.
+- Real file names: `msiexec /a <msi> /qn TARGETDIR=<dir>` (an *admin* extract lays files out with
+  their long names and does not register the product). **7-Zip is not enough**: it opens the MSI and
+  its cabinets but yields only the 8.3 short names (`F2`, `F117`), which hides extensions and makes
+  a PE/signature audit useless.
+
+| Check | Result |
+|---|---|
+| Files / size | 929 files, 1.407 GB |
+| PE files | 24 |
+| — validly signed | 2, both Microsoft-signed BCL libs (`System.CommandLine.dll`, `System.ServiceModel.Syndication.dll`) |
+| — unsigned | 22, all of ours: `agent.EXE` (731 MB), the six tool DLLs, the `ownaudio_ffi` / `ownvst3` native libs, `officecli.dll`, `AngleSharp.dll`, `HtmlToOpenXml.dll` |
+| — untrusted / hash mismatch | 0 |
+| The MSI itself | `NotSigned` |
+| Defender custom scan of the **fully extracted** tree | "found no threats" |
+| Custom actions | **none** — `InstallExecuteSequence` is entirely standard Windows Installer actions |
+| Install location | `%ProgramFiles64%\Graphene Lab\AgentBridge` (`ALLUSERS=1`, per-machine) |
+| Shortcuts | Start Menu + Desktop → `[INSTALLFOLDER]agent.exe`, both named "Graphene AgentBridge" |
+| `Registry` table | **absent** — the Add/Remove Programs entry comes from Windows Installer's own registration (`DisplayName` = `ProductName`, `Publisher` = `Manufacturer`) |
+
+Scanning the extracted tree is the stronger test than scanning the `.msi`: a whole-file scan does not
+necessarily recurse as deep into the five embedded cabinets.
+
+Nothing in the payload looked like a detection target, which supports the false-positive reading of
+10.2.3 — but only Microsoft can name the file, hence the email.
+
+Two real defects this audit surfaced (both fixed):
+
+1. **`ProductVersion` collapsed every release within a month to one value.** `New-StoreInstaller.ps1`
+   took the first three sections of the release version, so `1.26.09.06` and `1.26.09.11` both
+   produced `ProductVersion 1.26.9` (read straight out of the shipped MSI). `MajorUpgrade` does not
+   treat a same-version product as related, so installing a newer build over an older one did not
+   upgrade — it left duplicate Add/Remove Programs entries and orphaned components. The date's month
+   and day are now folded into the build field as `MM*100+DD` (`1.26.906`, `1.26.911`, …
+   `1.26.1231`): unique, monotonically increasing, far below the 65535 build limit.
+2. **`ProductLanguage = 0`.** The summary template is `x64;0`, not a valid LCID (normally
+   `x64;1033`) because the build passes no `-culture`. `msiexec` tolerates it, but it leaves the
+   package metadata ambiguous to anything reading the summary stream — set it explicitly before the
+   next Store submission.
+
+Naming note: the MSI's `Manufacturer` is **"Graphene Lab"** (space) while the Store publisher is
+**`Graphene-Lab`** (hyphen). Windows Installer writes the ARP publisher from `Manufacturer`, so the
+two spellings will not line up if the Store compares them. Pick one spelling and use it everywhere.
+
 ## 6. Signing: the open problem and the routes
 
 No code-signing certificate exists (2026-09-11). Visual Studio can only create **self-signed test**
@@ -273,6 +330,16 @@ account: an individual developer account has no Entra tenant, so the Store Submi
   `GrapheneAgentBridge-1.26.9.6.msi` (unpadded) while `v1.26.09.11` ships the padded name, so the
   proxy tries both forms and uses the first that exists (found 2026-09-11 when
   `/agentbridge/msi/1.26.09.06` answered 404 and the download looked like a broken Store URL).
+- **The tag form varies too, not just the asset name.** Building the tag verbatim from the requested
+  version made `/msi/1.26.9.6` ask for the non-existent tag `v1.26.9.6` and 404 (2026-09-12). The
+  proxy now crosses tag form × asset-name form. Two traps when doing this: pad **only** the month/day
+  sections (padding major/minor turns `1.26.x` into the bogus `01.26.x`), and keep the `v` prefix on
+  the tag only — an early cut leaked it into the asset name on the latest-release path
+  (`GrapheneAgentBridge-v1.26.9.11.msi`), which 404s.
+- **7-Zip yields only 8.3 short names out of an MSI's cabinets** (`F2`, `F117`), so it cannot be
+  used to audit PE files or signatures. Use `msiexec /a <msi> /qn TARGETDIR=<dir>` instead.
+- **`Get-ChildItem -Include` silently returns nothing without a wildcarded `-Path`.** Use
+  `-Recurse -File` and filter on `.Extension` in `Where-Object`, or the audit reports zero files.
 - **Case-insensitive path collisions in the payload**: the app already ships `assets\`, so a
   generated `Assets\` for the manifest resolves to the *same* directory on NTFS (the pack succeeds
   for the wrong reason and the app's asset tree gets polluted). Generated package assets therefore
@@ -281,26 +348,42 @@ account: an individual developer account has no Entra tenant, so the Store Submi
 
 ## 10. Open items (resume here)
 
-1. **Certificate** (§6): SignPath is blocked by the AIOrchestrator licence — the engine is now the
+1. **Malware flag 10.2.3 — waiting on Microsoft.** The validation flagged the package but named
+   neither a file nor a detection, and its UI exposes neither. The full payload audit in §5b found
+   nothing: Defender reports no threats against the hash-verified MSI *and* against the fully
+   extracted tree. Escalation is by email to `reportapp@microsoft.com` (sent by the account owner
+   from `andrea_bruno@hotmail.com`), asking for the detection name and the offending file, and
+   giving the package identity, the clean-Defender evidence and the open-source repository list.
+   `WDSI` cannot take the file (500 MB limit vs an 855 MB payload) and `aka.ms/storedevsupport`
+   refuses personal accounts, so email is the only route.
+2. **Certificate** (§6): SignPath is blocked by the AIOrchestrator licence — the engine is the
    only non-OSI component in the payload (AIOffice.VoiceAgent.Win was licensed AGPL-3.0 on
    2026-09-11). Decide whether the engine may be released under an OSI licence; if yes, wire the two
    signing steps in `store-msi`; if no, MSIX is the free Store route (Store re-signs, §8) or buy an
    OV certificate (no licensing conditions). Until an installer is signed, a resubmission of the
    MSI/EXE product fails 10.2.9.
-2. **MSIX**: the tooling is complete (PSF included, `store-msix` job in CI). What remains is
+3. **`ProductLanguage = 0`** (§5b): pass a real culture to the WiX build so the summary template
+   reads `x64;1033` instead of `x64;0`. Small, but it removes an ambiguity in the package metadata
+   before the next submission.
+4. **Publisher spelling** (§5b): `Manufacturer = "Graphene Lab"` in the MSI vs `Graphene-Lab` as the
+   Store publisher. Align deliberately — one spelling everywhere.
+5. **MSIX**: the tooling is complete (PSF included, `store-msix` job in CI). What remains is
    Partner Center-facing: confirm that a PSF-bearing package is accepted, reserve the MSIX product
    if needed, set `STORE_IDENTITY_NAME`/`STORE_PUBLISHER`, replace the placeholder artwork, and do
    the local install test — see §8b for the ordered click-list.
-3. **Resubmission**: after a signed MSI exists, `IsPrerelease=false` release → tag `v1.yy.MM.dd`
-   → MSI on the versioned URL → Partner Center resubmit (or `store-submit` with the `STORE_*`
-   secrets).
-4. Nice-to-have: `HEAD`/range smoke test in `install-agentbridge-mirror.sh` is already there;
+6. **Resubmission**: after the malware flag is cleared *and* a signed MSI exists, `IsPrerelease=false`
+   release → tag `v1.yy.MM.dd` → MSI on the versioned URL → Partner Center resubmit (or
+   `store-submit` with the `STORE_*` secrets).
+7. Nice-to-have: `HEAD`/range smoke test in `install-agentbridge-mirror.sh` is already there;
    extend the release notes with the Store URL.
-5. **Check the MSI channel with a standard (non-admin) user.** The MSI installs per-machine into
+8. **Check the MSI channel with a standard (non-admin) user.** The MSI installs per-machine into
    `%ProgramFiles%\Graphene Lab\AgentBridge` and the app writes `PersistentData\` next to
    `agent.exe` (`AppConfig.cs:21`); a standard user may not be allowed to write there, so the
    configuration could fail to save. Reproduce with a plain user account (and note the same root
    cause blocks MSIX, where the package directory is read-only by design).
+9. **Release asset naming is inconsistent** — `v1.26.09.06` attached the unpadded MSI name,
+   `v1.26.09.11` the padded one. The proxy tolerates both now, but emitting one convention from CI
+   would remove a whole class of confusion.
 
 ## 11. Useful commands
 
@@ -314,6 +397,18 @@ sudo bash /home/agent/store-proxy/install-agentbridge-mirror.sh
 # MSI + MSIX locally
 powershell -File tools\store\New-StoreInstaller.ps1 -PayloadDir <payload> -Version 1.26.09.12
 powershell -File tools\store\New-StoreMsix.ps1      -PayloadDir <payload> -Version 1.26.09.12 -Verify
+
+# Read an MSI without installing it (§5b): lays out real file names, registers nothing
+msiexec /a GrapheneAgentBridge-1.26.9.6.msi /qn TARGETDIR=D:\ab-admin
+
+# Per-file Authenticode status over an extracted payload (see the -Include trap in §9)
+powershell -NoProfile -Command "$r='D:\ab-admin'; Get-ChildItem -LiteralPath $r -Recurse -File -Force |
+  ? { $_.Extension -in '.exe','.dll','.sys','.ocx' } | % { $s=Get-AuthenticodeSignature $_.FullName;
+      if ($s.Status -ne 'Valid') { '{0,-14} {1}' -f $s.Status, $_.FullName.Substring($r.Length+1) } }"
+
+# Defender scan of the extracted tree (not just the .msi — cabinets may not be recursed)
+"C:\ProgramData\Microsoft\Windows Defender\Platform\<version>\MpCmdRun.exe" `
+  -Scan -ScanType 3 -File D:\ab-admin -DisableRemediation
 ```
 
 CI artifacts of a release run: `store-msi` (the `.msi` for the EXE/MSI product, attached to the
