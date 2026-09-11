@@ -1,29 +1,37 @@
 #!/usr/bin/env python3
-"""Streams the latest AgentBridge Windows Store MSI from GitHub Releases.
+"""Streams an AgentBridge Windows Store MSI from GitHub Releases.
 
 Microsoft Partner Center (win32 EXE/MSI products) requires the package URL to
-answer HTTP 200 WITHOUT redirects. GitHub release download URLs always 302 to a
-signed CDN URL, so this daemon performs that hop internally and streams the
-body through, presenting a single stable local URL:
+answer HTTP 200 WITHOUT redirects and the binary behind it to stay frozen for
+that URL. GitHub release download URLs always 302 to a signed CDN URL, so this
+daemon performs that hop internally and streams the body through, presenting two
+stable local URLs:
 
-    https://aitechnology.it/agentbridge/msi
+    https://aitechnology.it/agentbridge/msi/<version>  -> MSI of release tag v<version>
+    https://aitechnology.it/agentbridge/msi            -> MSI of the LATEST release
 
-No file is stored on this box (disk is tight): every request resolves the
-current "latest" AgentBridge release and pipes the MSI bytes through in chunks.
+Store submissions must use the versioned form: a release tag's asset never
+changes, while /msi follows every new release (policy 10.2.9 requires a
+versioned URL whose binary does not change after submission). The response
+relays the upstream Content-Length and Range support so the Store download
+manager can size, resume and verify the ~1.3 GB installer — a chunked response
+with no length and no ranges made the 2026-09 certification fail with policy
+10.3.4 "the product failed to install through the Store".
 
-Resolution is redirect-based (GET /releases/latest with redirects disabled and
-read the Location header), not the GitHub API, so there is no rate limit. The
-asset name is our own release convention: GrapheneAgentBridge-<tag-without-v>.msi.
+No file is stored on this box (disk is tight): every request resolves the tag
+and pipes the MSI bytes through in chunks.
 
 Endpoints:
-    GET /          -> streams the MSI of the latest release (200, octet-stream)
-    GET /healthz   -> "ok"
+    GET|HEAD /msi           -> MSI of the latest release (200, octet-stream)
+    GET|HEAD /msi/<version> -> MSI of release tag v<version>, immutable
+    GET /healthz            -> "ok"
 """
 import http.server
 import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 REPO = "Graphene-Lab/AgentBridge"
@@ -31,6 +39,7 @@ PREFIX = "GrapheneAgentBridge-"
 PORT = 8686
 CHUNK = 256 * 1024
 CACHE_SECONDS = 300  # /releases/latest is resolved at most once per 5 min per process
+VERSION_PATH = re.compile(r"^/msi/v?([0-9]+(?:\.[0-9]+)+)$")
 
 _cache = {"tag": None, "at": 0.0}
 
@@ -69,8 +78,9 @@ def _latest_tag():
         raise
 
 
-def _msi_url():
-    tag = _latest_tag()
+def _asset(version):
+    """(asset url, tag) for a pinned version, or for the latest release if None."""
+    tag = ("v" + version) if version else _latest_tag()
     url = "https://github.com/%s/releases/download/%s/%s%s.msi" % (
         REPO, tag, PREFIX, tag.lstrip("v"))
     return url, tag
@@ -89,38 +99,64 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        if self.path == "/healthz":
+        self._serve(body=True)
+
+    def do_HEAD(self):
+        self._serve(body=False)
+
+    def _serve(self, body):
+        path = urllib.parse.urlparse(self.path).path
+        if path == "/healthz":
             self._text(200, "ok")
             return
+        if path in ("/", "/msi"):
+            version = None
+        else:
+            m = VERSION_PATH.match(path)
+            if not m:
+                self._text(404, "proxy: unknown path %s — use /msi or /msi/<version>" % path)
+                return
+            version = m.group(1)
         try:
-            url, tag = _msi_url()
+            url, tag = _asset(version)
             # Open the upstream FIRST (follows the GitHub 302 chain): only answer
             # 200 once the asset is confirmed reachable, so a missing installer
             # (e.g. between release creation and MSI upload) is an honest error
             # instead of a 200 with an empty body.
-            up = urllib.request.urlopen(url, timeout=60)
+            req = urllib.request.Request(url)
+            rng = self.headers.get("Range")
+            if rng:
+                req.add_header("Range", rng)
+            up = urllib.request.urlopen(req, timeout=60)
         except urllib.error.HTTPError as e:
             self._text(e.code, "proxy: GitHub returned %s for %s" % (e.code, url))
             return
         except Exception as e:
             self._text(502, "proxy: cannot reach the release asset: %s" % e)
             return
-        name = "%s%s.msi" % (PREFIX, tag.lstrip("v"))
-        self.send_response(200)
-        self.send_header("Content-Type", "application/octet-stream")
-        self.send_header("Content-Disposition", 'attachment; filename="%s"' % name)
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()  # no Content-Length: body is close-delimited (HTTP/1.0)
         try:
-            with up:
-                while True:
-                    chunk = up.read(CHUNK)
-                    if not chunk:
-                        break
-                    try:
-                        self.wfile.write(chunk)
-                    except (BrokenPipeError, ConnectionResetError):
-                        return
+            name = "%s%s.msi" % (PREFIX, tag.lstrip("v"))
+            self.send_response(up.status)  # 206 when the client asked for a range
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Disposition", 'attachment; filename="%s"' % name)
+            self.send_header("Cache-Control", "no-store")
+            # Relay the upstream length/range headers: a close-delimited body with
+            # no Content-Length cannot be sized or resumed by the Store downloader.
+            for h in ("Content-Length", "Content-Range", "Accept-Ranges"):
+                v = up.headers.get(h)
+                if v:
+                    self.send_header(h, v)
+            self.end_headers()
+            if not body:
+                return
+            while True:
+                chunk = up.read(CHUNK)
+                if not chunk:
+                    break
+                try:
+                    self.wfile.write(chunk)
+                except (BrokenPipeError, ConnectionResetError):
+                    return
         except Exception as e:
             # Headers already sent; just drop the connection to signal the error.
             print("proxy stream error: %s" % e, file=sys.stderr)
@@ -129,6 +165,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             except Exception:
                 pass
             return
+        finally:
+            up.close()
 
 
 if __name__ == "__main__":

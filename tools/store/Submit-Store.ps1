@@ -5,11 +5,12 @@ at a new installer URL and submits it for certification.
 
 .DESCRIPTION
 MSI/EXE Store products reference the installer by an EXTERNAL package URL (there is no
-file upload): Partner Center requires the URL to answer HTTP 200 without redirects, so the
-MSI is served by the streaming proxy on the AIOffice VPS
-(https://aitechnology.it/agentbridge/msi — see tools/store/vps/). This script updates the
-current draft's package URL, commits the packages module and creates the submission, all
-through the Store Submission API:
+file upload): Partner Center requires the URL to answer HTTP 200 without redirects and
+the binary behind it to stay frozen, so the MSI is served by the streaming proxy on the
+AIOffice VPS (https://aitechnology.it/agentbridge/msi/<version>, pinned to release tag
+v<version> — see tools/store/vps/). This script updates the current draft's package URL,
+commits the packages module and creates the submission, all through the Store Submission
+API:
 
     https://api.store.microsoft.com/submission/v1/product/{productId}/...
 
@@ -19,17 +20,18 @@ STORE_TENANT_ID / STORE_CLIENT_ID / STORE_CLIENT_SECRET / STORE_PRODUCT_ID /
 STORE_SELLER_ID (Seller ID: Partner Center → Account settings, shown on the dashboard).
 
 .PARAMETER PackageUrl
-Stable non-redirecting URL of the MSI for this release (e.g. https://aitechnology.it/agentbridge/msi).
+Versioned non-redirecting URL of the MSI for this release
+(e.g. https://aitechnology.it/agentbridge/msi/1.26.09.12).
 
 .PARAMETER Version
-Release version, e.g. 1.26.09.08 (used only for logging).
+Release version, e.g. 1.26.09.12 (used only for logging).
 
 .PARAMETER DryRun
 Resolve config + token + current draft packages and print the PATCH that would be sent,
 without changing anything.
 
 .EXAMPLE
-powershell -File tools\store\Submit-Store.ps1 -PackageUrl https://aitechnology.it/agentbridge/msi -Version 1.26.09.08
+powershell -File tools\store\Submit-Store.ps1 -PackageUrl https://aitechnology.it/agentbridge/msi/1.26.09.12 -Version 1.26.09.12
 #>
 param(
     [Parameter(Mandatory)][string]$PackageUrl,

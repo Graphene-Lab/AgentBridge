@@ -54,11 +54,19 @@ updates the **Microsoft Store** app ("Graphene AgentBridge", win32 EXE/MSI produ
   **package URL** that must answer HTTP 200 **without redirects** — GitHub download URLs
   are rejected because they always redirect. The MSI is therefore streamed by a small
   python3 proxy on the AIOffice VPS (`tools/store/vps/mirror-msi.py`, systemd
-  `agentbridge-mirror`) at **https://aitechnology.it/agentbridge/msi**: it always serves
-  the MSI of the LATEST GitHub release, nothing is stored on the VPS disk. After the
-  release is out, the `store-submit` job calls `tools/store/Submit-Store.ps1` (Store
+  `agentbridge-mirror`) at **https://aitechnology.it/agentbridge/msi/<version>**, pinned to
+  release tag `v<version>`; nothing is stored on the VPS disk. The submitted URL must be
+  the versioned form and its binary must not change afterwards (policy 10.2.9), so the
+  proxy does NOT redirect and serves `Content-Length`, ranges and `HEAD` — the bare
+  `/agentbridge/msi` follows the latest release and is for manual downloads only. After
+  the release is out, the `store-submit` job calls `tools/store/Submit-Store.ps1` (Store
   Submission API, `api.store.microsoft.com`): swap the draft package URL → commit →
   submit. Microsoft certifies; once PUBLISHED, Store users update automatically.
+- **Signing.** Policy 10.2.9 also requires the MSI and every PE file it ships to be signed
+  by a certificate chaining to a CA in the Microsoft Trusted Root Program. Set the
+  `SIGN_PFX_BASE64` / `SIGN_PFX_PASSWORD` (or `SIGN_THUMBPRINT`) repo secrets so the
+  `store-msi` job signs the payload and the MSI; without them the MSI is unsigned and
+  certification fails.
 - **Store credentials** are the repo secrets `STORE_TENANT_ID`, `STORE_CLIENT_ID`,
   `STORE_CLIENT_SECRET`, `STORE_PRODUCT_ID`, `STORE_SELLER_ID` (local runs can use
   `tools/store/store-secrets.local.json`, gitignored). The Entra ID app must hold the

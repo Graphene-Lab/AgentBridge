@@ -9,6 +9,9 @@ tool (tools/store/.config manifest, `dotnet tool restore`). Installs to
 kokoro.onnx, voices/, Tools/, assets/), adds Start-menu + desktop shortcuts to agent.exe
 and the standard uninstall entry. The MSI is the package uploaded to the Microsoft Store
 ("EXE or MSI app" product). The .wxs is generated with System.Xml.Linq (safe escaping).
+Store policy 10.2.9 also requires the MSI AND every PE file it ships to be signed with a
+certificate chaining to a Microsoft Trusted Root CA: pass a certificate (-SignPfx /
+-SignThumbprint, or the SIGN_* env vars), otherwise the MSI is built unsigned.
 
 .PARAMETER PayloadDir
 Absolute path of the win-x64 payload (must contain agent.exe at its root).
@@ -29,7 +32,16 @@ param(
     # Cabinet compression: 'high' (LZX, smaller) is fine for small payloads; 'low'
     # (mszip) is more robust for very large payloads (WiX wixnative cabbing of ~1 GB+
     # trees has failed with "failed to compress cabinet" under 'high').
-    [ValidateSet('low', 'high')][string]$Compression = 'low'
+    [ValidateSet('low', 'high')][string]$Compression = 'low',
+    # Code signing (Store 10.2.9), either:
+    #   -SignPfx <file.pfx> [-SignPfxPassword <pw>]  : PFX on disk
+    #   -SignThumbprint <sha1>                       : cert in LocalMachine\My (token/HSM)
+    # or the env vars SIGN_PFX / SIGN_PFX_PASSWORD / SIGN_THUMBPRINT / SIGN_TIMESTAMP_URL.
+    # Without any of them the MSI is built UNSIGNED (Store certification fails).
+    [string]$SignPfx,
+    [string]$SignPfxPassword,
+    [string]$SignThumbprint,
+    [string]$TimestampUrl
 )
 
 $ErrorActionPreference = 'Stop'
@@ -38,6 +50,36 @@ $exe = Join-Path $PayloadDir 'agent.exe'
 if (-not (Test-Path $exe)) { throw "agent.exe not found at '$exe' — is this a win-x64 AgentBridge payload?" }
 if (-not $OutDir) { $OutDir = Join-Path (Split-Path -Parent $PayloadDir) 'store-msi' }
 $ver = ($Version.TrimStart('v') -split '\.')[0..2] -join '.'
+
+# ── Code signing configuration ────────────────────────────────────────────
+if (-not $SignPfx) { $SignPfx = $env:SIGN_PFX }
+if (-not $SignPfxPassword) { $SignPfxPassword = $env:SIGN_PFX_PASSWORD }
+if (-not $SignThumbprint) { $SignThumbprint = $env:SIGN_THUMBPRINT }
+if (-not $TimestampUrl) { $TimestampUrl = 'http://timestamp.digicert.com' }
+if ($env:SIGN_TIMESTAMP_URL) { $TimestampUrl = $env:SIGN_TIMESTAMP_URL }
+
+$signTool = $null
+if ($SignPfx -or $SignThumbprint) {
+    $signTool = (Get-Command signtool.exe -ErrorAction SilentlyContinue).Source
+    if (-not $signTool) {
+        $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending | Select-Object -First 1
+        if (-not $sdk) { throw 'Signing requested but signtool.exe was not found (install the Windows SDK or add it to PATH).' }
+        $signTool = $sdk.FullName
+    }
+    Write-Host "Signing with $signTool, timestamped by $TimestampUrl"
+}
+
+function Invoke-Sign([string]$Path) {
+    $signArgs = @('sign', '/fd', 'sha256', '/tr', $TimestampUrl, '/td', 'sha256')
+    if ($SignPfx) {
+        $signArgs += @('/f', $SignPfx)
+        if ($SignPfxPassword) { $signArgs += @('/p', $SignPfxPassword) }
+    }
+    else { $signArgs += @('/sha1', $SignThumbprint, '/sm') }
+    & $signTool @signArgs $Path
+    if ($LASTEXITCODE -ne 0) { throw "signtool failed for '$Path' (exit $LASTEXITCODE)" }
+}
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $wxs = Join-Path $root 'AgentBridge.wxs'
@@ -158,6 +200,20 @@ $wix.Add($dirFrag)
 $xw.Add($wix)
 $xw.Save($wxs)
 
+# ── Sign the payload (the MSI embeds these bytes: sign before the cabinet) ──
+if ($signTool) {
+    $peFiles = @(Get-ChildItem $rootFull -Recurse -File | Where-Object { $_.Extension -in '.exe', '.dll', '.sys' })
+    Write-Host ("Signing {0} payload PE files" -f $peFiles.Count)
+    foreach ($f in $peFiles) {
+        # Skip files whose signature is already valid: re-signing would strip a
+        # Microsoft-signed runtime DLL and gain nothing.
+        if ((Get-AuthenticodeSignature $f.FullName).Status -ne 'Valid') { Invoke-Sign $f.FullName }
+    }
+}
+else {
+    Write-Warning 'No signing certificate (-SignPfx / -SignThumbprint / SIGN_* env vars): the MSI is UNSIGNED and Store certification fails (policy 10.2.9).'
+}
+
 # ── Build the MSI ─────────────────────────────────────────────────────────
 Push-Location $root
 try {
@@ -172,6 +228,7 @@ try {
         $msi = Join-Path $OutDir ("GrapheneAgentBridge-" + $Version.TrimStart('v') + '.msi')
         & dotnet tool run wix build $wxs -o $msi -arch x64
         if ($LASTEXITCODE -ne 0) { throw "wix build failed (exit $LASTEXITCODE)" }
+        if ($signTool) { Invoke-Sign $msi }
         Write-Host ("MSI created: {0} ({1:N1} MB)" -f $msi, ((Get-Item $msi).Length / 1MB))
     }
     finally { $env:TMP = $oldTmp; $env:TEMP = $oldTemp }

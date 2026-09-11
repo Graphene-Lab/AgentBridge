@@ -23,10 +23,16 @@ release.yml
                                      is done manually (~3 min, see section 4).
 
 VPS proxy (tools/store/vps/): a python3 daemon (systemd, 127.0.0.1:8686) resolves
-the LATEST Graphene-Lab/AgentBridge release (redirect-based, no GitHub API) and
-streams its MSI through nginx at:
+the Graphene-Lab/AgentBridge release (redirect-based, no GitHub API) and streams
+its MSI through nginx at:
 
-    https://aitechnology.it/agentbridge/msi     → HTTP 200, no redirects, no file on disk
+    https://aitechnology.it/agentbridge/msi/<version>  → the MSI of release tag v<version>
+    https://aitechnology.it/agentbridge/msi            → the MSI of the LATEST release
+
+Both answer HTTP 200 without redirects, with Content-Length, Accept-Ranges and
+HEAD support; no file is stored on the VPS disk. Store submissions use the
+VERSIONED url: policy 10.2.9 requires the binary behind the submitted URL to stay
+frozen, while /agentbridge/msi follows every new release.
 ```
 
 The MSI is built by the `store-msi` job and attached to the GitHub release by the
@@ -63,7 +69,7 @@ Manual run:
 
 ```powershell
 powershell -File tools\store\Submit-Store.ps1 `
-    -PackageUrl https://aitechnology.it/agentbridge/msi -Version 1.26.09.08
+    -PackageUrl https://aitechnology.it/agentbridge/msi/1.26.09.12 -Version 1.26.09.12
 # add -DryRun to only resolve config/token/draft and print the PATCH, changing nothing
 ```
 
@@ -109,8 +115,9 @@ Files to deploy (versioned under `tools/store/vps/`):
 | `agentbridge-mirror.service` | `/etc/systemd/system/agentbridge-mirror.service` |
 | `agentbridge-msi.nginx.conf` | `/etc/nginx/snippets/agentbridge-msi.conf` + `include` in the aitechnology.it `:443` server block |
 
-Smoke test after install: `curl -sI https://aitechnology.it/agentbridge/msi` must
-answer `200 OK` + `Content-Type: application/octet-stream`.
+Smoke test after install: `curl -sI https://aitechnology.it/agentbridge/msi/1.26.09.12`
+must answer `200 OK`, `Content-Type: application/octet-stream` and a `Content-Length`
+(the Store downloader needs the length and the ranges; a `HEAD` must answer 200 too).
 
 ## 4. Manual fallback (no Entra app — individual developer accounts)
 
@@ -120,28 +127,44 @@ granted to every account). Until a tenant is available the Store update is a ~3 
 manual step per release — the MSI itself is always built and attached to the GitHub
 release by CI, so nothing else is needed:
 
-1. Mint the non-redirecting URL of the MSI (GitHub download URLs are rejected by
-   Partner Center because they redirect; the signed CDN URL answers 200 and is valid
-   ~1 hour). The helper copies the URL to the clipboard and can open the Partner Center
-   product page in the default browser:
+1. Take the immutable package URL of the release being submitted:
 
-   ```powershell
-   powershell -File tools\store\New-SignedMsiUrl.ps1 -ToClipboard -OpenPage   # latest release
    ```
+   https://aitechnology.it/agentbridge/msi/<version>      e.g. .../msi/1.26.09.12
+   ```
+
+   It answers 200 without redirects and is pinned to tag `v<version>`, so it stays valid
+   and unchanged for the whole certification. If the VPS proxy is unavailable,
+   `powershell -File tools\store\New-SignedMsiUrl.ps1 -ToClipboard -OpenPage` mints the
+   GitHub CDN URL instead: it also answers 200 without redirects, but it expires after
+   about 1 hour.
 
 2. Partner Center → product **Graphene AgentBridge** → start a **new submission** →
    section **Packages** → edit the existing MSI package row → replace the **Package URL**
-   with the URL just copied (keep Architecture `x64`, languages, silent install).
+   with that URL (keep Architecture `x64`, languages, silent install).
 3. Save → complete/submit the submission for certification.
 
-The VPS streaming proxy (`https://aitechnology.it/agentbridge/msi`) is NOT used by this
-manual flow (it serves whatever GitHub's latest release is); it exists for the automatic
-`Submit-Store.ps1` path. If a tenant becomes available later (e.g. the Dev Program
-sandbox flips to eligible), set the `STORE_*` secrets and the `store-submit` job takes
-over automatically.
+The versioned form is also what the automatic `Submit-Store.ps1` path uses; the bare
+`https://aitechnology.it/agentbridge/msi` exists only for quick manual downloads of the
+newest release. If a tenant becomes available later (e.g. the Dev Program sandbox flips
+to eligible), set the `STORE_*` secrets and the `store-submit` job takes over
+automatically.
 
 ## Store certification notes
 
+- **Signing is mandatory** (policy 10.2.9): the MSI and every PE file it ships must be
+  signed by a certificate that chains to a CA in the Microsoft Trusted Root Program.
+  `New-StoreInstaller.ps1` signs the payload before the files are put in the cabinet and
+  the MSI after it is built when given `-SignPfx`/`-SignThumbprint` (or the `SIGN_*` env
+  vars, fed in CI by the `SIGN_PFX_BASE64` / `SIGN_PFX_PASSWORD` / `SIGN_THUMBPRINT`
+  repo secrets); without a certificate it warns and produces an UNSIGNED MSI, which
+  fails certification.
+- **The package URL must be versioned and immutable**: submit
+  `https://aitechnology.it/agentbridge/msi/<version>`, never the bare `/msi`.
+- **The download must be reliable**: the proxy answers `HEAD` and serves
+  `Content-Length` plus `Accept-Ranges`. The 2026-09 submission failed policy 10.3.4
+  ("the product failed to install through the Store") with a response that was chunked,
+  had no length, ignored ranges and served a different release than the one submitted.
 - The EXE/MSI product requires a real installer; the WiX MSI above is a standard
   per-machine MSI (silent install, uninstall registry) — acceptable to the App
   Certification Kit.

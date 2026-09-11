@@ -328,11 +328,38 @@ jobs:
         shell: pwsh
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
+          # Store policy 10.2.9: the MSI and every PE file it ships must be signed by a
+          # certificate chaining to a Microsoft Trusted Root CA. Either a base64 PFX or a
+          # thumbprint of a certificate present in LocalMachine\My (token/HSM middleware).
+          SIGN_PFX_BASE64: ${{ secrets.SIGN_PFX_BASE64 }}
+          SIGN_PFX_PASSWORD: ${{ secrets.SIGN_PFX_PASSWORD }}
+          SIGN_THUMBPRINT: ${{ secrets.SIGN_THUMBPRINT }}
         run: |
-          & "$env:GITHUB_WORKSPACE/AgentBridge/tools/store/New-StoreInstaller.ps1" `
-            -PayloadDir "$env:GITHUB_WORKSPACE/payload" `
-            -Version $env:VERSION `
-            -OutDir "$env:GITHUB_WORKSPACE/store-msi"
+          $signArgs = @()
+          $pfx = $null
+          if ($env:SIGN_PFX_BASE64) {
+            $pfx = Join-Path $env:RUNNER_TEMP 'store-sign.pfx'
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGN_PFX_BASE64))
+            $signArgs += @('-SignPfx', $pfx)
+            if ($env:SIGN_PFX_PASSWORD) { $signArgs += @('-SignPfxPassword', $env:SIGN_PFX_PASSWORD) }
+          }
+          elseif ($env:SIGN_THUMBPRINT) {
+            $signArgs += @('-SignThumbprint', $env:SIGN_THUMBPRINT)
+          }
+          else {
+            Write-Warning 'No signing certificate (SIGN_* secrets) - the MSI will be UNSIGNED and store certification will fail (policy 10.2.9).'
+          }
+          try {
+            & "$env:GITHUB_WORKSPACE/AgentBridge/tools/store/New-StoreInstaller.ps1" `
+              -PayloadDir "$env:GITHUB_WORKSPACE/payload" `
+              -Version $env:VERSION `
+              -OutDir "$env:GITHUB_WORKSPACE/store-msi" `
+              @signArgs
+          }
+          finally {
+            # Never leave the private key on the runner disk.
+            if ($pfx -and (Test-Path $pfx)) { Remove-Item $pfx -Force }
+          }
 
       - name: Upload MSI
         uses: actions/upload-artifact@v4
@@ -413,10 +440,12 @@ jobs:
           generate_release_notes: true
 
   # Microsoft Store submission: once the release exists with the MSI attached, point the
-  # Partner Center draft package at the stable MSI URL (the AIOffice VPS streaming proxy
-  # answers 200 with the latest release MSI — Partner Center rejects redirecting URLs,
-  # see tools/store/vps/) and submit for certification. The real gate is inside the run
-  # script (the secrets context is not allowed in job/step if): the STORE_* secrets exist
+  # Partner Center draft package at the VERSIONED MSI URL (the AIOffice VPS streaming proxy
+  # answers 200 without redirects for /agentbridge/msi/<version>, which is pinned to release
+  # tag v<version> and never changes — Partner Center rejects redirecting URLs and requires
+  # a URL whose binary stays frozen, policy 10.2.9, see tools/store/vps/) and submit for
+  # certification. The real gate is inside the run script (the secrets context is not
+  # allowed in job/step if): the STORE_* secrets exist
   # only for accounts that could register the Entra app the Store API requires — individual
   # developer accounts have none, so the step exits early and the Store update is manual
   # (see tools/store/README.md "Manual fallback"); continue-on-error keeps the run green
@@ -450,5 +479,5 @@ jobs:
             exit 0
           }
           & "$env:GITHUB_WORKSPACE/AgentBridge/tools/store/Submit-Store.ps1" `
-            -PackageUrl "https://aitechnology.it/agentbridge/msi" `
+            -PackageUrl "https://aitechnology.it/agentbridge/msi/$env:VERSION" `
             -Version $env:VERSION
