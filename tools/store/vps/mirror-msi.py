@@ -78,25 +78,51 @@ def _latest_tag():
         raise
 
 
+def _pad(v):
+    """Zero-pad the month/day sections to 2 digits: 1.26.9.6 -> 1.26.09.06.
+
+    Only sections at index >= 2 are padded -- the major/minor must keep their own width
+    (padding them would turn 1.26.x into the bogus 01.26.x).
+    """
+    p = v.split(".")
+    if len(p) < 4:
+        return v
+    return ".".join(p[:2] + [x.zfill(2) if x.isdigit() else x for x in p[2:]])
+
+
+def _unpad(v):
+    """Strip leading zeros: 1.26.09.06 -> 1.26.9.6."""
+    return ".".join(str(int(p)) if p.isdigit() else p for p in v.split("."))
+
+
 def _asset(version):
     """(candidate asset urls, tag) for a pinned version, or for the latest release if None.
 
-    The MSI file name is not always the zero-padded tag form: release v1.26.09.06 ships
-    GrapheneAgentBridge-1.26.9.6.msi while v1.26.09.11 ships the padded name. Both forms are
-    therefore tried in order and the first that exists wins (a 404 on the tag form used to be
-    returned to the caller, which would look like a broken Store URL).
+    Two independent things vary across releases, so both are crossed and tried in order until
+    one is reachable (a 404 returned to the caller looks like a broken Store URL):
+
+    * the tag form -- releases are tagged zero-padded (v1.26.09.06), but a caller may pass the
+      unpadded form (1.26.9.6), which is not a tag and used to 404;
+    * the asset name -- v1.26.09.06 ships GrapheneAgentBridge-1.26.9.6.msi while
+      v1.26.09.11 ships the padded name.
+
+    Candidates are ordered most-likely first: the version exactly as asked, then its padded
+    form, each with the padded and unpadded asset name. The ``v`` tag prefix belongs to the tag
+    only -- it must never appear inside the asset file name.
     """
-    tag = ("v" + version) if version else _latest_tag()
-    raw = tag.lstrip("v")
-    parts = raw.split(".")
-    unpadded = ".".join(str(int(p)) for p in parts if p.isdigit()) or raw
-    names = []
-    for variant in (raw, unpadded):
-        name = "%s%s.msi" % (PREFIX, variant)
-        if name not in names:
-            names.append(name)
-    urls = ["https://github.com/%s/releases/download/%s/%s" % (REPO, tag, n) for n in names]
-    return urls, tag
+    if version:
+        bare = version.lstrip("v")
+        ver_forms = [bare, _pad(bare)]
+    else:
+        ver_forms = [_latest_tag().lstrip("v")]
+    urls = []
+    for vf in ver_forms:
+        tag = "v" + vf
+        for nv in (vf, _unpad(vf)):
+            url = "https://github.com/%s/releases/download/%s/%s%s.msi" % (REPO, tag, PREFIX, nv)
+            if url not in urls:
+                urls.append(url)
+    return urls, "v" + ver_forms[0]
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
