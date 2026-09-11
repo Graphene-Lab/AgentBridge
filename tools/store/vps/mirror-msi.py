@@ -79,11 +79,24 @@ def _latest_tag():
 
 
 def _asset(version):
-    """(asset url, tag) for a pinned version, or for the latest release if None."""
+    """(candidate asset urls, tag) for a pinned version, or for the latest release if None.
+
+    The MSI file name is not always the zero-padded tag form: release v1.26.09.06 ships
+    GrapheneAgentBridge-1.26.9.6.msi while v1.26.09.11 ships the padded name. Both forms are
+    therefore tried in order and the first that exists wins (a 404 on the tag form used to be
+    returned to the caller, which would look like a broken Store URL).
+    """
     tag = ("v" + version) if version else _latest_tag()
-    url = "https://github.com/%s/releases/download/%s/%s%s.msi" % (
-        REPO, tag, PREFIX, tag.lstrip("v"))
-    return url, tag
+    raw = tag.lstrip("v")
+    parts = raw.split(".")
+    unpadded = ".".join(str(int(p)) for p in parts if p.isdigit()) or raw
+    names = []
+    for variant in (raw, unpadded):
+        name = "%s%s.msi" % (PREFIX, variant)
+        if name not in names:
+            names.append(name)
+    urls = ["https://github.com/%s/releases/download/%s/%s" % (REPO, tag, n) for n in names]
+    return urls, tag
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -117,25 +130,36 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._text(404, "proxy: unknown path %s — use /msi or /msi/<version>" % path)
                 return
             version = m.group(1)
-        try:
-            url, tag = _asset(version)
-            # Open the upstream FIRST (follows the GitHub 302 chain): only answer
-            # 200 once the asset is confirmed reachable, so a missing installer
-            # (e.g. between release creation and MSI upload) is an honest error
-            # instead of a 200 with an empty body.
-            req = urllib.request.Request(url)
-            rng = self.headers.get("Range")
-            if rng:
-                req.add_header("Range", rng)
-            up = urllib.request.urlopen(req, timeout=60)
-        except urllib.error.HTTPError as e:
-            self._text(e.code, "proxy: GitHub returned %s for %s" % (e.code, url))
+        urls, tag = _asset(version)
+        # Open the upstream FIRST (follows the GitHub 302 chain): only answer 200 once the asset
+        # is confirmed reachable, so a missing installer (e.g. between release creation and MSI
+        # upload, or a differently-named asset) is an honest error instead of a 200 with an
+        # empty body. Candidate names are tried in order (padded tag form, then unpadded).
+        up, url, last_error = None, urls[0], None
+        for cand in urls:
+            try:
+                req = urllib.request.Request(cand)
+                rng = self.headers.get("Range")
+                if rng:
+                    req.add_header("Range", rng)
+                up = urllib.request.urlopen(req, timeout=60)
+                url = cand
+                break
+            except urllib.error.HTTPError as e:
+                last_error, url = e, cand
+                if e.code != 404:
+                    break
+            except Exception as e:
+                last_error, url = e, cand
+                break
+        if up is None:
+            if isinstance(last_error, urllib.error.HTTPError):
+                self._text(last_error.code, "proxy: GitHub returned %s for %s" % (last_error.code, url))
+            else:
+                self._text(502, "proxy: cannot reach the release asset: %s" % last_error)
             return
-        except Exception as e:
-            self._text(502, "proxy: cannot reach the release asset: %s" % e)
-            return
         try:
-            name = "%s%s.msi" % (PREFIX, tag.lstrip("v"))
+            name = url.rsplit("/", 1)[-1]  # the real asset name, not the tag form
             self.send_response(up.status)  # 206 when the client asked for a range
             self.send_header("Content-Type", "application/octet-stream")
             self.send_header("Content-Disposition", 'attachment; filename="%s"' % name)

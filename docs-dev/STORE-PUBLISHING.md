@@ -269,6 +269,10 @@ account: an individual developer account has no Entra tenant, so the Store Submi
   `[System.IO.File]::WriteAllText(path, text, (New-Object System.Text.UTF8Encoding($false)))`.
 - The VPS proxy must answer `HEAD`, `Content-Length` and ranges — a close-delimited chunked body
   is not something the Store downloader can size or resume.
+- **The MSI asset name does not always match the tag**: `v1.26.09.06` ships
+  `GrapheneAgentBridge-1.26.9.6.msi` (unpadded) while `v1.26.09.11` ships the padded name, so the
+  proxy tries both forms and uses the first that exists (found 2026-09-11 when
+  `/agentbridge/msi/1.26.09.06` answered 404 and the download looked like a broken Store URL).
 - **Case-insensitive path collisions in the payload**: the app already ships `assets\`, so a
   generated `Assets\` for the manifest resolves to the *same* directory on NTFS (the pack succeeds
   for the wrong reason and the app's asset tree gets polluted). Generated package assets therefore
