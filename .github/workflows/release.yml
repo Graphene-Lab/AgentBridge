@@ -278,6 +278,31 @@ jobs:
             && echo "voiceagent payload ready: $(du -sh publish/voiceagent | cut -f1)" \
             || echo "::warning::voiceagent/ does not contain AIOffice.VoiceAgent.Win.exe"
 
+      # Payload diet — nothing functional is lost:
+      #  - voiceagent/kokoro.onnx (310 MB) duplicates the server's own copy: the voice agent's
+      #    KokoroSharp downloads the model on first use when it is missing
+      #    (AIOffice.VoiceAgent/Dependencies.cs: "the Kokoro ONNX model is NOT handled here:
+      #    KokoroSharp downloads it itself on first use"), and Windows SAPI remains the fallback.
+      #  - the tool-plugin zips carry ownaudio/ownvst3 natives for every OS and architecture
+      #    (~85 MB of osx/linux .dylib/.so in a Windows payload): keep only the folders the RID
+      #    graph of this build can resolve — the exact RID plus its family root (osx, linux, win).
+      - name: Trim payload
+        shell: bash
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          before=$(du -sm publish | cut -f1)
+          rm -f publish/voiceagent/kokoro.onnx
+          fam="${RID%%-*}"
+          for d in publish/Tools/*/runtimes/*/; do
+            [ -d "$d" ] || continue
+            case "$(basename "$d")" in
+              "$RID"|"$fam") ;;
+              *) rm -rf "$d" ;;
+            esac
+          done
+          echo "payload: ${before} MB -> $(du -sm publish | cut -f1) MB"
+
       - name: Package
         shell: bash
         run: |
