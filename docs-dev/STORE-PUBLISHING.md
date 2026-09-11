@@ -267,6 +267,45 @@ the bare structure without it. The `store-msix` CI job (release.yml) does this o
 from the same win-x64 archive and uploads `store-msix/*.msix` as a CI artifact (not on the GitHub
 release: an unsigned MSIX cannot be sideloaded).
 
+### PSF ships telemetry, and there is no switch for it (checked 2026-09-12)
+
+Microsoft's PSF overview states telemetry is collected **only when both** hold: the PSF binaries are
+used **from the NuGet package** on Windows 10, **and** the user has enabled data collection on the
+computer. It is explicit that telemetry is **not** collected when the binaries are built locally from
+the repo or downloaded directly.
+
+There is **no way to turn it off in config**: `PsfRuntime/main.cpp` reads only `fixups` from
+`config.json`, and `include/Telemetry.h` is compile-time ETW TraceLogging (`TraceLoggingOptionMicrosoftTelemetry()`,
+`TelemetryPrivacyDataTag`, `MICROSOFT_KEYWORD_MEASURES`). No `telemetryEnabled` property and no
+environment variable exist.
+
+Because `New-StoreMsix.ps1` currently pulls from `api.nuget.org`, the packaged app **meets the
+first condition**. That matters for the Store listing: shipping a component that collects telemetry
+can create a data-collection disclosure obligation, even though the data goes to Microsoft and is
+gated by the user's own privacy setting.
+
+Options, all free:
+
+| Option | How | Cost |
+|---|---|---|
+| **Build PSF from source in CI** | `windows-latest` has the MSVC toolchain (this laptop does not); CMake build of `microsoft/MSIX-PackageSupportFramework` at the pinned tag | removes the question entirely; adds a build step |
+| Vendor the three binaries into the repo | MIT allows it; commit `PsfLauncher64.exe`, `PsfRuntime64.dll`, `FileRedirectionFixup64.dll` and read them from `tools/store/msix/psf/` | simplest, but binaries in git and the provenance argument is still ours to make |
+| Keep NuGet and disclose | answer the Store data-collection questions accordingly | no work, but a disclosure we did not want |
+
+Note the pinned release `1.0.240212.1` has **no loose binaries on GitHub** (0 assets) — the GitHub
+releases that do carry binaries are stale (`PSFBinaries.zip`, 2022; loose DLLs, 2020), so
+"download directly" is not a clean substitute for the current version.
+
+**Store re-signing, confirmed** (2026-09-12, packaging guide): "*If you're publishing your app in
+Microsoft Store, your app will be signed with a trusted certificate for you. This allows the user to
+install and run your app without installing the associated app signing certificate.*" For local
+testing the opposite holds — the package must be signed with a cert trusted on the machine, so a
+self-signed test certificate is needed for the install test (free, needs admin).
+
+Partner Center recommends submitting an **`.msixupload`** (the `.msix` plus an `.appxsym` of public
+symbols) rather than a bare `.msix`; without the symbols file there is no crash-analytics data.
+`New-StoreMsix.ps1` currently produces a bare `.msix`.
+
 **Artifacts ready today** (Store-only, nothing installed):
 
 ```powershell
