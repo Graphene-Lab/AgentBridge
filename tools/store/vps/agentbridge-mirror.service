@@ -1,5 +1,5 @@
 [Unit]
-Description=AgentBridge MSI mirror proxy (streams the latest GitHub release MSI)
+Description=AgentBridge MSI mirror proxy (streams release MSIs from GitHub)
 After=network-online.target
 Wants=network-online.target
 
