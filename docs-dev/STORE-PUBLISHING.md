@@ -269,6 +269,11 @@ account: an individual developer account has no Entra tenant, so the Store Submi
   `[System.IO.File]::WriteAllText(path, text, (New-Object System.Text.UTF8Encoding($false)))`.
 - The VPS proxy must answer `HEAD`, `Content-Length` and ranges — a close-delimited chunked body
   is not something the Store downloader can size or resume.
+- **Case-insensitive path collisions in the payload**: the app already ships `assets\`, so a
+  generated `Assets\` for the manifest resolves to the *same* directory on NTFS (the pack succeeds
+  for the wrong reason and the app's asset tree gets polluted). Generated package assets therefore
+  live in `StoreAssets\` — check for collisions whenever a generated package path could match a
+  payload path.
 
 ## 10. Open items (resume here)
 
