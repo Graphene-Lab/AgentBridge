@@ -28,7 +28,11 @@
 
   <Properties>
     <DisplayName>Graphene AgentBridge</DisplayName>
-    <PublisherDisplayName>Graphene Lab</PublisherDisplayName>
+    <!-- Must equal the Partner Center publisher display name exactly. The Store rejects the package
+         otherwise: "The PublisherDisplayName element in the app manifest ... is Graphene Lab, which
+         doesn't match your publisher display name: Graphene-Lab" (submission 1152921505701874924,
+         2026-09-12). Note the hyphen - the MSI's Manufacturer is the unhyphenated "Graphene Lab". -->
+    <PublisherDisplayName>{{PUBLISHER_DISPLAY_NAME}}</PublisherDisplayName>
     <Logo>StoreAssets\StoreLogo.png</Logo>
   </Properties>
 

@@ -131,7 +131,10 @@ jobs:
           # Publisher=CN=Graphene Lab, O=Graphene Lab, C=IT) and the package is not submittable.
           $msixArgs.IdentityName = $env:STORE_IDENTITY_NAME
           $msixArgs.Publisher = $env:STORE_PUBLISHER
-          Write-Host "Packaging with identity Name=$($env:STORE_IDENTITY_NAME) Publisher=$($env:STORE_PUBLISHER)"
+          # Not a secret: it is the public publisher display name of this Partner Center account.
+          # The Store rejects the package unless the manifest value matches it exactly (hyphen included).
+          $msixArgs.PublisherDisplayName = 'Graphene-Lab'
+          Write-Host "Packaging with identity Name=$($env:STORE_IDENTITY_NAME) Publisher=$($env:STORE_PUBLISHER) PublisherDisplayName=Graphene-Lab"
           & "$env:GITHUB_WORKSPACE/AgentBridge/tools/store/New-StoreMsix.ps1" `
             -PayloadDir "$env:GITHUB_WORKSPACE/payload" `
             -Version $env:VERSION `
@@ -164,6 +167,12 @@ jobs:
           if ($xml -notmatch [regex]::Escape('Publisher="' + $env:STORE_PUBLISHER + '"')) {
             Write-Host $xml
             throw "packed manifest Publisher is NOT '$($env:STORE_PUBLISHER)'"
+          }
+          # The Store rejects the package outright if this differs from the account's publisher
+          # display name, hyphen included (seen 2026-09-12 on submission 1152921505701874924).
+          if ($xml -notmatch '<PublisherDisplayName>Graphene-Lab</PublisherDisplayName>') {
+            Write-Host $xml
+            throw 'packed manifest PublisherDisplayName is NOT Graphene-Lab'
           }
           Write-Host "Verified: packed manifest carries the reserved Store identity ($($msix.Length) bytes)"
 

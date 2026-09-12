@@ -74,6 +74,7 @@ param(
     [string]$OutDir,
     [string]$IdentityName = 'GrapheneLab.AgentBridge',
     [string]$Publisher = 'CN=Graphene Lab, O=Graphene Lab, C=IT',
+    [string]$PublisherDisplayName = 'Graphene-Lab',
     [string]$PsfBinDir,
     [switch]$Verify,
     [switch]$SkipPsf
@@ -165,6 +166,7 @@ else {
 $template = Get-Content (Join-Path $root 'msix\AppxManifest.xml') -Raw
 $manifest = $template.Replace('{{IDENTITY_NAME}}', $IdentityName).
                      Replace('{{PUBLISHER}}', $Publisher).
+                     Replace('{{PUBLISHER_DISPLAY_NAME}}', $PublisherDisplayName).
                      Replace('{{VERSION}}', $msixVersion).
                      Replace('{{EXECUTABLE}}', $exeName)
 [System.IO.File]::WriteAllText((Join-Path $layout 'AppxManifest.xml'), $manifest, $utf8NoBom)
