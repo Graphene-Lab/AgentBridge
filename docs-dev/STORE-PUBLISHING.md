@@ -461,8 +461,16 @@ back. Verified in run `34662632951`: all three binaries came from
 3. **`ProductLanguage = 0`** (§5b): pass a real culture to the WiX build so the summary template
    reads `x64;1033` instead of `x64;0`. Small, but it removes an ambiguity in the package metadata
    before the next submission.
-4. **Publisher spelling** (§5b): `Manufacturer = "Graphene Lab"` in the MSI vs `Graphene-Lab` as the
-   Store publisher. Align deliberately — one spelling everywhere.
+4. **Publisher spelling — RESOLVED 2026-09-12, it was a hard blocker.** The docs had flagged
+   `Manufacturer = "Graphene Lab"` in the MSI vs `Graphene-Lab` as the Store publisher as a
+   cosmetic inconsistency. It turned out to be a package-rejection error: Partner Center answered
+   the uploaded MSIX with *"The PublisherDisplayName element in the app manifest of
+   GrapheneAgentBridge-1.26.09.11.msix is Graphene Lab, which doesn't match your publisher display
+   name: Graphene-Lab."* `Properties/PublisherDisplayName` in `tools/store/msix/AppxManifest.xml`
+   is now a `{{PUBLISHER_DISPLAY_NAME}}` token driven by `-PublisherDisplayName` (default
+   `Graphene-Lab`), passed explicitly by the workflow and asserted in the post-pack check. The MSI's
+   `Manufacturer` stays the unhyphenated `Graphene Lab` — that field is not checked against the
+   Store account.
 5. **MSIX — product reserved, package built; the listing is what is left.** Done: the "App MSIX o
    PWA" product **Graphene Agent Bridge** (`9P61PN50Q957`), the identity secrets, the Store-only
    `store-msix.yml` workflow, and a from-source-PSF package for `1.26.09.11`. Still open: upload it
