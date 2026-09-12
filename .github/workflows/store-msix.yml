@@ -1,0 +1,143 @@
+name: Build Microsoft Store MSIX
+
+# Store-ONLY workflow. It never creates a GitHub release and never touches the archives: it takes
+# the win-x64 archive that the normal release already published and wraps it in the MSIX the
+# Microsoft Store needs (Microsoft re-signs MSIX, so no code-signing certificate is required).
+#
+# Why a separate workflow instead of the store-msix job inside release.yml: that job is gated on
+# do_release == 'true', so producing a Store package would otherwise force a full GitHub release.
+# This one is dispatched by hand against an existing release tag.
+#
+# Requires the Partner Center identity secrets (STORE_IDENTITY_NAME, STORE_PUBLISHER) - see
+# docs-dev/STORE-PUBLISHING.md section 8b.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to package (e.g. 1.26.09.11). 'latest' = newest GitHub release."
+        required: false
+        default: latest
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-msix
+  cancel-in-progress: false
+
+jobs:
+  store-msix:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: AgentBridge
+
+      - name: Resolve the release tag
+        id: tag
+        shell: bash
+        run: |
+          V="${{ github.event.inputs.version }}"
+          V="$(printf '%s' "$V" | tr -d ' ')"
+          if [ -z "$V" ] || [ "$V" = "latest" ]; then
+            # /releases/latest redirect - no API call, no rate limit.
+            V=$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+                  "https://github.com/Graphene-Lab/AgentBridge/releases/latest" \
+                | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || true)
+          fi
+          V="${V#v}"
+          if ! printf '%s' "$V" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::cannot resolve a release version from '${{ github.event.inputs.version }}'"
+            exit 1
+          fi
+          echo "Packaging release v$V"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Download the win-x64 archive of that release
+        shell: bash
+        run: |
+          URL="https://github.com/Graphene-Lab/AgentBridge/releases/download/v${{ steps.tag.outputs.version }}/agentbridge-win-x64.tar.gz"
+          # curl streams to disk; Invoke-WebRequest would buffer the whole 1.4 GB in memory.
+          curl -fL --retry 3 -o win-x64.tar.gz "$URL"
+          ls -lh win-x64.tar.gz
+
+      - name: Extract win-x64 payload
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path payload | Out-Null
+          tar -xzf win-x64.tar.gz -C payload
+          if (-not (Test-Path payload/agent.exe)) { throw 'payload has no agent.exe' }
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Compile PSF (x64 Release) instead of taking it from NuGet
+        shell: pwsh
+        run: |
+          # Why from source: Microsoft ties PSF telemetry collection to the binaries taken from the
+          # NuGet package -- those are built with Microsoft's real telemetry provider GUID injected
+          # into include/Telemetry.h (see psf-public-nuget-build.yml in the PSF repo). Building from
+          # the repo leaves that provider id as the zeroed placeholder, so the packaged app has
+          # nowhere to send telemetry. There is no runtime switch for it: PsfRuntime reads only
+          # 'fixups' from config.json.
+          $ErrorActionPreference = 'Continue'
+          $psfTag = '1.0.240212.1'
+          git clone --depth 1 --branch $psfTag `
+            https://github.com/microsoft/MSIX-PackageSupportFramework.git psf-src
+          if ($LASTEXITCODE -ne 0) { Write-Warning 'PSF clone failed - falling back to NuGet'; exit 0 }
+
+          Invoke-WebRequest 'https://dist.nuget.org/win-x86-commandline/v6.9.1/nuget.exe' `
+            -OutFile nuget.exe -UseBasicParsing
+          & .\nuget.exe restore "psf-src\CentennialFixups.sln"
+          if ($LASTEXITCODE -ne 0) { Write-Warning 'PSF restore failed - falling back to NuGet'; exit 0 }
+
+          # The projects pin the VS2019 toolset (v142); windows-latest ships v143.
+          msbuild "psf-src\CentennialFixups.sln" -p:Configuration=Release -p:Platform=x64 `
+            -p:PlatformToolset=v143 -m /v:minimal
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "PSF build failed (exit $LASTEXITCODE) - falling back to NuGet"; exit 0
+          }
+
+          New-Item -ItemType Directory -Force -Path psf-bin | Out-Null
+          foreach ($f in 'PsfLauncher64.exe','PsfRuntime64.dll','FileRedirectionFixup64.dll') {
+            $src = Get-ChildItem -Path psf-src -Recurse -Filter $f -ErrorAction SilentlyContinue |
+                   Where-Object { $_.FullName -match '\\x64\\Release\\' } |
+                   Select-Object -First 1
+            if (-not $src) {
+              Write-Warning "PSF build did not produce $f - falling back to NuGet"
+              Remove-Item psf-bin -Recurse -Force -ErrorAction SilentlyContinue
+              exit 0
+            }
+            Copy-Item $src.FullName psf-bin\ -Force
+          }
+          Write-Host "PSF built from source into psf-bin (no Microsoft telemetry provider id)"
+
+      - name: Build MSIX
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          STORE_IDENTITY_NAME: ${{ secrets.STORE_IDENTITY_NAME }}
+          STORE_PUBLISHER: ${{ secrets.STORE_PUBLISHER }}
+        run: |
+          if (-not $env:STORE_IDENTITY_NAME -or -not $env:STORE_PUBLISHER) {
+            throw 'STORE_IDENTITY_NAME / STORE_PUBLISHER are not set - the package would carry a placeholder identity and Partner Center would reject it.'
+          }
+          $msixArgs = @{}
+          if (Test-Path "$env:GITHUB_WORKSPACE/psf-bin/PsfLauncher64.exe") {
+            $msixArgs.PsfBinDir = "$env:GITHUB_WORKSPACE/psf-bin"
+            Write-Host 'Packaging with the from-source PSF binaries.'
+          } else {
+            Write-Warning 'From-source PSF unavailable: falling back to the NuGet package, whose binaries carry Microsoft''s telemetry provider id.'
+          }
+          & "$env:GITHUB_WORKSPACE/AgentBridge/tools/store/New-StoreMsix.ps1" `
+            -PayloadDir "$env:GITHUB_WORKSPACE/payload" `
+            -Version $env:VERSION `
+            -OutDir "$env:GITHUB_WORKSPACE/store-msix" `
+            @msixArgs
+
+      - name: Upload MSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-msix-${{ steps.tag.outputs.version }}
+          path: store-msix/*.msix
+          if-no-files-found: error
