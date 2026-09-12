@@ -330,26 +330,83 @@ placeholders), the two identity secrets, a decision on the features listed above
 install test — which needs a self-signed certificate whose subject equals the manifest Publisher
 plus trusting it on the machine (admin, deliberate manual step).
 
-## 8b. The last mile: what only the account owner can do
+## 8b. The MSIX product that is now reserved (done 2026-09-12)
 
-Everything up to the upload is automated. Partner Center itself cannot be automated for this
-account: an individual developer account has no Entra tenant, so the Store Submission API
-(`Submit-Store.ps1`) is unavailable, and the product identity values live behind the account login
-(+ MFA). Remaining manual steps, in order:
+The old product `a456c3f0-…` is type **"App EXE o MSI"**. That type is fixed at creation: it cannot
+be converted to MSIX, and a never-published EXE/MSI draft exposes **no delete** option (verified by
+hand in the UI — there is no "Altre opzioni" and no "Elimina"). Completing it would require our own
+Authenticode certificate, because the Store does **not** re-sign MSI/EXE. With certificate purchase
+ruled out, the only free route is a **new "App MSIX o PWA" reservation**, so that is what was done.
 
-1. **Decide the product type.** The existing product (id `a456c3f0-…`) is "EXE or MSI app". An MSIX
-   submission of the same app likely needs a **new product reservation** in Partner Center
-   (new name/listing; reviews start over). Confirm with Partner Center support before reserving.
-2. **Copy the identity values** from Partner Center → *View app identity details*:
-   `Package/Identity/Name` → secret `STORE_IDENTITY_NAME`, `Package/Identity/Publisher` → secret
-   `STORE_PUBLISHER` (`gh secret set … --repo Graphene-Lab/AgentBridge`).
-3. **Run a release** (`IsPrerelease=false`, tag `v1.yy.MM.dd`). The `store-msix` job then produces
-   `GrapheneAgentBridge-<version>.msix` as a CI artifact, built with the real identity.
-4. **Upload** that `.msix` in Partner Center → Packages → submit for certification. The Store
-   re-signs it; no certificate and no licence conditions apply to this channel.
-5. Optional but recommended before step 4: **install it locally** (self-signed certificate whose
-   subject equals the Publisher) to see the PSF redirection working — this is also the quickest way
-   to find anything in the app that assumes a writable install directory.
+### Reserved product and identity values
+
+| Field | Value |
+|---|---|
+| Store product name | **Graphene Agent Bridge** |
+| Product ID (Store ID) | `9P61PN50Q957` |
+| `Package/Identity/Name` | `41836WindowsPhne.GrapheneAgentBridge` |
+| `Package/Identity/Publisher` | `CN=2789CF78-AB25-4596-8B9D-4BD54E9A517A` |
+| `Package/Properties/PublisherDisplayName` | `Graphene-Lab` |
+| Package Family Name (PFN) | `41836WindowsPhne.GrapheneAgentBridge_6mfwch41bwvk2` |
+| Package SID | `S-1-15-2-2505631025-1402540884-1959616705-3001438381-749736323-2943765454-482401977` |
+| Store URL | https://apps.microsoft.com/detail/9P61PN50Q957 |
+| Store protocol | `ms-windows-store://pdp/?productid=9P61PN50Q957` |
+| Managed service app account id | `e5ccb810-0fda-432d-8216-b01ceda031ae` |
+| Submission in progress | `1152921505701874924` |
+
+The Publisher is a **hash DN** (`CN=<guid>`), not a friendly DN: that is what Partner Center assigns
+when the account has no code-signing certificate of its own. Any local test install must be signed
+with a certificate whose subject is exactly that string.
+
+GitHub Actions secrets now set on `Graphene-Lab/AgentBridge`: `STORE_IDENTITY_NAME`,
+`STORE_PUBLISHER`, `STORE_PRODUCT_ID`.
+
+### Name availability, as actually measured
+
+The reservation dialog checks names live. Results:
+
+* `Graphene AgentBridge` — **taken** (blocked by our own EXE/MSI draft).
+* `AgentBridge` — **taken** (same reason).
+* `Graphene Agent Bridge`, `Agent Bridge`, `GrapheneLab AgentBridge` — available.
+
+`Graphene Agent Bridge` was reserved as the closest match to the existing product name. Note the
+reservation rule shown in the dialog: **the app must be submitted within three months or the
+reservation lapses.**
+
+### Building the package without a GitHub release
+
+The `store-msix` job inside `release.yml` is gated on `do_release == 'true'`, so producing a Store
+package there would force a full GitHub release. `.github/workflows/store-msix.yml` is a
+**Store-only, hand-dispatched** workflow instead: it takes an existing release tag (default
+`latest`), downloads that release's `agentbridge-win-x64.tar.gz`, builds the PSF from source, and
+packs the MSIX with the identity secrets. It never creates a release and never touches the GitHub
+archives, so the "Store-only adaptations" rule holds.
+
+**PSF build gotcha (found 2026-09-12, run `34662147652`).** Building `CentennialFixups.sln` fails
+while linking `RegLegacyFixups64` — `LNK2019` on `WINRT_IMPL_RoGetActivationFactory` and
+`WINRT_IMPL_RoOriginateLanguageException`. That project is not part of what we ship, and the
+original soft fallback swallowed the failure and silently packaged the **NuGet** PSF, i.e. exactly
+the binaries carrying Microsoft's telemetry provider id, while the run still reported green. The
+workflow now builds only `PsfLauncher.vcxproj` (which pulls `PsfRuntime` through its
+`ProjectReference`) and `fixups/FileRedirectionFixup.vcxproj`, and **throws** rather than falling
+back. Verified in run `34662632951`: all three binaries came from
+`psf-src\...\x64\Release\`, no link errors, `MSIX created: … 1,419.1 MB`.
+
+### Remaining last-mile steps
+
+1. Upload the `.msix` in Partner Center → *Invio* → **Pacchetti** (the page accepts
+   `.msix, .msixbundle, .msixupload, .appx, .appxbundle, .appxupload, .xap` through a plain file
+   input). Tick **Windows 10/11 Desktop** — with no device-family box checked the product is not
+   available to anyone.
+2. Fill **Proprietà** (title, descriptions, privacy-policy URI), **Presentazioni nello Store**
+   (screenshots — the current artwork is flat placeholders from `New-StoreMsix.ps1`),
+   **Classificazioni per fascia d'età** (IARC questionnaire; Partner Center flagged it as recently
+   updated and requiring a review of incomplete sections), and **Prezzi e disponibilità** (free).
+3. Submit for certification. The Store re-signs the package; no certificate and no licence
+   conditions apply to this channel.
+4. Optional but recommended: a local install test with a self-signed certificate whose subject
+   equals `CN=2789CF78-AB25-4596-8B9D-4BD54E9A517A`, trusted on the machine, to watch the PSF
+   file redirection actually work.
 
 ## 9. Pitfalls learned (do not repeat)
 
@@ -406,10 +463,12 @@ account: an individual developer account has no Entra tenant, so the Store Submi
    before the next submission.
 4. **Publisher spelling** (§5b): `Manufacturer = "Graphene Lab"` in the MSI vs `Graphene-Lab` as the
    Store publisher. Align deliberately — one spelling everywhere.
-5. **MSIX**: the tooling is complete (PSF included, `store-msix` job in CI). What remains is
-   Partner Center-facing: confirm that a PSF-bearing package is accepted, reserve the MSIX product
-   if needed, set `STORE_IDENTITY_NAME`/`STORE_PUBLISHER`, replace the placeholder artwork, and do
-   the local install test — see §8b for the ordered click-list.
+5. **MSIX — product reserved, package built; the listing is what is left.** Done: the "App MSIX o
+   PWA" product **Graphene Agent Bridge** (`9P61PN50Q957`), the identity secrets, the Store-only
+   `store-msix.yml` workflow, and a from-source-PSF package for `1.26.09.11`. Still open: upload it
+   to submission `1152921505701874924`, tick the **Windows 10/11 Desktop** device family, replace
+   the placeholder artwork with real branding and screenshots, complete the IARC age-rating
+   questionnaire, set price to free, and submit. See §8b for the ordered list.
 6. **Resubmission**: after the malware flag is cleared *and* a signed MSI exists, `IsPrerelease=false`
    release → tag `v1.yy.MM.dd` → MSI on the versioned URL → Partner Center resubmit (or
    `store-submit` with the `STORE_*` secrets).
