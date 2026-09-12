@@ -27,7 +27,12 @@
       ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>Graphene AgentBridge</DisplayName>
+    <!-- Must equal the reserved Store product name exactly. Partner Center rejects the package
+         otherwise: "Il manifesto di questo pacchetto (Package/Properties/DisplayName) usa un nome
+         visualizzato che non hai riservato: Graphene AgentBridge" (submission 1152921505701874924,
+         2026-09-12). The reserved name is "Graphene Agent Bridge" (with a space), not the repo's
+         unhyphenated "AgentBridge". -->
+    <DisplayName>Graphene Agent Bridge</DisplayName>
     <!-- Must equal the Partner Center publisher display name exactly. The Store rejects the package
          otherwise: "The PublisherDisplayName element in the app manifest ... is Graphene Lab, which
          doesn't match your publisher display name: Graphene-Lab" (submission 1152921505701874924,
@@ -52,7 +57,7 @@
         uap10:RuntimeBehavior="packagedClassicApp"
         uap10:TrustLevel="mediumIL">
       <uap:VisualElements
-          DisplayName="Graphene AgentBridge"
+          DisplayName="Graphene Agent Bridge"
           Description="Local-first AI assistant"
           BackgroundColor="transparent"
           Square150x150Logo="StoreAssets\Square150x150Logo.png"
