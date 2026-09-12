@@ -126,12 +126,46 @@ jobs:
             throw 'psf-bin is missing - the from-source PSF build did not run. Refusing to package with the NuGet binaries, which carry Microsoft''s telemetry provider id.'
           }
           $msixArgs.PsfBinDir = "$env:GITHUB_WORKSPACE/psf-bin"
-          Write-Host 'Packaging with the from-source PSF binaries.'
+          # The guard above only proves the secrets exist; without these two lines the script silently
+          # falls back to its own placeholder defaults (Name=GrapheneLab.AgentBridge,
+          # Publisher=CN=Graphene Lab, O=Graphene Lab, C=IT) and the package is not submittable.
+          $msixArgs.IdentityName = $env:STORE_IDENTITY_NAME
+          $msixArgs.Publisher = $env:STORE_PUBLISHER
+          Write-Host "Packaging with identity Name=$($env:STORE_IDENTITY_NAME) Publisher=$($env:STORE_PUBLISHER)"
           & "$env:GITHUB_WORKSPACE/AgentBridge/tools/store/New-StoreMsix.ps1" `
             -PayloadDir "$env:GITHUB_WORKSPACE/payload" `
             -Version $env:VERSION `
             -OutDir "$env:GITHUB_WORKSPACE/store-msix" `
             @msixArgs
+
+      - name: Verify the packed manifest really carries the Store identity
+        shell: pwsh
+        env:
+          STORE_IDENTITY_NAME: ${{ secrets.STORE_IDENTITY_NAME }}
+          STORE_PUBLISHER: ${{ secrets.STORE_PUBLISHER }}
+        run: |
+          # Read AppxManifest.xml straight out of the package (an MSIX is a ZIP container) instead of
+          # trusting that the parameters landed. This step exists because run 34662632951 packed the
+          # placeholder identity while the guard above reported everything as set.
+          $msix = Get-ChildItem "$env:GITHUB_WORKSPACE/store-msix" -Filter *.msix | Select-Object -First 1
+          if (-not $msix) { throw 'no .msix produced' }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($msix.FullName)
+          try {
+            $entry = $zip.Entries | Where-Object { $_.FullName -eq 'AppxManifest.xml' }
+            if (-not $entry) { throw 'package has no AppxManifest.xml' }
+            $xml = (New-Object System.IO.StreamReader($entry.Open())).ReadToEnd()
+          } finally { $zip.Dispose() }
+
+          if ($xml -notmatch [regex]::Escape('Name="' + $env:STORE_IDENTITY_NAME + '"')) {
+            Write-Host $xml
+            throw "packed manifest Identity Name is NOT '$($env:STORE_IDENTITY_NAME)'"
+          }
+          if ($xml -notmatch [regex]::Escape('Publisher="' + $env:STORE_PUBLISHER + '"')) {
+            Write-Host $xml
+            throw "packed manifest Publisher is NOT '$($env:STORE_PUBLISHER)'"
+          }
+          Write-Host "Verified: packed manifest carries the reserved Store identity ($($msix.Length) bytes)"
 
       - name: Upload MSIX
         uses: actions/upload-artifact@v4
