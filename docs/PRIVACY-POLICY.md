@@ -1,8 +1,6 @@
-# Privacy policy — Graphene Agent Bridge (DRAFT, not published)
+# Privacy policy — Graphene Agent Bridge
 
-> **Status: draft.** The owner should read it once before it is used anywhere public.
-> Everything below is taken from what the product actually does in this repository.
-
+**Effective date:** 2026-09-14
 **Product:** Graphene Agent Bridge (Store product id `9P61PN50Q957`)
 **Publisher:** Graphene-Lab
 
@@ -87,29 +85,3 @@ If this policy changes, the new version will appear at the same address with a n
 ## Contact
 
 Graphene-Lab — https://graphenelab.it
-
----
-
-## What this is based on (internal, not part of the published text)
-
-- **No vendor telemetry.** The Store package ships the Package Support Framework compiled from
-  Microsoft's public source so the telemetry provider GUID in `include/Telemetry.h` stays the
-  zeroed placeholder; the NuGet binaries carrying Microsoft's real provider id were rejected.
-  See `docs-dev/STORE-PUBLISHING.md`, "PSF ships telemetry, and there is no switch for it".
-- **No self-update in the Store build.** `New-StoreMsix.ps1` seeds
-  `PersistentData\appsettings.json` with `AutoUpdate.Enabled=false`, because the package directory
-  is read-only and the Store delivers updates.
-- **Storage locations** are the ones the application really uses: `PersistentData\`
-  (`AppConfig.cs`), `attachments\` and `tui-screenshots\` (`Tui.cs`), `GiraffeAIWebClient\`
-  (`WebClientUpdater.cs`) — recorded from the payload audit in `docs-dev/STORE-PUBLISHING.md` §5b.
-- **Anonymisation** is `LLM:Anonymize` (`Program.cs:287-290`), threaded into every agent path
-  (`AgentHarness`, `SessionStore`, `OfficeBridge`, `SipBridge`, `TelegramBridge`); described in
-  `README.md` §"GDPR-Ready Anonymization" as stripping names, keys and sensitive identifiers before
-  the request reaches an external provider and restoring them in the reply. Default is `false`.
-- **Local-model operation** is the self-hosted design: the app is a local server, and running a
-  local model keeps all traffic on the user's machine.
-- The PFN quoted above is the one Partner Center assigned to this product
-  (`41836WindowsPhne.GrapheneAgentBridge_6mfwch41bwvk2`).
-
-**Before publishing, the owner should confirm** the contact address and legal entity name are
-correct and complete for their jurisdiction.
