@@ -1,8 +1,19 @@
 # AgentBridge — publishing to the Microsoft Store (complete reference)
 
-Status: 2026-09-11. Written to be resumed later without re-discovering anything: every mechanism,
+Status: 2026-09-14. Written to be resumed later without re-discovering anything: every mechanism,
 file, command and open question is here. Read `tools/store/README.md` for the short operational
 version.
+
+**Current state (2026-09-14): the MSIX product "Graphene Agent Bridge" (`9P61PN50Q957`) is
+submitted and "In certification".** The package was uploaded to submission `1152921505701874924`,
+the required listing fields were filled, and the submission was sent. The privacy policy is
+finalized and published at `docs/PRIVACY-POLICY.md` (it was `PRIVACY-POLICY-DRAFT.md`). While the
+status is "In certification" the submission is locked: the `/submissions/<id>` deep link redirects
+to `/overview` and the fields cannot be edited. To change anything now requires **Revoke** (cancels
+the review and restarts the certification clock). Otherwise wait for the result: approved →
+published (the `displaycatalog.mp.microsoft.com` catalog and
+`https://apps.microsoft.com/detail/9P61PN50Q957` go live); failed → a certification report names
+the policy to fix, then a new submission. See §12.
 
 ## 1. The rule that governs everything
 
@@ -471,12 +482,11 @@ back. Verified in run `34662632951`: all three binaries came from
    `Graphene-Lab`), passed explicitly by the workflow and asserted in the post-pack check. The MSI's
    `Manufacturer` stays the unhyphenated `Graphene Lab` — that field is not checked against the
    Store account.
-5. **MSIX — product reserved, package built; the listing is what is left.** Done: the "App MSIX o
-   PWA" product **Graphene Agent Bridge** (`9P61PN50Q957`), the identity secrets, the Store-only
-   `store-msix.yml` workflow, and a from-source-PSF package for `1.26.09.11`. Still open: upload it
-   to submission `1152921505701874924`, tick the **Windows 10/11 Desktop** device family, replace
-   the placeholder artwork with real branding and screenshots, complete the IARC age-rating
-   questionnaire, set price to free, and submit. See §8b for the ordered list.
+5. **MSIX — SUBMITTED, "In certification" (2026-09-14).** The "App MSIX o PWA" product **Graphene
+   Agent Bridge** (`9P61PN50Q957`) was uploaded to submission `1152921505701874924` and submitted;
+   the listing fields (privacy policy, device family, artwork, IARC, price) were completed for the
+   submission to be accepted. The submission is now locked during certification — see §12 for the
+   wait-vs-revoke decision and how to read the result.
 6. **Resubmission**: after the malware flag is cleared *and* a signed MSI exists, `IsPrerelease=false`
    release → tag `v1.yy.MM.dd` → MSI on the versioned URL → Partner Center resubmit (or
    `store-submit` with the `STORE_*` secrets).
@@ -519,3 +529,38 @@ powershell -NoProfile -Command "$r='D:\ab-admin'; Get-ChildItem -LiteralPath $r 
 
 CI artifacts of a release run: `store-msi` (the `.msi` for the EXE/MSI product, attached to the
 GitHub release) and `store-msix` (the `.msix` for the MSIX product, CI-only).
+
+## 12. Certification state and the privacy policy (2026-09-14)
+
+The MSIX product **Graphene Agent Bridge** (`9P61PN50Q957`) was uploaded to submission
+`1152921505701874924` and **submitted for certification**. The Partner Center overview now shows
+the label **"In certification"**.
+
+What that state means and how to act on it:
+
+- **Locked.** While "In certification" the submission cannot be edited. The deep link
+  `…/products/9P61PN50Q957/submissions/1152921505701874924` **redirects to**
+  `…/products/9P61PN50Q957/overview`, and the overview exposes only the *Product management* menu
+  (Application overview, Manage packages, Product Identity, …), not the editable submission form.
+- **Two options:**
+  1. **Wait (default).** The result arrives by email and as a status change, typically within a few
+     days. **Approved** → published: `displaycatalog.mp.microsoft.com/v7.0/products?bigIds=9P61PN50Q957`
+     returns the product and `https://apps.microsoft.com/detail/9P61PN50Q957` goes live (both were
+     empty / 410 while unpublished, verified 2026-09-14). **Failed** → a certification report names
+     the policy violated; fix it and open a new submission.
+  2. **Revoke now** (only if a change is urgent). The **Revoke** action cancels the in-flight review,
+     unlocks the fields, and lets you edit and resubmit — but the certification clock restarts.
+- **Do not** treat the redirect to overview as an error: it is the normal behaviour for a submission
+  that is no longer an editable draft.
+
+**Privacy policy — finalized and published.** `docs/PRIVACY-POLICY.md` replaces the former
+`docs/PRIVACY-POLICY-DRAFT.md` (commit `c25a057`, pushed to `master`). It states: we collect no
+data; the LLM provider is the one the user configures in the app, not us; the optional
+`LLM:Anonymize` switch strips sensitive identifiers before an external request and restores them in
+the reply; and users of a non-local LLM are advised to read their own provider's privacy policy.
+Store listing field **"URI criteri sulla privacy"** =
+`https://github.com/Graphene-Lab/AgentBridge/blob/master/docs/PRIVACY-POLICY.md`.
+
+**Resume here when the status changes:** check the email / overview label. If approved, confirm the
+Store URL is live and this file can be marked done. If failed, paste the certification report here and
+update §5/§10 with the named policy and the fix.
