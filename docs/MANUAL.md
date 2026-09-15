@@ -53,6 +53,13 @@ On Linux/macOS, make the executable runnable:
 chmod +x agent
 ```
 
+> **Windows SmartScreen / Smart App Control.** The release binaries are not yet code-signed, so
+> Windows may warn or block `agent.exe` on first run. For SmartScreen use **More info → Run
+> anyway**, or right-click the file → **Properties → Unblock**. Smart App Control (Windows 11)
+> has no per-app override and must be turned off in Windows Security. See
+> [Getting started → If Windows blocks the app the first time](guide/01-Getting-Started.md) for
+> the full steps. Code signing is on the roadmap.
+
 **From source (developers):**
 
 ```bash
