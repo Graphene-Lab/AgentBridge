@@ -46,7 +46,7 @@ public static class AgentTools
         ("spreadsheet-files", new[] { "FileTool", "SpreadsheetTool", "GitTool" }),
         ("email-agent", new[] { "EMailTool" }),
         ("office-files", new[] { "FileTool", "OfficeTool", "GitTool" }),
-        ("multi-files", new[] { "FileTool", "WebTool", "DocumentTool", "SpreadsheetTool", "EMailTool", "GitTool" }),
+        ("multi-files", new[] { "FileTool", "WebTool", "DocumentTool", "SpreadsheetTool", "PresentationTool", "EMailTool", "GitTool" }),
     };
 
     /// <summary>Agent-set ids exposed as models: the static presets plus the dynamic

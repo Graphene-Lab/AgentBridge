@@ -53,6 +53,13 @@ On Linux/macOS, make the executable runnable:
 chmod +x agent
 ```
 
+> **Windows SmartScreen / Smart App Control.** The release binaries are not yet code-signed, so
+> Windows may warn or block `agent.exe` on first run. For SmartScreen use **More info → Run
+> anyway**, or right-click the file → **Properties → Unblock**. Smart App Control (Windows 11)
+> has no per-app override and must be turned off in Windows Security. See
+> [Getting started → If Windows blocks the app the first time](guide/01-Getting-Started.md) for
+> the full steps. Code signing is on the roadmap.
+
 **From source (developers):**
 
 ```bash
@@ -304,6 +311,15 @@ see [section 6](#6-connect-a-client-to-localhost)):
 > Platform-dependent features are honest: if the platform or the assets are missing, the
 > server reports them unavailable (the UI shows it, the API returns 501 and
 > `GET /v1/control` lists exactly what is available).
+
+> **Creating documents, spreadsheets, presentations and PDFs.** The `default-agent` set
+> carries only the everyday tools (files, web, versioning) and has **no** document-creation
+> tool, so a request for a `.docx`/`.xlsx`/`.pptx`/PDF there returns "no tool available".
+> Switch to a file-capable set for the conversation: `/tools multi-files` (Word, Excel,
+> browser slide decks and PDF reports together), `/tools document-files` (documents + PDF
+> reports), `/tools spreadsheet-files` (Excel), or `/tools office-files` for genuine
+> Microsoft Office files (real `.docx`/`.xlsx`/`.pptx`). See
+> [Creating documents](guide/05-Creating-Documents.md).
 
 ---
 

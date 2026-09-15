@@ -4020,15 +4020,26 @@ public static class ConsoleTui
             };
             dlg.Add(activeModelLabel);
 
+            // API key of the provider shown in the dropdown, editable right here (issue #11:
+            // the key was only reachable through the provider's Edit dialog, so users could
+            // not find where to paste it). The field follows the dropdown — switching the
+            // provider loads that provider's current key — and Save writes the edited value
+            // back through the single key-mutation path (ProviderConfigs.SetApiKey). Local
+            // providers simply leave it empty. The field is added to the view tree AFTER the
+            // Add/Edit/Remove buttons so the keyboard focus order (dropdown → list → Add →
+            // Edit) that the setup tests rely on is preserved.
+            dlg.Add(new Label { Text = Dictionary.ProviderApiKey, X = 1, Y = 2, Width = 18 });
+            var apiKeyField = new TextField { Text = "", X = 20, Y = 2, Width = 44, Secret = true };
+
             // Validation message shown next to the dropdown when no provider is selected.
             var validationLabel = new Label
             {
-                Text = "", X = 1, Y = 2, Width = Dim.Fill() - 2,
+                Text = "", X = 1, Y = 3, Width = Dim.Fill() - 2,
                 SchemeName = "Hint",
             };
             dlg.Add(validationLabel);
 
-            int y = 3;
+            int y = 4;
             dlg.Add(new Label { Text = Dictionary.SetupConfiguredProviders, X = 1, Y = y, Width = Dim.Fill() });
             y++;
             providersList.X = 1; providersList.Y = y; providersList.Width = 62; providersList.Height = 6;
@@ -4038,10 +4049,11 @@ public static class ConsoleTui
             var editBtn = new Button { Text = Dictionary.SetupEdit, X = Pos.Right(addBtn) + 1, Y = y };
             var removeBtn = new Button { Text = Dictionary.SetupRemove, X = Pos.Right(editBtn) + 1, Y = y };
             dlg.Add(addBtn, editBtn, removeBtn);
+            dlg.Add(apiKeyField);
 
             // The list mirrors the dropdown selection with a single "(attivo)" marker — the
             // user sees exactly one active provider, no redundant "default" tag.
-            providerDropdown.ValueChanged += (_, _) => RefreshProviderList();
+            providerDropdown.ValueChanged += (_, _) => { RefreshProviderList(); LoadApiKeyForSelection(); };
             void RefreshProviderList()
             {
                 providersList.Source = new ListWrapper<string>(new ObservableCollection<string>(
@@ -4075,6 +4087,17 @@ public static class ConsoleTui
                         ? _provider
                         : ProviderConfigs.Default.ProviderName;
                 RefreshProviderList();
+                LoadApiKeyForSelection();
+            }
+            // Loads the selected provider's current API key into the panel's key field so the
+            // user can see and edit it without opening the provider's Edit dialog (issue #11).
+            void LoadApiKeyForSelection()
+            {
+                var name = providerDropdown.Text;
+                apiKeyField.Text = !string.IsNullOrWhiteSpace(name)
+                    && ProviderConfigs.TryGet(name, out var cfg) && cfg != null
+                    ? cfg.ApiKey ?? ""
+                    : "";
             }
             RefreshProviders();
 
@@ -4141,6 +4164,15 @@ public static class ConsoleTui
                     return;
                 }
                 validationLabel.Text = "";
+                // Persist an edited API key for the selected provider (issue #11). Written
+                // only when the value actually changed, so opening and saving without
+                // touching the key never rewrites providers.json for nothing.
+                if (ProviderConfigs.TryGet(chosen, out var chosenCfg) && chosenCfg != null)
+                {
+                    var newKey = (apiKeyField.Text ?? "").Trim();
+                    if (!string.Equals(newKey, chosenCfg.ApiKey ?? "", StringComparison.Ordinal))
+                        ProviderConfigs.SetApiKey(chosen, newKey, persist: true);
+                }
                 // The dropdown selection is the definitive active provider: persist it as the
                 // default (new chats start from it) and adopt it for the running process.
                 ProviderConfigs.SetDefault(chosen, persist: true);
