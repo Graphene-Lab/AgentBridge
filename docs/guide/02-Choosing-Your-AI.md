@@ -8,7 +8,7 @@ Open the chat window and type /providers, or use the menu Settings and then LLM 
 
 ## API keys
 
-Most cloud providers require a key that identifies you. When you add a cloud provider, the window asks for its API key, and the key is hidden while you type. Local providers, which run on your own computer, do not need a key. All your keys are stored on your machine and are never touched by an update.
+Most cloud providers require a key that identifies you. Open the LLM & Provider panel and you will see a "API key" box right under the provider selector: it shows the key of the provider currently chosen in the dropdown, and you can paste or change it there and press Save. Switching the provider in the dropdown loads that provider's own key, so you always edit the right one. The key stays hidden while you type. You can also set it when you add or edit a provider from the list below. Local providers, which run on your own computer, do not need a key, so you can leave the box empty for them. All your keys are stored on your machine and are never touched by an update.
 
 ## Switching at any time
 
