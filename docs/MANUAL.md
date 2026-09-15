@@ -312,6 +312,15 @@ see [section 6](#6-connect-a-client-to-localhost)):
 > server reports them unavailable (the UI shows it, the API returns 501 and
 > `GET /v1/control` lists exactly what is available).
 
+> **Creating documents, spreadsheets, presentations and PDFs.** The `default-agent` set
+> carries only the everyday tools (files, web, versioning) and has **no** document-creation
+> tool, so a request for a `.docx`/`.xlsx`/`.pptx`/PDF there returns "no tool available".
+> Switch to a file-capable set for the conversation: `/tools multi-files` (Word, Excel,
+> browser slide decks and PDF reports together), `/tools document-files` (documents + PDF
+> reports), `/tools spreadsheet-files` (Excel), or `/tools office-files` for genuine
+> Microsoft Office files (real `.docx`/`.xlsx`/`.pptx`). See
+> [Creating documents](guide/05-Creating-Documents.md).
+
 ---
 
 ## 6. Connect a client to localhost
