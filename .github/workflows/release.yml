@@ -520,34 +520,38 @@ jobs:
             artifacts/**/*.tar.gz
             artifacts/**/*.msi
           body: |
-            ### Start-up options: an upgrade note
+            ### Settings, rebuilt around separate panels
 
-            Options given on the command line were **silently ignored** when they followed a
-            valueless switch — `agent --headless --LLM:Anonymize true` made the switch swallow
-            the next key, so `--Urls`, `--Sip:ListenPort`, `--Tts:Engine`, `--LLM:Anonymize`,
-            `--SkipIndexingOnStartup` and any other `--Key value` after `--headless`, `--tui`,
-            `--no-update`, `--no-gui` or `--enable-log` did nothing (this also affected the
-            systemd unit shipped by the Linux installer). Fixed: every documented override now
-            applies wherever it appears. The same settings passed as environment variables or
-            written in `appsettings.json` worked before and are unaffected.
+            The single tabbed "Main settings" window is gone. Settings now opens as focused
+            panels — **LLM & Provider**, **Email (SMTP + IMAP)** and **General** — each with
+            its own **Save** that closes only when its values validate, so a bad value in one
+            area never blocks the others.
 
-            ### Chat sessions recover instead of failing
+            ### Provider management is clearer
 
-            A chat that has been idle for over an hour (or a server restart) no longer returns
-            "session not found": the conversation continues on a new session, and the previous
-            turns are restored when the client resends its transcript — the terminal UI always
-            does, so you just keep talking. API clients get the new `session_id` (plus
-            `session_resumed: true` when the earlier turns came back) instead of a 404.
+            The **active-provider dropdown** is now the single way to change which provider is
+            active: pick one, press Save, and the choice persists across restarts. The active
+            provider is marked **(attivo)** in the list, the dropdown and the list always agree,
+            and the old "Set default" button is gone. **Edit** opens the provider selected in
+            the list, and the API-key field shows the stored key masked.
 
-            ### Privacy
+            ### SIP telephony is now a real settings panel
 
-            With anonymisation enabled, the transcript a client resends is now anonymised like
-            a normal prompt instead of entering the conversation in clear text.
+            The SIP page used to be read-only. It is now a full editable panel: enable/disable,
+            listen port, registrar, credentials, answer mode and PIN, plus call / hang-up /
+            reload actions.
 
-            ### Documentation
+            ### Voice moved to the Session menu
 
-            New plain-language guide **How AgentBridge works** (what an AI agent is, its tools,
-            the documents area, attachments) under `docs/guide/`, shipped with this archive.
+            Voice starts a one-shot dictation, so it is no longer a "setting": it now lives
+            under **Session**, alongside the model switch and session features. The TTS engine
+            panel gained a **reset to default**.
+
+            ### Documentation on the wiki
+
+            The user guides now live on the GitHub wiki, kept in sync automatically from the
+            repository. **Help → Documentation** (and `/docs`) opens
+            https://github.com/Graphene-Lab/AgentBridge/wiki.
           generate_release_notes: true
 
   # Microsoft Store submission: once the release exists with the MSI attached, point the

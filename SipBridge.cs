@@ -818,6 +818,10 @@ public static class SipBridge
 
     /// <summary>True when the SIP server is configured (appsettings Sip:Enabled).</summary>
     public static bool IsEnabled => Cfg.Enabled;
+    /// <summary>Whether the server currently auto-answers incoming calls (the live toggle,
+    /// independent of the configured <see cref="SipConfig.AnswerMode"/>). Read by the TUI
+    /// SIP panel to show the current answer state.</summary>
+    public static bool IsAnswerEnabled => AnswerEnabled;
 
     /// <summary>True when the SIP signalling channel is bound.</summary>
     public static bool IsListening => Transport != null;

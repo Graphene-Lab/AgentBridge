@@ -3557,5 +3557,293 @@ namespace AgentBridge.Resources {
                 return ResourceManager.GetString("NoteOpenFailed", resourceCulture);
             }
         }
+
+        public static string CmdProviders {
+            get {
+                return ResourceManager.GetString("CmdProviders", resourceCulture);
+            }
+        }
+
+        public static string MenuProviders {
+            get {
+                return ResourceManager.GetString("MenuProviders", resourceCulture);
+            }
+        }
+
+        public static string SetupNoProviderSelected {
+            get {
+                return ResourceManager.GetString("SetupNoProviderSelected", resourceCulture);
+            }
+        }
+
+        public static string SetupActiveProviderSaved {
+            get {
+                return ResourceManager.GetString("SetupActiveProviderSaved", resourceCulture);
+            }
+        }
+
+        public static string CmdEmail {
+            get {
+                return ResourceManager.GetString("CmdEmail", resourceCulture);
+            }
+        }
+
+        public static string MenuEmailSettings {
+            get {
+                return ResourceManager.GetString("MenuEmailSettings", resourceCulture);
+            }
+        }
+
+        public static string SetupEmailPanelTitle {
+            get {
+                return ResourceManager.GetString("SetupEmailPanelTitle", resourceCulture);
+            }
+        }
+
+        public static string SetupSmtpSection {
+            get {
+                return ResourceManager.GetString("SetupSmtpSection", resourceCulture);
+            }
+        }
+
+        public static string SetupImapSection {
+            get {
+                return ResourceManager.GetString("SetupImapSection", resourceCulture);
+            }
+        }
+
+        public static string SetupEmailSaved {
+            get {
+                return ResourceManager.GetString("SetupEmailSaved", resourceCulture);
+            }
+        }
+
+        public static string CmdGeneral {
+            get {
+                return ResourceManager.GetString("CmdGeneral", resourceCulture);
+            }
+        }
+
+        public static string MenuGeneralSettings {
+            get {
+                return ResourceManager.GetString("MenuGeneralSettings", resourceCulture);
+            }
+        }
+
+        public static string SetupGeneralSaved {
+            get {
+                return ResourceManager.GetString("SetupGeneralSaved", resourceCulture);
+            }
+        }
+
+        public static string SipPanelTitle {
+            get {
+                return ResourceManager.GetString("SipPanelTitle", resourceCulture);
+            }
+        }
+
+        public static string SipPanelStatus {
+            get {
+                return ResourceManager.GetString("SipPanelStatus", resourceCulture);
+            }
+        }
+
+        public static string SipPhaseIdle {
+            get {
+                return ResourceManager.GetString("SipPhaseIdle", resourceCulture);
+            }
+        }
+
+        public static string SetupSipEnabled {
+            get {
+                return ResourceManager.GetString("SetupSipEnabled", resourceCulture);
+            }
+        }
+
+        public static string SetupSipListenPort {
+            get {
+                return ResourceManager.GetString("SetupSipListenPort", resourceCulture);
+            }
+        }
+
+        public static string SetupSipRegistrar {
+            get {
+                return ResourceManager.GetString("SetupSipRegistrar", resourceCulture);
+            }
+        }
+
+        public static string SetupSipUsername {
+            get {
+                return ResourceManager.GetString("SetupSipUsername", resourceCulture);
+            }
+        }
+
+        public static string SetupSipPassword {
+            get {
+                return ResourceManager.GetString("SetupSipPassword", resourceCulture);
+            }
+        }
+
+        public static string SetupSipSecretSet {
+            get {
+                return ResourceManager.GetString("SetupSipSecretSet", resourceCulture);
+            }
+        }
+
+        public static string SetupSipAnswerMode {
+            get {
+                return ResourceManager.GetString("SetupSipAnswerMode", resourceCulture);
+            }
+        }
+
+        public static string SetupSipPin {
+            get {
+                return ResourceManager.GetString("SetupSipPin", resourceCulture);
+            }
+        }
+
+        public static string SetupSipAllowed {
+            get {
+                return ResourceManager.GetString("SetupSipAllowed", resourceCulture);
+            }
+        }
+
+        public static string SetupSipAgent {
+            get {
+                return ResourceManager.GetString("SetupSipAgent", resourceCulture);
+            }
+        }
+
+        public static string SetupSipLang {
+            get {
+                return ResourceManager.GetString("SetupSipLang", resourceCulture);
+            }
+        }
+
+        public static string SetupSipSaved {
+            get {
+                return ResourceManager.GetString("SetupSipSaved", resourceCulture);
+            }
+        }
+
+        public static string SetupSipReload {
+            get {
+                return ResourceManager.GetString("SetupSipReload", resourceCulture);
+            }
+        }
+
+        public static string SetupSipAnswerToggle {
+            get {
+                return ResourceManager.GetString("SetupSipAnswerToggle", resourceCulture);
+            }
+        }
+
+        public static string SetupSipCall {
+            get {
+                return ResourceManager.GetString("SetupSipCall", resourceCulture);
+            }
+        }
+
+        public static string SetupSipHangup {
+            get {
+                return ResourceManager.GetString("SetupSipHangup", resourceCulture);
+            }
+        }
+
+        public static string TtsEnginePanelTitle {
+            get {
+                return ResourceManager.GetString("TtsEnginePanelTitle", resourceCulture);
+            }
+        }
+
+        public static string TtsEngineCurrent {
+            get {
+                return ResourceManager.GetString("TtsEngineCurrent", resourceCulture);
+            }
+        }
+
+        public static string TtsEnginePick {
+            get {
+                return ResourceManager.GetString("TtsEnginePick", resourceCulture);
+            }
+        }
+
+        public static string TtsEngineNotAvailable {
+            get {
+                return ResourceManager.GetString("TtsEngineNotAvailable", resourceCulture);
+            }
+        }
+
+        public static string TtsEngineSetSelected {
+            get {
+                return ResourceManager.GetString("TtsEngineSetSelected", resourceCulture);
+            }
+        }
+
+        public static string TtsEngineReset {
+            get {
+                return ResourceManager.GetString("TtsEngineReset", resourceCulture);
+            }
+        }
+
+        public static string TtsEngineUnknown {
+            get {
+                return ResourceManager.GetString("TtsEngineUnknown", resourceCulture);
+            }
+        }
+
+        public static string TtsEngineUnavailable {
+            get {
+                return ResourceManager.GetString("TtsEngineUnavailable", resourceCulture);
+            }
+        }
+
+        public static string TtsEngineSet {
+            get {
+                return ResourceManager.GetString("TtsEngineSet", resourceCulture);
+            }
+        }
+
+        public static string TtsEnginePickOne {
+            get {
+                return ResourceManager.GetString("TtsEnginePickOne", resourceCulture);
+            }
+        }
+
+        public static string FilesPanelTitle {
+            get {
+                return ResourceManager.GetString("FilesPanelTitle", resourceCulture);
+            }
+        }
+
+        public static string FilesAdd {
+            get {
+                return ResourceManager.GetString("FilesAdd", resourceCulture);
+            }
+        }
+
+        public static string FilesAddPrompt {
+            get {
+                return ResourceManager.GetString("FilesAddPrompt", resourceCulture);
+            }
+        }
+
+        public static string FilesToggleAttach {
+            get {
+                return ResourceManager.GetString("FilesToggleAttach", resourceCulture);
+            }
+        }
+
+        public static string FilesRemove {
+            get {
+                return ResourceManager.GetString("FilesRemove", resourceCulture);
+            }
+        }
+
+        public static string FilesPickOne {
+            get {
+                return ResourceManager.GetString("FilesPickOne", resourceCulture);
+            }
+        }
     }
 }

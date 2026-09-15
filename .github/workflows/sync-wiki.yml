@@ -1,0 +1,70 @@
+name: Sync docs to wiki
+
+# Mirrors the user-facing docs/ tree into the GitHub wiki (Graphene-Lab/AgentBridge.wiki).
+# Runs on every push that touches docs/ and on manual dispatch. The wiki is a separate git
+# repo; this job clones it, regenerates the flat pages from docs/ with tools/wiki/sync-wiki.js,
+# and pushes. Keeping the wiki in the repo means it stays in sync automatically whenever a
+# guide changes — see the docs rule in AGENTS.md.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'docs/**'
+      - 'tools/wiki/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-wiki
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repo (docs + sync script)
+        uses: actions/checkout@v4
+        with:
+          path: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Clone wiki (or init if empty)
+        shell: bash
+        run: |
+          WIKI_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          if git clone "$WIKI_URL" wiki 2>/dev/null; then
+            echo "wiki cloned"
+          else
+            echo "wiki not found — initialising"
+            mkdir -p wiki
+            ( cd wiki && git init -q && git remote add origin "$WIKI_URL" )
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate wiki pages from docs
+        shell: bash
+        run: node main/tools/wiki/sync-wiki.js main/docs wiki
+
+      - name: Commit and push
+        shell: bash
+        working-directory: wiki
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "no wiki changes"
+            exit 0
+          fi
+          git commit -q -m "docs: sync wiki from docs/ (${{ github.sha }})"
+          # The wiki default branch may be main or master; push whatever HEAD is on.
+          BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          [ "$BRANCH" = "HEAD" ] && BRANCH=main
+          git push -u origin "HEAD:$BRANCH"

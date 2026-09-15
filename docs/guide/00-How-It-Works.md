@@ -35,7 +35,7 @@ It is a normal folder on your computer, the one where your files already live. E
 
 To set it up, from the chat window:
 
-1. Type **`/setup`** (menu **Settings → Main settings**) and open the **General** tab.
+1. Type **`/general`** (menu **Settings → General**) to open the General panel.
 2. In the **Documents path** field, choose the folder that holds your documents. The default is your personal Documents folder, and you can change it whenever you like.
 3. Press **Save**.
 

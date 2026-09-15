@@ -4,7 +4,7 @@ AgentBridge works with many different AI providers, and you are free to choose t
 
 ## Where to make the choice
 
-Open the chat window and type /setup, or use the menu Settings and then Main settings. A window opens with several tabs, and the one you need is called LLM & Providers. Here you can add a new provider, edit an existing one, or remove one you no longer use. The provider you mark as default — the Set default button — is the one new conversations start with.
+Open the chat window and type /providers, or use the menu Settings and then LLM & Provider. A panel opens. At the top there is a dropdown that shows which provider is active right now: pick a provider there and press Save, and that provider becomes the active one — the one new conversations start with, and the choice is kept even after you close the panel or restart the app. Below the dropdown you see your list of providers, with the active one marked (attivo). From there you can add a new provider, edit an existing one, or remove one you no longer use.
 
 ## API keys
 

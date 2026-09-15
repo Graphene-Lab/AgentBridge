@@ -297,8 +297,8 @@ Two kinds of entries:
 **Agent interaction mode.** Each provider drives the agent tools either through the JSON
 tool-calling API (`interaction_mode: "API"` — one tool per method) or through the
 application CLI (`interaction_mode: "CLI"` — the agent issues `ClassName subcommand args`
-commands against the terminal). It is configured per provider in the TUI Main settings
-dialog (Settings → Main settings, `/setup`) or in `providers.json` (`AgentInteractionMode`, options `API`/`CLI`/`Default`); `Default`
+commands against the terminal). It is configured per provider in the TUI LLM & Provider
+panel (Settings → LLM & Provider, `/providers`) or in `providers.json` (`AgentInteractionMode`, options `API`/`CLI`/`Default`); `Default`
 delegates to the model size — CLI for small models (context window < 128 000 tokens), API
 for large ones. `interaction_mode` always reports the **effective** value (the explicit
 setting or the size default). The same field appears on `GET /v1/control` session state.

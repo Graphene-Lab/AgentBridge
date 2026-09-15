@@ -53,8 +53,8 @@ The top menu bar has six menus (labels follow the UI language):
 |---|---|
 | **Chat** | New Chat (`Ctrl+N`) · Clear History (`Ctrl+L`) · TTS (`/tts`) · Commands (`/…`) · Retry Last (`Ctrl+Y`) · Exit (`Ctrl+Q`) |
 | **File** | Files (`/files`) · Attach (`/attach`) |
-| **Settings** (IT: *Impostazioni*) | Main settings (`/setup`) · Tools (`/tools`) · Voice (`/voice`) · TTS Engine (`/ttsengine`) · SIP (`/sip`) · Telegram (`/telegram`) |
-| **Session** (IT: *Sessione*) | LLM Model (`/model`) · Session Features (`/features`) · Status (`/status`) · Health (`/health`) |
+| **Settings** (IT: *Impostazioni*) | LLM & Provider (`/providers`) · Email (SMTP + IMAP) (`/email`) · General (`/general`) · Tools (`/tools`) · TTS Engine (`/ttsengine`) · SIP (`/sip`) · Telegram (`/telegram`) |
+| **Session** (IT: *Sessione*) | LLM Model (`/model`) · Voice (`/voice`) · Session Features (`/features`) · Status (`/status`) · Health (`/health`) |
 | **Web** | GUI (`/web`) · OfficeManager (`/officemanager`) |
 | **Help** (IT: *Aiuto*) | Auto-Update · Crash report · Check for updates (`/update`) · Help (`F1`) · Shortcuts (`?`) · Documentation (`/docs`) · Report Issues… · About |
 
@@ -69,8 +69,10 @@ that the agent is working.
 | `/help` · `/?` | Full help: commands, shortcuts, API endpoints, online docs |
 | `/docs` | Open the online documentation in the browser |
 | `/web` | Launch the Giraffe AI web client (auto-installed/updated), auto-connected to this server |
-| `/setup` · `/modelsetup` | Open the **Main settings** dialog — LLM providers (add/edit/remove, API keys, persistent default), email (SMTP), mail reading (IMAP), general (logging, documents path) |
-| `/model [name]` | Switch the LLM provider for **this chat** (menu when no name given; context-window checked) — the default for new chats is configured in **Settings → Main settings**, it never changes when you use `/model` |
+| `/providers` · `/setup` · `/modelsetup` | Open the **LLM & Provider** panel — the active-provider dropdown (the way to change which provider is active) and the provider list with **Add / Edit / Remove** (CRUD applies immediately and persists to `providers.json`) |
+| `/email` | Open the **Email (SMTP + IMAP)** panel — outgoing (SMTP) and incoming (IMAP) mail settings, each saved with its own validation |
+| `/general` | Open the **General** panel — logging, documents path, auto-start |
+| `/model [name]` | Switch the LLM provider for **this chat** (menu when no name given; context-window checked) — the default for new chats is the active provider set in **Settings → LLM & Provider**, it never changes when you use `/model` |
 | `/tools [name]` · `/agent` | Choose the agent's tools: quick presets or an individual-tool checklist (Space toggles; see below) |
 | `/voice [lang]` | Dictate from the server microphone into the input |
 | `/tts [text]` | Speak the last agent reply (or the given text) — Kokoro TTS, WAV playback |
@@ -167,40 +169,48 @@ one, is submitted the same way), and the session persists in `telegram.session` 
 or with these commands. Full
 reference: [docs/telegram.md](telegram.md).
 
-## Main settings (Models & Providers setup)
+## LLM & Provider settings
 
-`/setup` (alias `/modelsetup`; menu **Settings → Main settings**) opens a tabbed window that
-mirrors the AIOffice settings panel:
+`/providers` (aliases `/setup`, `/modelsetup`; menu **Settings → LLM & Provider**) opens the
+provider panel:
 
-| Tab | What you can edit |
+| Control | What you can edit |
 |---|---|
-| **LLM & Providers** | Default provider (dropdown) with **Set default** and a provider list with **Add… / Edit… / Remove** — the CRUD operations apply immediately and persist to `providers.json` (see below) |
-| **Email (SMTP)** | SMTP server, port, user, password and the recipient email |
-| **Mail (IMAP)** | IMAP server, port, user and password |
-| **General** | Step logging on/off (`logs/` folder) and the documents path (re-indexed on change) |
+| **Active provider** (dropdown) | The provider that is active now and for new chats. Pick one and press **Save** — that selection becomes the active provider and persists across restarts. |
+| **Provider list** | The configured providers; the active one is marked **(attivo)** / **(active)**. **Add / Edit / Remove** manage the list (CRUD applies immediately and persists to `providers.json`). |
 
-- The **default provider** is the one new chats start from. **Set default** marks a
-  provider as the persistent default (stored as `IsDefault` in `providers.json`; when no
-  provider is marked, the first one in the list is the default). The provider currently
-  selected in the dropdown is shown as the active model.
-- **Save** applies a provider you change in the dropdown as the provider in use: it becomes
-  the default for new chats and the chat that is open right now follows it. So the choice
-  made here survives closing and reopening the settings and restarting the app.
-- `/model` switches **only the current chat** on the fly — it never changes the default
-  configured here. New chats (Chat → New Chat, `/new`) always start from the default.
-- Field edits (email, general) apply when you press **Save**; **Close** discards them.
-- Adding a provider opens a small form (name, protocol OpenAI/Gemini/Anthropic, interaction
-  mode Default/API/CLI, model, base address, endpoint path, **API key**, context window,
-  timeout). The API-key field serves every cloud provider — any provider whose endpoint is
-  **not** on loopback (`localhost` / `127.0.0.1`) needs one; local providers simply leave it
-  empty. Keys are stored per-provider in `providers.json` (masked on screen while typing).
-  Editing replaces the config in place; removing refuses to delete the last remaining
-  provider. The interaction mode is optional: `Default` (the initial choice) leaves the
-  decision to the model size — CLI for small models, API for large ones; `API`/`CLI` force
-  one of the two. The active mode appears on the status page and is reported by
-  `GET /v1/models` as `interaction_mode`.
-- The provider list also stays in sync with `GET /v1/models`, so an added provider can be
-  switched to right away.
+- The **active provider** is the one new chats start from. The dropdown is the single way to
+  change it: open the panel, choose a provider, press **Save**. The list marker and the
+  dropdown agree, and the choice survives closing and reopening the panel and restarting the
+  app. There is no separate "set default" button — the dropdown *is* the default.
+- **Edit** opens the edit dialog for the provider selected in the list (name, protocol
+  OpenAI/Gemini/Anthropic, interaction mode Default/API/CLI, model, base address, endpoint
+  path, **API key**, context window, timeout). The API-key field serves every cloud provider
+  — any provider whose endpoint is **not** on loopback (`localhost` / `127.0.0.1`) needs one;
+  local providers simply leave it empty. The key is shown masked when already set. Editing
+  replaces the config in place; removing refuses to delete the last remaining provider. The
+  interaction mode is optional: `Default` leaves the decision to the model size — CLI for
+  small models, API for large ones; `API`/`CLI` force one of the two. The active mode appears
+  on the status page and is reported by `GET /v1/models` as `interaction_mode`.
+- `/model` switches **only the current chat** on the fly — it never changes the active
+  provider configured here. New chats (Chat → New Chat, `/new`) always start from the active
+  provider.
+- The provider list stays in sync with `GET /v1/models`, so an added provider can be switched
+  to right away.
+
+## Email settings
+
+`/email` (menu **Settings → Email (SMTP + IMAP)**) opens a single panel with both mail
+settings: the outgoing **SMTP** server, port, user, password and recipient, and the incoming
+**IMAP** server, port, user and password. Press **Save** to apply; the panel closes only if
+validation passes.
+
+## General settings
+
+`/general` (menu **Settings → General**) opens the general panel: step logging on/off
+(`logs/` folder), the documents path (re-indexed on change), and auto-start. Press **Save**
+to apply; the panel closes only if validation passes. Each settings panel saves independently,
+so a bad value in one area never blocks the others.
 
 ## Auto-update
 

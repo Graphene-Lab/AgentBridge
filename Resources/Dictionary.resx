@@ -339,7 +339,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupTitle" xml:space="preserve"><value>Main settings</value></data>
   <data name="SetupLlmTab" xml:space="preserve"><value>LLM &amp; Providers</value></data>
   <data name="SetupActiveProvider" xml:space="preserve"><value>Active provider</value></data>
-  <data name="SetupActiveMarker" xml:space="preserve"><value>← active</value></data>
+  <data name="SetupActiveMarker" xml:space="preserve"><value> (active)</value></data>
   <data name="SetupActiveModel" xml:space="preserve"><value>Active model: {0}</value></data>
   <data name="SetupActiveModelDefault" xml:space="preserve"><value>Active model: (default)</value></data>
   <data name="SetupConfiguredProviders" xml:space="preserve"><value>Configured providers (Add/Edit/Remove apply immediately):</value></data>
@@ -461,4 +461,56 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="NoteOpenedFile" xml:space="preserve"><value>Opened: {0}</value></data>
   <data name="NoteOpenFileNotFound" xml:space="preserve"><value>No received attachment matching "{0}" in {1}</value></data>
   <data name="NoteOpenFailed" xml:space="preserve"><value>Cannot open: {0}</value></data>
+  <!-- Split settings panels: LLM/Provider, Email (SMTP+IMAP), General. -->
+  <data name="CmdProviders" xml:space="preserve"><value>Configure the active LLM provider and the provider list</value></data>
+  <data name="MenuProviders" xml:space="preserve"><value>LLM &amp; Provider</value></data>
+  <data name="SetupNoProviderSelected" xml:space="preserve"><value>Select an active provider to save.</value></data>
+  <data name="SetupActiveProviderSaved" xml:space="preserve"><value>Active provider saved: {0}</value></data>
+  <data name="CmdEmail" xml:space="preserve"><value>Configure email (SMTP sending and IMAP reading)</value></data>
+  <data name="MenuEmailSettings" xml:space="preserve"><value>Email (SMTP + IMAP)</value></data>
+  <data name="SetupEmailPanelTitle" xml:space="preserve"><value>Email (SMTP + IMAP)</value></data>
+  <data name="SetupSmtpSection" xml:space="preserve"><value>Sending (SMTP)</value></data>
+  <data name="SetupImapSection" xml:space="preserve"><value>Reading (IMAP)</value></data>
+  <data name="SetupEmailSaved" xml:space="preserve"><value>Email settings saved</value></data>
+  <data name="CmdGeneral" xml:space="preserve"><value>Configure general settings (logging, auto-start, documents area)</value></data>
+  <data name="MenuGeneralSettings" xml:space="preserve"><value>General</value></data>
+  <data name="SetupGeneralSaved" xml:space="preserve"><value>General settings saved</value></data>
+  <!-- Interactive SIP settings panel. -->
+  <data name="SipPanelTitle" xml:space="preserve"><value>SIP telephony</value></data>
+  <data name="SipPanelStatus" xml:space="preserve"><value>Status: {0} · call: {1}</value></data>
+  <data name="SipPhaseIdle" xml:space="preserve"><value>idle</value></data>
+  <data name="SetupSipEnabled" xml:space="preserve"><value>Enable SIP</value></data>
+  <data name="SetupSipListenPort" xml:space="preserve"><value>Listen port</value></data>
+  <data name="SetupSipRegistrar" xml:space="preserve"><value>Registrar</value></data>
+  <data name="SetupSipUsername" xml:space="preserve"><value>Username</value></data>
+  <data name="SetupSipPassword" xml:space="preserve"><value>Password</value></data>
+  <data name="SetupSipSecretSet" xml:space="preserve"><value>(set)</value></data>
+  <data name="SetupSipAnswerMode" xml:space="preserve"><value>Answer mode</value></data>
+  <data name="SetupSipPin" xml:space="preserve"><value>PIN</value></data>
+  <data name="SetupSipAllowed" xml:space="preserve"><value>Allowed callers</value></data>
+  <data name="SetupSipAgent" xml:space="preserve"><value>Agent</value></data>
+  <data name="SetupSipLang" xml:space="preserve"><value>Language</value></data>
+  <data name="SetupSipSaved" xml:space="preserve"><value>SIP settings saved</value></data>
+  <data name="SetupSipReload" xml:space="preserve"><value>Reload</value></data>
+  <data name="SetupSipAnswerToggle" xml:space="preserve"><value>Toggle auto-answer</value></data>
+  <data name="SetupSipCall" xml:space="preserve"><value>Call</value></data>
+  <data name="SetupSipHangup" xml:space="preserve"><value>Hang up</value></data>
+  <!-- TTS engine panel. -->
+  <data name="TtsEnginePanelTitle" xml:space="preserve"><value>TTS engine</value></data>
+  <data name="TtsEngineCurrent" xml:space="preserve"><value>Current engine: {0}</value></data>
+  <data name="TtsEnginePick" xml:space="preserve"><value>Available engines:</value></data>
+  <data name="TtsEngineNotAvailable" xml:space="preserve"><value>not available</value></data>
+  <data name="TtsEngineSetSelected" xml:space="preserve"><value>Set selected</value></data>
+  <data name="TtsEngineReset" xml:space="preserve"><value>Reset to default</value></data>
+  <data name="TtsEngineUnknown" xml:space="preserve"><value>Unknown TTS engine '{0}' — known engines: {1}.</value></data>
+  <data name="TtsEngineUnavailable" xml:space="preserve"><value>TTS engine '{0}' is not available on this machine: {1} The engine stays on {2}.</value></data>
+  <data name="TtsEngineSet" xml:space="preserve"><value>TTS engine set to {0} — persisted in appsettings Tts:Engine.</value></data>
+  <data name="TtsEnginePickOne" xml:space="preserve"><value>Select an engine first.</value></data>
+  <!-- Unified File panel (files + attach folded together). -->
+  <data name="FilesPanelTitle" xml:space="preserve"><value>Files &amp; attachments</value></data>
+  <data name="FilesAdd" xml:space="preserve"><value>Add</value></data>
+  <data name="FilesAddPrompt" xml:space="preserve"><value>Path of the file to upload</value></data>
+  <data name="FilesToggleAttach" xml:space="preserve"><value>Attach / detach</value></data>
+  <data name="FilesRemove" xml:space="preserve"><value>Remove</value></data>
+  <data name="FilesPickOne" xml:space="preserve"><value>Select a file first.</value></data>
 </root>

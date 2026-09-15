@@ -39,6 +39,21 @@ Rules:
 - Before writing any guide, ask: *who reads this — the person who installs the app, or the
   developer who maintains the code?* User → `docs/`. Developer → `docs-dev/`.
 
+### The GitHub wiki mirrors `docs/` (keep it in sync)
+
+The public wiki at **https://github.com/Graphene-Lab/AgentBridge/wiki** is generated from
+`docs/` by `.github/workflows/sync-wiki.yml` (runs on every push that touches `docs/` or
+`tools/wiki/`, and on manual dispatch). The workflow clones the wiki repo, regenerates the
+flat pages with `tools/wiki/sync-wiki.js` (each `docs/**/*.md` becomes a wiki page named by
+its file basename; `INDEX.md` → `Home`; relative `.md` links are rewritten to the flat page
+name), and pushes.
+
+**Rule: the wiki is never edited by hand — edit `docs/` and let the workflow sync it.** Any
+change to a user guide in `docs/` must be pushed so the wiki regenerates; do not make
+divergent edits directly in the wiki repo (they will be overwritten on the next sync). When
+you add or rename a `docs/` page, the sync picks it up automatically; just make sure the
+links between guides use the file paths so the rewriter can map them to the wiki page names.
+
 ## Release gate: IsPrerelease flag
 
 `AgentBridge.csproj` carries `<IsPrerelease>` (default `true`). It decides whether a GitHub

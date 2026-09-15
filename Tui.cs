@@ -195,15 +195,19 @@ public static class ConsoleTui
             // executable; /open reveals them (folder by default, a specific file by name).
             new("open", "[name]", Dictionary.CmdOpen, (t, a) => t.OpenAsync(a),
                 MenuGroup: "file", MenuTitle: Dictionary.MenuOpenAttachments, Shortcut: Key.O.WithCtrl),
-            // Settings (menu Impostazioni/Settings): main setup, tool selection, voice and
-            // the SIP/Telegram bridges. /model stays under Session: it switches the CURRENT
-            // chat on the fly and never touches the default provider configured here.
-            new("setup", "", Dictionary.CmdModelSetup, (t, _) => t.ShowModelSetupAsync(), new[] { "/modelsetup" },
-                MenuGroup: "settings", MenuTitle: Dictionary.MenuMainSetup),
+            // Settings (menu Impostazioni/Settings): three separate panels — LLM/Provider,
+            // Email (SMTP+IMAP) and General — each with its own Save button and validation,
+            // so a bad value in one area never blocks the others. Tool selection and the
+            // SIP/Telegram bridges stay here. Voice is NOT a setting (it starts a one-shot
+            // dictation) and lives under Session; /model switches only the CURRENT chat.
+            new("providers", "", Dictionary.CmdProviders, (t, _) => t.ShowProvidersPanelAsync(), new[] { "/setup", "/modelsetup" },
+                MenuGroup: "settings", MenuTitle: Dictionary.MenuProviders),
+            new("email", "", Dictionary.CmdEmail, (t, _) => t.ShowEmailPanelAsync(),
+                MenuGroup: "settings", MenuTitle: Dictionary.MenuEmailSettings),
+            new("general", "", Dictionary.CmdGeneral, (t, _) => t.ShowGeneralPanelAsync(),
+                MenuGroup: "settings", MenuTitle: Dictionary.MenuGeneralSettings),
             new("tools", "[name]", Dictionary.CmdAgent, (t, a) => t.SwitchAgentAsync(a), new[] { "/agent" },
                 MenuGroup: "settings", MenuTitle: Dictionary.MenuTools),
-            new("voice", "[lang]", Dictionary.CmdVoice, (t, a) => t.VoiceAsync(a),
-                MenuGroup: "settings", MenuTitle: Dictionary.MenuVoice),
             new("ttsengine", "[name]", Dictionary.CmdTtsEngine, (t, a) => t.TtsEngineAsync(a),
                 MenuGroup: "settings", MenuTitle: Dictionary.MenuTtsEngine),
             new("sip", "status|config [set <key> <value>|reload]|call <sip-uri>|answer on|off|hangup", Dictionary.CmdSip, (t, a) => t.SipAsync(a),
@@ -213,6 +217,8 @@ public static class ConsoleTui
             // Session
             new("model", "[name]", Dictionary.CmdModel, (t, a) => t.SwitchModelAsync(a),
                 MenuGroup: "session", MenuTitle: Dictionary.MenuLlmModel),
+            new("voice", "[lang]", Dictionary.CmdVoice, (t, a) => t.VoiceAsync(a),
+                MenuGroup: "session", MenuTitle: Dictionary.MenuVoice),
             new("features", "[name] [on|off]", Dictionary.CmdFeatures, (t, a) => t.FeaturesAsync(a),
                 MenuGroup: "session", MenuTitle: Dictionary.MenuFeatures),
             new("status", "", Dictionary.CmdStatus, (t, _) => t.ShowStatusAsync(),
@@ -421,8 +427,10 @@ public static class ConsoleTui
         // ── Layout ──
 
         // Slash commands whose menu voice is a custom item (state shown in the title,
-        // not just "run the command") — see ValidateMenuCoverage.
-        private static readonly HashSet<string> MenuVoiceExempt = new(StringComparer.Ordinal) { "crashreport" };
+        // not just "run the command") — see ValidateMenuCoverage. "attach" is folded into
+        // the unified File panel (its toggle lives there), so it keeps the slash command
+        // but no separate menu voice.
+        private static readonly HashSet<string> MenuVoiceExempt = new(StringComparer.Ordinal) { "crashreport", "attach" };
 
         // Commands placed in the menus by CommandMenuItem (see ValidateMenuCoverage).
         private readonly HashSet<string> _menuVoices = new(StringComparer.Ordinal);
@@ -505,14 +513,14 @@ public static class ConsoleTui
                 new(Dictionary.MenuFile, new MenuItem[]
                 {
                     CommandMenuItem("files"),
-                    CommandMenuItem("attach"),
                     CommandMenuItem("open"),
                 }),
                 new(Dictionary.MenuSettings, new MenuItem[]
                 {
-                    CommandMenuItem("setup"),
+                    CommandMenuItem("providers"),
+                    CommandMenuItem("email"),
+                    CommandMenuItem("general"),
                     CommandMenuItem("tools"),
-                    CommandMenuItem("voice"),
                     CommandMenuItem("ttsengine"),
                     CommandMenuItem("sip"),
                     CommandMenuItem("telegram"),
@@ -520,6 +528,7 @@ public static class ConsoleTui
                 new(Dictionary.MenuSession, new MenuItem[]
                 {
                     CommandMenuItem("model"),
+                    CommandMenuItem("voice"),
                     CommandMenuItem("features"),
                     CommandMenuItem("status"),
                     CommandMenuItem("health"),
@@ -1676,6 +1685,14 @@ public static class ConsoleTui
 
         private async Task SipAsync(string args)
         {
+            // No arguments → the interactive SIP panel (menu Impostazioni → SIP): live
+            // status plus the editable settings that used to require memorising /sip
+            // subcommands. The read-only status page stays available as /sip status.
+            if (string.IsNullOrWhiteSpace(args))
+            {
+                await ShowSipDialogAsync();
+                return;
+            }
             var parts = args.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
             var sub = parts.Length == 0 ? "status" : parts[0].ToLowerInvariant();
             var arg = parts.Length > 1 ? parts[1].Trim() : "";
@@ -1821,6 +1838,177 @@ public static class ConsoleTui
                 }
             }
             await RefreshSipStatusAsync();
+        }
+
+        private async Task ShowSipDialogAsync()
+        {
+            // Read the current (masked) SIP config so the panel opens on the real values.
+            var cfg = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var resp = await _http.GetAsync("/v1/sip/config").WaitAsync(TimeSpan.FromSeconds(5));
+                if (!resp.IsSuccessStatusCode) { AddNote(string.Format(Dictionary.NoteSipUnavailable, (int)resp.StatusCode)); return; }
+                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                var sip = doc.RootElement.GetProperty("sip");
+                cfg["enabled"] = GetBool(sip, "enabled") ? "true" : "false";
+                cfg["listen_port"] = GetInt(sip, "listen_port").ToString();
+                cfg["registrar"] = GetStr(sip, "registrar") ?? "";
+                cfg["username"] = GetStr(sip, "username") ?? "";
+                cfg["password_set"] = GetBool(sip, "password_set") ? "1" : "";
+                cfg["answer_mode"] = GetStr(sip, "answer_mode") ?? "pin";
+                cfg["pin_set"] = GetBool(sip, "pin_set") ? "1" : "";
+                cfg["allowed_callers"] = sip.TryGetProperty("allowed_callers", out var ac) && ac.ValueKind == JsonValueKind.Array
+                    ? string.Join(", ", ac.EnumerateArray().Select(x => x.GetString())) : "";
+                cfg["agent"] = GetStr(sip, "agent") ?? "";
+                cfg["lang"] = GetStr(sip, "lang") ?? "";
+            }
+            catch (Exception ex) { AddNote(string.Format(Dictionary.NoteSipConfigFailed, ex.Message)); return; }
+
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() => { try { ShowSipDialog(cfg); tcs.SetResult(); } catch (Exception ex) { tcs.SetException(ex); } });
+            await tcs.Task;
+        }
+
+        // Interactive SIP settings panel: the editable fields (enabled, port, registrar,
+        // credentials, answer mode, PIN, allow-list, agent, language) with one Save that
+        // persists each changed key through the bridge, plus the live call actions
+        // (answer toggle, place a call, hang up). Secrets are write-only here: a blank
+        // password/PIN leaves the stored value untouched, a typed one replaces it.
+        private void ShowSipDialog(Dictionary<string, string> cfg)
+        {
+            Log.LogStep("TUI SIP panel opened", monitor: true);
+            var dlg = new Dialog
+            {
+                Title = Dictionary.SipPanelTitle,
+                Width = Dim.Percent(78),
+                Height = Dim.Percent(92),
+                SchemeName = "Dark",
+            };
+
+            var status = new Label { Text = "", X = 1, Y = 0, Width = Dim.Fill() - 2, Height = 2, SchemeName = "Hint" };
+            void RefreshStatus()
+            {
+                var en = SipBridge.IsEnabled ? Dictionary.On : Dictionary.Off;
+                status.Text = string.Format(Dictionary.SipPanelStatus, en, _sipState.Length > 0 ? _sipState : Dictionary.SipPhaseIdle);
+            }
+            RefreshStatus();
+
+            var enabled = new CheckBox
+            {
+                Text = Dictionary.SetupSipEnabled,
+                Value = cfg.GetValueOrDefault("enabled") == "true" ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = 2,
+            };
+            var listenPort = AddField(dlg, Dictionary.SetupSipListenPort, cfg.GetValueOrDefault("listen_port"), 3);
+            var registrar = AddField(dlg, Dictionary.SetupSipRegistrar, cfg.GetValueOrDefault("registrar"), 4);
+            var username = AddField(dlg, Dictionary.SetupSipUsername, cfg.GetValueOrDefault("username"), 5);
+            var password = AddField(dlg, Dictionary.SetupSipPassword, "", 6, secret: true);
+            var passHint = new Label
+            {
+                Text = cfg.GetValueOrDefault("password_set") == "1" ? Dictionary.SetupSipSecretSet : "",
+                X = 66, Y = 6, Width = 14, SchemeName = "Hint",
+            };
+            var answerMode = new DropDownList
+            {
+                ReadOnly = true, X = 20, Y = 7, Width = 20,
+                Source = new ListWrapper<string>(new ObservableCollection<string>(new[] { "pin", "allowlist", "none" })),
+                Text = cfg.GetValueOrDefault("answer_mode", "pin"),
+            };
+            dlg.Add(new Label { Text = Dictionary.SetupSipAnswerMode, X = 1, Y = 7, Width = 18 }, answerMode);
+            var pin = AddField(dlg, Dictionary.SetupSipPin, "", 8, secret: true);
+            var pinHint = new Label
+            {
+                Text = cfg.GetValueOrDefault("pin_set") == "1" ? Dictionary.SetupSipSecretSet : "",
+                X = 66, Y = 8, Width = 14, SchemeName = "Hint",
+            };
+            var allowed = AddField(dlg, Dictionary.SetupSipAllowed, cfg.GetValueOrDefault("allowed_callers"), 9);
+            var agent = AddField(dlg, Dictionary.SetupSipAgent, cfg.GetValueOrDefault("agent"), 10);
+            var lang = AddField(dlg, Dictionary.SetupSipLang, cfg.GetValueOrDefault("lang"), 11);
+            var saveErr = new Label { Text = "", X = 1, Y = 12, Width = Dim.Fill() - 2, SchemeName = "Hint" };
+            dlg.Add(status, enabled, passHint, pinHint, saveErr);
+
+            var save = new Button { Text = Dictionary.SetupSave, X = 1, Y = 14 };
+            save.Accepted += async (_, _) =>
+            {
+                saveErr.Text = "";
+                // Each field is posted only when it actually changed (secrets only when a
+                // new value was typed), so saving never clobbers an untouched secret.
+                var posts = new List<(string Key, string Value)>
+                {
+                    ("Enabled", enabled.Value == CheckState.Checked ? "true" : "false"),
+                    ("ListenPort", (listenPort.Text ?? "").Trim()),
+                    ("Registrar", (registrar.Text ?? "").Trim()),
+                    ("Username", (username.Text ?? "").Trim()),
+                    ("AnswerMode", (answerMode.Text ?? "").Trim()),
+                    ("AllowedCallers", (allowed.Text ?? "").Trim()),
+                    ("Agent", (agent.Text ?? "").Trim()),
+                    ("Lang", (lang.Text ?? "").Trim()),
+                };
+                if (!string.IsNullOrWhiteSpace(password.Text)) posts.Add(("Password", password.Text.Trim()));
+                if (!string.IsNullOrWhiteSpace(pin.Text)) posts.Add(("Pin", pin.Text.Trim()));
+
+                bool restart = false;
+                foreach (var (key, value) in posts)
+                {
+                    var (error, restartRequired, _) = await SipBridge.SetConfigAsync(key, value);
+                    if (error != null) { saveErr.Text = string.Format(Dictionary.NoteSipConfigFailed, $"{key}: {error}"); return; }
+                    restart |= restartRequired;
+                }
+                password.Text = ""; pin.Text = "";
+                passHint.Text = pinHint.Text = "";
+                RefreshStatus();
+                _ = RefreshSipStatusAsync();
+                AddNote(restart ? Dictionary.NoteSipConfigRestart : Dictionary.SetupSipSaved);
+                Log.LogStep($"TUI SIP panel saved (restart={restart})", monitor: true);
+            };
+            var reload = new Button { Text = Dictionary.SetupSipReload, X = Pos.Right(save) + 1, Y = 14 };
+            reload.Accepted += async (_, _) =>
+            {
+                var (error, restart, message) = await SipBridge.ReloadConfigAsync();
+                AddNote(error ?? message);
+                RefreshStatus();
+                _ = RefreshSipStatusAsync();
+            };
+            var answerBtn = new Button { Text = Dictionary.SetupSipAnswerToggle, X = Pos.Right(reload) + 1, Y = 14 };
+            answerBtn.Accepted += async (_, _) =>
+            {
+                var on = !SipBridge.IsAnswerEnabled;
+                var body = JsonSerializer.Serialize(new { on }, JsonOpts);
+                using var resp = await _http.PostAsync("/v1/sip/answer", new StringContent(body, Encoding.UTF8, "application/json"));
+                AddNote(resp.IsSuccessStatusCode
+                    ? string.Format(Dictionary.NoteSipAnswerChanged, on ? Dictionary.On : Dictionary.Off)
+                    : string.Format(Dictionary.NoteSipCallFailed, "answer", await ReadErrorAsync(resp)));
+                RefreshStatus();
+            };
+            var callBtn = new Button { Text = Dictionary.SetupSipCall, X = 1, Y = 16 };
+            callBtn.Accepted += async (_, _) =>
+            {
+                var uri = await PromptOnUiThreadAsync(Dictionary.SetupSipCall, "");
+                if (string.IsNullOrWhiteSpace(uri)) return;
+                var body = JsonSerializer.Serialize(new { uri }, JsonOpts);
+                using var resp = await _http.PostAsync("/v1/sip/call", new StringContent(body, Encoding.UTF8, "application/json"));
+                AddNote(resp.IsSuccessStatusCode
+                    ? string.Format(Dictionary.NoteSipCallOk, uri)
+                    : string.Format(Dictionary.NoteSipCallFailed, uri, await ReadErrorAsync(resp)));
+                RefreshStatus();
+            };
+            var hangupBtn = new Button { Text = Dictionary.SetupSipHangup, X = Pos.Right(callBtn) + 1, Y = 16 };
+            hangupBtn.Accepted += async (_, _) =>
+            {
+                using var resp = await _http.PostAsync("/v1/sip/hangup", new StringContent("{}", Encoding.UTF8, "application/json"));
+                AddNote(resp.IsSuccessStatusCode ? Dictionary.NoteSipHangup : Dictionary.NoteSipUnavailableCall);
+                RefreshStatus();
+            };
+            dlg.Add(save, reload, answerBtn, callBtn, hangupBtn);
+
+            var close = new Button { Text = Dictionary.Close };
+            close.Accepted += (_, _) => { Log.LogStep("TUI SIP panel closed"); _app.RequestStop(dlg); };
+            dlg.AddButton(close);
+            dlg.Initialized += (_, _) => enabled.SetFocus();
+            _app.Run(dlg);
+            Log.LogStep("TUI SIP panel closed", monitor: true);
+            dlg.Dispose();
+            _inputField?.SetFocus();
         }
 
         private async Task TelegramAsync(string args)
@@ -2482,30 +2670,115 @@ public static class ConsoleTui
             }
         }
 
-        private async Task TtsEngineAsync(string args)
+        private Task TtsEngineAsync(string args)
         {
             var engine = args.Trim().ToLowerInvariant();
-            var known = string.Join(", ", TtsEngineSupport.KnownEngines);
             if (string.IsNullOrWhiteSpace(engine))
             {
-                var current = Environment.GetEnvironmentVariable("PODCAST_TTS_ENGINE") ?? TtsEngineSupport.DefaultEngine;
-                AddNote($"TTS engines on this machine: {known}\n" +
-                        $"Current engine: {current}. Set with /ttsengine <{known}>.");
-                return;
+                ShowTtsEngineDialog();   // interactive panel (menu Impostazioni → Motore TTS)
+                return Task.CompletedTask;
             }
+            ApplyTtsEngine(engine);
+            return Task.CompletedTask;
+        }
+
+        // Reads the effective TTS engine: the runtime override (PODCAST_TTS_ENGINE), then
+        // the persisted appsettings Tts:Engine, then the built-in default.
+        private static string CurrentTtsEngine()
+        {
+            var env = Environment.GetEnvironmentVariable("PODCAST_TTS_ENGINE");
+            if (!string.IsNullOrWhiteSpace(env)) return env;
+            try
+            {
+                var path = AppConfig.AppSettingsFile;
+                if (File.Exists(path))
+                {
+                    var doc = JsonNode.Parse(File.ReadAllText(path)) as JsonObject;
+                    var e = doc?["Tts"]?["Engine"]?.GetValue<string>();
+                    if (!string.IsNullOrWhiteSpace(e)) return e!;
+                }
+            }
+            catch { }
+            return TtsEngineSupport.DefaultEngine;
+        }
+
+        // Validates and applies a TTS engine selection (runtime override + persisted).
+        // Returns the human-readable outcome.
+        private string ApplyTtsEngine(string engine)
+        {
+            var known = string.Join(", ", TtsEngineSupport.KnownEngines);
             if (!TtsEngineSupport.IsKnown(engine))
-            {
-                AddNote($"Unknown TTS engine '{engine}' — known engines: {known}.");
-                return;
-            }
+                return string.Format(Dictionary.TtsEngineUnknown, engine, known);
             if (!TtsEngineSupport.IsAvailable(engine, out var reason))
-            {
-                AddNote($"TTS engine '{engine}' is not available on this machine: {reason} The engine stays on {TtsEngineSupport.DefaultEngine}.");
-                return;
-            }
+                return string.Format(Dictionary.TtsEngineUnavailable, engine, reason, TtsEngineSupport.DefaultEngine);
             Environment.SetEnvironmentVariable("PODCAST_TTS_ENGINE", engine);
             PersistTtsEngine(engine);
-            AddNote($"TTS engine set to {engine} — persisted in appsettings Tts:Engine.");
+            return string.Format(Dictionary.TtsEngineSet, engine);
+        }
+
+        // TTS engine panel: the selectable engines with their availability, the current
+        // selection, a "set selected" action and a "reset to default" action.
+        private void ShowTtsEngineDialog()
+        {
+            Log.LogStep("TUI TTS engine panel opened", monitor: true);
+            var dlg = new Dialog
+            {
+                Title = Dictionary.TtsEnginePanelTitle,
+                Width = Dim.Percent(60),
+                Height = Dim.Percent(70),
+                SchemeName = "Dark",
+            };
+
+            var current = CurrentTtsEngine();
+            var currentLabel = new Label
+            {
+                Text = string.Format(Dictionary.TtsEngineCurrent, current),
+                X = 1, Y = 0, Width = Dim.Fill() - 2,
+            };
+            dlg.Add(new Label { Text = Dictionary.TtsEnginePick, X = 1, Y = 2, Width = Dim.Fill() });
+            var engines = TtsEngineSupport.KnownEngines.ToList();
+            var list = new ListView
+            {
+                X = 1, Y = 3, Width = Dim.Fill() - 2, Height = 5,
+                Source = new ListWrapper<string>(new ObservableCollection<string>(
+                    engines.Select(e =>
+                    {
+                        var avail = TtsEngineSupport.IsAvailable(e, out _);
+                        var mark = string.Equals(e, current, StringComparison.OrdinalIgnoreCase) ? $"  {Dictionary.SetupActiveMarker}" : "";
+                        return e + mark + (avail ? "" : $"  ({Dictionary.TtsEngineNotAvailable})");
+                    }))),
+            };
+            var msg = new Label { Text = "", X = 1, Y = 9, Width = Dim.Fill() - 2, SchemeName = "Hint" };
+            dlg.Add(currentLabel, list, msg);
+
+            var setBtn = new Button { Text = Dictionary.TtsEngineSetSelected, X = 1, Y = 11 };
+            setBtn.Accepted += (_, _) =>
+            {
+                var i = list.SelectedItem;
+                if (i is not { } idx || idx < 0 || idx >= engines.Count) { msg.Text = Dictionary.TtsEnginePickOne; return; }
+                msg.Text = ApplyTtsEngine(engines[idx]);
+                current = CurrentTtsEngine();
+                currentLabel.Text = string.Format(Dictionary.TtsEngineCurrent, current);
+                Log.LogStep($"TUI TTS engine set to {current}", monitor: true);
+            };
+            var resetBtn = new Button { Text = Dictionary.TtsEngineReset, X = Pos.Right(setBtn) + 1, Y = 11 };
+            resetBtn.Accepted += (_, _) =>
+            {
+                msg.Text = ApplyTtsEngine(TtsEngineSupport.DefaultEngine);
+                current = CurrentTtsEngine();
+                currentLabel.Text = string.Format(Dictionary.TtsEngineCurrent, current);
+                Log.LogStep("TUI TTS engine reset to default", monitor: true);
+            };
+            dlg.Add(setBtn, resetBtn);
+
+            var close = new Button { Text = Dictionary.Close };
+            close.Accepted += (_, _) => { Log.LogStep("TUI TTS engine panel closed"); _app.RequestStop(dlg); };
+            dlg.AddButton(close);
+            dlg.Initialized += (_, _) => list.SetFocus();
+            _app.Run(dlg);
+            Log.LogStep("TUI TTS engine panel closed", monitor: true);
+            dlg.Dispose();
+            _inputField?.SetFocus();
         }
 
         /// <summary>Persists the preferred TTS engine into appsettings.json (Tts:Engine), the
@@ -2642,7 +2915,16 @@ public static class ConsoleTui
 
         private async Task FilesAsync(string args)
         {
-            if (string.IsNullOrWhiteSpace(args) || args == "list")
+            // No arguments → the unified File panel (menu File → File): the uploaded files
+            // with their attach state, and the add / toggle-attach / remove actions in one
+            // place (the old separate "Allega" menu is folded in here). "/files list" keeps
+            // the plain read-only listing.
+            if (string.IsNullOrWhiteSpace(args))
+            {
+                await ShowFilesPanelAsync();
+                return;
+            }
+            if (args == "list")
             {
                 await RefreshFilesAsync();
                 List<string> lines;
@@ -2731,6 +3013,118 @@ public static class ConsoleTui
             {
                 AddNote(Dictionary.NoteFilesUsage);
             }
+        }
+
+        private async Task ShowFilesPanelAsync()
+        {
+            await RefreshFilesAsync();
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() => { try { ShowFilesPanel(); tcs.SetResult(); } catch (Exception ex) { tcs.SetException(ex); } });
+            await tcs.Task;
+        }
+
+        // Unified File panel: the uploaded files with their attach state, and the three
+        // actions that used to be split across /files and /attach — add a file, toggle
+        // whether it is attached to the next chat message, and remove it — in one screen.
+        private void ShowFilesPanel()
+        {
+            Log.LogStep("TUI File panel opened", monitor: true);
+            var dlg = new Dialog
+            {
+                Title = Dictionary.FilesPanelTitle,
+                Width = Dim.Percent(72),
+                Height = Dim.Percent(70),
+                SchemeName = "Dark",
+            };
+            var list = new ListView { X = 1, Y = 1, Width = Dim.Fill() - 2, Height = Dim.Fill() - 6 };
+            var msg = new Label { Text = "", X = 1, Y = Pos.Bottom(list) + 1, Width = Dim.Fill() - 2, SchemeName = "Hint" };
+            void RefreshList()
+            {
+                List<FileRef> files;
+                lock (_stateLock) files = _files.ToList();
+                list.Source = new ListWrapper<string>(new ObservableCollection<string>(
+                    files.Select(f => $"{f.FileName} · {f.Status}{(f.Attached ? "  " + Dictionary.AttachMarker : "")}")));
+            }
+            RefreshList();
+            dlg.Add(list, msg);
+
+            List<FileRef> Snapshot() { lock (_stateLock) return _files.ToList(); }
+            bool TrySelected(out int idx)
+            {
+                idx = -1;
+                var sel = list.SelectedItem;
+                if (sel is not { } i || i < 0 || i >= Snapshot().Count) return false;
+                idx = i;
+                return true;
+            }
+
+            var addBtn = new Button { Text = Dictionary.FilesAdd, X = 1, Y = Pos.Bottom(msg) + 1 };
+            addBtn.Accepted += async (_, _) =>
+            {
+                var path = await PromptOnUiThreadAsync(Dictionary.FilesAdd, Dictionary.FilesAddPrompt);
+                if (string.IsNullOrWhiteSpace(path)) { list.SetFocus(); return; }
+                path = path.Trim().Trim('"');
+                if (!File.Exists(path)) { msg.Text = string.Format(Dictionary.NoteFileNotFound, path); list.SetFocus(); return; }
+                try
+                {
+                    await using var fs = File.OpenRead(path);
+                    using var form = new MultipartFormDataContent();
+                    form.Add(new StreamContent(fs), "file", Path.GetFileName(path));
+                    form.Add(new StringContent("assistants"), "purpose");
+                    using var resp = await _http.PostAsync("/v1/files", form);
+                    if (!resp.IsSuccessStatusCode) { msg.Text = string.Format(Dictionary.NoteUploadFailedHttp, (int)resp.StatusCode, await ReadErrorAsync(resp)); list.SetFocus(); return; }
+                    using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                    var id = GetStr(doc.RootElement, "id") ?? "";
+                    var name = GetStr(doc.RootElement, "filename") ?? Path.GetFileName(path);
+                    lock (_stateLock)
+                    {
+                        _files.RemoveAll(x => x.Id == id);
+                        _files.Add(new FileRef { Id = id, FileName = name, Status = GetStr(doc.RootElement, "status") ?? "", Attached = true });
+                        if (!_attached.Contains(id)) _attached.Add(id);
+                    }
+                    msg.Text = string.Format(Dictionary.NoteUploaded, name, id);
+                    RefreshList();
+                }
+                catch (Exception ex) { msg.Text = string.Format(Dictionary.NoteUploadFailed, ex.Message); }
+                list.SetFocus();
+            };
+            var toggleBtn = new Button { Text = Dictionary.FilesToggleAttach, X = Pos.Right(addBtn) + 1, Y = Pos.Bottom(msg) + 1 };
+            toggleBtn.Accepted += (_, _) =>
+            {
+                if (!TrySelected(out var idx)) { msg.Text = Dictionary.FilesPickOne; return; }
+                ToggleAttach(Snapshot()[idx]);
+                RefreshList();
+                list.SetFocus();
+            };
+            var removeBtn = new Button { Text = Dictionary.FilesRemove, X = Pos.Right(toggleBtn) + 1, Y = Pos.Bottom(msg) + 1 };
+            removeBtn.Accepted += async (_, _) =>
+            {
+                if (!TrySelected(out var idx)) { msg.Text = Dictionary.FilesPickOne; return; }
+                var f = Snapshot()[idx];
+                try
+                {
+                    using var resp = await _http.DeleteAsync($"/v1/files/{Uri.EscapeDataString(f.Id)}");
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        lock (_stateLock) { _files.RemoveAll(x => x.Id == f.Id); _attached.Remove(f.Id); }
+                        msg.Text = string.Format(Dictionary.NoteDeleted, f.FileName);
+                    }
+                    else msg.Text = string.Format(Dictionary.NoteDeleteFailedHttp, (int)resp.StatusCode, await ReadErrorAsync(resp));
+                }
+                catch (Exception ex) { msg.Text = string.Format(Dictionary.NoteDeleteFailed, ex.Message); }
+                RefreshList();
+                list.SetFocus();
+            };
+            dlg.Add(addBtn, toggleBtn, removeBtn);
+
+            var close = new Button { Text = Dictionary.Close };
+            close.Accepted += (_, _) => { Log.LogStep("TUI File panel closed"); _app.RequestStop(dlg); };
+            dlg.AddButton(close);
+            dlg.Initialized += (_, _) => list.SetFocus();
+            _app.Run(dlg);
+            Log.LogStep("TUI File panel closed", monitor: true);
+            dlg.Dispose();
+            _inputField?.SetFocus();
         }
 
         private async Task AttachAsync(string args)
@@ -2842,7 +3236,7 @@ public static class ConsoleTui
 
         private Task OpenDocsAsync()
         {
-            const string url = "https://github.com/Graphene-Lab/AgentBridge";
+            const string url = "https://github.com/Graphene-Lab/AgentBridge/wiki";
             try
             {
                 Log.LogStep($"TUI Docs: opening {url}", monitor: true);
@@ -3419,13 +3813,20 @@ public static class ConsoleTui
             }
             Recompute();
             filter.ValueChanged += (_, _) => Recompute();
+            // The command is NOT run inside the palette's modal loop: running it there
+            // keeps the palette alive while the command's own dialog runs nested inside
+            // it, so any panel smaller than the palette (e.g. Motore TTS) shows the
+            // palette bleeding through behind it and its lower buttons get clipped.
+            // Instead we record the command, close the palette, and run it after Run
+            // returns (see below), so the panel opens on the clean main screen.
+            string? pendingCmd = null;
+            void QueueRun() { pendingCmd = CommandTextFromDialog(filter.Text, visible, list); _app.RequestStop(dlg); }
             filter.KeyDown += (_, key) =>
             {
                 if (key == Key.Enter)
                 {
                     key.Handled = true;
-                    RunCommandLine(CommandTextFromDialog(filter.Text, visible, list));
-                    _app.RequestStop(dlg);
+                    QueueRun();
                 }
                 else if (key == Key.Tab)
                 {
@@ -3452,21 +3853,22 @@ public static class ConsoleTui
                 if (key == Key.Enter)
                 {
                     key.Handled = true;
-                    RunCommandLine(CommandTextFromDialog(filter.Text, visible, list));
-                    _app.RequestStop(dlg);
+                    QueueRun();
                 }
             };
             list.Accepted += (_, e) =>
             {
                 e.Handled = true;
-                RunCommandLine(CommandTextFromDialog(filter.Text, visible, list));
-                _app.RequestStop(dlg);
+                QueueRun();
             };
             dlg.Add(filter, list, hint);
             dlg.Initialized += (_, _) => filter.SetFocus();
             _app.Run(dlg);
             dlg.Dispose();
             _inputField?.SetFocus();
+            // Run the queued command now that the palette's modal loop has fully
+            // returned, so its panel opens on the clean main screen (not nested).
+            if (pendingCmd != null) RunCommandLine(pendingCmd);
         }
 
         private static string CommandTextFromDialog(string? filterText, List<CliCommand> visible, ListView list)
@@ -3574,275 +3976,247 @@ public static class ConsoleTui
         // A tabbed modal window (models/providers, email SMTP, IMAP, general) mirroring the
         // AIOrchestrator settings. Field edits are applied on Save; provider list operations
         // (Add/Edit/Remove) apply immediately and persist to providers.json.
-        private Task ShowModelSetupAsync()
+        private Task ShowProvidersPanelAsync()
         {
             var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             Ui(() =>
             {
-                try { ShowModelSetupDialog(); tcs.SetResult(); }
+                try { ShowProvidersPanel(); tcs.SetResult(); }
                 catch (Exception ex) { tcs.SetException(ex); }
             });
             return tcs.Task;
         }
 
-        private void ShowModelSetupDialog()
+        // LLM / Provider panel: ONE concept for the user — the "active provider". The
+        // dropdown opens on the provider actually in use and is the only way to change it;
+        // the list below mirrors the same selection with an "(attivo)" marker (no separate
+        // "default" wording, which confused active vs default). Add/Edit/Remove manage the
+        // configured providers. Save makes the dropdown selection the definitive active
+        // provider (persisted as the default + adopted by the running chat) and closes the
+        // panel only when validation passes.
+        private void ShowProvidersPanel()
         {
-            Log.LogStep("TUI ModelSetup dialog opened", monitor: true);
+            Log.LogStep("TUI Providers panel opened", monitor: true);
             var dlg = new Dialog
             {
-                Title = Dictionary.SetupTitle,
+                Title = Dictionary.SetupLlmTab,
                 Width = Dim.Percent(80),
-                // 78% (up from 70%): the tab hint line below the pages eats one row of the
-                // Tabs viewport, and with 70% the LLM tab's action buttons (Add/Edit/Remove
-                // at content row 12) fell out of the visible area. The extra height restores
-                // the same internal room the dialog had before the hint was added.
-                Height = Dim.Percent(78),
+                Height = Dim.Percent(70),
                 SchemeName = "Dark",
             };
 
-            var tabs = new Tabs
-            {
-                X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Fill() - 1,
-            };
-            // The Tabs headers have no mouse handler and the tab pages are not reachable by
-            // focus traversal in v2.4.17 (OnSubViewAdding forces CanFocus=false during Add and
-            // there is no NextTabGroup implementation): pressing Tab cycles only inside the
-            // current page. Give the user real keyboard navigation — Ctrl+PageDown/Up are the
-            // framework's documented TabGroup keys — by switching Value when an unhandled key
-            // bubbles up from the focused control (KeyDownNotHandled runs before the Dialog).
-            tabs.KeyDownNotHandled += (_, key) =>
-            {
-                if (key == Key.PageDown.WithCtrl)
-                {
-                    key.Handled = true;
-                    var cur = tabs.TabCollection.ToList();
-                    var i = cur.IndexOf(tabs.Value);
-                    tabs.Value = cur[Math.Min(cur.Count - 1, i + 1)];
-                }
-                else if (key == Key.PageUp.WithCtrl)
-                {
-                    key.Handled = true;
-                    var cur = tabs.TabCollection.ToList();
-                    var i = cur.IndexOf(tabs.Value);
-                    tabs.Value = cur[Math.Max(0, i - 1)];
-                }
-            };
-
-            // ── LLM / Providers tab ──
             var providerDropdown = new DropDownList { ReadOnly = true };
             var providersList = new ListView();
-            var llmTab = new View { Title = Dictionary.SetupLlmTab, CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
+
+            providerDropdown.X = 17; providerDropdown.Y = 0; providerDropdown.Width = 46;
+            dlg.Add(new Label { Text = Dictionary.SetupActiveProvider, X = 1, Y = 0, Width = 15 }, providerDropdown);
+
+            // Active model indicator shown right below the provider dropdown.
+            var activeModelLabel = new Label
             {
-                providerDropdown.X = 17; providerDropdown.Y = 0; providerDropdown.Width = 46;
-                llmTab.Add(new Label { Text = Dictionary.SetupActiveProvider, X = 1, Y = 0, Width = 15 }, providerDropdown);
+                Text = "",
+                X = 1, Y = 1, Width = 62,
+                SchemeName = "Hint",
+            };
+            dlg.Add(activeModelLabel);
 
-                // Active model indicator shown right below the provider dropdown.
-                var activeModelLabel = new Label
-                {
-                    Text = "",
-                    X = 1, Y = 1, Width = 62,
-                    SchemeName = "Hint",
-                };
-                llmTab.Add(activeModelLabel);
+            // Validation message shown next to the dropdown when no provider is selected.
+            var validationLabel = new Label
+            {
+                Text = "", X = 1, Y = 2, Width = Dim.Fill() - 2,
+                SchemeName = "Hint",
+            };
+            dlg.Add(validationLabel);
 
-                // API keys are set per-provider in the Add/Edit dialog below (providers.json);
-                // local providers (localhost/127.0.0.1 endpoint) simply leave the field empty.
-                // The rows below must fit the tab page's visible content (12 rows on a 30-row
-                // console): provider row, model row, list caption, list, blank, Add/Edit/Remove,
-                // Set default, hint — otherwise the LAST rows are clipped off screen (the
-                // persistent-default button was unreachable that way).
-                int y = 2;
-                llmTab.Add(new Label { Text = Dictionary.SetupConfiguredProviders, X = 1, Y = y, Width = Dim.Fill() });
-                y++;
-                providersList.X = 1; providersList.Y = y; providersList.Width = 62; providersList.Height = 5;
-                llmTab.Add(providersList);
-                y += 6;
-                var addBtn = new Button { Text = Dictionary.SetupAdd, X = 1, Y = y };
-                var editBtn = new Button { Text = Dictionary.SetupEdit, X = Pos.Right(addBtn) + 1, Y = y };
-                var removeBtn = new Button { Text = Dictionary.SetupRemove, X = Pos.Right(editBtn) + 1, Y = y };
-                llmTab.Add(addBtn, editBtn, removeBtn);
-                // Explicit persistent default ("Imposta come predefinito"): the provider new
-                // chats start with. /model (Session menu) never touches it — it switches only
-                // the current chat on the fly. See SetupDefaultHint below.
-                var defaultBtn = new Button { Text = Dictionary.SetupSetDefault, X = 1, Y = y + 1 };
-                llmTab.Add(defaultBtn);
-                llmTab.Add(new Label
-                {
-                    Text = Dictionary.SetupDefaultHint,
-                    X = 1, Y = y + 2, Width = 60,
-                    SchemeName = "Hint",
-                });
+            int y = 3;
+            dlg.Add(new Label { Text = Dictionary.SetupConfiguredProviders, X = 1, Y = y, Width = Dim.Fill() });
+            y++;
+            providersList.X = 1; providersList.Y = y; providersList.Width = 62; providersList.Height = 6;
+            dlg.Add(providersList);
+            y += 7;
+            var addBtn = new Button { Text = Dictionary.SetupAdd, X = 1, Y = y };
+            var editBtn = new Button { Text = Dictionary.SetupEdit, X = Pos.Right(addBtn) + 1, Y = y };
+            var removeBtn = new Button { Text = Dictionary.SetupRemove, X = Pos.Right(editBtn) + 1, Y = y };
+            dlg.Add(addBtn, editBtn, removeBtn);
 
-                // The dropdown re-marks the active provider in the list below it,
-                // and updates the active-model indicator shown above the list.
-                providerDropdown.ValueChanged += (_, _) => RefreshProviderList();
-                void RefreshProviderList()
-                {
-                    var defaultName = ProviderConfigs.Default.ProviderName;
-                    providersList.Source = new ListWrapper<string>(new ObservableCollection<string>(
-                        ProviderConfigs.All.Select(p =>
-                        {
-                            var marks = "";
-                            if (string.Equals(p.ProviderName, providerDropdown.Text, StringComparison.OrdinalIgnoreCase))
-                                marks += $"  {Dictionary.SetupActiveMarker}";
-                            if (string.Equals(p.ProviderName, defaultName, StringComparison.OrdinalIgnoreCase))
-                                marks += Dictionary.SetupDefaultMarker;
-                            return p.ProviderName + marks;
-                        })));
-                    // Active model: the REAL session model when the dropdown shows the active
-                    // provider (the provider's configured ModelName is often empty even though
-                    // a concrete model is in use — the session knows the truth); otherwise the
-                    // selected provider's configured model as a preview of what would activate.
-                    var sel = ProviderConfigs.All.FirstOrDefault(p => p.ProviderName == providerDropdown.Text);
-                    if (sel != null && string.Equals(sel.ProviderName, _provider, StringComparison.OrdinalIgnoreCase)
-                        && !string.IsNullOrWhiteSpace(_modelName))
-                        activeModelLabel.Text = string.Format(Dictionary.SetupActiveModel, _modelName);
-                    else if (sel != null && !string.IsNullOrWhiteSpace(sel.ModelName))
-                        activeModelLabel.Text = string.Format(Dictionary.SetupActiveModel, sel.ModelName);
-                    else
-                        activeModelLabel.Text = Dictionary.SetupActiveModelDefault;
-                }
-                // Full refresh after a provider was added/edited/removed (dropdown included).
-                void RefreshProviders()
-                {
-                    var names = ProviderConfigs.All.Select(p => p.ProviderName).ToList();
-                    providerDropdown.Source = new ListWrapper<string>(new ObservableCollection<string>(names));
-                    // Show the CURRENT active provider on open; fall back to the default only
-                    // when the active one is not configured anymore (e.g. it was removed).
-                    if (string.IsNullOrWhiteSpace(providerDropdown.Text)
-                        || !names.Contains(providerDropdown.Text, StringComparer.OrdinalIgnoreCase))
-                        providerDropdown.Text = names.Contains(_provider, StringComparer.OrdinalIgnoreCase)
-                            ? _provider
-                            : ProviderConfigs.Default.ProviderName;
-                    RefreshProviderList();
-                }
-                RefreshProviders();
+            // The list mirrors the dropdown selection with a single "(attivo)" marker — the
+            // user sees exactly one active provider, no redundant "default" tag.
+            providerDropdown.ValueChanged += (_, _) => RefreshProviderList();
+            void RefreshProviderList()
+            {
+                providersList.Source = new ListWrapper<string>(new ObservableCollection<string>(
+                    ProviderConfigs.All.Select(p =>
+                        string.Equals(p.ProviderName, providerDropdown.Text, StringComparison.OrdinalIgnoreCase)
+                            ? p.ProviderName + $"  {Dictionary.SetupActiveMarker}"
+                            : p.ProviderName)));
+                // Active model: the REAL session model when the dropdown shows the provider
+                // in use (the configured ModelName is often empty even though a concrete model
+                // is active — the session knows the truth); otherwise the selected provider's
+                // configured model as a preview of what would activate.
+                var sel = ProviderConfigs.All.FirstOrDefault(p => p.ProviderName == providerDropdown.Text);
+                if (sel != null && string.Equals(sel.ProviderName, _provider, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(_modelName))
+                    activeModelLabel.Text = string.Format(Dictionary.SetupActiveModel, _modelName);
+                else if (sel != null && !string.IsNullOrWhiteSpace(sel.ModelName))
+                    activeModelLabel.Text = string.Format(Dictionary.SetupActiveModel, sel.ModelName);
+                else
+                    activeModelLabel.Text = Dictionary.SetupActiveModelDefault;
+            }
+            // Full refresh after a provider was added/edited/removed (dropdown included).
+            void RefreshProviders()
+            {
+                var names = ProviderConfigs.All.Select(p => p.ProviderName).ToList();
+                providerDropdown.Source = new ListWrapper<string>(new ObservableCollection<string>(names));
+                // Show the CURRENT active provider on open; fall back to the default only
+                // when the active one is not configured anymore (e.g. it was removed).
+                if (string.IsNullOrWhiteSpace(providerDropdown.Text)
+                    || !names.Contains(providerDropdown.Text, StringComparer.OrdinalIgnoreCase))
+                    providerDropdown.Text = names.Contains(_provider, StringComparer.OrdinalIgnoreCase)
+                        ? _provider
+                        : ProviderConfigs.Default.ProviderName;
+                RefreshProviderList();
+            }
+            RefreshProviders();
 
-                string? SelectedProviderName()
-                {
-                    var i = providersList.SelectedItem;
-                    return i is >= 0 && i < ProviderConfigs.All.Count ? ProviderConfigs.All[i.Value].ProviderName : null;
-                }
-
-                addBtn.Accepted += (_, _) =>
-                {
-                    Log.LogStep("TUI ModelSetup: Add provider button", monitor: true);
-                    var cfg = ShowProviderDialog(null);
-                    if (cfg == null) return;
-                    if (ProviderConfigs.Add(cfg, persist: true))
-                        AddNote(string.Format(Dictionary.SetupProviderAdded, cfg.ProviderName));
-                    else
-                        AddNote(string.Format(Dictionary.SetupProviderExists, cfg.ProviderName));
-                    RefreshProviders();
-                };
-                editBtn.Accepted += (_, _) =>
-                {
-                    var name = SelectedProviderName();
-                    if (name == null) { AddNote(Dictionary.SetupSelectToEdit); return; }
-                    Log.LogStep($"TUI ModelSetup: Edit provider '{name}'", monitor: true);
-                    var cfg = ShowProviderDialog(ProviderConfigs.Get(name));
-                    if (cfg == null) return;
-                    ProviderConfigs.Upsert(cfg, persist: true);
-                    AddNote(string.Format(Dictionary.SetupProviderUpdated, cfg.ProviderName));
-                    RefreshProviders();
-                };
-                removeBtn.Accepted += (_, _) =>
-                {
-                    var name = SelectedProviderName();
-                    if (name == null) { AddNote(Dictionary.SetupSelectToRemove); return; }
-                    if (MessageBox.Query(_app, Dictionary.SetupRemoveProviderTitle,
-                            string.Format(Dictionary.SetupRemoveProviderText, name), Dictionary.Cancel, Dictionary.SetupRemove) != 1)
-                        return;
-                    Log.LogStep($"TUI ModelSetup: Remove provider '{name}'", monitor: true);
-                    if (!ProviderConfigs.Remove(name, persist: true))
-                    {
-                        AddNote(string.Format(Dictionary.SetupCannotRemove, name));
-                        return;
-                    }
-                    AddNote(string.Format(Dictionary.SetupProviderRemoved, name));
-                    if (providerDropdown.Text == name)
-                    {
-                        providerDropdown.Text = ProviderConfigs.Default.ProviderName;
-                        _ = SwitchModelAsync(ProviderConfigs.Default.ProviderName);
-                    }
-                    RefreshProviders();
-                };
-                defaultBtn.Accepted += (_, _) =>
-                {
-                    var name = SelectedProviderName();
-                    if (name == null) { AddNote(Dictionary.SetupSelectForDefault); return; }
-                    Log.LogStep($"TUI ModelSetup: Set default provider '{name}'", monitor: true);
-                    // Persist the explicit marker locally (providers.json) and ask the server
-                    // to adopt it for the current process too — new chats start with it while
-                    // /model keeps switching only the running session.
-                    if (ProviderConfigs.SetDefault(name, persist: true))
-                    {
-                        AddNote(string.Format(Dictionary.SetupDefaultSet, name));
-                        RefreshProviderList();
-                        _ = SetDefaultProviderAsync(name);
-                    }
-                };
+            string? SelectedProviderName()
+            {
+                var i = providersList.SelectedItem;
+                return i is >= 0 && i < ProviderConfigs.All.Count ? ProviderConfigs.All[i.Value].ProviderName : null;
             }
 
-            // ── Email (SMTP) tab ──
-            var emailTab = new View { Title = Dictionary.SetupEmailTab, CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
-            var smtpServer = AddField(emailTab, Dictionary.SetupSmtpServer, AIOrchestrator.Setup.SmtpServer, 0);
-            var smtpPort = AddField(emailTab, Dictionary.SetupSmtpPort, AIOrchestrator.Setup.SmtpPort.ToString(), 1);
-            var smtpUser = AddField(emailTab, Dictionary.SetupSmtpUser, AIOrchestrator.Setup.SmtpUser, 2);
-            var smtpPswd = AddField(emailTab, Dictionary.SetupSmtpPassword, AIOrchestrator.Setup.SmtpPassword, 3);
-            var recipientEmail = AddField(emailTab, Dictionary.SetupRecipientEmail, AIOrchestrator.Setup.Email, 4);
-
-            // ── Mail reading (IMAP) tab ──
-            var imapTab = new View { Title = Dictionary.SetupImapTab, CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
-            var imapServer = AddField(imapTab, Dictionary.SetupImapServer, AIOrchestrator.Setup.ImapServer, 0);
-            var imapPort = AddField(imapTab, Dictionary.SetupImapPort, AIOrchestrator.Setup.ImapPort.ToString(), 1);
-            var imapUser = AddField(imapTab, Dictionary.SetupImapUser, AIOrchestrator.Setup.ImapUser, 2);
-            var imapPswd = AddField(imapTab, Dictionary.SetupImapPassword, AIOrchestrator.Setup.ImapPassword, 3);
-
-            // ── General tab ──
-            var generalTab = new View { Title = Dictionary.SetupGeneralTab, CanFocus = true, Width = Dim.Fill(), Height = Dim.Fill() };
-            var logEnabled = new CheckBox
+            addBtn.Accepted += (_, _) =>
             {
-                Text = Dictionary.SetupStepLogging,
-                Value = AIOrchestrator.Log.IsEnabled ? CheckState.Checked : CheckState.UnChecked,
-                X = 1, Y = 0,
+                Log.LogStep("TUI Providers: Add provider button", monitor: true);
+                var cfg = ShowProviderDialog(null);
+                if (cfg == null) return;
+                if (ProviderConfigs.Add(cfg, persist: true))
+                    AddNote(string.Format(Dictionary.SetupProviderAdded, cfg.ProviderName));
+                else
+                    AddNote(string.Format(Dictionary.SetupProviderExists, cfg.ProviderName));
+                RefreshProviders();
             };
-            generalTab.Add(logEnabled);
-            // Auto-start at boot (Task Scheduler task on Windows, systemd service on
-            // Linux/macOS). Shows the CURRENT persisted state; SetAutoStart below applies
-            // the change on Save.
-            var autoStart = new CheckBox
+            editBtn.Accepted += (_, _) =>
             {
-                Text = Dictionary.SetupAutoStart,
-                Value = SystemExtra.Util.GetAutoStart() ? CheckState.Checked : CheckState.UnChecked,
-                X = 1, Y = 1,
+                // Edit the provider selected in the list; fall back to the active one when
+                // nothing is highlighted so the button always opens the edit form.
+                var name = SelectedProviderName() ?? providerDropdown.Text;
+                if (string.IsNullOrWhiteSpace(name)) { AddNote(Dictionary.SetupSelectToEdit); return; }
+                Log.LogStep($"TUI Providers: Edit provider '{name}'", monitor: true);
+                var cfg = ShowProviderDialog(ProviderConfigs.Get(name));
+                if (cfg == null) return;
+                ProviderConfigs.Upsert(cfg, persist: true);
+                AddNote(string.Format(Dictionary.SetupProviderUpdated, cfg.ProviderName));
+                RefreshProviders();
             };
-            generalTab.Add(autoStart);
-            var docsPath = AddField(generalTab, Dictionary.SetupDocumentsPath, AIOrchestrator.Setup.DocumentsPath, 3);
+            removeBtn.Accepted += (_, _) =>
+            {
+                var name = SelectedProviderName();
+                if (name == null) { AddNote(Dictionary.SetupSelectToRemove); return; }
+                if (MessageBox.Query(_app, Dictionary.SetupRemoveProviderTitle,
+                        string.Format(Dictionary.SetupRemoveProviderText, name), Dictionary.Cancel, Dictionary.SetupRemove) != 1)
+                    return;
+                Log.LogStep($"TUI Providers: Remove provider '{name}'", monitor: true);
+                if (!ProviderConfigs.Remove(name, persist: true))
+                {
+                    AddNote(string.Format(Dictionary.SetupCannotRemove, name));
+                    return;
+                }
+                AddNote(string.Format(Dictionary.SetupProviderRemoved, name));
+                if (providerDropdown.Text == name)
+                {
+                    providerDropdown.Text = ProviderConfigs.Default.ProviderName;
+                    _ = SwitchModelAsync(ProviderConfigs.Default.ProviderName);
+                }
+                RefreshProviders();
+            };
 
             var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
             save.Accepted += (_, _) =>
             {
-                // Validate BEFORE committing anything: on error the dialog stays open and the
-                // user sees why — "model setup saved" is only shown when everything applied.
+                var chosen = (providerDropdown.Text ?? "").Trim();
+                if (chosen.Length == 0
+                    || !ProviderConfigs.All.Any(p => string.Equals(p.ProviderName, chosen, StringComparison.OrdinalIgnoreCase)))
+                {
+                    validationLabel.Text = Dictionary.SetupNoProviderSelected;
+                    return;
+                }
+                validationLabel.Text = "";
+                // The dropdown selection is the definitive active provider: persist it as the
+                // default (new chats start from it) and adopt it for the running process.
+                ProviderConfigs.SetDefault(chosen, persist: true);
+                _ = SetDefaultProviderAsync(chosen);
+                if (!string.Equals(chosen, _provider, StringComparison.OrdinalIgnoreCase))
+                    _ = SwitchModelAsync(chosen);   // same path as /model (HTTP /v1/control)
+                AddNote(string.Format(Dictionary.SetupActiveProviderSaved, chosen));
+                Log.LogStep($"TUI Providers saved (active: {chosen})", monitor: true);
+                _app.RequestStop(dlg);
+            };
+            var close = new Button { Text = Dictionary.Close };
+            close.Accepted += (_, _) => { Log.LogStep("TUI Providers panel closed (Cancel)"); _app.RequestStop(dlg); };
+            // AddButton makes the LAST button the Enter default: Close first, Save last.
+            dlg.AddButton(close);
+            dlg.AddButton(save);
+            dlg.Initialized += (_, _) => providerDropdown.SetFocus();
+            _app.Run(dlg);
+            Log.LogStep("TUI Providers panel closed", monitor: true);
+            dlg.Dispose();
+            _inputField?.SetFocus();
+        }
+
+        private Task ShowEmailPanelAsync()
+        {
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() =>
+            {
+                try { ShowEmailPanel(); tcs.SetResult(); }
+                catch (Exception ex) { tcs.SetException(ex); }
+            });
+            return tcs.Task;
+        }
+
+        // Email panel: SMTP (sending) and IMAP (reading) in a single panel with one Save.
+        // Ports are validated before anything is committed; on error the panel stays open
+        // with the message beside the offending field.
+        private void ShowEmailPanel()
+        {
+            Log.LogStep("TUI Email panel opened", monitor: true);
+            var dlg = new Dialog
+            {
+                Title = Dictionary.SetupEmailPanelTitle,
+                Width = Dim.Percent(70),
+                Height = Dim.Percent(70),
+                SchemeName = "Dark",
+            };
+
+            var smtpErr = new Label { Text = "", X = 1, Y = 6, Width = Dim.Fill() - 2, SchemeName = "Hint" };
+            var imapErr = new Label { Text = "", X = 1, Y = 12, Width = Dim.Fill() - 2, SchemeName = "Hint" };
+
+            dlg.Add(new Label { Text = Dictionary.SetupSmtpSection, X = 1, Y = 0, Width = Dim.Fill() });
+            var smtpServer = AddField(dlg, Dictionary.SetupSmtpServer, AIOrchestrator.Setup.SmtpServer, 1);
+            var smtpPort = AddField(dlg, Dictionary.SetupSmtpPort, AIOrchestrator.Setup.SmtpPort.ToString(), 2);
+            var smtpUser = AddField(dlg, Dictionary.SetupSmtpUser, AIOrchestrator.Setup.SmtpUser, 3);
+            var smtpPswd = AddField(dlg, Dictionary.SetupSmtpPassword, AIOrchestrator.Setup.SmtpPassword, 4, secret: true);
+            var recipientEmail = AddField(dlg, Dictionary.SetupRecipientEmail, AIOrchestrator.Setup.Email, 5);
+            dlg.Add(smtpErr);
+
+            dlg.Add(new Label { Text = Dictionary.SetupImapSection, X = 1, Y = 7, Width = Dim.Fill() });
+            var imapServer = AddField(dlg, Dictionary.SetupImapServer, AIOrchestrator.Setup.ImapServer, 8);
+            var imapPort = AddField(dlg, Dictionary.SetupImapPort, AIOrchestrator.Setup.ImapPort.ToString(), 9);
+            var imapUser = AddField(dlg, Dictionary.SetupImapUser, AIOrchestrator.Setup.ImapUser, 10);
+            var imapPswd = AddField(dlg, Dictionary.SetupImapPassword, AIOrchestrator.Setup.ImapPassword, 11, secret: true);
+            dlg.Add(imapErr);
+
+            var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
+            save.Accepted += (_, _) =>
+            {
+                smtpErr.Text = "";
+                imapErr.Text = "";
+                bool ok = true;
                 if (!string.IsNullOrWhiteSpace(smtpPort.Text) && !int.TryParse((smtpPort.Text ?? "").Trim(), out _))
-                {
-                    MessageBox.ErrorQuery(_app, Dictionary.SetupInvalidSmtpPortTitle,
-                        Dictionary.SetupInvalidSmtpPortText, Dictionary.Ok);
-                    return;
-                }
+                { smtpErr.Text = Dictionary.SetupInvalidSmtpPortText; ok = false; }
                 if (!string.IsNullOrWhiteSpace(imapPort.Text) && !int.TryParse((imapPort.Text ?? "").Trim(), out _))
-                {
-                    MessageBox.ErrorQuery(_app, Dictionary.SetupInvalidImapPortTitle,
-                        Dictionary.SetupInvalidImapPortText, Dictionary.Ok);
-                    return;
-                }
-                if (!AIOrchestrator.Setup.TrySetDocumentsPath(docsPath.Text ?? "", out var pathNote))
-                {
-                    MessageBox.ErrorQuery(_app, Dictionary.SetupInvalidDocsPathTitle,
-                        string.Format(Dictionary.SetupInvalidDocsPathText, pathNote), Dictionary.Ok);
-                    return;
-                }
+                { imapErr.Text = Dictionary.SetupInvalidImapPortText; ok = false; }
+                if (!ok) return;
 
                 AIOrchestrator.Setup.SmtpServer = (smtpServer.Text ?? "").Trim();
                 if (int.TryParse((smtpPort.Text ?? "").Trim(), out var sp)) AIOrchestrator.Setup.SmtpPort = sp;
@@ -3855,48 +4229,84 @@ public static class ConsoleTui
                 AIOrchestrator.Setup.ImapUser = (imapUser.Text ?? "").Trim();
                 AIOrchestrator.Setup.ImapPassword = (imapPswd.Text ?? "").Trim();
 
-                AIOrchestrator.Log.IsEnabled = logEnabled.Value == CheckState.Checked;
-                SystemExtra.Util.SetAutoStart(autoStart.Value == CheckState.Checked);
-
-                var chosen = (providerDropdown.Text ?? "").Trim();
-                if (chosen.Length > 0 && !string.Equals(chosen, _provider, StringComparison.OrdinalIgnoreCase))
-                {
-                    // The dropdown opens on the provider in use, so a different value means the
-                    // user picked one here. That choice is the provider the PROGRAM uses, not a
-                    // one-shot session switch: adopt it as the persistent default (new chats
-                    // start from it, providers.json keeps IsDefault) and follow it in the chat
-                    // open right now. Without the persist the choice was lost on restart and the
-                    // settings came back showing the previous provider. /model stays the
-                    // session-only switch; "Set default" does the same without touching the chat.
-                    if (!string.Equals(chosen, ProviderConfigs.Default.ProviderName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        ProviderConfigs.SetDefault(chosen, persist: true);
-                        _ = SetDefaultProviderAsync(chosen);
-                    }
-                    _ = SwitchModelAsync(chosen);   // same path as /model (HTTP /v1/control)
-                }
-
-                AddNote(pathNote == null ? Dictionary.SetupSaved : string.Format(Dictionary.SetupSavedWithNote, pathNote));
-                Log.LogStep($"TUI ModelSetup saved (provider: {providerDropdown.Text})", monitor: true);
+                AddNote(Dictionary.SetupEmailSaved);
+                Log.LogStep("TUI Email panel saved", monitor: true);
                 _app.RequestStop(dlg);
             };
             var close = new Button { Text = Dictionary.Close };
-            close.Accepted += (_, _) => { Log.LogStep("TUI ModelSetup dialog closed (Cancel)"); _app.RequestStop(dlg); };
-            // AddButton in Terminal.Gui v2.4.17 makes the LAST button the dialog default
-            // (the one Enter triggers). Close first, Save last, so Enter saves instead of
-            // silently discarding the edits (issue #8: console edits "not saving").
+            close.Accepted += (_, _) => { Log.LogStep("TUI Email panel closed (Cancel)"); _app.RequestStop(dlg); };
             dlg.AddButton(close);
             dlg.AddButton(save);
-
-            tabs.Add(llmTab, emailTab, imapTab, generalTab);
-            dlg.Add(tabs);
-            // The Tabs headers have no mouse handler in v2.4.17 — the user switches pages
-            // with the keyboard (Tab/F6 = TabStop/TabGroup navigation). The hint makes the
-            // shortcut discoverable instead of leaving the user to guess.
-            dlg.Add(new Label { Text = Dictionary.SetupTabsHint, X = 1, Y = Pos.Bottom(tabs), SchemeName = "Hint" });
-            dlg.Initialized += (_, _) => providerDropdown.SetFocus();
+            dlg.Initialized += (_, _) => smtpServer.SetFocus();
             _app.Run(dlg);
-            Log.LogStep("TUI ModelSetup dialog closed", monitor: true);
+            Log.LogStep("TUI Email panel closed", monitor: true);
+            dlg.Dispose();
+            _inputField?.SetFocus();
+        }
+
+        private Task ShowGeneralPanelAsync()
+        {
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Ui(() =>
+            {
+                try { ShowGeneralPanel(); tcs.SetResult(); }
+                catch (Exception ex) { tcs.SetException(ex); }
+            });
+            return tcs.Task;
+        }
+
+        // General panel: step logging, auto-start at boot and the documents area path.
+        // The documents path is validated (and persisted) via TrySetDocumentsPath before
+        // the panel closes; an unusable path keeps the panel open with the reason shown.
+        private void ShowGeneralPanel()
+        {
+            Log.LogStep("TUI General panel opened", monitor: true);
+            var dlg = new Dialog
+            {
+                Title = Dictionary.SetupGeneralTab,
+                Width = Dim.Percent(70),
+                Height = Dim.Percent(45),
+                SchemeName = "Dark",
+            };
+
+            var logEnabled = new CheckBox
+            {
+                Text = Dictionary.SetupStepLogging,
+                Value = AIOrchestrator.Log.IsEnabled ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = 0,
+            };
+            var autoStart = new CheckBox
+            {
+                Text = Dictionary.SetupAutoStart,
+                Value = SystemExtra.Util.GetAutoStart() ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = 1,
+            };
+            var docsPath = AddField(dlg, Dictionary.SetupDocumentsPath, AIOrchestrator.Setup.DocumentsPath, 3);
+            var pathErr = new Label { Text = "", X = 1, Y = 4, Width = Dim.Fill() - 2, SchemeName = "Hint" };
+            dlg.Add(logEnabled, autoStart, pathErr);
+
+            var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
+            save.Accepted += (_, _) =>
+            {
+                pathErr.Text = "";
+                if (!AIOrchestrator.Setup.TrySetDocumentsPath(docsPath.Text ?? "", out var pathNote))
+                {
+                    pathErr.Text = string.Format(Dictionary.SetupInvalidDocsPathText, pathNote);
+                    return;
+                }
+                AIOrchestrator.Log.IsEnabled = logEnabled.Value == CheckState.Checked;
+                SystemExtra.Util.SetAutoStart(autoStart.Value == CheckState.Checked);
+                AddNote(pathNote == null ? Dictionary.SetupGeneralSaved : string.Format(Dictionary.SetupSavedWithNote, pathNote));
+                Log.LogStep("TUI General panel saved", monitor: true);
+                _app.RequestStop(dlg);
+            };
+            var close = new Button { Text = Dictionary.Close };
+            close.Accepted += (_, _) => { Log.LogStep("TUI General panel closed (Cancel)"); _app.RequestStop(dlg); };
+            dlg.AddButton(close);
+            dlg.AddButton(save);
+            dlg.Initialized += (_, _) => docsPath.SetFocus();
+            _app.Run(dlg);
+            Log.LogStep("TUI General panel closed", monitor: true);
             dlg.Dispose();
             _inputField?.SetFocus();
         }

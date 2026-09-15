@@ -296,7 +296,9 @@ see [section 6](#6-connect-a-client-to-localhost)):
 | `/retry` | **Resend the last prompt** | also `Ctrl+Y` |
 | `/docs` | **Open the online docs** | in the browser |
 | `/web` | **Launch the web GUI (Giraffe AI)** | auto-installed/updated next to the executable and auto-connected to this server (see [section 6](#6-connect-a-client-to-localhost)) |
-| `/setup` · `/modelsetup` | **Main settings (Models & Providers)** | add/edit/remove providers (including the per-provider API key and the persistent default), email (SMTP), mail reading (IMAP), logging, documents path |
+| `/providers` · `/setup` · `/modelsetup` | **LLM & Provider** | active-provider dropdown (the way to change the active provider) and add/edit/remove providers (including the per-provider API key) |
+| `/email` | **Email (SMTP + IMAP)** | outgoing SMTP and incoming IMAP settings, saved with validation |
+| `/general` | **General** | logging, documents path, auto-start |
 | `/exit` · `/quit` | **Exit** | also `Ctrl+C` twice, or `Ctrl+D` |
 
 > Platform-dependent features are honest: if the platform or the assets are missing, the

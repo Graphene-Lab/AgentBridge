@@ -266,7 +266,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupTitle" xml:space="preserve"><value>Impostazioni principali</value></data>
   <data name="SetupLlmTab" xml:space="preserve"><value>LLM e provider</value></data>
   <data name="SetupActiveProvider" xml:space="preserve"><value>Provider attivo</value></data>
-  <data name="SetupActiveMarker" xml:space="preserve"><value>← attivo</value></data>
+  <data name="SetupActiveMarker" xml:space="preserve"><value> (attivo)</value></data>
   <data name="SetupActiveModel" xml:space="preserve"><value>Modello attivo: {0}</value></data>
   <data name="SetupActiveModelDefault" xml:space="preserve"><value>Modello attivo: (predefinito)</value></data>
   <data name="ProviderApiKey" xml:space="preserve"><value>Chiave API</value></data>
@@ -381,4 +381,56 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="NoteOpenedFile" xml:space="preserve"><value>Aperto: {0}</value></data>
   <data name="NoteOpenFileNotFound" xml:space="preserve"><value>Nessun allegato ricevuto corrisponde a "{0}" in {1}</value></data>
   <data name="NoteOpenFailed" xml:space="preserve"><value>Impossibile aprire: {0}</value></data>
+  <!-- Pannelli impostazioni separati: LLM/Provider, Email (SMTP+IMAP), Generali. -->
+  <data name="CmdProviders" xml:space="preserve"><value>Configura il provider LLM attivo e l'elenco dei provider</value></data>
+  <data name="MenuProviders" xml:space="preserve"><value>LLM e P_rovider</value></data>
+  <data name="SetupNoProviderSelected" xml:space="preserve"><value>Seleziona un provider attivo da salvare.</value></data>
+  <data name="SetupActiveProviderSaved" xml:space="preserve"><value>Provider attivo salvato: {0}</value></data>
+  <data name="CmdEmail" xml:space="preserve"><value>Configura la posta (invio SMTP e lettura IMAP)</value></data>
+  <data name="MenuEmailSettings" xml:space="preserve"><value>_Email (SMTP + IMAP)</value></data>
+  <data name="SetupEmailPanelTitle" xml:space="preserve"><value>Email (SMTP + IMAP)</value></data>
+  <data name="SetupSmtpSection" xml:space="preserve"><value>Invio (SMTP)</value></data>
+  <data name="SetupImapSection" xml:space="preserve"><value>Lettura (IMAP)</value></data>
+  <data name="SetupEmailSaved" xml:space="preserve"><value>Impostazioni email salvate</value></data>
+  <data name="CmdGeneral" xml:space="preserve"><value>Configura le impostazioni generali (log, avvio automatico, area documenti)</value></data>
+  <data name="MenuGeneralSettings" xml:space="preserve"><value>_Generali</value></data>
+  <data name="SetupGeneralSaved" xml:space="preserve"><value>Impostazioni generali salvate</value></data>
+  <!-- Pannello impostazioni SIP interattivo. -->
+  <data name="SipPanelTitle" xml:space="preserve"><value>Telefonia SIP</value></data>
+  <data name="SipPanelStatus" xml:space="preserve"><value>Stato: {0} · chiamata: {1}</value></data>
+  <data name="SipPhaseIdle" xml:space="preserve"><value>inattiva</value></data>
+  <data name="SetupSipEnabled" xml:space="preserve"><value>Abilita SIP</value></data>
+  <data name="SetupSipListenPort" xml:space="preserve"><value>Porta di ascolto</value></data>
+  <data name="SetupSipRegistrar" xml:space="preserve"><value>Registrar</value></data>
+  <data name="SetupSipUsername" xml:space="preserve"><value>Nome utente</value></data>
+  <data name="SetupSipPassword" xml:space="preserve"><value>Password</value></data>
+  <data name="SetupSipSecretSet" xml:space="preserve"><value>(impostata)</value></data>
+  <data name="SetupSipAnswerMode" xml:space="preserve"><value>Modalità risposta</value></data>
+  <data name="SetupSipPin" xml:space="preserve"><value>PIN</value></data>
+  <data name="SetupSipAllowed" xml:space="preserve"><value>Chiamanti consentiti</value></data>
+  <data name="SetupSipAgent" xml:space="preserve"><value>Agente</value></data>
+  <data name="SetupSipLang" xml:space="preserve"><value>Lingua</value></data>
+  <data name="SetupSipSaved" xml:space="preserve"><value>Impostazioni SIP salvate</value></data>
+  <data name="SetupSipReload" xml:space="preserve"><value>Ricarica</value></data>
+  <data name="SetupSipAnswerToggle" xml:space="preserve"><value>Attiva/disattiva risposta</value></data>
+  <data name="SetupSipCall" xml:space="preserve"><value>Chiama</value></data>
+  <data name="SetupSipHangup" xml:space="preserve"><value>Riaggancia</value></data>
+  <!-- Pannello motore TTS. -->
+  <data name="TtsEnginePanelTitle" xml:space="preserve"><value>Motore TTS</value></data>
+  <data name="TtsEngineCurrent" xml:space="preserve"><value>Motore attuale: {0}</value></data>
+  <data name="TtsEnginePick" xml:space="preserve"><value>Motori disponibili:</value></data>
+  <data name="TtsEngineNotAvailable" xml:space="preserve"><value>non disponibile</value></data>
+  <data name="TtsEngineSetSelected" xml:space="preserve"><value>Imposta selezionato</value></data>
+  <data name="TtsEngineReset" xml:space="preserve"><value>Ripristina predefinito</value></data>
+  <data name="TtsEngineUnknown" xml:space="preserve"><value>Motore TTS sconosciuto '{0}' — motori noti: {1}.</value></data>
+  <data name="TtsEngineUnavailable" xml:space="preserve"><value>Il motore TTS '{0}' non è disponibile su questa macchina: {1} Il motore resta su {2}.</value></data>
+  <data name="TtsEngineSet" xml:space="preserve"><value>Motore TTS impostato su {0} — salvato in appsettings Tts:Engine.</value></data>
+  <data name="TtsEnginePickOne" xml:space="preserve"><value>Seleziona prima un motore.</value></data>
+  <!-- Pannello File unificato (file + allegati insieme). -->
+  <data name="FilesPanelTitle" xml:space="preserve"><value>File e allegati</value></data>
+  <data name="FilesAdd" xml:space="preserve"><value>Aggiungi</value></data>
+  <data name="FilesAddPrompt" xml:space="preserve"><value>Percorso del file da caricare</value></data>
+  <data name="FilesToggleAttach" xml:space="preserve"><value>Allega / scollega</value></data>
+  <data name="FilesRemove" xml:space="preserve"><value>Rimuovi</value></data>
+  <data name="FilesPickOne" xml:space="preserve"><value>Seleziona prima un file.</value></data>
 </root>
