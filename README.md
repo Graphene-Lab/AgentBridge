@@ -136,6 +136,20 @@ who seems to be working very hard… at pretending. 😉
 
 ![OfficeManager — the agents' office](media/office-manager-demo.gif)
 
+**Parametric 3D CAD — the agent designs real mechanical parts in FreeCAD** — with the
+[FreeCADTool](https://github.com/Graphene-Lab/FreeCADTool) plugin the agent drives a live
+[FreeCAD](https://www.freecad.org) instance to build parametric 3D models: primitives,
+PartDesign bodies with sketches, pad / pocket / revolve / groove, linear / polar / mirror
+patterns, fillet / chamfer, boolean fuse / cut / common, real involute and helical gears
+(FCGear), and import / export of the standard CAD formats (STEP, STL, 3MF, OBJ, IGES). The
+animation shows a turbine impeller — a 12-blade rotor with a revolved hub, top cap, mounting
+flange, outer shroud, central bore and a bolt circle — built as a single solid and rendered by
+orbiting the FreeCAD camera. The tool sets itself up: it auto-starts a headless FreeCAD and
+auto-installs the gear add-on in the background, telling you what is happening with a desktop
+notification in your own language.
+
+![Parametric CAD — a turbine impeller built by the agent in FreeCAD](media/freecad-demo.gif)
+
 ## Agent Bridge: Your AI Assistant for Office Work
 
 Agent Bridge is a tool that allows you to connect to your preferred AI, transforming it into your personal assistant: a tireless worker capable of handling office tasks such as drafting complex documents, working with spreadsheets, interacting with email, and performing internet-based activities—all while having full awareness of your company's knowledge base: clients, documents, products, and everything stored in your archive.
@@ -231,7 +245,7 @@ feature-by-feature comparison with the closest alternatives in that space.
 | **Ease of setup** | **Low** – one self‑contained archive (no .NET install) or one‑line installer; run the executable and chat | **Low (UI‑first)** – graphical desktop, one‑click OAuth | **Medium** – requires Claude desktop app | **High (CLI‑first)** – terminal, API keys, manual config | **High (CLI‑first)** – command‑line install & config |
 | **Key differentiator** | **Deterministic memory** (never forgets, zero wasted recall) + **structural sandbox** enforced by code, not prompts; one process = TUI + OpenAI API + MCP | Proactive pre‑loading; **Memory Tree** (hierarchical KG); TokenJuice compression (up to 80% cost saving) | Cloud‑persistent sessions (tasks continue after device close); sub‑agent coordination | Powerful execution (files, code, browser); 20+ messaging channels | **Closed learning loop** (creates/refines skills); cross‑session FTS5 memory |
 | **Memory system** | **Proprietary Deterministic Memory** – indexes people, facts, documents, style & sessions into your own folders; exact‑context retrieval, no model re‑elaboration | **Memory Tree** – local SQLite + Obsidian‑compatible Markdown vault | **Projects** – persistent, isolated workspaces | Layered memory (transient, short‑term, long‑term, procedural) | Agent‑curated memory with periodic reminders & cross‑session recall |
-| **Tools / integrations** | DocumentTool (Word), SpreadsheetTool (Excel), PresentationTool, PDF reports, podcasts, WebTool, EMailTool (own SMTP/IMAP), FileTool, GitTool, TaskSchedulerTool, MapTool; MCP connector + any OpenAI client | 118+ third‑party services (one‑click); built‑in web search, code tools | Local file ops (read/edit/create); spreadsheets & presentations | Plugin‑based skills; built‑in sandbox | Multi‑channel messaging (Telegram, Discord, etc.); cron‑like scheduled tasks |
+| **Tools / integrations** | DocumentTool (Word), SpreadsheetTool (Excel), PresentationTool, PDF reports, podcasts, WebTool, EMailTool (own SMTP/IMAP), FileTool, GitTool, TaskSchedulerTool, MapTool, FreeCADTool (parametric 3D CAD); MCP connector + any OpenAI client | 118+ third‑party services (one-click); built‑in web search, code tools | Local file ops (read/edit/create); spreadsheets & presentations | Plugin‑based skills; built‑in sandbox | Multi‑channel messaging (Telegram, Discord, etc.); cron‑like scheduled tasks |
 | **Platform support** | Self‑hosted: Windows x64, Linux x64/ARM64, macOS (Intel / Apple Silicon); mini‑PC & edge class (RK3588 → Ryzen AI Max+ 395) | Desktop: macOS, Linux, Windows | Desktop: macOS, Windows; Web, mobile (iOS/Android), Chrome sidebar | Self‑hosted (local or private server) | $5 VPS, GPU clusters, serverless |
 | **Pricing model** | **Free** & fully open‑source (**AGPL v3.0**) — no subscription, BYOK/BYOM | **Freemium** – free OSS + optional unified subscription (auto‑routing) | **Subscription** – included in Claude Pro ($20/mo) and Max ($100–200/mo) | **100% free** – open‑source, BYOK | **100% free** – open‑source, BYOK |
 | **Security / privacy** | **Local‑first & trustless** – files, memory and the agent run on your machine; fully offline with a local model; GDPR‑ready anonymisation before any cloud model call; structural sandbox | **Local‑first** – data encrypted locally, fully offline capable | Folder‑level authorisation; commercial hosted service | **Local‑first** – all data on your machine, offline capable | Self‑hosted – full data sovereignty |
