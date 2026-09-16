@@ -4001,7 +4001,15 @@ public static class ConsoleTui
             {
                 Title = Dictionary.SetupLlmTab,
                 Width = Dim.Percent(80),
-                Height = Dim.Percent(70),
+                // Fixed height (issue #13): the panel is a fixed 14-row stack (active
+                // provider, active model, api key, validation, configured-providers
+                // list, Add/Edit/Remove). With Dim.Percent(70) the dialog collapses on a
+                // short console — the 25-row Windows console default gives ~17 rows, so
+                // the Add/Edit/Remove row (Y=12-13) overlaps the Save/Close footer and a
+                // mouse click on "Edit" lands on "Save", closing the whole panel. 18 rows
+                // = 14 content + footer + borders, so the rows never collide on any
+                // console tall enough to show the panel.
+                Height = 18,
                 SchemeName = "Dark",
             };
 
@@ -4020,14 +4028,15 @@ public static class ConsoleTui
             };
             dlg.Add(activeModelLabel);
 
-            // API key of the provider shown in the dropdown, editable right here (issue #11:
-            // the key was only reachable through the provider's Edit dialog, so users could
-            // not find where to paste it). The field follows the dropdown — switching the
-            // provider loads that provider's current key — and Save writes the edited value
-            // back through the single key-mutation path (ProviderConfigs.SetApiKey). Local
-            // providers simply leave it empty. The field is added to the view tree AFTER the
-            // Add/Edit/Remove buttons so the keyboard focus order (dropdown → list → Add →
-            // Edit) that the setup tests rely on is preserved.
+            // API key of the provider the user is working with, editable right here
+            // (issue #11: the key was only reachable through the provider's Edit dialog, so
+            // users could not find where to paste it). The field follows the provider
+            // highlighted in the configured-providers list (falling back to the active
+            // provider in the dropdown) and Save writes the edited value back for that same
+            // provider through the single key-mutation path (ProviderConfigs.SetApiKey).
+            // Local providers simply leave it empty. The field is added to the view tree
+            // AFTER the Add/Edit/Remove buttons so the keyboard focus order (dropdown →
+            // list → Add → Edit) that the setup tests rely on is preserved.
             dlg.Add(new Label { Text = Dictionary.ProviderApiKey, X = 1, Y = 2, Width = 18 });
             var apiKeyField = new TextField { Text = "", X = 20, Y = 2, Width = 44, Secret = true };
 
@@ -4053,7 +4062,21 @@ public static class ConsoleTui
 
             // The list mirrors the dropdown selection with a single "(attivo)" marker — the
             // user sees exactly one active provider, no redundant "default" tag.
-            providerDropdown.ValueChanged += (_, _) => { RefreshProviderList(); LoadApiKeyForSelection(); };
+            providerDropdown.ValueChanged += (_, _) =>
+            {
+                RefreshProviderList();
+                // Move the list highlight to the provider shown in the dropdown so the key
+                // field (which follows the list) stays in sync when the active provider
+                // changes. One-way only: browsing the list does NOT change the active
+                // provider, so there is no feedback loop.
+                var idx = ProviderConfigs.All.ToList()
+                    .FindIndex(p => string.Equals(p.ProviderName, providerDropdown.Text, StringComparison.OrdinalIgnoreCase));
+                if (idx >= 0) providersList.SelectedItem = idx;
+                LoadApiKeyForSelection();
+            };
+            // Keep the key field in sync with the provider highlighted in the list, so the
+            // field always shows the key that Save will write back for (issue #13).
+            providersList.ValueChanged += (_, _) => LoadApiKeyForSelection();
             void RefreshProviderList()
             {
                 providersList.Source = new ListWrapper<string>(new ObservableCollection<string>(
@@ -4087,13 +4110,23 @@ public static class ConsoleTui
                         ? _provider
                         : ProviderConfigs.Default.ProviderName;
                 RefreshProviderList();
+                // Highlight the active provider in the list so the key field opens showing
+                // its key (the field follows the list selection); the user then moves the
+                // highlight to edit another provider's key.
+                var activeIdx = names.FindIndex(n => string.Equals(n, providerDropdown.Text, StringComparison.OrdinalIgnoreCase));
+                if (activeIdx >= 0) providersList.SelectedItem = activeIdx;
                 LoadApiKeyForSelection();
             }
-            // Loads the selected provider's current API key into the panel's key field so the
-            // user can see and edit it without opening the provider's Edit dialog (issue #11).
+            // Loads the current API key into the panel's key field so the user can see and
+            // edit it without opening the provider's Edit dialog (issue #11). The field
+            // follows the provider the user is working with: the row highlighted in the
+            // configured-providers list when there is one, otherwise the provider shown in
+            // the "Active provider" dropdown — the same provider Save writes the key back
+            // for. Previously it followed only the dropdown, so selecting a provider in the
+            // list and typing its key looked like it did nothing (issue #13).
             void LoadApiKeyForSelection()
             {
-                var name = providerDropdown.Text;
+                var name = SelectedProviderName() ?? providerDropdown.Text;
                 apiKeyField.Text = !string.IsNullOrWhiteSpace(name)
                     && ProviderConfigs.TryGet(name, out var cfg) && cfg != null
                     ? cfg.ApiKey ?? ""
@@ -4164,14 +4197,20 @@ public static class ConsoleTui
                     return;
                 }
                 validationLabel.Text = "";
-                // Persist an edited API key for the selected provider (issue #11). Written
-                // only when the value actually changed, so opening and saving without
-                // touching the key never rewrites providers.json for nothing.
-                if (ProviderConfigs.TryGet(chosen, out var chosenCfg) && chosenCfg != null)
+                // Persist an edited API key for the provider the user is working with — the
+                // row highlighted in the configured-providers list, falling back to the
+                // active-provider dropdown (issue #13: the key used to be written only for
+                // the dropdown provider, so a key typed while a different provider was
+                // selected in the list was stored against the wrong provider and looked
+                // "not saved"). Written only when the value actually changed, so opening
+                // and saving without touching the key never rewrites providers.json.
+                var keyTarget = SelectedProviderName() ?? chosen;
+                if (!string.IsNullOrWhiteSpace(keyTarget)
+                    && ProviderConfigs.TryGet(keyTarget, out var chosenCfg) && chosenCfg != null)
                 {
                     var newKey = (apiKeyField.Text ?? "").Trim();
                     if (!string.Equals(newKey, chosenCfg.ApiKey ?? "", StringComparison.Ordinal))
-                        ProviderConfigs.SetApiKey(chosen, newKey, persist: true);
+                        ProviderConfigs.SetApiKey(keyTarget, newKey, persist: true);
                 }
                 // The dropdown selection is the definitive active provider: persist it as the
                 // default (new chats start from it) and adopt it for the running process.
