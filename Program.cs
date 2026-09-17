@@ -232,6 +232,18 @@ if (builder.Configuration["Sip:ListenPort"] == "5060")
     builder.Configuration["Sip:ListenPort"] = "6071";
 #endif
 
+// The FreeCAD chat workbench reads AGENTBRIDGE_URL to locate the chat endpoint. In a
+// DEBUG session, publish this instance's endpoint at User level so a manually-launched
+// FreeCAD inherits it and the chat connects with no manual env setup. The release build
+// clears it so the chat falls back to its built-in http://localhost:5290 default.
+#if DEBUG
+Environment.SetEnvironmentVariable("AGENTBRIDGE_URL",
+    (builder.Configuration["Urls"] ?? "http://localhost:5291").TrimEnd('/') + "/v1/chat/completions",
+    EnvironmentVariableTarget.User);
+#else
+Environment.SetEnvironmentVariable("AGENTBRIDGE_URL", null, EnvironmentVariableTarget.User);
+#endif
+
 // The TUI (Tui.cs) is built on Terminal.Gui v2 — before changing anything about
 // it, read docs-dev/TUI-DEVELOPMENT.md (local developer guide, offline reference).
 // Terminal UI mode: by default the console opens the Qwen-Code-style TUI (chat +
@@ -397,6 +409,26 @@ var app = builder.Build();
 // Tools/ folder next to the executable — no project depends on a plugin. The agent sets
 // pass tool names and McpToolRegistry resolves them at runtime.
 _ = AgentBridge.ToolPlugins.Host;
+
+#if DEBUG
+// Dev convenience: now that the plugin assemblies are loaded, drop the FreeCAD chat
+// workbench into any installed FreeCAD Mod dir so opening the FreeCAD GUI shows the
+// chat pointed at this debug instance (AGENTBRIDGE_URL above) without the agent having
+// used FreeCADTool first. Reflection keeps the install logic single-sourced in the
+// plugin; if the plugin is absent this is a no-op.
+_ = System.Threading.Tasks.Task.Run(() =>
+{
+    try
+    {
+        var ft = AppDomain.CurrentDomain.GetAssemblies()
+            .Select(a => a.GetType("AIOrchestrator.API.FreeCADTool", throwOnError: false))
+            .FirstOrDefault(t => t != null);
+        ft?.GetMethod("PreInstallChatMod", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            ?.Invoke(null, null);
+    }
+    catch (Exception ex) { Log.LogStep($"FreeCAD chat pre-install skipped: {ex.Message}"); }
+});
+#endif
 
 // OfficeManager hub: tracks every agent instance in this process (sessions of any medium,
 // stateless API calls, subagents) and serves them to the /OfficeManager web app over the
