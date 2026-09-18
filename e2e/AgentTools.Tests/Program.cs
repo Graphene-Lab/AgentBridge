@@ -92,6 +92,43 @@ Check("unknown id falls back to default-agent", unknown.Contains("WebTool"));
 if (!withToolsJson)
     Check("fallback still includes core FileTool", unknown.Contains("FileTool"));
 
+// ── Lean-orchestrator split (docs-dev/ARCHITECTURE.md, "Lean orchestrator") ──
+// System tools (FileTool/GitTool/TaskSchedulerTool/WebTool/EMailTool) stay on the orchestrator;
+// NOT-loaded plugin names resolve to null and therefore count as plugin tools, which is exactly
+// what lets this harness assert the split without loading any plugin assembly.
+Console.WriteLine("\nLean-orchestrator split:");
+
+var allNative = AgentTools.SplitForOrchestration(new[] { "FileTool", "WebTool", "GitTool" });
+Check("all-native set: orchestrator keeps every tool", allNative.OrchestratorTools.Length == 3);
+Check("all-native set: no subagent (nothing to delegate)", allNative.SubagentTools.Length == 0);
+
+var mixed = AgentTools.SplitForOrchestration(new[] { "FileTool", "DocumentTool", "WebTool", "OfficeTool", "GitTool" });
+Check("mixed set: orchestrator keeps only system tools",
+    mixed.OrchestratorTools.SequenceEqual(new[] { "FileTool", "WebTool", "GitTool" }));
+Check("mixed set: plugin tools leave the orchestrator", !mixed.OrchestratorTools.Contains("DocumentTool"));
+Check("mixed set: subagent gets the WHOLE set (self-sufficient)", mixed.SubagentTools.Length == 5);
+Check("mixed set: subagent keeps the system tools too", mixed.SubagentTools.Contains("FileTool"));
+
+var pluginOnly = AgentTools.SplitForOrchestration(new[] { "DocumentTool" });
+Check("plugin-only set: orchestrator is a pure dispatcher", pluginOnly.OrchestratorTools.Length == 0);
+Check("plugin-only set: subagent gets the tool", pluginOnly.SubagentTools.SequenceEqual(new[] { "DocumentTool" }));
+
+var presets = AgentTools.Resolve("document-files");
+var presetSplit = AgentTools.SplitForOrchestration(presets);
+// GitTool, not FileTool: phase 2's tools.json disables FileTool, which the preset then drops.
+Check("document-files preset: orchestrator keeps its system tools", presetSplit.OrchestratorTools.Contains("GitTool"));
+Check("document-files preset: DocumentTool is delegated", !presetSplit.OrchestratorTools.Contains("DocumentTool"));
+Check("document-files preset: subagent gets the resolved preset", presetSplit.SubagentTools.SequenceEqual(presets));
+
+// Kill-switch: AGENTBRIDGE_ORCHESTRATOR_SPLIT=0 = flat single agent, no change at all.
+Environment.SetEnvironmentVariable("AGENTBRIDGE_ORCHESTRATOR_SPLIT", "0");
+Check("split reports disabled under AGENTBRIDGE_ORCHESTRATOR_SPLIT=0", !AgentTools.SplitEnabled);
+var off = AgentTools.SplitForOrchestration(new[] { "FileTool", "DocumentTool" });
+Check("kill-switch: orchestrator keeps the full set", off.OrchestratorTools.Length == 2);
+Check("kill-switch: no subagent", off.SubagentTools.Length == 0);
+Environment.SetEnvironmentVariable("AGENTBRIDGE_ORCHESTRATOR_SPLIT", null);
+Check("split defaults back ON when the variable is unset", AgentTools.SplitEnabled);
+
 if (withToolsJson) File.Delete(toolsJsonPath);
 Console.WriteLine(failures == 0 ? "\nALL OK" : $"\n{failures} FAILURES");
 Environment.Exit(failures == 0 ? 0 : 1);

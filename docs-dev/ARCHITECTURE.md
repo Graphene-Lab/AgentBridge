@@ -345,6 +345,46 @@ who choose the all-in-one preset; the narrow presets (`web-agent`, `email-agent`
 remain for focused tasks and small models. Any custom combination remains possible via
 the additive `tools` field (API) and the `/tools` checklist (TUI).
 
+### Lean orchestrator — system tools in front, plugins behind a subagent
+
+> **Design decision (2026-09-18), on top of the policy above.** The token cost of the large
+> catalog described in the previous paragraph is now paid *only when the work needs it*. The
+> host splits what a preset resolves to: the **system tools** stay on the orchestrator, the
+> **plugin tools** move behind a subagent (`AgentTools.SplitForOrchestration`, called at every
+> `ExecuteAction` site — HTTP chat, OpenAI-compatible endpoint, Telegram, SIP voice, Office).
+> System tools are the ones compiled into the AIOrchestrator assembly (`FileTool`, `GitTool`,
+> `TaskSchedulerTool`, `WebTool`, `EMailTool`); plugin tools arrive from `Tools/`. The class is
+> computed, not listed: `type.Assembly == typeof(BaseAgentTool).Assembly`.
+
+Measured with `e2e/OrchestratorSplit` (same agent set, same prompt, twice):
+
+| Agent set | tool catalog per turn — before (flat) | after (lean orchestrator) |
+|---|---|---|
+| `all-files` (9 plugins) | 146,330 chars | **32,122 chars (−78 %)** |
+| `spreadsheet-files` | 46,106 chars | **17,154 chars (−63 %)** |
+
+**Why it pays on this project specifically.** The catalog is part of the byte-stable prompt
+prefix, so a 78 % smaller prefix is fewer tokens *and* a smaller KV cache re-fill per turn —
+the resource that hurts on a home machine. The system tools stay in front because they answer
+the immediate, simple requests (`FileTool` search/read, `GitTool`, scheduled tasks, web, email)
+without a delegation round trip; the plugin tools — which exist to **create something complex**
+— are exactly the ones worth a subagent. The design rules behind this (and the "no parallel
+fan-out" decision) are in `AIOrchestrator/docs-dev/ARCHITECTURE.md` → "Agent Architecture".
+
+- **Not split when there is nothing to delegate**: a preset with no plugin tool keeps the flat
+  behavior, with no `launch_subagent` in the catalog at all.
+- **The subagent gets the whole resolved set** (system + plugin), so it is self-sufficient and
+  never pauses mid-task to read a file; its own catalog is built once per launch into a fresh
+  `LLMUtility`, so it costs the orchestrator nothing.
+- **Kill-switch**: `AGENTBRIDGE_ORCHESTRATOR_SPLIT=0` in the environment restores the flat
+  single agent without a rebuild (useful to bisect a delegation problem).
+- **Verified end-to-end** (log diagnostics, provider `DeepSeekBridge`, model
+  `spreadsheet-files`): turn 1 and turn 2 log the *same* catalog size (byte-stable prefix), the
+  delegation logs `launching subagent with types: FileTool, SpreadsheetTool, GitTool,
+  TaskSchedulerTool`, `ContinueSubagentSession: session 'sub_1' completed` and the parent
+  receives `{"result":"OK"}` in one iteration. With the kill-switch on the agent replies "the
+  tool 'launch_subagent' does not exist" — the plugin set is visible only in its flat form.
+
 ## Project layout
 
 | File | Purpose |

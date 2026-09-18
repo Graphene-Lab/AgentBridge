@@ -71,6 +71,19 @@ Built on the [AIOffice](https://github.com/Graphene-Lab/AIOffice) agent orchestr
 - **Any OpenAI-compatible client** — SDKs, bots and scripts talk plain
   `POST /v1/chat/completions` to the same agents. No plugin, no custom SDK, no lock-in.
 
+**OfficeManager — watch your AI team work (and give the lazy ones a nudge)**
+
+Every agent becomes a little person in a 16-bit office, so you can actually **see what your
+AI team is doing** instead of reading logs: they walk in through the door, sit at a desk and
+get to work — the tool they are using appears in a speech bubble over their head (a web
+search, a file lookup, a document…). Talk to an agent from the chat to give it a new task or
+ask how it is going, and when it finishes it gets up and leaves through the door. A roaming
+employee with "nothing to do" is always available: give it a task and it becomes a brand-new
+agent on the spot. Great for keeping an eye on many agents at once — and for spotting anyone
+who seems to be working very hard… at pretending. 😉
+
+![OfficeManager — the agents' office](media/office-manager-demo.gif)
+
 ## Demo gallery
 
 A visual showcase — new demos are added here as they are produced.
@@ -122,19 +135,6 @@ soft ducked background bed, host farewell and a closing stinger — into a ready
 generated end-to-end by the agent):
 
 [![Podcast sample episode — click to play (MP4, English, ~42 s)](https://raw.githubusercontent.com/Graphene-Lab/AgentBridge/master/media/podcast-player.png)](https://raw.githubusercontent.com/Graphene-Lab/AgentBridge/master/media/podcast-example.mp4)
-
-**OfficeManager — watch your AI team work (and give the lazy ones a nudge)**
-
-Every agent becomes a little person in a 16-bit office, so you can actually **see what your
-AI team is doing** instead of reading logs: they walk in through the door, sit at a desk and
-get to work — the tool they are using appears in a speech bubble over their head (a web
-search, a file lookup, a document…). Talk to an agent from the chat to give it a new task or
-ask how it is going, and when it finishes it gets up and leaves through the door. A roaming
-employee with "nothing to do" is always available: give it a task and it becomes a brand-new
-agent on the spot. Great for keeping an eye on many agents at once — and for spotting anyone
-who seems to be working very hard… at pretending. 😉
-
-![OfficeManager — the agents' office](media/office-manager-demo.gif)
 
 **Parametric 3D CAD — the agent designs real mechanical parts in FreeCAD** — with the
 [FreeCADTool](https://github.com/Graphene-Lab/FreeCADTool) plugin the agent drives a live
@@ -392,6 +392,32 @@ sequenceDiagram
 **Your data stays yours.** Agents run on your machine inside an application-level sandbox;
 only the model call leaves it — and only when you pick a cloud provider. With local models,
 nothing leaves at all.
+
+**Built for one machine you own — not for a cloud cluster.** Most agent frameworks are designed
+for a data centre: they run several agents in parallel, each on its own API connection, and pay
+per token. AgentBridge targets the opposite case — a private assistant on the computer you
+already have (an office PC, a mini-PC, or a machine like the
+[Ryzen AI Max+ 395](https://github.com/Graphene-Lab/Ryzen-AI-Max-395-SUPERFAST) setup this
+project is tested on), very often with a local model. That goal drives two decisions. They are
+honest trade-offs for that goal, not universal truths:
+
+- **One agent at a time — no parallel fan-out.** A local model has one set of weights and one
+  KV cache. Parallel branches share them, so they do not really run at the same time: they
+  evict each other's cache, and the delays grow far worse than doing the same work one step
+  after the other. Parallel agents also multiply token use several times over, because every
+  branch re-sends the shared context — the resource we have the least of. Complex work is
+  delegated to a **subagent that runs in sequence**, with its own isolated context.
+- **A small tool surface on every turn.** The tool list is part of the prompt prefix, and the
+  prefix is what the model caches (and, with a local model, re-reads into VRAM). So the agent
+  in front keeps only the **system tools** — file, git, scheduled tasks, web, email — which
+  answer simple requests immediately; the **plugin tools** (Word, Excel, PowerPoint, PDF, CAD,
+  podcasts, maps…) reach the model through the subagent, only when complex work needs them.
+  Measured on the full 9-plugin set, the tool list sent on every turn falls from 146,330 to
+  32,122 characters (**−78 %**), while the plugin tools stay fully reachable.
+
+If you run on a cloud cluster with per-request billing, a parallel design can be the better
+choice — we do not claim otherwise. But for a private assistant on hardware you own, keeping
+one model busy and the prompt prefix small is what makes it usable.
 
 **Full component map.** The simplified view above is one slice of the system. The complete
 architecture — every module, the source file behind it and the connections that really

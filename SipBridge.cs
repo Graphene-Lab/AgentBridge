@@ -1677,8 +1677,9 @@ public static class SipBridge
         // SHARED media loop: the medium (SipVoiceMedia) is a mere I/O channel, the logic lives in
         // VoiceConversation.RunConversationAsync (see AIOrchestrator/docs-dev/ARCHITECTURE.md → "Media as I/O").
         call.VoiceMedia ??= new SipVoiceMedia(call);
+        var (orchTools, subTools) = AgentTools.SplitForOrchestration(AgentTools.Resolve(Cfg.Agent));
         call.Loop = Task.Run(() => VoiceConversation.RunConversationAsync(
-            call.VoiceMedia, call.AgentSession.Orchestrator, AgentTools.Resolve(Cfg.Agent),
+            call.VoiceMedia, call.AgentSession.Orchestrator, orchTools, subagentNames: subTools,
             maxIterations: MaxAgentIterations, ct: call.Cts.Token));
     }
 

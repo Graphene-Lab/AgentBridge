@@ -701,8 +701,12 @@ app.MapPost("/v1/chat/completions", async (
             // so OfficeTool's watch/desktop-only methods stay disabled for them.
             var isLocalUser = http.Connection.RemoteIpAddress != null
                 && System.Net.IPAddress.IsLoopback(http.Connection.RemoteIpAddress);
-            var result = orchestrator.ExecuteAction(prompt, agentToolNames, maxIterations: maxIterations,
-                attachments: attachments, isLocalUser: isLocalUser);
+            // Lean orchestrator: the agent keeps the system tools for immediate, simple work;
+            // the plugin tools go behind a subagent (see AgentTools.SplitForOrchestration and
+            // AIOrchestrator/docs-dev/ARCHITECTURE.md → "Lean orchestrator").
+            var (orchTools, subTools) = AgentTools.SplitForOrchestration(agentToolNames);
+            var result = orchestrator.ExecuteAction(prompt, orchTools, subagentNames: subTools,
+                maxIterations: maxIterations, attachments: attachments, isLocalUser: isLocalUser);
 
             // Locale-neutral result codes (AgentResultCode) are rendered through the localized
             // dictionary in the current system language; LLM text (Message/Error) passes through
@@ -1370,7 +1374,9 @@ app.MapPost("/mcp", async (HttpContext http, CancellationToken ct) =>
                     }
 
                     var orchestrator = session?.Orchestrator ?? owned!;
-                    var result = orchestrator.ExecuteAction(prompt!, agentToolNames, maxIterations: maxIterations);
+                    var (orchTools, subTools) = AgentTools.SplitForOrchestration(agentToolNames);
+                    var result = orchestrator.ExecuteAction(prompt!, orchTools, subagentNames: subTools,
+                        maxIterations: maxIterations);
                     var text = result.Message ?? ResultText(result) ?? Dictionary.NoOutputGenerated;
 
                     return McpOk(id, hasId, new

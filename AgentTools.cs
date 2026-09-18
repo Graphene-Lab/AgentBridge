@@ -11,6 +11,7 @@
 //  Tools/ folder (see ToolPlugins). See AIOrchestrator/docs-dev/ARCHITECTURE.md —
 //  "Agent Architecture".
 // ═══════════════════════════════════════════════════════════════════════
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AIOrchestrator;
@@ -85,6 +86,42 @@ public static class AgentTools
             if (string.Equals(p.Id, m, StringComparison.OrdinalIgnoreCase))
                 return WithCore(p.Tools);
         return WithCore(Presets[0].Tools);   // default-agent
+    }
+
+    // ── Lean-orchestrator split (see docs-dev/ARCHITECTURE.md, "Lean orchestrator") ──
+    // System tools are compiled into AIOrchestrator (FileTool, GitTool, TaskSchedulerTool,
+    // WebTool, EMailTool); plugin tools load from the Tools/ folder. The orchestrator keeps
+    // the lean system surface for immediate, simple work; plugin tools run behind an
+    // isolated subagent so their large definitions stay OUT of the orchestrator's per-turn
+    // cached prompt prefix. Controlled by AGENTBRIDGE_ORCHESTRATOR_SPLIT (default on; "0"
+    // disables and restores the flat single-agent behavior).
+    private static readonly Assembly NativeAssembly = typeof(AIOrchestrator.API.BaseAgentTool).Assembly;
+
+    /// <summary>Kill-switch for the split: AGENTBRIDGE_ORCHESTRATOR_SPLIT=0 restores the flat
+    /// single-agent behavior (every tool on the orchestrator) without a rebuild. Read per call —
+    /// once per user turn, so the env lookup is irrelevant — which also makes it testable.</summary>
+    public static bool SplitEnabled =>
+        Environment.GetEnvironmentVariable("AGENTBRIDGE_ORCHESTRATOR_SPLIT") != "0";
+
+    /// <summary>True when the tool is a native system tool (compiled into the AIOrchestrator
+    /// assembly), false when it is a plugin loaded dynamically from the Tools/ folder.</summary>
+    public static bool IsSystemTool(string name)
+    {
+        var t = McpToolRegistry.Resolve(name);
+        return t != null && t.Assembly == NativeAssembly;
+    }
+
+    /// <summary>Splits an already-resolved tool-name array: the orchestrator keeps the system
+    /// tools (lean, cache-stable prefix), the heavy-work subagent gets the WHOLE set (system +
+    /// plugin) so it never has to pause mid-task just to read a file or search the web. When
+    /// the split is disabled, or the set holds no plugin tool, the subagent set is empty and
+    /// the orchestrator runs with the full set exactly as before — no delegation to justify.</summary>
+    public static (string[] OrchestratorTools, string[] SubagentTools) SplitForOrchestration(string[] resolvedNames)
+    {
+        if (!SplitEnabled) return (resolvedNames, Array.Empty<string>());
+        var orch = resolvedNames.Where(IsSystemTool).ToArray();
+        if (orch.Length == resolvedNames.Length) return (resolvedNames, Array.Empty<string>());
+        return (orch, resolvedNames);
     }
 
     /// <summary>Dynamic "all-files" set: every tool currently loaded that the per-tool config
