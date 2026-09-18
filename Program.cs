@@ -598,6 +598,10 @@ app.MapPost("/v1/chat/completions", async (
         ActiveSession? session = null;
         AgentHarness? owned = null;
         var sessionResumed = false;
+        // The agent run, when this request started it on a worker task (the streaming path).
+        // Declared out here so the finally can wait for it before releasing the gate and
+        // disposing the harness — see the finally block.
+        Task<(AgentResult Result, string Content, string FinishReason)>? run = null;
         try
         {
             if (!string.IsNullOrEmpty(request.SessionId))
@@ -704,31 +708,51 @@ app.MapPost("/v1/chat/completions", async (
             // Lean orchestrator: the agent keeps the system tools for immediate, simple work, and
             // the plugin tools ride behind a subagent. One entry point, so no chat path can miss
             // the split (see AgentTools.ExecuteSplit, AIOrchestrator docs → "Lean orchestrator").
-            var result = AgentTools.ExecuteSplit(orchestrator, prompt, agentToolNames,
-                maxIterations, attachments, isLocalUser);
-            session?.AddTurnUsage(result.Usage);
-
-            // Locale-neutral result codes (AgentResultCode) are rendered through the localized
-            // dictionary in the current system language; LLM text (Message/Error) passes through
-            // as-is. "No output generated" is also localized (Dictionary.NoOutputGenerated).
-            var content = result.Message ?? ResultText(result) ?? Dictionary.NoOutputGenerated;
-            var finishReason = result.Success ? "stop" : "error";
             var sessionId = session?.Id;
-            // Keep the dynamic-hash correlation current (see StatelessConversation.cs): the
-            // rolling transcript hash INCLUDING this reply is recorded under the conversation,
-            // or marked pending when the request was a true one-shot — so the next message that
-            // resends the transcript is routed back to the same conversation.
-            if (request.Messages != null)
+            // The agent run can take a very long time — a podcast or a CAD build is tens of
+            // minutes — so it runs on a worker task instead of on the request thread. A
+            // streaming response needs it there: while the agent works, the connection would
+            // otherwise carry ZERO bytes, and any client with a read timeout (or any proxy in
+            // between) drops it long before the answer exists. The stream keeps it alive with
+            // comments until the result is ready.
+            run = Task.Run(() =>
             {
-                var key = StatelessConversation.FullKey(request.Messages, content);
-                if (sessionId != null) StatelessConversation.Record(sessionId, key);
-                else StatelessConversation.MarkPending(key);
-            }
+                var r = AgentTools.ExecuteSplit(orchestrator, prompt, agentToolNames,
+                    maxIterations, attachments, isLocalUser);
+                session?.AddTurnUsage(r.Usage);
+                // Locale-neutral result codes (AgentResultCode) are rendered through the localized
+                // dictionary in the current system language; LLM text (Message/Error) passes
+                // through as-is. "No output generated" is also localized (Dictionary.NoOutputGenerated).
+                var text = r.Message ?? ResultText(r) ?? Dictionary.NoOutputGenerated;
+                // Keep the dynamic-hash correlation current (see StatelessConversation.cs): the
+                // rolling transcript hash INCLUDING this reply is recorded under the
+                // conversation, or marked pending when the request was a true one-shot — so the
+                // next message that resends the transcript is routed back to the same conversation.
+                if (request.Messages != null)
+                {
+                    var key = StatelessConversation.FullKey(request.Messages, text);
+                    if (sessionId != null) StatelessConversation.Record(sessionId, key);
+                    else StatelessConversation.MarkPending(key);
+                }
+                return (Result: r, Content: text, FinishReason: r.Success ? "stop" : "error");
+            });
 
             if (request.Stream == true)
             {
-                return Results.Stream(async stream =>
-                {
+                // The body is written HERE, inside the handler, instead of through Results.Stream.
+                // Results.Stream runs its delegate only AFTER this handler returns, which would
+                // let the finally below dispose the harness while the agent is still running on
+                // the worker task (ObjectDisposedException inside SendQuery). Writing the body
+                // in the handler's own lifetime keeps the whole turn — agent run, keepalives and
+                // chunks — inside the scope that owns the harness.
+                http.Response.StatusCode = 200;
+                http.Response.ContentType = "text/event-stream";
+                await WriteChatStreamAsync(http.Response.Body);
+                return new ResponseAlreadyWritten();
+            }
+
+            async Task WriteChatStreamAsync(Stream stream)
+            {
                     var model = request.Model ?? "default-agent";
                     // The session id (and, when the requested session had expired, the resumed flag)
                     // travels in a dedicated FIRST chunk: the client learns the id it must use for the
@@ -752,6 +776,27 @@ app.MapPost("/v1/chat/completions", async (
                         await stream.WriteAsync(Encoding.UTF8.GetBytes($"data: {JsonSerializer.Serialize(sessionChunk, jsonOptions)}\n\n"), ct);
                         await stream.FlushAsync(ct);
                     }
+                    // Keepalive while the agent works: one SSE comment line every 15 s. The spec
+                    // requires clients to ignore comment lines and our own chat panel skips
+                    // anything that is not "data: " — the only purpose is that bytes keep
+                    // flowing, so no idle read timeout (client, proxy, load balancer) kills a
+                    // job that legitimately runs for half an hour.
+                    try
+                    {
+                        while (await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(15), ct)) != run)
+                        {
+                            await stream.WriteAsync(Encoding.UTF8.GetBytes(": keepalive\n\n"), ct);
+                            await stream.FlushAsync(ct);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;   // the client hung up mid-run: nothing left to send
+                    }
+                    var outcome = await run;
+                    var result = outcome.Result;
+                    var content = outcome.Content;
+                    var finishReason = outcome.FinishReason;
                     foreach (var word in content.Split(' '))
                     {
                         if (ct.IsCancellationRequested) break;
@@ -822,9 +867,12 @@ app.MapPost("/v1/chat/completions", async (
                     }
                     await stream.WriteAsync(Encoding.UTF8.GetBytes("data: [DONE]\n\n"), ct);
                     await stream.FlushAsync(ct);
-                }, "text/event-stream");
             }
 
+            var done = await run;
+            var result = done.Result;
+            var content = done.Content;
+            var finishReason = done.FinishReason;
             var response = new
             {
                 id = $"chatcmpl-{Guid.NewGuid():N}",
@@ -851,6 +899,9 @@ app.MapPost("/v1/chat/completions", async (
         }
         finally
         {
+            // Safe to dispose here: both response paths await the worker task before returning,
+            // so the agent turn is over by the time this runs (the streaming path writes its body
+            // inside the handler for exactly this reason).
             session?.Gate.Release();
             owned?.Dispose();
         }
@@ -2078,3 +2129,12 @@ static string GridCapture(string text)
     return sb.ToString();
 }
 #endif
+
+// A result for a response whose body the handler already wrote to the stream. Results.Stream
+// cannot be used there: its delegate runs only after the handler returns, which would let the
+// handler's finally dispose the agent harness mid-run. This result writes nothing and touches
+// no response header, so it is safe after the body has started.
+internal sealed class ResponseAlreadyWritten : IResult
+{
+    public Task ExecuteAsync(HttpContext context) => Task.CompletedTask;
+}
