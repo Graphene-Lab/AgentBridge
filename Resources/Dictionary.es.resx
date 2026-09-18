@@ -294,7 +294,7 @@ El área de documentos anterior sigue activa — no se ha cambiado nada.</value>
   <data name="DlgToolsActive" xml:space="preserve"><value>Herramientas activas — Espacio activa/desactiva</value></data>
   <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ mover · Espacio activar/desactivar · Intro aplicar · Esc cancelar</value></data>
   <data name="NoteNoToolsSelected" xml:space="preserve"><value>selecciona al menos una herramienta</value></data>
-  <data name="NoteToolsApplied" xml:space="preserve"><value>herramientas: {0}</value></data>
+  <data name="NoteToolsApplied" xml:space="preserve"><value>Herramientas actualizadas: {0}. Efectivas desde el siguiente mensaje (sin reiniciar).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Eliminar archivo</value></data>
   <data name="StatusTools" xml:space="preserve"><value>herramientas</value></data>
   <data name="StatusBarHints" xml:space="preserve"><value>F1 ayuda · F10 menú · / comandos · @ archivos · ? atajos · Esc cerrar · Ctrl+C cancelar</value></data>

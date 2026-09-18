@@ -294,7 +294,7 @@ Der vorherige Dokumentbereich ist weiterhin aktiv — es wurde nichts geändert.
   <data name="DlgToolsActive" xml:space="preserve"><value>Aktive Werkzeuge — Leertaste umschalten</value></data>
   <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ bewegen · Leertaste umschalten · Eingabe übernehmen · Esc abbrechen</value></data>
   <data name="NoteNoToolsSelected" xml:space="preserve"><value>Wählen Sie mindestens ein Werkzeug</value></data>
-  <data name="NoteToolsApplied" xml:space="preserve"><value>Werkzeuge: {0}</value></data>
+  <data name="NoteToolsApplied" xml:space="preserve"><value>Werkzeuge aktualisiert: {0}. Gültig ab der nächsten Nachricht (kein Neustart nötig).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Datei löschen</value></data>
   <data name="StatusTools" xml:space="preserve"><value>Werkzeuge</value></data>
   <data name="StatusBarHints" xml:space="preserve"><value>F1 Hilfe · F10 Menü · / Befehle · @ Dateien · ? Tastenkürzel · Esc schließen · Strg+C abbrechen</value></data>

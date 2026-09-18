@@ -294,7 +294,7 @@ Powered by Terminal.Gui</value></data>
   <data name="DlgToolsActive" xml:space="preserve"><value>Активные инструменты — пробел переключает</value></data>
   <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ перемещение · пробел переключить · Enter применить · Esc отмена</value></data>
   <data name="NoteNoToolsSelected" xml:space="preserve"><value>выберите хотя бы один инструмент</value></data>
-  <data name="NoteToolsApplied" xml:space="preserve"><value>инструменты: {0}</value></data>
+  <data name="NoteToolsApplied" xml:space="preserve"><value>Инструменты обновлены: {0}. Действуют со следующего сообщения (перезапуск не нужен).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Удалить файл</value></data>
   <data name="StatusTools" xml:space="preserve"><value>инструменты</value></data>
   <data name="StatusBarHints" xml:space="preserve"><value>F1 справка · F10 меню · / команды · @ файлы · ? сочетания · Esc закрыть · Ctrl+C отмена</value></data>

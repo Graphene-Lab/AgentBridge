@@ -294,7 +294,7 @@ La zone de documents précédente est toujours active — rien n'a été modifi�
   <data name="DlgToolsActive" xml:space="preserve"><value>Outils actifs — Espace active/désactive</value></data>
   <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ déplacer · Espace activer/désactiver · Entrée appliquer · Échap annuler</value></data>
   <data name="NoteNoToolsSelected" xml:space="preserve"><value>sélectionnez au moins un outil</value></data>
-  <data name="NoteToolsApplied" xml:space="preserve"><value>outils : {0}</value></data>
+  <data name="NoteToolsApplied" xml:space="preserve"><value>Outils mis à jour : {0}. Actifs dès le message suivant (aucun redémarrage nécessaire).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Supprimer le fichier</value></data>
   <data name="StatusTools" xml:space="preserve"><value>outils</value></data>
   <data name="StatusBarHints" xml:space="preserve"><value>F1 aide · F10 menu · / commandes · @ fichiers · ? raccourcis · Échap fermer · Ctrl+C annuler</value></data>

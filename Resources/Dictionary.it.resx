@@ -341,7 +341,7 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="DlgToolsCoreNone" xml:space="preserve"><value>Core (sempre attivi): nessuno — disabilitati in tools.json</value></data>
   <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ sposta · Spazio attiva/disattiva · Chiudi/Esc salva automaticamente</value></data>
   <data name="NoteNoToolsSelected" xml:space="preserve"><value>seleziona almeno uno strumento</value></data>
-  <data name="NoteToolsApplied" xml:space="preserve"><value>strumenti: {0}</value></data>
+  <data name="NoteToolsApplied" xml:space="preserve"><value>Strumenti aggiornati: {0}. Validi dal messaggio successivo (nessun riavvio necessario).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Elimina file</value></data>
   <data name="StatusTools" xml:space="preserve"><value>strumenti</value></data>
   <data name="StatusBarHints" xml:space="preserve"><value>F1 aiuto · F10 menu · / comandi · @ file · ? scorciatoie · Esc chiudi · Ctrl+C annulla</value></data>
