@@ -582,9 +582,8 @@ public static class TelegramBridge
                     return;
                 }
 
-                var (orchTools, subTools) = AgentTools.SplitForOrchestration(AgentTools.Resolve(_cfg.Agent));
-                var result = active.Orchestrator.ExecuteAction(prompt, orchTools, subagentNames: subTools,
-                    maxIterations: MaxAgentIterations, attachments: attachments, isLocalUser: false);
+                var result = AgentTools.ExecuteSplit(active.Orchestrator, prompt, AgentTools.Resolve(_cfg.Agent),
+                    MaxAgentIterations, attachments, isLocalUser: false);
 
                 var reply = result.Message ?? result.Error;
                 if (string.IsNullOrWhiteSpace(reply))

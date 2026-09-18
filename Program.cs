@@ -701,12 +701,11 @@ app.MapPost("/v1/chat/completions", async (
             // so OfficeTool's watch/desktop-only methods stay disabled for them.
             var isLocalUser = http.Connection.RemoteIpAddress != null
                 && System.Net.IPAddress.IsLoopback(http.Connection.RemoteIpAddress);
-            // Lean orchestrator: the agent keeps the system tools for immediate, simple work;
-            // the plugin tools go behind a subagent (see AgentTools.SplitForOrchestration and
-            // AIOrchestrator/docs-dev/ARCHITECTURE.md → "Lean orchestrator").
-            var (orchTools, subTools) = AgentTools.SplitForOrchestration(agentToolNames);
-            var result = orchestrator.ExecuteAction(prompt, orchTools, subagentNames: subTools,
-                maxIterations: maxIterations, attachments: attachments, isLocalUser: isLocalUser);
+            // Lean orchestrator: the agent keeps the system tools for immediate, simple work, and
+            // the plugin tools ride behind a subagent. One entry point, so no chat path can miss
+            // the split (see AgentTools.ExecuteSplit, AIOrchestrator docs → "Lean orchestrator").
+            var result = AgentTools.ExecuteSplit(orchestrator, prompt, agentToolNames,
+                maxIterations, attachments, isLocalUser);
 
             // Locale-neutral result codes (AgentResultCode) are rendered through the localized
             // dictionary in the current system language; LLM text (Message/Error) passes through
@@ -1374,9 +1373,7 @@ app.MapPost("/mcp", async (HttpContext http, CancellationToken ct) =>
                     }
 
                     var orchestrator = session?.Orchestrator ?? owned!;
-                    var (orchTools, subTools) = AgentTools.SplitForOrchestration(agentToolNames);
-                    var result = orchestrator.ExecuteAction(prompt!, orchTools, subagentNames: subTools,
-                        maxIterations: maxIterations);
+                    var result = AgentTools.ExecuteSplit(orchestrator, prompt!, agentToolNames, maxIterations);
                     var text = result.Message ?? ResultText(result) ?? Dictionary.NoOutputGenerated;
 
                     return McpOk(id, hasId, new

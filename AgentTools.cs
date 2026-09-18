@@ -97,31 +97,72 @@ public static class AgentTools
     // disables and restores the flat single-agent behavior).
     private static readonly Assembly NativeAssembly = typeof(AIOrchestrator.API.BaseAgentTool).Assembly;
 
-    /// <summary>Kill-switch for the split: AGENTBRIDGE_ORCHESTRATOR_SPLIT=0 restores the flat
-    /// single-agent behavior (every tool on the orchestrator) without a rebuild. Read per call —
-    /// once per user turn, so the env lookup is irrelevant — which also makes it testable.</summary>
-    public static bool SplitEnabled =>
-        Environment.GetEnvironmentVariable("AGENTBRIDGE_ORCHESTRATOR_SPLIT") != "0";
+    /// <summary>Environment variable that switches the split on or off (see
+    /// <see cref="SplitEnabled"/>). Exposed so a host or a test never has to retype it.</summary>
+    public const string SplitEnvVar = "AGENTBRIDGE_ORCHESTRATOR_SPLIT";
 
-    /// <summary>True when the tool is a native system tool (compiled into the AIOrchestrator
-    /// assembly), false when it is a plugin loaded dynamically from the Tools/ folder.</summary>
-    public static bool IsSystemTool(string name)
+    /// <summary>Kill-switch for the split: setting <see cref="SplitEnvVar"/> to 0/false/off/no
+    /// (any case, surrounding spaces ignored) restores the flat single-agent behavior — every
+    /// tool on the orchestrator — without a rebuild. Read per call, once per user turn, so the
+    /// environment lookup costs nothing and the switch stays testable.</summary>
+    public static bool SplitEnabled
     {
-        var t = McpToolRegistry.Resolve(name);
-        return t != null && t.Assembly == NativeAssembly;
+        get
+        {
+            var raw = Environment.GetEnvironmentVariable(SplitEnvVar)?.Trim();
+            if (string.IsNullOrEmpty(raw)) return true;
+            return raw.ToLowerInvariant() is not ("0" or "false" or "off" or "no");
+        }
     }
 
-    /// <summary>Splits an already-resolved tool-name array: the orchestrator keeps the system
-    /// tools (lean, cache-stable prefix), the heavy-work subagent gets the WHOLE set (system +
-    /// plugin) so it never has to pause mid-task just to read a file or search the web. When
-    /// the split is disabled, or the set holds no plugin tool, the subagent set is empty and
-    /// the orchestrator runs with the full set exactly as before — no delegation to justify.</summary>
+    /// <summary>True when the tool is a native system tool (compiled into the AIOrchestrator
+    /// assembly), false when it is a plugin loaded dynamically from the Tools/ folder — and
+    /// false for a name that nothing resolves, which is no tool at all.</summary>
+    public static bool IsSystemTool(string name) => McpToolRegistry.Resolve(name)?.Assembly == NativeAssembly;
+
+    /// <summary>Splits an already-resolved tool-name array into the orchestrator's set (the system
+    /// tools — a lean, cache-stable prefix) and the heavy-work subagent's set (the WHOLE set, so a
+    /// delegated task never pauses mid-flight just to read a file or search the web). The split
+    /// happens only when it pays and stays lawful:
+    ///   • a name that resolves to nothing stays on the orchestrator — it is not a tool the
+    ///     subagent could use either, so it must not be what triggers a delegation;
+    ///   • a set with no LOADED plugin tool is not split at all: flat behavior, no subagent;
+    ///   • a set that would leave the orchestrator with no tool of its own is not split either:
+    ///     that is the client's explicit choice (the `tools` extension overrides the preset —
+    ///     docs/API.md), and a pure dispatcher would contradict the documented contract.
+    /// In every unsplit case the subagent set is empty and the caller runs exactly as before.</summary>
     public static (string[] OrchestratorTools, string[] SubagentTools) SplitForOrchestration(string[] resolvedNames)
     {
         if (!SplitEnabled) return (resolvedNames, Array.Empty<string>());
-        var orch = resolvedNames.Where(IsSystemTool).ToArray();
-        if (orch.Length == resolvedNames.Length) return (resolvedNames, Array.Empty<string>());
-        return (orch, resolvedNames);
+
+        var orchestrator = new List<string>(resolvedNames.Length);
+        var hasLoadedPlugin = false;
+        foreach (var name in resolvedNames)
+        {
+            var type = McpToolRegistry.Resolve(name);
+            if (type == null || type.Assembly == NativeAssembly)
+            {
+                orchestrator.Add(name);
+                continue;
+            }
+            hasLoadedPlugin = true;
+        }
+
+        if (!hasLoadedPlugin || orchestrator.Count == 0)
+            return (resolvedNames, Array.Empty<string>());
+        return (orchestrator.ToArray(), resolvedNames);
+    }
+
+    /// <summary>Runs one agent turn with the lean-orchestrator split applied — the single entry
+    /// point every textual chat path in this host uses, so a new path cannot forget the split.
+    /// The voice path passes the two sets to VoiceConversation explicitly instead: it owns the
+    /// streaming loop and needs both arrays.</summary>
+    public static AgentResult ExecuteSplit(AgentHarness harness, string prompt, string[] resolvedToolNames,
+        int maxIterations = 200, IEnumerable<UISupportGeneric.FileAttachment>? attachments = null, bool isLocalUser = false)
+    {
+        var (orchestratorTools, subagentTools) = SplitForOrchestration(resolvedToolNames);
+        return harness.ExecuteAction(prompt, orchestratorTools, subagentNames: subagentTools,
+            maxIterations: maxIterations, attachments: attachments, isLocalUser: isLocalUser);
     }
 
     /// <summary>Dynamic "all-files" set: every tool currently loaded that the per-tool config

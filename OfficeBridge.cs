@@ -355,9 +355,8 @@ public static class OfficeBridge
             AgentResult result;
             try
             {
-                var (orchTools, subTools) = AgentTools.SplitForOrchestration(AgentTools.Resolve(null));
-                result = await Task.Run(() => session.Orchestrator.ExecuteAction(
-                    prompt, orchTools, subagentNames: subTools, maxIterations: 200, isLocalUser: true));
+                result = await Task.Run(() => AgentTools.ExecuteSplit(session.Orchestrator, prompt,
+                    AgentTools.Resolve(null), 200, isLocalUser: true));
             }
             finally { session.Gate.Release(); }
 

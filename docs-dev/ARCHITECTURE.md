@@ -371,19 +371,32 @@ without a delegation round trip; the plugin tools — which exist to **create so
 — are exactly the ones worth a subagent. The design rules behind this (and the "no parallel
 fan-out" decision) are in `AIOrchestrator/docs-dev/ARCHITECTURE.md` → "Agent Architecture".
 
-- **Not split when there is nothing to delegate**: a preset with no plugin tool keeps the flat
-  behavior, with no `launch_subagent` in the catalog at all.
+- **Not split when there is nothing to delegate**: the split needs at least one **loaded** plugin
+  tool. A name that resolves to nothing (a preset listing a plugin this install does not ship) is
+  not a tool the subagent could use either, so it never triggers a delegation — the set stays flat.
+- **Not split when it would empty the orchestrator**: a set with no system tool of its own (a
+  client-pinned `tools` list of plugin names only) keeps the flat behavior. That list is the
+  client's explicit choice — the `tools` extension overrides the preset (docs/API.md) — and a
+  pure dispatcher would contradict it.
 - **The subagent gets the whole resolved set** (system + plugin), so it is self-sufficient and
   never pauses mid-task to read a file; its own catalog is built once per launch into a fresh
-  `LLMUtility`, so it costs the orchestrator nothing.
-- **Kill-switch**: `AGENTBRIDGE_ORCHESTRATOR_SPLIT=0` in the environment restores the flat
-  single agent without a rebuild (useful to bisect a delegation problem).
-- **Verified end-to-end** (log diagnostics, provider `DeepSeekBridge`, model
-  `spreadsheet-files`): turn 1 and turn 2 log the *same* catalog size (byte-stable prefix), the
-  delegation logs `launching subagent with types: FileTool, SpreadsheetTool, GitTool,
-  TaskSchedulerTool`, `ContinueSubagentSession: session 'sub_1' completed` and the parent
-  receives `{"result":"OK"}` in one iteration. With the kill-switch on the agent replies "the
-  tool 'launch_subagent' does not exist" — the plugin set is visible only in its flat form.
+  `LLMUtility`, so it costs the orchestrator nothing. It also inherits the run's watch/desktop
+  gate, and a background task it starts is queued on the conversation for delivery.
+- **One entry point**: `AgentTools.ExecuteSplit(harness, prompt, toolNames, …)` is what every
+  textual chat path calls (HTTP chat, OpenAI-compatible endpoint, Telegram, Office), so a new
+  path cannot forget the split. The voice path passes both arrays to `VoiceConversation`, which
+  owns the streaming loop. Paths OUTSIDE AgentBridge (AIOffice panels, `TaskSchedulerTool`'s
+  scheduled chats) run flat: the split is host policy, not a library rule.
+- **Kill-switch**: `AGENTBRIDGE_ORCHESTRATOR_SPLIT` set to `0`, `false`, `off` or `no` (any case)
+  restores the flat single agent without a rebuild — useful to bisect a delegation problem.
+- **Verified end-to-end** against a real LAN model server (a 125B MoE on a Ryzen AI Max+ 395,
+  reached through its API-key gateway): the orchestrator's turn-opening call costs **6,151 prompt
+  tokens with the split and 15,761 without (−61 % on the same task)**, the catalog drops from
+  46,106 to 17,154 chars, and a real client task (create an .xlsx) completed through the subagent
+  in both modes. With the kill-switch on, the agent reports that `launch_subagent` does not exist.
+  The measured counterweight: each new delegated conversation pays a **cold** prefill of the whole
+  set (~15.5 k tokens, ~13 s on that box), which the flat run never pays — the trade the split
+  makes, not a hidden cost. `e2e/OrchestratorSplit` prints all three numbers per run.
 
 ## Project layout
 
