@@ -209,6 +209,9 @@ Powered by Terminal.Gui</value></data>
   <data name="StatusSession" xml:space="preserve"><value>Session</value></data>
   <data name="StatusProvider" xml:space="preserve"><value>Fournisseur</value></data>
   <data name="StatusContextWindow" xml:space="preserve"><value>Fenêtre de contexte {0:N0} jetons · historique ≈ {1:N0}</value></data>
+  <data name="StatusTokensLast" xml:space="preserve"><value>Jetons (dernier tour)</value></data>
+  <data name="StatusTokensSession" xml:space="preserve"><value>Jetons (session)</value></data>
+  <data name="StatusTokensValue" xml:space="preserve"><value>{0:N0} invite, {1:N0} réponse ({2:N0} en cache, {3} appels)</value></data>
   <data name="StatusAgentSet" xml:space="preserve"><value>Ensemble d'agents</value></data>
   <data name="StatusFeatures" xml:space="preserve"><value>Fonctionnalités</value></data>
   <data name="StatusAttachments" xml:space="preserve"><value>Pièces jointes</value></data>

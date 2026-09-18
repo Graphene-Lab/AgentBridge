@@ -3028,6 +3028,33 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Tokens (last turn)'.
+        /// </summary>
+        public static string StatusTokensLast {
+            get {
+                return ResourceManager.GetString("StatusTokensLast", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Tokens (session)'.
+        /// </summary>
+        public static string StatusTokensSession {
+            get {
+                return ResourceManager.GetString("StatusTokensSession", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '{0:N0} prompt, {1:N0} completion ({2:N0} cached, {3} calls)'.
+        /// </summary>
+        public static string StatusTokensValue {
+            get {
+                return ResourceManager.GetString("StatusTokensValue", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Press Ctrl+C again to exit'.
         /// </summary>
         public static string StatusCtrlCAgain {

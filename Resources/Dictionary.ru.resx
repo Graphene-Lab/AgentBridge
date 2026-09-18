@@ -209,6 +209,9 @@ Powered by Terminal.Gui</value></data>
   <data name="StatusSession" xml:space="preserve"><value>Сессия</value></data>
   <data name="StatusProvider" xml:space="preserve"><value>Провайдер</value></data>
   <data name="StatusContextWindow" xml:space="preserve"><value>Окно контекста {0:N0} токенов · история ≈ {1:N0}</value></data>
+  <data name="StatusTokensLast" xml:space="preserve"><value>Токены (последний ход)</value></data>
+  <data name="StatusTokensSession" xml:space="preserve"><value>Токены (сессия)</value></data>
+  <data name="StatusTokensValue" xml:space="preserve"><value>{0:N0} промпт, {1:N0} ответ ({2:N0} из кэша, {3} вызовов)</value></data>
   <data name="StatusAgentSet" xml:space="preserve"><value>Набор агентов</value></data>
   <data name="StatusFeatures" xml:space="preserve"><value>Функции</value></data>
   <data name="StatusAttachments" xml:space="preserve"><value>Вложения</value></data>

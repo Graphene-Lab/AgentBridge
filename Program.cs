@@ -706,6 +706,7 @@ app.MapPost("/v1/chat/completions", async (
             // the split (see AgentTools.ExecuteSplit, AIOrchestrator docs → "Lean orchestrator").
             var result = AgentTools.ExecuteSplit(orchestrator, prompt, agentToolNames,
                 maxIterations, attachments, isLocalUser);
+            session?.AddTurnUsage(result.Usage);
 
             // Locale-neutral result codes (AgentResultCode) are rendered through the localized
             // dictionary in the current system language; LLM text (Message/Error) passes through
@@ -801,6 +802,24 @@ app.MapPost("/v1/chat/completions", async (
                         }
                     };
                     await stream.WriteAsync(Encoding.UTF8.GetBytes($"data: {JsonSerializer.Serialize(finalChunk, jsonOptions)}\n\n"), ct);
+                    // Token usage on the stream, the OpenAI way: only when the client asked for it
+                    // (stream_options.include_usage), in a last chunk whose choices array is empty,
+                    // immediately before [DONE]. A client that did not ask sees exactly the stream
+                    // it always saw.
+                    if (request.StreamOptions?.IncludeUsage == true)
+                    {
+                        var usageChunk = new
+                        {
+                            id = $"chatcmpl-{Guid.NewGuid():N}",
+                            @object = "chat.completion.chunk",
+                            created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                            model,
+                            choices = Array.Empty<object>(),
+                            usage = UsagePayload(result, prompt, content)
+                        };
+                        await stream.WriteAsync(Encoding.UTF8.GetBytes($"data: {JsonSerializer.Serialize(usageChunk, jsonOptions)}\n\n"), ct);
+                        await stream.FlushAsync(ct);
+                    }
                     await stream.WriteAsync(Encoding.UTF8.GetBytes("data: [DONE]\n\n"), ct);
                     await stream.FlushAsync(ct);
                 }, "text/event-stream");
@@ -826,12 +845,7 @@ app.MapPost("/v1/chat/completions", async (
                         finish_reason = finishReason
                     }
                 },
-                usage = new
-                {
-                    prompt_tokens = EstimateTokens(prompt),
-                    completion_tokens = EstimateTokens(content),
-                    total_tokens = EstimateTokens(prompt + content)
-                }
+                usage = UsagePayload(result, prompt, content)
             };
             return Results.Ok(response);
         }
@@ -1374,6 +1388,7 @@ app.MapPost("/mcp", async (HttpContext http, CancellationToken ct) =>
 
                     var orchestrator = session?.Orchestrator ?? owned!;
                     var result = AgentTools.ExecuteSplit(orchestrator, prompt!, agentToolNames, maxIterations);
+                    session?.AddTurnUsage(result.Usage);
                     var text = result.Message ?? ResultText(result) ?? Dictionary.NoOutputGenerated;
 
                     return McpOk(id, hasId, new
@@ -1386,7 +1401,8 @@ app.MapPost("/mcp", async (HttpContext http, CancellationToken ct) =>
                             iterations = result.Iterations,
                             elapsed_ms = result.TotalElapsedMs,
                             session_id = session?.Id,
-                            attachments = result.Attachments
+                            attachments = result.Attachments,
+                            usage = UsagePayload(result, prompt!, text)
                         },
                         isError = !result.Success
                     });
@@ -1742,6 +1758,36 @@ static IEnumerable<FileAttachment>? ResolveAttachments(List<string>? fileIds)
 // Rough token estimate (~4 chars per token for latin scripts).
 static int EstimateTokens(string text) => (int)Math.Ceiling(text.Length / 4.0);
 
+/// <summary>
+/// The `usage` object of an OpenAI-compatible response: the provider's own token counts when it
+/// reported them, otherwise the local character estimate — labelled either way, so a client never
+/// mistakes one measurement for the other. `prompt_tokens_details.cached_tokens` is OpenAI's place
+/// for the part of the prompt served from the provider's prefix cache, and `calls` is our additive
+/// field for how many provider calls the turn took (an agent turn is usually several).
+/// </summary>
+static object UsagePayload(AgentResult result, string prompt, string content) =>
+    result.Usage is { Reported: true } u
+        ? UsageJson(u)
+        : new
+        {
+            prompt_tokens = EstimateTokens(prompt),
+            completion_tokens = EstimateTokens(content),
+            total_tokens = EstimateTokens(prompt + content),
+            estimated = true,
+        };
+
+/// <summary>One <see cref="AgentUsage"/> snapshot in the OpenAI shape (plus our additive
+/// `calls`), for the endpoints that report usage without an AgentResult at hand.</summary>
+static object UsageJson(AgentUsage usage) => new
+{
+    prompt_tokens = usage.PromptTokens,
+    completion_tokens = usage.CompletionTokens,
+    total_tokens = usage.TotalTokens,
+    prompt_tokens_details = usage.CachedTokens > 0 ? (object)new { cached_tokens = usage.CachedTokens } : null,
+    calls = usage.Calls,
+    estimated = false,
+};
+
 // JSON-RPC 2.0 helpers for the MCP endpoint. Notifications (missing id) intentionally
 // return 204 with no payload, as expected by JSON-RPC.
 static IResult McpOk(JsonElement id, bool hasId, object result)
@@ -1857,6 +1903,14 @@ object SessionState(ActiveSession session)
             interaction_mode = session.Orchestrator.InteractionMode.ToString(),
             history_messages = history.Count,
             history_tokens_estimate = EstimateTokens(string.Join("\n", history.Select(h => h.Content)))
+        },
+        // Token consumption, as the provider reported it: the turn that just finished and the
+        // session total. `estimated: false` marks a real measurement; an estimate (the local
+        // character heuristic) is what a provider that reports nothing falls back to.
+        usage = new
+        {
+            last_turn = UsageJson(session.Orchestrator.LastUsage),
+            session = UsageJson(session.Usage)
         },
         features = session.Features,
         capabilities = BuildCapabilities()

@@ -42,6 +42,7 @@ project and get a persistent TUI where:
 | No voice | `/voice` — dictation from the server microphone (Windows), `/tts` — Kokoro neural TTS speaks the replies and plays the WAV |
 | File completion via `@` | `@` palette of **uploaded** files (server-side `/v1/files`), `/files add <path>` uploads and attaches; attachments ride along as `file_ids` |
 | Status shows context | status bar also shows **history tokens / context window**, the active **tools** (readable names, e.g. `File, Web, Git`), TTS/mic availability |
+| Status page shows tokens | menu **Agent → Status** reports the token usage the provider reported for the last turn and for the whole session (prompt, completion, cached, provider calls). A provider that reports no usage shows `none` rather than a zero, so a guess is never mistaken for a measurement |
 | `/docs` opens docs site | `/docs` opens **this project's** online README; `/help` lists commands, shortcuts, API endpoints and links |
 | — | `/tools` opens the tools checklist (presets + individual tools), `/features` toggles feature flags, `/health` pings the server, `/retry` resends the last prompt, `/web` opens the auto-connected web client |
 

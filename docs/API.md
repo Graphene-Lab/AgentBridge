@@ -109,6 +109,7 @@ curl -N http://localhost:5290/v1/chat/completions \
 | `file_ids` | Optional ids from `POST /v1/files` — attached as context (Markdown, server-side). |
 | `max_tokens` | Roughly maps to agent loop iterations (`max_tokens / 100`, clamped 1–50). |
 | `stream` | `true` → SSE chunks; `false` (default) → single JSON response with `usage`. |
+| `stream_options` | OpenAI field: `{"include_usage": true}` adds one last SSE chunk carrying `usage` (empty `choices`), exactly as OpenAI emits it. Absent, no usage chunk is sent and the stream is byte-identical to what it always was. |
 | `session_id` | **Extension** — multi-turn session id (see [Sessions](#sessions-multi-turn-memory)). |
 | `llm_provider` | **Extension** — LLM provider for this request (see [LLM switching](#llm-switching-the-pilot-endpoint)). |
 
@@ -124,6 +125,23 @@ Responses carry an additive `session_id` field when a session was used (on `stre
 it arrives in a dedicated **first** SSE chunk, so the client knows its id before any text).
 `session_resumed: true` marks a continuation where the previous turns were restored from the
 transcript (see [expired sessions](#expired-sessions-continuation)).
+
+### Token usage
+
+Both response shapes report the tokens of the turn in the OpenAI `usage` object. It carries the
+provider's own numbers when the provider reports them, and a local character estimate when it does
+not — the additive `estimated` flag says which of the two it is, so a client never reads a
+heuristic as a measurement:
+
+- `prompt_tokens` / `completion_tokens` / `total_tokens` — as OpenAI defines them, covering the
+  **whole turn**: an agent turn is several provider calls, and any subagent conversation the run
+  started is counted too, because it served the same request.
+- `prompt_tokens_details.cached_tokens` — the part of the prompt the provider served from its
+  prefix cache; present only when the provider reports it (OpenAI, DeepSeek, the SUPERFAST engine).
+- `calls` — our additive field: how many provider calls the numbers cover (one per agent
+  iteration, plus one per delegated subagent conversation).
+- On a session, `GET /v1/control?session_id=…` reports the same shape twice: `usage.last_turn` and
+  `usage.session` (the running total across the session's turns). The TUI status page renders both.
 
 > **Streaming caveat**: LLM-native streaming (`SendQueryStream`) does not support
 > anonymization and throws for Gemini — the `/v1/chat/completions` SSE endpoint here is

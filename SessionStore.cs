@@ -35,6 +35,27 @@ public sealed class ActiveSession : IDisposable
     /// <summary>Last activity timestamp (UTC); idle sessions are cleaned up.</summary>
     public DateTime LastUsed { get; set; } = DateTime.UtcNow;
 
+    /// <summary>Tokens this session has spent, summed from every finished turn (the orchestrator's
+    /// calls plus the subagent conversations they started). A provider that reports no usage
+    /// leaves <see cref="AgentUsage.Reported"/> false, so the session knows it has no measurement
+    /// rather than a zero. The host surfaces it on <c>GET /v1/control</c> and the TUI renders it.</summary>
+    public AgentUsage Usage { get; private set; } = new();
+
+    /// <summary>Adds one finished turn's usage to the session total (no-op when the provider
+    /// reported nothing).</summary>
+    public void AddTurnUsage(AgentUsage? turn)
+    {
+        if (turn is not { Reported: true }) return;
+        Usage = new AgentUsage
+        {
+            PromptTokens = Usage.PromptTokens + turn.PromptTokens,
+            CompletionTokens = Usage.CompletionTokens + turn.CompletionTokens,
+            TotalTokens = Usage.TotalTokens + turn.TotalTokens,
+            CachedTokens = Usage.CachedTokens + turn.CachedTokens,
+            Calls = Usage.Calls + turn.Calls,
+        };
+    }
+
     /// <summary>Creates a session wrapping the given orchestrator.</summary>
     public ActiveSession(string id, AgentHarness orchestrator)
     {

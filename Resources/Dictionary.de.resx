@@ -209,6 +209,9 @@ Powered by Terminal.Gui</value></data>
   <data name="StatusSession" xml:space="preserve"><value>Sitzung</value></data>
   <data name="StatusProvider" xml:space="preserve"><value>Anbieter</value></data>
   <data name="StatusContextWindow" xml:space="preserve"><value>Kontextfenster {0:N0} Token · Verlauf ≈ {1:N0}</value></data>
+  <data name="StatusTokensLast" xml:space="preserve"><value>Token (letzter Zug)</value></data>
+  <data name="StatusTokensSession" xml:space="preserve"><value>Token (Sitzung)</value></data>
+  <data name="StatusTokensValue" xml:space="preserve"><value>{0:N0} Prompt, {1:N0} Antwort ({2:N0} aus Cache, {3} Aufrufe)</value></data>
   <data name="StatusAgentSet" xml:space="preserve"><value>Agentensatz</value></data>
   <data name="StatusFeatures" xml:space="preserve"><value>Funktionen</value></data>
   <data name="StatusAttachments" xml:space="preserve"><value>Anhänge</value></data>

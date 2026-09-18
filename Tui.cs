@@ -94,6 +94,8 @@ public static class ConsoleTui
         private string _provider = "";
         private string _modelName = "";
         private string _interactionMode = "";
+        private string _tokensLast = "";
+        private string _tokensSession = "";
         private int _contextWindow;
         private int _historyTokens;
         private string _sessionId = "";
@@ -2900,6 +2902,8 @@ public static class ConsoleTui
                 $"{Dictionary.StatusSession.PadRight(18)}{_sessionId}",
                 $"{Dictionary.StatusProvider.PadRight(18)}{_provider}  ({_modelName}, {(_interactionMode.Length > 0 ? _interactionMode : Dictionary.InteractionModeDefault)})",
                 string.Format(Dictionary.StatusContextWindow, _contextWindow, _historyTokens),
+                $"{Dictionary.StatusTokensLast.PadRight(18)}{_tokensLast}",
+                $"{Dictionary.StatusTokensSession.PadRight(18)}{_tokensSession}",
                 $"{Dictionary.StatusAgentSet.PadRight(18)}{AgentSetDisplay()}",
                 $"{Dictionary.StatusFeatures.PadRight(18)}{feats}",
                 $"{Dictionary.StatusAttachments.PadRight(18)}{attached}",
@@ -4539,6 +4543,23 @@ public static class ConsoleTui
             }
         }
 
+        /// <summary>Renders one usage object from /v1/control through the localized value template
+        /// (StatusTokensValue), or Dictionary.None when the provider reported no usage at all — a
+        /// zero would look like a measurement.</summary>
+        private static string FormatUsage(JsonElement usageRoot, string name)
+        {
+            if (!usageRoot.TryGetProperty(name, out var usage) || usage.ValueKind != JsonValueKind.Object)
+                return Dictionary.None;
+            var prompt = GetInt(usage, "prompt_tokens");
+            var completion = GetInt(usage, "completion_tokens");
+            var calls = GetInt(usage, "calls");
+            if (calls == 0 && prompt == 0 && completion == 0) return Dictionary.None;
+            var cached = 0;
+            if (usage.TryGetProperty("prompt_tokens_details", out var details) && details.ValueKind == JsonValueKind.Object)
+                cached = GetInt(details, "cached_tokens");
+            return string.Format(Dictionary.StatusTokensValue, prompt, completion, cached, calls);
+        }
+
         private async Task RefreshSessionStateAsync()
         {
             try
@@ -4556,6 +4577,13 @@ public static class ConsoleTui
                     _interactionMode = GetStr(llm, "interaction_mode") ?? "";
                     _contextWindow = GetInt(llm, "context_window");
                     _historyTokens = GetInt(llm, "history_tokens_estimate");
+                }
+                // Token consumption as the provider reported it: the turn that just finished and
+                // the session total (both include the delegated work, since it serves the same turn).
+                if (root.TryGetProperty("usage", out var usage))
+                {
+                    _tokensLast = FormatUsage(usage, "last_turn");
+                    _tokensSession = FormatUsage(usage, "session");
                 }
                 if (root.TryGetProperty("features", out var feats) && feats.ValueKind == JsonValueKind.Object)
                 {

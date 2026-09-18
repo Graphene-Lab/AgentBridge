@@ -8,6 +8,14 @@ using AIOrchestrator;
 // (Graphene-Lab/AgentHarness AgentHarness.Tests — the Web SDK project is not project-reference
 // friendly in every NuGet restore environment).
 
+/// <summary>OpenAI `stream_options` object (only the field we implement).</summary>
+public record StreamOptions
+{
+    /// <summary>Emit a final chunk carrying the turn's token usage.</summary>
+    [JsonPropertyName("include_usage")]
+    public bool IncludeUsage { get; init; }
+}
+
 /// <summary>OpenAI-compatible Chat Completions request body accepted by POST /v1/chat/completions.</summary>
 public record ChatCompletionRequest
 {
@@ -30,6 +38,14 @@ public record ChatCompletionRequest
     /// <summary>When true the response is streamed as Server-Sent Events.</summary>
     [JsonPropertyName("stream")]
     public bool? Stream { get; init; }
+    /// <summary>
+    /// OpenAI's `stream_options`: `{"include_usage": true}` asks for one more chunk carrying the
+    /// token usage of the turn (OpenAI sends it last, with an empty `choices` array). Absent, no
+    /// usage chunk is emitted and the stream stays exactly what a client that never asked for it
+    /// already saw.
+    /// </summary>
+    [JsonPropertyName("stream_options")]
+    public StreamOptions? StreamOptions { get; init; }
     /// <summary>
     /// Optional ids of previously uploaded files (see POST /v1/files) attached as context.
     /// Additive extension: `file_ids` is not part of the stable OpenAI Chat Completions spec
