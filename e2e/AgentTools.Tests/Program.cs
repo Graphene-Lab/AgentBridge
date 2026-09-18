@@ -107,6 +107,14 @@ Check("split is ON by default", AgentTools.SplitEnabled);
 
 McpToolRegistry.Register(typeof(ProbePluginTool));
 
+// Pin the native classification: a BaseAgentTool added to the AIOrchestrator assembly in the
+// future silently joins the orchestrator's cached prefix, and this list is where that becomes a
+// conscious change instead of an unnoticed one.
+foreach (var native in new[] { "FileTool", "GitTool", "TaskSchedulerTool", "WebTool", "EMailTool" })
+    Check($"native tool '{native}' counts as a system tool", AgentTools.IsSystemTool(native));
+Check("a plugin-assembly tool is NOT a system tool", !AgentTools.IsSystemTool("ProbePluginTool"));
+Check("a name nothing resolves is not a system tool", !AgentTools.IsSystemTool("NoSuchTool"));
+
 var allNative = AgentTools.SplitForOrchestration(new[] { "FileTool", "WebTool", "GitTool" });
 Check("all-native set: orchestrator keeps every tool",
     allNative.OrchestratorTools.SequenceEqual(new[] { "FileTool", "WebTool", "GitTool" }));
