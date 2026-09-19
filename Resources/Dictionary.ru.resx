@@ -272,6 +272,8 @@ Powered by Terminal.Gui</value></data>
   <data name="ProviderEndpoint" xml:space="preserve"><value>Путь конечной точки</value></data>
   <data name="ProviderContextWindow" xml:space="preserve"><value>Окно контекста</value></data>
   <data name="ProviderTimeout" xml:space="preserve"><value>Тайм-аут (сек)</value></data>
+  <data name="ProviderSupportsVision" xml:space="preserve"><value>Поддержка vision (вход изображений)</value></data>
+  <data name="ProviderVisionMaxPixels" xml:space="preserve"><value>Vision макс. пикселей (0 = без ограничения)</value></data>
   <data name="ProviderNameRequired" xml:space="preserve"><value>Имя обязательно</value></data>
   <data name="ProviderBaseAddressInvalid" xml:space="preserve"><value>Базовый адрес должен быть абсолютным URL (http://…)</value></data>
   <data name="ProviderContextInvalid" xml:space="preserve"><value>Окно контекста должно быть положительным числом</value></data>

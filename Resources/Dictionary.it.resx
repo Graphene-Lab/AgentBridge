@@ -321,6 +321,8 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="ProviderEndpoint" xml:space="preserve"><value>Percorso endpoint</value></data>
   <data name="ProviderContextWindow" xml:space="preserve"><value>Finestra di contesto</value></data>
   <data name="ProviderTimeout" xml:space="preserve"><value>Timeout (sec)</value></data>
+  <data name="ProviderSupportsVision" xml:space="preserve"><value>Supporta vision (input immagini)</value></data>
+  <data name="ProviderVisionMaxPixels" xml:space="preserve"><value>Vision pixel massimi (0 = nessun limite)</value></data>
   <data name="ProviderNameRequired" xml:space="preserve"><value>Il nome è obbligatorio</value></data>
   <data name="ProviderBaseAddressInvalid" xml:space="preserve"><value>L'indirizzo di base deve essere un URL assoluto (http://…)</value></data>
   <data name="ProviderContextInvalid" xml:space="preserve"><value>La finestra di contesto deve essere un numero positivo</value></data>

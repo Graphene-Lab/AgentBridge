@@ -2263,6 +2263,24 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Supports vision (image input)'.
+        /// </summary>
+        public static string ProviderSupportsVision {
+            get {
+                return ResourceManager.GetString("ProviderSupportsVision", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Vision max pixels (0 = no cap)'.
+        /// </summary>
+        public static string ProviderVisionMaxPixels {
+            get {
+                return ResourceManager.GetString("ProviderVisionMaxPixels", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'server: {0} — the API keeps answering in parallel ({0}/v1/chat/completions)'.
         /// </summary>
         public static string ServerNote {

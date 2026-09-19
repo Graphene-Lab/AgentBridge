@@ -272,6 +272,8 @@ Der vorherige Dokumentbereich ist weiterhin aktiv — es wurde nichts geändert.
   <data name="ProviderEndpoint" xml:space="preserve"><value>Endpunktpfad</value></data>
   <data name="ProviderContextWindow" xml:space="preserve"><value>Kontextfenster</value></data>
   <data name="ProviderTimeout" xml:space="preserve"><value>Timeout (Sek.)</value></data>
+  <data name="ProviderSupportsVision" xml:space="preserve"><value>Unterstützt Vision (Bildinput)</value></data>
+  <data name="ProviderVisionMaxPixels" xml:space="preserve"><value>Vision maximale Pixel (0 = kein Limit)</value></data>
   <data name="ProviderNameRequired" xml:space="preserve"><value>Name ist erforderlich</value></data>
   <data name="ProviderBaseAddressInvalid" xml:space="preserve"><value>Die Basisadresse muss eine absolute URL sein (http://…)</value></data>
   <data name="ProviderContextInvalid" xml:space="preserve"><value>Das Kontextfenster muss eine positive Zahl sein</value></data>

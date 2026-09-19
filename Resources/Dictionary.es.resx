@@ -272,6 +272,8 @@ El área de documentos anterior sigue activa — no se ha cambiado nada.</value>
   <data name="ProviderEndpoint" xml:space="preserve"><value>Ruta del endpoint</value></data>
   <data name="ProviderContextWindow" xml:space="preserve"><value>Ventana de contexto</value></data>
   <data name="ProviderTimeout" xml:space="preserve"><value>Tiempo de espera (seg)</value></data>
+  <data name="ProviderSupportsVision" xml:space="preserve"><value>Admite visión (entrada de imágenes)</value></data>
+  <data name="ProviderVisionMaxPixels" xml:space="preserve"><value>Visión píxeles máximos (0 = sin límite)</value></data>
   <data name="ProviderNameRequired" xml:space="preserve"><value>El nombre es obligatorio</value></data>
   <data name="ProviderBaseAddressInvalid" xml:space="preserve"><value>La dirección base debe ser una URL absoluta (http://…)</value></data>
   <data name="ProviderContextInvalid" xml:space="preserve"><value>La ventana de contexto debe ser un número positivo</value></data>

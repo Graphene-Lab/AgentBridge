@@ -397,6 +397,8 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="ProviderApiKey" xml:space="preserve"><value>API key</value></data>
   <data name="ProviderContextWindow" xml:space="preserve"><value>Context window</value></data>
   <data name="ProviderTimeout" xml:space="preserve"><value>Timeout (sec)</value></data>
+  <data name="ProviderSupportsVision" xml:space="preserve"><value>Supports vision (image input)</value></data>
+  <data name="ProviderVisionMaxPixels" xml:space="preserve"><value>Vision max pixels (0 = no cap)</value></data>
   <data name="ProviderNameRequired" xml:space="preserve"><value>Name is required</value></data>
   <data name="ProviderBaseAddressInvalid" xml:space="preserve"><value>Base address must be an absolute URL (http://…)</value></data>
   <data name="ProviderContextInvalid" xml:space="preserve"><value>Context window must be a positive number</value></data>

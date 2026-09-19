@@ -272,6 +272,8 @@ La zone de documents précédente est toujours active — rien n'a été modifi�
   <data name="ProviderEndpoint" xml:space="preserve"><value>Chemin du point de terminaison</value></data>
   <data name="ProviderContextWindow" xml:space="preserve"><value>Fenêtre de contexte</value></data>
   <data name="ProviderTimeout" xml:space="preserve"><value>Délai (sec)</value></data>
+  <data name="ProviderSupportsVision" xml:space="preserve"><value>Prend en charge la vision (entrée d'images)</value></data>
+  <data name="ProviderVisionMaxPixels" xml:space="preserve"><value>Vision pixels maximum (0 = pas de limite)</value></data>
   <data name="ProviderNameRequired" xml:space="preserve"><value>Le nom est requis</value></data>
   <data name="ProviderBaseAddressInvalid" xml:space="preserve"><value>L'adresse de base doit être une URL absolue (http://…)</value></data>
   <data name="ProviderContextInvalid" xml:space="preserve"><value>La fenêtre de contexte doit être un nombre positif</value></data>

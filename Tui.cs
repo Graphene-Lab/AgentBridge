@@ -4396,7 +4396,7 @@ public static class ConsoleTui
             {
                 Title = existing == null ? Dictionary.ProviderAddTitle : string.Format(Dictionary.ProviderEditTitle, existing.ProviderName),
                 Width = 66,
-                Height = 14,
+                Height = 16,
                 SchemeName = "Dark",
             };
             int y = 0;
@@ -4430,6 +4430,18 @@ public static class ConsoleTui
             var apiKeyField = AddField(dlg, Dictionary.ProviderApiKey, existing?.ApiKey, y++, secret: true);
             var ctxField = AddField(dlg, Dictionary.ProviderContextWindow, (existing?.ContextWindow ?? 32768).ToString(), y++);
             var timeoutField = AddField(dlg, Dictionary.ProviderTimeout, ((int)(existing?.Timeout.TotalSeconds ?? 30)).ToString(), y++);
+            // Vision: the provider declares whether its model can understand images. Tools read
+            // AIOrchestrator.Vision.Level and only use vision when this is on (a vision-language
+            // model). VisionMaxPixels caps the image size sent to the model (0 = no cap).
+            var visionCheck = new CheckBox
+            {
+                Text = Dictionary.ProviderSupportsVision,
+                Value = (existing?.SupportsVision ?? false) ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = y,
+            };
+            dlg.Add(visionCheck);
+            y++;
+            var visionMaxField = AddField(dlg, Dictionary.ProviderVisionMaxPixels, (existing?.VisionMaxPixels ?? 0).ToString(), y++);
 
             ProviderConfig? result = null;
             var ok = new Button { Text = Dictionary.Ok, IsDefault = true };
@@ -4481,6 +4493,8 @@ public static class ConsoleTui
                     ApiKey = (apiKeyField.Text ?? "").Trim(),
                     ContextWindow = ctx,
                     Timeout = TimeSpan.FromSeconds(secs),
+                    SupportsVision = visionCheck.Value == CheckState.Checked,
+                    VisionMaxPixels = int.TryParse((visionMaxField.Text ?? "").Trim(), out var vmp) && vmp > 0 ? vmp : 0,
                 };
                 Log.LogStep($"TUI Provider dialog OK: {providerName} ({proto})", monitor: true);
                 _app.RequestStop(dlg);
