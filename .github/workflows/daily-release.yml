@@ -1,0 +1,173 @@
+name: Daily auto-release check
+
+# Every day at 04:00 Italian time (Europe/Rome) check whether anything that feeds the
+# AgentBridge release changed since the last published release. If so, trigger a forced
+# release through release.yml (workflow_dispatch with force_release=true).
+#
+# Detection uses only PUBLIC signals, so no cross-repo private token is needed:
+#   - AgentBridge itself: commits on master since the last release tag (own repo, GITHUB_TOKEN).
+#   - Core NuGet engine repos (private source): a package version on nuget.org newer than the
+#     last release's version. The engine only ships when it is published, so "a newer version
+#     is published" is exactly the buildable change signal — an unpublished commit is not yet
+#     releasable and is correctly ignored until its repo publishes it.
+#   - Tool plugins (public GitHub Releases): a plugin release published after the last
+#     AgentBridge release.
+#
+# The forced release never edits the csproj: release.yml overrides the IsPrerelease gate via
+# the workflow_dispatch inputs (see release.yml). This keeps the daily automation from
+# colliding with the local release.ps1 flow, which owns the gate in the working tree.
+
+on:
+  schedule:
+    # 02:00 and 03:00 UTC. The job proceeds only when the Europe/Rome local hour is 04, so
+    # exactly one real run lands at 04:00 Italian year-round: 03:00 UTC in winter (CET=UTC+1)
+    # and 02:00 UTC in summer (CEST=UTC+2); the other slot no-ops. Two slots give redundancy
+    # against a single delayed scheduled run.
+    - cron: '0 2,3 * * *'
+  workflow_dispatch:
+    inputs:
+      ignore_time:
+        description: 'Run the check now regardless of the 04:00 Italian-time gate (manual test)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: daily-release
+  cancel-in-progress: false
+
+jobs:
+  check-and-trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Italian-time gate
+        id: gate
+        shell: bash
+        run: |
+          HR=$(TZ=Europe/Rome date +%H)
+          echo "Europe/Rome hour: ${HR}:00"
+          if [ "${{ github.event.inputs.ignore_time }}" = "true" ] || [ "$HR" = "04" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not 04:00 Europe/Rome — skipping this UTC slot."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout AgentBridge
+        if: steps.gate.outputs.proceed == 'true'
+        uses: actions/checkout@v4
+        with:
+          path: AgentBridge
+          fetch-depth: 0
+
+      - name: Detect changes since last release
+        if: steps.gate.outputs.proceed == 'true'
+        id: detect
+        shell: bash
+        working-directory: AgentBridge
+        run: |
+          set -uo pipefail
+          REPO="Graphene-Lab/AgentBridge"
+          TODAY=$(TZ=Europe/Rome date +%y.%m.%d)
+          TODAY_VER="1.$TODAY"
+          echo "today_version=$TODAY_VER" >> "$GITHUB_OUTPUT"
+
+          # date-key = yy*10000 + MM*100 + dd, from a version like 1.26.09.16 or 1.26.9.16
+          # (leading zeros stripped via 10# so 08/09 are not read as octal).
+          dkey() {
+            local v="${1#1.}"; v="${v%-prerelease}"
+            local yy mm dd
+            IFS=. read -r yy mm dd <<<"$v"
+            yy=$((10#${yy:-0})); mm=$((10#${mm:-0})); dd=$((10#${dd:-0}))
+            echo $((yy*10000 + mm*100 + dd))
+          }
+
+          # Last published release (tag + publish timestamp).
+          LAST_TAG=$(gh release view --repo "$REPO" --json tagName -q .tagName 2>/dev/null || true)
+          LAST_PUB=$(gh release view --repo "$REPO" --json publishedAt -q .publishedAt 2>/dev/null || true)
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous release found — treating everything as changed."
+            LAST_KEY=0; LAST_PUB_TS=0
+          else
+            LAST_KEY=$(dkey "$LAST_TAG")
+            LAST_PUB_TS=$(date -d "$LAST_PUB" +%s 2>/dev/null || echo 0)
+            echo "Last release: $LAST_TAG (published $LAST_PUB)"
+          fi
+
+          # Already released today? Never double-release the same version.
+          if git ls-remote --tags origin "refs/tags/v$TODAY_VER" | grep -q .; then
+            echo "Tag v$TODAY_VER already exists — nothing to release today."
+            echo "do_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed=false
+          changed_core=""
+
+          # 1) AgentBridge own commits since the last release tag.
+          if [ -n "$LAST_TAG" ]; then
+            AB_AHEAD=$(git rev-list --count "$LAST_TAG..HEAD" 2>/dev/null || echo 0)
+          else
+            AB_AHEAD=$(git rev-list --count HEAD 2>/dev/null || echo 0)
+          fi
+          if [ "${AB_AHEAD:-0}" -gt 0 ]; then
+            echo "AgentBridge: $AB_AHEAD commit(s) since ${LAST_TAG:-<none>}"
+            changed=true
+          fi
+
+          # 2) Core NuGet engine repos: a published version newer than the last release.
+          for pkg in graphene.aiorchestrator alltomarkdown mermaidrendering graphene.reversemarkdown uisupportgeneric systemextra; do
+            idx=$(curl -fsS --max-time 25 "https://api.nuget.org/v3-flatcontainer/$pkg/index.json" 2>/dev/null || true)
+            [ -z "$idx" ] && continue
+            maxv=$(printf '%s' "$idx" | grep -oE '"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"' | tr -d '"' | sort -V | tail -n1)
+            [ -z "$maxv" ] && continue
+            if [ "$(dkey "$maxv")" -gt "$LAST_KEY" ]; then
+              echo "core $pkg: $maxv newer than last release (engine changed)"
+              changed=true
+              changed_core="$changed_core $pkg"
+            fi
+          done
+
+          # 3) Tool plugins: a GitHub release published after the last AgentBridge release.
+          for tool in DocumentTool SpreadsheetTool OfficeTool PresentationTool OfficeSupportTool PodcastTool FreeCADTool; do
+            pub=$(gh release view --repo "Graphene-Lab/$tool" --json publishedAt -q .publishedAt 2>/dev/null || true)
+            [ -z "$pub" ] && continue
+            pts=$(date -d "$pub" +%s 2>/dev/null || echo 0)
+            if [ "$pts" -gt "$LAST_PUB_TS" ]; then
+              echo "plugin $tool: released $pub (after the last AgentBridge release)"
+              changed=true
+            fi
+          done
+
+          changed_core=$(echo "$changed_core" | sed 's/^ //')
+          if [ "$changed" = "true" ]; then
+            echo "do_release=true" >> "$GITHUB_OUTPUT"
+            if [ -n "$changed_core" ]; then
+              # The changed core packages are already visible on nuget.org (that is the signal),
+              # so the wait confirms and exits fast; it guards the floating 1.* restore race.
+              echo "nuget_wait=true" >> "$GITHUB_OUTPUT"
+              echo "nuget_wait_packages=$(echo $changed_core | tr ' ' ',')" >> "$GITHUB_OUTPUT"
+            else
+              echo "nuget_wait=false" >> "$GITHUB_OUTPUT"
+              echo "nuget_wait_packages=" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "No change since the last release — nothing to publish."
+            echo "do_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger forced release
+        if: steps.detect.outputs.do_release == 'true'
+        shell: bash
+        run: |
+          echo "Triggering forced release ${{ steps.detect.outputs.today_version }} (nuget_wait=${{ steps.detect.outputs.nuget_wait }}, packages=${{ steps.detect.outputs.nuget_wait_packages }})"
+          gh workflow run release.yml --repo Graphene-Lab/AgentBridge \
+            -f force_release=true \
+            -f version="${{ steps.detect.outputs.today_version }}" \
+            -f nuget_wait="${{ steps.detect.outputs.nuget_wait }}" \
+            -f nuget_wait_packages="${{ steps.detect.outputs.nuget_wait_packages }}"
+          echo "Forced release dispatched. release.yml will build the archives and publish the GitHub release."

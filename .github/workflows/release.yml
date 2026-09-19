@@ -9,6 +9,32 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      # force_release lets the daily auto-release (daily-release.yml) produce a release even
+      # while the csproj gate is IsPrerelease=true. Without it the gate would skip the build.
+      # The dispatch never edits the csproj or the working tree: the override is threaded
+      # through job outputs (see check-version -> publish_props) so the built binary reports
+      # the clean release version the tag will carry.
+      force_release:
+        description: 'Force a release even when IsPrerelease=true (used by the daily auto-release)'
+        required: false
+        type: boolean
+        default: false
+      version:
+        description: 'Release version (1.yy.MM.dd). Used with force_release; empty = csproj version.'
+        required: false
+        type: string
+        default: ''
+      nuget_wait:
+        description: 'Run the NuGet dependency wait (true/false). Used with force_release.'
+        required: false
+        type: string
+        default: ''
+      nuget_wait_packages:
+        description: 'Comma-separated packages to wait for (used with force_release).'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -39,6 +65,7 @@ jobs:
       do_release: ${{ steps.gate.outputs.do_release }}
       need_nuget_wait: ${{ steps.nuget.outputs.need_nuget_wait }}
       wait_packages: ${{ steps.nuget.outputs.wait_packages }}
+      publish_props: ${{ steps.ver.outputs.publish_props }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,19 +76,35 @@ jobs:
       - name: Detect version + release gate
         id: ver
         shell: bash
+        env:
+          FORCE: ${{ github.event.inputs.force_release }}
+          IN_VERSION: ${{ github.event.inputs.version }}
         run: |
           # -getProperty:Version prints the raw value (single property) — grep handles both
           # raw ("1.26.08.09") and JSON ({"Properties":{"Version":"..."}}) output shapes.
           VER=$(dotnet msbuild AgentBridge/AgentBridge.csproj -getProperty:Version -nologo | grep -oE '[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?' | head -n1)
-          echo "version=$VER"
           # IsPrerelease is the source of truth for the gate (the "-prerelease" suffix derives
           # from it in the csproj). Read the property directly: if Version ever fails to carry
           # a full date (e.g. an empty <ReleaseDate> makes the grep above extract a bare "1"),
           # the suffix-based check alone would silently treat a prerelease push as a release
           # and run the whole build for a garbage version (2026-09-04 incident).
           PREREL=$(dotnet msbuild AgentBridge/AgentBridge.csproj -getProperty:IsPrerelease -nologo | grep -oE 'true|false' | head -n1)
-          echo "prerelease=${PREREL:-false}" >> "$GITHUB_OUTPUT"
+          PREREL=${PREREL:-false}
+          PUBLISH_PROPS=""
+          if [ "$FORCE" = "true" ]; then
+            # Forced release (daily auto-release): the csproj still carries IsPrerelease=true
+            # and a dynamic ReleaseDate. Override the version from the dispatch input and force
+            # the clean (non-prerelease) shape via msbuild -p so the built binary reports the
+            # exact version the tag will carry. The csproj itself is never modified.
+            if [ -n "$IN_VERSION" ]; then VER="$IN_VERSION"; fi
+            PREREL="false"
+            RDATE=$(printf '%s' "$VER" | sed -E 's/^1\.//; s/-prerelease$//')
+            PUBLISH_PROPS="-p:IsPrerelease=false -p:ReleaseDate=$RDATE"
+            echo "force_release=true -> version=$VER (csproj gate overridden, not edited)"
+          fi
+          echo "prerelease=$PREREL" >> "$GITHUB_OUTPUT"
           echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "publish_props=$PUBLISH_PROPS" >> "$GITHUB_OUTPUT"
       - name: Decide whether to release
         id: gate
         shell: bash
@@ -90,14 +133,26 @@ jobs:
       - name: Read NuGet wait marker
         id: nuget
         shell: bash
+        env:
+          FORCE: ${{ github.event.inputs.force_release }}
+          IN_WAIT: ${{ github.event.inputs.nuget_wait }}
+          IN_PKGS: ${{ github.event.inputs.nuget_wait_packages }}
         run: |
-          WAIT=$(dotnet msbuild AgentBridge/AgentBridge.csproj -getProperty:NuGetWait -nologo | grep -oE 'true|false' | head -n1)
-          echo "need_nuget_wait=${WAIT:-true}" >> "$GITHUB_OUTPUT"
-          # release.ps1 narrows the list to the packages whose repos actually changed today,
-          # so the wait below exits as soon as THEY propagate (repos that did not change never
-          # publish today's version and must not hold the wait). Default = the full set.
-          PKGS=$(dotnet msbuild AgentBridge/AgentBridge.csproj -getProperty:NuGetWaitPackages -nologo | head -n1)
-          echo "wait_packages=${PKGS:-graphene.aiorchestrator,alltomarkdown,mermaidrendering,graphene.reversemarkdown,uisupportgeneric,systemextra}" >> "$GITHUB_OUTPUT"
+          if [ "$FORCE" = "true" ] && [ -n "$IN_WAIT" ]; then
+            # Forced release: the daily auto-release already verified the changed packages are
+            # visible on nuget.org (that is its change signal), so it passes the wait decision
+            # explicitly instead of reading the csproj marker (which release.ps1 owns).
+            echo "need_nuget_wait=$IN_WAIT" >> "$GITHUB_OUTPUT"
+            echo "wait_packages=$IN_PKGS" >> "$GITHUB_OUTPUT"
+          else
+            WAIT=$(dotnet msbuild AgentBridge/AgentBridge.csproj -getProperty:NuGetWait -nologo | grep -oE 'true|false' | head -n1)
+            echo "need_nuget_wait=${WAIT:-true}" >> "$GITHUB_OUTPUT"
+            # release.ps1 narrows the list to the packages whose repos actually changed today,
+            # so the wait below exits as soon as THEY propagate (repos that did not change never
+            # publish today's version and must not hold the wait). Default = the full set.
+            PKGS=$(dotnet msbuild AgentBridge/AgentBridge.csproj -getProperty:NuGetWaitPackages -nologo | head -n1)
+            echo "wait_packages=${PKGS:-graphene.aiorchestrator,alltomarkdown,mermaidrendering,graphene.reversemarkdown,uisupportgeneric,systemextra}" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     needs: check-version
@@ -195,6 +250,7 @@ jobs:
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
             -p:DebugType=None -p:DebugSymbols=false \
+            ${{ needs.check-version.outputs.publish_props }} \
             -o ./publish
 
       # The archive deliberately ships kokoro.onnx (325 MB) plus the KokoroSharp

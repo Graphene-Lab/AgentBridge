@@ -1,0 +1,140 @@
+name: Auto-issue on workflow failure
+
+# When any watched workflow in this repository finishes with a FAILURE, open (or update) a
+# deterministic GitHub issue that records the failing run, the failing job/step, the error
+# log excerpt, and the workflow file the failing step is defined in. This turns any silent
+# CI breakage into a tracked, self-contained report without a human watching Actions.
+#
+# The watcher deliberately does NOT list itself ("Auto-issue on workflow failure"), so a
+# failure of this workflow can never trigger itself into a loop.
+#
+# Dedup: repeated failures of the SAME workflow + failing step update one open issue (a new
+# comment with the new run link) instead of opening a fresh issue every run.
+
+on:
+  workflow_run:
+    workflows:
+      - "Build and Release AgentBridge"
+      - "Daily auto-release check"
+      - "macOS smoke test"
+      - "Build Microsoft Store MSIX"
+      - "Sync docs to wiki"
+    types:
+      - completed
+
+# The failed run's logs are read with the default token; the issue is written with issues:write.
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: auto-issue-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    # Only real failures. continue-on-error jobs (store-msi / store-msix / store-submit) do
+    # not make the run conclusion "failure", so they never open an issue by themselves.
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_NUM: ${{ github.event.workflow_run.run_number }}
+      RUN_NAME: ${{ github.event.workflow_run.name }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      COMMIT: ${{ github.event.workflow_run.head_sha }}
+      EVENT: ${{ github.event.workflow_run.event }}
+      ACTOR: ${{ github.event.workflow_run.actor.login }}
+    steps:
+      - name: Checkout (to read the workflow YAML)
+        uses: actions/checkout@v4
+        with:
+          path: AgentBridge
+
+      - name: Collect failing job/step + error log
+        id: collect
+        shell: bash
+        working-directory: AgentBridge
+        run: |
+          set -uo pipefail
+
+          # Failing jobs and their failing steps (deterministic, from the run metadata).
+          FAIL_JSON=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs \
+            -q '[.jobs[] | select(.conclusion=="failure") | {job:.name, steps:[.steps[] | select(.conclusion=="failure") | .name]}]')
+
+          # First failing job + step (used for the issue signature / dedup title).
+          FAIL_JOB=$(printf '%s' "$FAIL_JSON" | jq -r '.[0].job // "unknown"')
+          FAIL_STEP=$(printf '%s' "$FAIL_JSON" | jq -r '.[0].steps[0] // "unknown"')
+          echo "fail_job=$FAIL_JOB" >> "$GITHUB_OUTPUT"
+          echo "fail_step=$FAIL_STEP" >> "$GITHUB_OUTPUT"
+
+          # Map the failed workflow name to its YAML file (the file whose step produced the error).
+          WF_FILE=$(grep -rl "^name: $RUN_NAME\$" .github/workflows/ 2>/dev/null | head -n1 || true)
+          echo "wf_file=${WF_FILE:-.github/workflows (unknown)}" >> "$GITHUB_OUTPUT"
+
+          # Failed-step logs only. This is the "execution log with the part that generated the
+          # error" the issue must carry.
+          gh run view "$RUN_ID" --repo "$REPO" --log-failed > /tmp/failed.log 2>/dev/null || true
+
+          # Error excerpt: every GitHub error annotation, then the tail of the failed log.
+          {
+            echo '--- GitHub error annotations ---'
+            grep -nE '##\[error\]|::error::' /tmp/failed.log 2>/dev/null | head -n 60 || true
+            echo ''
+            echo '--- Last 150 lines of the failed step(s) ---'
+            tail -n 150 /tmp/failed.log 2>/dev/null || true
+          } > /tmp/excerpt.log
+
+          # Cap the excerpt so the issue body stays readable (GitHub limit is 65536 chars).
+          head -c 14000 /tmp/excerpt.log > /tmp/excerpt.cap.log
+          if [ "$(wc -c < /tmp/excerpt.log)" -gt 14000 ]; then
+            echo '' >> /tmp/excerpt.cap.log
+            echo '... (truncated — full log at the run URL below) ...' >> /tmp/excerpt.cap.log
+          fi
+
+      - name: Ensure the workflow-failure label exists
+        shell: bash
+        run: |
+          gh label create workflow-failure --repo "$REPO" \
+            --color 'd73a4a' --description 'Automated report of a failed CI workflow run' 2>/dev/null || true
+
+      - name: Open or update the issue
+        shell: bash
+        run: |
+          set -uo pipefail
+          SIG="${RUN_NAME} — ${FAIL_JOB:-unknown}/${FAIL_STEP:-unknown}"
+          TITLE="CI failure: $SIG"
+
+          # Dedup: an open issue with the same signature already tracks this recurring failure.
+          EXISTING=$(gh issue list --repo "$REPO" --state open --label workflow-failure \
+            --search "in:title \"$TITLE\"" -q '.[0].number' 2>/dev/null || true)
+
+          BODY_FILE=/tmp/issue-body.md
+          {
+            echo "## CI failure: \`$RUN_NAME\`"
+            echo ""
+            echo "- **Run:** [$RUN_NAME #$RUN_NUM]($RUN_URL)"
+            echo "- **Failing job / step:** \`$FAIL_JOB\` / \`$FAIL_STEP\`"
+            echo "- **Branch:** \`$BRANCH\` @ \`${COMMIT:0:10}\`"
+            echo "- **Trigger event:** \`$EVENT\`  **by:** \`$ACTOR\`"
+            echo "- **Workflow file:** \`${WF_FILE}\`"
+            echo ""
+            echo "### Error log (failed step(s))"
+            echo ""
+            echo '```'
+            cat /tmp/excerpt.cap.log
+            echo '```'
+            echo ""
+            echo "> Opened automatically by the \`Auto-issue on workflow failure\` workflow."
+          } > "$BODY_FILE"
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --repo "$REPO" --body-file "$BODY_FILE"
+            echo "Updated existing issue #$EXISTING for signature: $SIG"
+          else
+            gh issue create --repo "$REPO" --title "$TITLE" --label workflow-failure --body-file "$BODY_FILE"
+            echo "Opened new issue for signature: $SIG"
+          fi
