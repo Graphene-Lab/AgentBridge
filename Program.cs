@@ -1650,12 +1650,46 @@ if (useTui)
     return 0;
 }
 
-app.Run();
-return 0;
+// Headless server path. A port conflict (another AgentBridge instance, or any program
+// holding the configured port) used to surface here as an unhandled
+// IOException/AddressInUseException/SocketException crash (issue #18): the crash
+// handler then restarts the process every 60 s into the same conflict. The TUI path
+// already degrades gracefully (hostError); mirror that here — fail fast with an
+// actionable message and a clean exit code instead of a crash report.
+// The address must be captured BEFORE the host runs: after a failed bind the root
+// IServiceProvider is disposed and both app.Urls and app.Configuration resolve
+// through it, throwing ObjectDisposedException inside the catch (found in the
+// retest of issue #18). The config value covers appsettings.json, ASPNETCORE_URLS
+// and --Urls alike.
+var headlessUrl = app.Configuration["Urls"] ?? "the configured address";
+try
+{
+    app.Run();
+    return 0;
+}
+catch (Exception ex) when (IsAddressInUse(ex))
+{
+    Console.Error.WriteLine();
+    Console.Error.WriteLine($"AgentBridge cannot start: {headlessUrl} is already in use.");
+    Console.Error.WriteLine("Another AgentBridge instance (or another program) is listening on this port.");
+    Console.Error.WriteLine("Close the other instance, or pick another port: --Urls http://localhost:5293");
+    Console.Error.WriteLine("(or set the ASPNETCORE_URLS environment variable / the \"Urls\" key in appsettings.json).");
+    return 1;
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────
+
+// True when the exception chain is a socket bind conflict (port already in use).
+// Kestrel wraps the SocketException in AddressInUseException (itself an IOException).
+static bool IsAddressInUse(Exception ex)
+{
+    for (var e = ex; e != null; e = e.InnerException)
+        if (e is Microsoft.AspNetCore.Connections.AddressInUseException)
+            return true;
+    return false;
+}
 
 // Renders a locale-neutral AgentResultCode through the localized dictionary for the
 // current system language. Returns null when the result carries real LLM text

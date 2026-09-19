@@ -85,7 +85,9 @@ curl http://localhost:5290/health   # {"status":"healthy","timestamp":"..."}
 ```
 
 If a server is already running on the port, the UI connects to that instance instead of
-failing — handy to attach a UI to a running service.
+failing — handy to attach a UI to a running service. In server-only mode (`--headless`)
+the same conflict prints a clear "address already in use" message and exits without
+crashing: close the other instance, or pick another port with `--Urls http://localhost:5293`.
 
 > **First start:** the server indexes the documents folder at startup (can take minutes on
 > large folders). If you do not need document search, start with
