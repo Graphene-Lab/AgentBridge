@@ -1676,6 +1676,17 @@ catch (Exception ex) when (IsAddressInUse(ex))
     Console.Error.WriteLine("(or set the ASPNETCORE_URLS environment variable / the \"Urls\" key in appsettings.json).");
     return 1;
 }
+catch (ObjectDisposedException)
+{
+    // Shutdown race (issue #20): the host and its root service provider were
+    // disposed while app.Run() was still parked on the stop signal, so the wait
+    // surfaced a bare ObjectDisposedException instead of returning normally. The
+    // process was being stopped anyway — exit cleanly here rather than let it
+    // reach the unhandled-exception handler, which would fire a crash report and
+    // the 60 s auto-restart into an already-torn-down host.
+    Console.Error.WriteLine("AgentBridge stopped.");
+    return 0;
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // HELPERS
