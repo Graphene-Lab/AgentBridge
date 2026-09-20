@@ -33,7 +33,7 @@ List<string>? onlyCategories = null;
 bool smoke = false;
 int shardIndex = 0;
 int shardCount = 1;
-int maxIterations = 12;
+int maxIterations = 20;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -156,6 +156,31 @@ foreach (var inst in selected)
     }
     bool idle = Setup.WaitForIndexIdle(TimeSpan.FromMinutes(8));
 
+    // 2b. Hybrid memory: populate the NameOrKey memory from the archive the way production
+    // does at conversation end, so the agent runs with BOTH deterministic memory and file
+    // retrieval active — the real hybrid. Keyless questions surface nothing from memory (by
+    // design); keyed ones get the remembered fact injected automatically.
+    try
+    {
+        var memEntries = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var f in Directory.EnumerateFiles(sandbox, "session_*.md"))
+        {
+            var text = File.ReadAllText(f);
+            foreach (var key in RagDocumentProcessor.ExtractNameOrKeyElementsFromContent(text))
+            {
+                if (memEntries.ContainsKey(key) || memEntries.Count >= 500) continue;
+                var line = text.Split('\n').FirstOrDefault(l => l.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0) ?? key;
+                line = line.Trim();
+                memEntries[key] = line.Length > 240 ? line.Substring(0, 240) : line;
+            }
+        }
+        var memDir = Path.Combine(sandbox, ".mem");
+        Directory.CreateDirectory(memDir);
+        File.WriteAllText(Path.Combine(memDir, "memory.json"),
+            JsonSerializer.Serialize(memEntries.Select(kv => new { key = kv.Key, info = kv.Value }), jsonOpts));
+    }
+    catch (Exception mex) { Console.WriteLine($"[hybrid-memory] population skipped: {mex.GetType().Name}: {mex.Message}"); }
+
     // 3. Run the agent with FileTool; the answer is stated to be in the archive.
     string hypothesis = "";
     int iterations = 0;
@@ -164,12 +189,17 @@ foreach (var inst in selected)
     {
         using var h = new AgentHarness("SUPERFAST");
         var ap = new StringBuilder();
-        ap.AppendLine("You are an enterprise knowledge assistant. The answer to the question below is stored somewhere in your document archive (the sandbox).");
-        ap.AppendLine("You MUST locate it with the FileTool: call FileSearch (use the `path` parameter set to \"/\" together with `singleKeywords`, or NameOrKey elements) to find candidate documents, then ReadFile to read the most relevant ones, and answer.");
+        ap.AppendLine("You are an enterprise knowledge assistant. The answer to the question is stored somewhere in your document archive.");
+        ap.AppendLine("How to find it:");
+        ap.AppendLine("1. Call search_context with the key terms from the question (proper names, distinctive nouns and verbs). It returns the passages where those terms appear, with surrounding context — this usually contains the answer directly.");
+        ap.AppendLine("2. If that is not enough, call file_search (path=\"/\" with singleKeywords, or NameOrKey elements) to list candidate documents, then read_file on the most relevant ones.");
+        ap.AppendLine("3. If the question asks HOW MANY, or needs facts combined from several places: do NOT answer from a single search. Run search_context several times with different keyword variants and a larger maxPassages (e.g. 20), read the passages, and enumerate every distinct instance before giving the count — missing one instance gives a wrong count.");
+        ap.AppendLine("4. For a recommendation or preference question (what would I like, suggest something for me), the answer is the user's own stated taste, not the literal thing asked. Search for how the user describes their preferences (e.g. \"I like\", \"I prefer\", \"my favorite\", \"I love\", \"I enjoy\") together with the relevant topic, and answer by applying that preference — even if the exact item named in the question never appears in the archive.");
+        ap.AppendLine("5. Always end with a clear final answer. If you truly cannot find it after searching, say that you do not know — never return an empty answer.");
         ap.AppendLine();
         ap.AppendLine($"Question (asked on {qdate}): {question}");
         ap.AppendLine();
-        ap.AppendLine("Answer concisely using only what you find in the archive. If you truly cannot find it after searching, say that you do not know.");
+        ap.AppendLine("Answer concisely using only what you find in the archive.");
         var r = h.ExecuteAction(ap.ToString(), new[] { "FileTool" }, maxIterations: maxIterations);
         hypothesis = (r?.Message ?? "").Trim();
         iterations = r?.Iterations ?? 0;
