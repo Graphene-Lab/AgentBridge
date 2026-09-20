@@ -1,7 +1,7 @@
 # Long-Term Memory: Architecture and Measured Results
 
-**Test documentation v1.0.** The LongMemEval-S numbers here are from a 70-instance
-run (81.4%). A full 500-instance run will follow and update these figures.
+**Test documentation v1.1.** The LongMemEval-S numbers here are from the full
+500-instance run (85.6%). This supersedes the 70-instance sample in v1.0.
 
 This document explains how AIOrchestrator / AgentBridge long-term memory works and
 what we measured on a public academic benchmark. We report only numbers we actually
@@ -101,23 +101,24 @@ works:
   located by searching and reading — exactly as it would locate a real document.
 - Answers are judged with the exact LongMemEval per-category judge prompts.
 
-**Measured result (70 instances, 10 per category), judged by the same local model used
+**Measured result (full 500-instance set), judged by the same local model used
 for answering:**
 
-| Category | Correct |
-|---|---|
-| single-session-assistant | 10 / 10 |
-| temporal-reasoning | 10 / 10 |
-| single-session-user | 9 / 10 |
-| abstention | 8 / 10 |
-| knowledge-update | 7 / 10 |
-| multi-session | 7 / 10 |
-| single-session-preference | 6 / 10 |
-| **Overall** | **57 / 70 (81.4%)** |
+| Category | Correct | Accuracy |
+|---|---|---|
+| single-session-user | 62 / 64 | 96.9% |
+| single-session-assistant | 54 / 56 | 96.4% |
+| temporal-reasoning | 116 / 127 | 91.3% |
+| knowledge-update | 62 / 72 | 86.1% |
+| multi-session | 97 / 121 | 80.2% |
+| abstention | 20 / 30 | 66.7% |
+| single-session-preference | 17 / 30 | 56.7% |
+| **Overall** | **428 / 500** | **85.6%** |
 
-This is a real, reproducible number from this repository's harness. It is a 70-instance
-sample, not the full 500-instance set, and the per-category weak spots (some
-knowledge-update, multi-session and preference cases) are stated honestly in section 6.
+This is a real, reproducible number from this repository's harness, over the entire
+500-instance set. Five of the seven categories are at 80% or above. The two weak
+categories — `single-session-preference` (56.7%) and `abstention` (66.7%) — are
+analyzed honestly in section 6.
 
 ## 3. What we are comparing against (and the hardware gap)
 
@@ -131,11 +132,11 @@ The reference point is the LongMemEval paper itself (arXiv 2410.10813):
 | Phi-3-14B, long-context | 0.380 | full haystack |
 | Paper's optimized memory framework (GPT-4o reader) | ~0.65–0.70 | retrieval-augmented |
 
-Our measured **81.4%** is **well above the GPT-4o long-context baseline (60.6%)** and
-above the paper's optimized-memory-framework range (~65–70%), approaching even the
-GPT-4o oracle that reads only the gold sessions (87.0%) — but it is important to be
-precise about the hardware this was measured on, because it is the opposite of the
-usual comparison.
+Our measured **85.6%** is **well above the GPT-4o long-context baseline (60.6%)** and
+above the paper's optimized-memory-framework range (~65–70%), and within about 1.4
+points of the GPT-4o oracle that reads only the gold sessions (87.0%) — but it is
+important to be precise about the hardware this was measured on, because it is the
+opposite of the usual comparison.
 
 - The model is a **local model running at about 46 tokens/second of output**.
 - That **same model, on the same machine, also drove the agent that followed the test
@@ -214,7 +215,7 @@ by us; treat them with caution.
 
 | System / path | Setting | Headline result | Source |
 |---|---|---|---|
-| Agent + archive (`FileTool`) | LongMemEval-S, 70-instance run | **81.4%** (57/70), local model @ 46 tok/s | measured here |
+| Agent + archive (`FileTool`) | LongMemEval-S, full 500-instance run | **85.6%** (428/500), local model @ 46 tok/s | measured here |
 | Deterministic key retrieval | 1,000 near-identical enterprise records | 100% recall, 1.00 precision, 228 ms, 100% deterministic | measured here |
 | GPT-4o long-context | LongMem_S (paper) | 60.6% | paper (arXiv 2410.10813) |
 | Paper's optimized memory framework | LongMem_S (paper) | ~65–70% | paper (arXiv 2410.10813) |
@@ -228,14 +229,30 @@ we measured, on hardware that is far weaker than theirs.
 
 ## 6. Honest limitations
 
-- The LongMemEval-S result is a **70-instance run** (81.4%), not the full
-  500-instance set. Treat it as a measured sample, not a final ranking.
+- The LongMemEval-S result is the **full 500-instance run** (85.6%). It is a real
+  measurement over the whole set, not a sample.
 - Our judge is the same local model used for answering, not GPT-4o. Numbers are
   internally consistent but not identical to GPT-4o-judged figures.
-- The weak categories are **multi-session aggregation**, some **knowledge-update**,
-  and some **single-session-preference** cases — questions that need combining or
-  reinterpreting facts across many sessions. These are genuinely hard and we report
-  the misses rather than hide them.
+- The two weak categories are **single-session-preference** (56.7%) and
+  **abstention** (66.7%). We inspected every failing case. The failure mode is the
+  same in both, at two different points, and it is **over-answering**:
+  - *Preference*: the agent retrieves **a** real preference from the archive but
+    not the **specific** one the gold answer keys on. Asked to recommend a show for
+    tonight, it grounds on a true-crime taste it found, while the gold expects
+    stand-up comedy on Netflix. The relevant detail is present but the agent latches
+    onto a different, also-present facet.
+  - *Abstention*: the agent answers a **false-premise / near-miss** question instead
+    of refusing. Asked which university it presented a poster at, it invents one
+    from a conference-attendance mention; asked about an apartment in Shinjuku when
+    the user lives in Harajuku, it answers about the apartment anyway. It finds
+    something adjacent and treats it as sufficient, rather than checking that the
+    exact entity / location / role the question assumes is actually present.
+  - The improvement margin is real and **general, not benchmark-specific**: a
+    premise-verification rule ("confirm the exact entity / location / role the
+    question assumes is present before answering; otherwise abstain") targets
+    abstention, and tighter topic-matched preference retrieval targets the
+    preference category. We report the margin here without applying a
+    benchmark-tuned fix.
 - The Enterprise benchmark uses **synthetic** near-identical records, not real
   company data. The mechanism and metrics are real; the data is synthetic by design
   and meant to be replaced by a researcher's own archive.
@@ -262,9 +279,10 @@ already public.
 ## 8. Bottom line
 
 LongMemEval-S is a good benchmark for a personal-assistant, keyless, semantic memory
-scenario. Our system reaches **81.4%** on a 70-instance run of it — well above the
-GPT-4o long-context baseline and above the optimized-memory-framework range — using
-a small local model at 46 tok/s that also drove the whole test, on one machine.
+scenario. Our system reaches **85.6%** on the full 500-instance run — well above the
+GPT-4o long-context baseline and above the optimized-memory-framework range, within
+about 1.4 points of the GPT-4o oracle — using a small local model at 46 tok/s that
+also drove the whole test, on one machine.
 
 But the architecture is built for the enterprise case: long-term memory as an
 archive, deterministic key-addressed retrieval over large and redundant data,
