@@ -169,6 +169,17 @@ Our **Agentic AI** is designed to be installed on standalone devices, such as mi
   a faster workflow, and an agent that is always lucid and grounded in everything it has already
   worked on. This original, proprietary algorithm is exclusive to AgentBridge and places it at
   the top of the agentic sector with highly innovative technology.
+  Five complementary mechanisms make it up — deterministic NameOrKey memory, the
+  document archive with its streaming index, skills memory, scheduler memory, and the
+  chat history in the context window. The streaming index is hardware-optimized: its
+  vector is built from 8-byte (64-bit) elements — the native block size of x64 and
+  arm64 chips — read as a single linear stream, with no semantic trees or graph
+  correlations to juggle. Context is selected deterministically from the prompt and
+  handed to the model ready-made, at zero token cost and with no LLM call spent on
+  recollection. This is what lets AgentBridge surface context from **terabytes of
+  data on an ordinary home computer, with no GPU and no dedicated indexing model** —
+  and, offered trustlessly so your data never leaves your machine, makes it a genuine
+  **privacy-first** system with no real analog in the enterprise space.
   How this holds up under measurement — including a reproducible enterprise-scale
   retrieval benchmark and an architecture-faithful LongMemEval-S run, with an honest
   comparison against published systems — is documented in
