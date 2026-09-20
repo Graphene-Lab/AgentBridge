@@ -1,5 +1,8 @@
 # Long-Term Memory: Architecture and Measured Results
 
+**Test documentation v1.0.** The LongMemEval-S numbers here are from a 70-instance
+run (81.4%). A full 500-instance run will follow and update these figures.
+
 This document explains how AIOrchestrator / AgentBridge long-term memory works and
 what we measured on a public academic benchmark. We report only numbers we actually
 measured, and we clearly separate our measurements from figures that other systems
