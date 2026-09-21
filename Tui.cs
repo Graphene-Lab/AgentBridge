@@ -4005,15 +4005,17 @@ public static class ConsoleTui
             {
                 Title = Dictionary.SetupLlmTab,
                 Width = Dim.Percent(80),
-                // Fixed height (issue #13): the panel is a fixed 14-row stack (active
-                // provider, active model, api key, validation, configured-providers
-                // list, Add/Edit/Remove). With Dim.Percent(70) the dialog collapses on a
-                // short console — the 25-row Windows console default gives ~17 rows, so
-                // the Add/Edit/Remove row (Y=12-13) overlaps the Save/Close footer and a
-                // mouse click on "Edit" lands on "Save", closing the whole panel. 18 rows
-                // = 14 content + footer + borders, so the rows never collide on any
-                // console tall enough to show the panel.
-                Height = 18,
+                // Fixed height (issue #13, refined for issue #21): the panel is a fixed
+                // stack (active provider, active model, api key, validation,
+                // configured-providers list, Add/Edit/Remove) with the Save/Close footer
+                // anchored at the bottom. The footer is a 3-row band and the Add/Edit/
+                // Remove buttons are 2 rows tall, so the dialog must be tall enough that
+                // the bottom-anchored footer never lands on the Add/Edit/Remove row —
+                // otherwise the footer's background hides those buttons and a click on
+                // them is swallowed. 20 rows = 14 content + the Add/Edit/Remove band +
+                // the footer + borders, so nothing collides on any console tall enough
+                // to show the panel (the Windows default is 25 rows).
+                Height = 20,
                 SchemeName = "Dark",
             };
 
