@@ -120,6 +120,36 @@ This is a real, reproducible number from this repository's harness, over the ent
 categories — `single-session-preference` (56.7%) and `abstention` (66.7%) — are
 analyzed honestly in section 6.
 
+### Improving the two weak categories (measured re-run)
+
+The two weak categories share one failure mode — **over-answering** (detailed in
+section 6). We addressed it with two general changes to the agent's instructions,
+with no benchmark-specific tuning:
+
+1. **Premise verification** for factual questions: before answering a who / what /
+   where / when / how-many question, the agent must confirm the archive actually
+   states the exact entity, place, role, or thing the question assumes; if the
+   archive names a different one or never mentions it, the agent abstains instead of
+   bridging the gap with an adjacent fact.
+2. **Topic-matched preference** for recommendation questions: the agent must use the
+   user's stated taste for the *specific topic asked* and build on what the user
+   already has or is already doing, rather than applying a strong taste from an
+   unrelated topic.
+
+Re-running just the two weak categories (30 + 30 instances, same model, same judge):
+
+| Category | Before | After |
+|---|---|---|
+| abstention | 20 / 30 (66.7%) | **28 / 30 (93.3%)** |
+| single-session-preference | 17 / 30 (56.7%) | **20 / 30 (66.7%)** |
+
+Both improved: abstention +8 (the premise check resolves almost every false-premise
+case), preference +3. These are measured on the same harness and the same judge. The
+overall 500-instance headline above (85.6%) is from the earlier prompt and is **not**
+restated here: applying the improved prompt across all 500 would raise it (the two
+categories alone gain +11, projecting roughly 87.8%), but that full re-run has not
+been done, so we keep 85.6% as the confirmed figure until it is.
+
 ## 3. What we are comparing against (and the hardware gap)
 
 The reference point is the LongMemEval paper itself (arXiv 2410.10813):
@@ -251,8 +281,9 @@ we measured, on hardware that is far weaker than theirs.
     premise-verification rule ("confirm the exact entity / location / role the
     question assumes is present before answering; otherwise abstain") targets
     abstention, and tighter topic-matched preference retrieval targets the
-    preference category. We report the margin here without applying a
-    benchmark-tuned fix.
+    preference category. Both were applied as general prompt changes and measured on
+    a re-run of the two weak categories — abstention 20→28/30, preference
+    17→20/30 (see section 2). No benchmark-specific examples were encoded as rules.
 - The Enterprise benchmark uses **synthetic** near-identical records, not real
   company data. The mechanism and metrics are real; the data is synthetic by design
   and meant to be replaced by a researcher's own archive.
