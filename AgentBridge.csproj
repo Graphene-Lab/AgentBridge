@@ -135,6 +135,10 @@
     <Content Remove="tools\**" />
     <None Remove="tools\**" />
     <EmbeddedResource Remove="tools\**" />
+    <Compile Remove="benchmark\**" />
+    <Content Remove="benchmark\**" />
+    <None Remove="benchmark\**" />
+    <EmbeddedResource Remove="benchmark\**" />
   </ItemGroup>
   <!-- Localized UI strings (EN neutral + it/fr/es/de/ru satellites) — see Resources/Dictionary.*.resx.
        The satellite files are picked up automatically by the SDK; the neutral file drives the
