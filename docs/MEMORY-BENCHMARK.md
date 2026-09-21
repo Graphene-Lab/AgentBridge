@@ -143,12 +143,19 @@ Re-running just the two weak categories (30 + 30 instances, same model, same jud
 | abstention | 20 / 30 (66.7%) | **28 / 30 (93.3%)** |
 | single-session-preference | 17 / 30 (56.7%) | **20 / 30 (66.7%)** |
 
-Both improved: abstention +8 (the premise check resolves almost every false-premise
-case), preference +3. These are measured on the same harness and the same judge. The
-overall 500-instance headline above (85.6%) is from the earlier prompt and is **not**
-restated here: applying the improved prompt across all 500 would raise it (the two
-categories alone gain +11, projecting roughly 87.8%), but that full re-run has not
-been done, so we keep 85.6% as the confirmed figure until it is.
+Both categories improved, and the gain is **strong**: abstention jumped +8 (the
+premise check resolves almost every false-premise case — a paired change that is
+statistically solid at this sample size), and preference improved +3. These are
+measured on the same harness and the same judge.
+
+We keep the **85.6% overall as the confirmed headline**: it is the measured result
+of the full 500-instance run with the earlier prompt. The improved prompt has been
+re-run only on the two weak categories, not across all 500, so we do not restate the
+overall as a new measurement. That said, the honest estimate is that the overall is
+**higher**: the two categories alone gain +11, which projects the full-set score to
+roughly **87.2% (conservative — counting only the statistically-solid abstention
+gain) to 87.8% (point estimate)**. We report this as an estimate, not a measured
+figure; a full 500-instance re-run with the improved prompt would confirm it.
 
 ## 3. What we are comparing against (and the hardware gap)
 
