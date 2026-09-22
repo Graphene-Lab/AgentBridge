@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GreenGrid · Investor Pitch Deck</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-size:1.2vw}
+body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:var(--color-bg,#1a1a2e);transition:background .3s}
+:root{--space-xs:.3rem;--space-sm:.8rem;--space-md:1.4rem;--space-lg:2.2rem;--font-base:1rem;--font-min:1.5rem;--color-bg:#0a0e17;--color-slide-bg:#0f1420;--color-text:#e6f7ff;--color-accent:#00ffc8;--color-accent-2:#ff2e97;--color-accent-3:#7b61ff;--color-muted:#8ba3b8;--color-card:#141b2d;--color-border:#1f2a44;--color-controls-bg:rgba(0,255,200,.15);--color-controls-text:#00ffc8}
+.frame-16-9{width:95%;max-width:95vw;aspect-ratio:16/9;background:var(--color-slide-bg);position:relative;overflow:hidden;border-radius:1.8rem;box-shadow:0 2rem 4rem rgba(0,0,0,.8),0 0 0 1px rgba(0,255,200,.08);transition:background .3s}
+.frame-16-9>*{position:absolute;box-sizing:border-box}
+.slide{top:0;left:0;width:100%;height:100%;background:var(--color-slide-bg);opacity:0;visibility:hidden;transform:scale(1.08) translateY(15px);filter:blur(8px);z-index:1;transition:opacity .7s cubic-bezier(.25,.46,.45,.94),transform .7s cubic-bezier(.25,.46,.45,.94),filter .7s cubic-bezier(.25,.46,.45,.94),visibility 0s linear .7s}
+.slide.active{opacity:1;visibility:visible;transform:scale(1) translateY(0);filter:blur(0);z-index:2;transition:opacity .7s cubic-bezier(.25,.46,.45,.94),transform .7s cubic-bezier(.25,.46,.45,.94),filter .7s cubic-bezier(.25,.46,.45,.94),visibility 0s linear 0s}
+.nav-btn{position:fixed;top:50%;transform:translateY(-50%);width:3.2rem;height:3.2rem;border-radius:50%;background:var(--color-controls-bg);color:var(--color-controls-text);font-size:var(--font-min);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:100;transition:background .2s,transform .1s;border:1px solid rgba(0,255,200,.3)}
+.nav-btn:hover{background:var(--color-accent);color:#0a0e17}
+.nav-btn:active{transform:translateY(-50%) scale(.95)}
+#prev-slide{left:1rem}
+#next-slide{right:1rem}
+.counter{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:var(--color-controls-bg);color:var(--color-controls-text);padding:.5rem 1rem;border-radius:1rem;font-size:var(--font-min);z-index:100;pointer-events:none;border:1px solid rgba(0,255,200,.3)}
+.theme-toggle{position:fixed;top:1.5rem;right:1.5rem;background:var(--color-slide-bg);color:var(--color-text);border:1px solid var(--color-accent);border-radius:2rem;padding:.5rem 1rem;font-size:var(--font-min);cursor:pointer;z-index:100;box-shadow:0 .5rem 1rem rgba(0,0,0,.3);opacity:.1;transition:opacity .3s}
+.theme-toggle:hover{opacity:1}
+.slide-pad{padding:3.2rem 3.6rem;width:100%;height:100%;display:flex;flex-direction:column}
+.slide-kicker{font-size:1.5em;letter-spacing:.35em;text-transform:uppercase;color:var(--color-accent);font-weight:700;margin-bottom:.6rem}
+.slide-title{font-size:3.1em;font-weight:800;line-height:1.1;color:var(--color-text);margin-bottom:.5rem;text-shadow:0 0 .6rem rgba(0,255,200,.25)}
+.slide-sub{font-size:1.6em;color:var(--color-muted);margin-bottom:1.6rem;line-height:1.4}
+.slide-num{position:absolute;top:2rem;right:3.2rem;font-size:1.6em;letter-spacing:.3em;color:var(--color-accent-2);font-weight:700;text-transform:uppercase}
+.grid{display:grid;gap:1.3rem;flex:1;min-height:0}
+.card{background:var(--color-card);border:1px solid var(--color-border);border-radius:.9rem;padding:1.2rem 1.4rem;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;width:100%;height:2px;background:linear-gradient(90deg,var(--color-accent),transparent)}
+.card h3{font-size:1.7em;color:var(--color-accent);margin-bottom:.5rem;font-weight:700}
+.card p{font-size:1.5em;color:var(--color-text);line-height:1.45}
+.card.magenta::before{background:linear-gradient(90deg,var(--color-accent-2),transparent)}
+.card.violet::before{background:linear-gradient(90deg,var(--color-accent-3),transparent)}
+.stat{text-align:center;display:flex;flex-direction:column;justify-content:center}
+.stat .big{font-size:3em;font-weight:800;color:var(--color-accent);line-height:1;text-shadow:0 0 .8rem rgba(0,255,200,.4)}
+.stat .lbl{font-size:1.45em;color:var(--color-muted);margin-top:.5rem;line-height:1.3}
+.icon-row{display:flex;align-items:center;gap:.8rem;margin-bottom:.6rem}
+.icon-row img{width:2.4em;height:2.4em;flex:0 0 auto}
+.table-cyber{width:100%;border-collapse:collapse;font-size:1.45em}
+.table-cyber th{background:rgba(0,255,200,.1);color:var(--color-accent);text-align:left;padding:.7rem .9rem;border:1px solid var(--color-border);font-size:1.05em;letter-spacing:.06em;text-transform:uppercase}
+.table-cyber td{padding:.7rem .9rem;border:1px solid var(--color-border);color:var(--color-text);line-height:1.35}
+.table-cyber tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.badge{display:inline-block;font-size:1.4em;padding:.25em .7em;border-radius:.4em;background:rgba(0,255,200,.12);color:var(--color-accent);border:1px solid rgba(0,255,200,.35);margin-right:.4rem}
+.bar-track{height:.8rem;background:rgba(255,255,255,.07);border-radius:.4rem;overflow:hidden;margin-top:.5rem}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--color-accent),var(--color-accent-3));border-radius:.4rem}
+.flow{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.flow-step{flex:1;text-align:center;background:var(--color-card);border:1px solid var(--color-border);border-radius:.7rem;padding:.9rem .5rem}
+.flow-step .n{font-size:1.4em;color:var(--color-accent-2);font-weight:700}
+.flow-step .t{font-size:1.45em;color:var(--color-text);margin-top:.3rem;line-height:1.3}
+.flow-arrow{font-size:2em;color:var(--color-accent);flex:0 0 auto}
+.timeline{display:flex;flex-direction:column;gap:.9rem}
+.tl-row{display:flex;align-items:stretch;gap:1rem}
+.tl-when{flex:0 0 22%;font-size:1.5em;color:var(--color-accent-2);font-weight:700;text-align:right;padding-top:.6rem}
+.tl-dot{flex:0 0 auto;width:1.2rem;display:flex;flex-direction:column;align-items:center}
+.tl-dot span{width:1.1rem;height:1.1rem;border-radius:50%;background:var(--color-accent);box-shadow:0 0 .7rem var(--color-accent);margin-top:.75rem}
+.tl-line{width:2px;background:var(--color-border);flex:1;margin-top:.2rem}
+.tl-body{flex:1;background:var(--color-card);border:1px solid var(--color-border);border-radius:.7rem;padding:.7rem 1rem;font-size:1.5em;color:var(--color-text);line-height:1.4}
+.org-chart{display:flex;flex-direction:column;align-items:center;gap:1rem;flex:1;justify-content:center}
+.org-top{background:linear-gradient(135deg,rgba(0,255,200,.18),rgba(123,97,255,.18));border:1px solid var(--color-accent);border-radius:.8rem;padding:.9rem 1.6rem;text-align:center}
+.org-top .nm{font-size:1.7em;font-weight:700;color:var(--color-text)}
+.org-top .rl{font-size:1.45em;color:var(--color-accent)}
+.org-line{width:2px;height:1.3rem;background:var(--color-accent)}
+.org-row{display:flex;gap:1.2rem;justify-content:center;width:100%}
+.org-box{flex:1;max-width:30%;background:var(--color-card);border:1px solid var(--color-border);border-radius:.8rem;padding:.8rem 1rem;text-align:center}
+.org-box .rl{font-size:1.5em;font-weight:700;color:var(--color-accent-3)}
+.org-box .ds{font-size:1.45em;color:var(--color-muted);margin-top:.3rem;line-height:1.3}
+.swot{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:.9rem;flex:1}
+.swot-cell{border-radius:.8rem;padding:1rem 1.1rem;border:1px solid var(--color-border);background:var(--color-card)}
+.swot-cell h3{font-size:1.6em;margin-bottom:.4rem}
+.swot-cell ul{list-style:none}
+.swot-cell li{font-size:1.45em;color:var(--color-text);line-height:1.4;margin-bottom:.25rem;padding-left:1.1em;position:relative}
+.swot-cell li::before{content:'▸';position:absolute;left:0;color:var(--color-accent)}
+.s h3{color:var(--color-accent)}
+.w h3{color:var(--color-accent-2)}
+.o h3{color:var(--color-accent-3)}
+.t h3{color:#ffb84d}
+.ask-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.2rem;flex:1;align-content:center}
+.ask-big{grid-column:1/-1;text-align:center;background:linear-gradient(135deg,rgba(0,255,200,.12),rgba(255,46,151,.12));border:1px solid var(--color-accent);border-radius:1rem;padding:1.4rem}
+.ask-big .amt{font-size:4.2em;font-weight:800;color:var(--color-accent);line-height:1;text-shadow:0 0 1rem rgba(0,255,200,.5)}
+.ask-big .sub{font-size:1.6em;color:var(--color-text);margin-top:.5rem}
+.use-list{list-style:none}
+.use-list li{font-size:1.5em;color:var(--color-text);line-height:1.5;margin-bottom:.5rem;padding-left:1.4em;position:relative}
+.use-list li::before{content:'◆';position:absolute;left:0;color:var(--color-accent-2);font-size:.8em;top:.25em}
+.cover-wrap{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;height:100%;padding:3.6rem 4rem;position:relative}
+.cover-glow{position:absolute;border-radius:50%;filter:blur(80px);opacity:.35;pointer-events:none}
+.g1{width:22rem;height:22rem;background:var(--color-accent);top:-6rem;right:-4rem}
+.g2{width:18rem;height:18rem;background:var(--color-accent-2);bottom:-6rem;left:-4rem}
+.logo-row{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
+.logo-row img{width:3.4em;height:3.4em}
+.logo-row .nm{font-size:2.2em;font-weight:800;color:var(--color-text);letter-spacing:.06em}
+.logo-row .nm span{color:var(--color-accent)}
+
+body.light-theme{
+--color-bg:#f0f4f8;
+--color-slide-bg:#ffffff;
+--color-text:#1a2332;
+--color-accent:#00856b;
+--color-accent-2:#c4006a;
+--color-accent-3:#5334cc;
+--color-muted:#4a5a6e;
+--color-card:#f5f8fc;
+--color-border:#d0dbe8;
+--color-controls-bg:rgba(0,133,107,.12);
+--color-controls-text:#00856b;
+}
+body.light-theme .slide-title{text-shadow:none}
+body.light-theme .stat .big{text-shadow:none}
+body.light-theme .ask-big .amt{text-shadow:none}
+body.light-theme .tl-dot span{box-shadow:none}
+body.light-theme .card::before{background:linear-gradient(90deg,var(--color-accent),transparent)}
+body.light-theme .card.magenta::before{background:linear-gradient(90deg,var(--color-accent-2),transparent)}
+body.light-theme .card.violet::before{background:linear-gradient(90deg,var(--color-accent-3),transparent)}
+body.light-theme .nav-btn:hover{color:#ffffff}
+body.light-theme .table-cyber th{background:rgba(0,133,107,.1)}
+body.light-theme .table-cyber tr:nth-child(even) td{background:rgba(0,0,0,.03)}
+body.light-theme .badge{background:rgba(0,133,107,.1);border-color:rgba(0,133,107,.35)}
+body.light-theme .bar-track{background:rgba(0,0,0,.08)}
+body.light-theme .org-top{background:linear-gradient(135deg,rgba(0,133,107,.12),rgba(83,52,204,.12))}
+body.light-theme .ask-big{background:linear-gradient(135deg,rgba(0,133,107,.08),rgba(196,0,106,.08))}
+body.light-theme .theme-toggle{box-shadow:0 .5rem 1rem rgba(0,0,0,.15)}
+body.light-theme .t h3{color:#b35c00}
+body.light-theme .tl-body{background:var(--color-card)}
+body.light-theme .flow-step{background:var(--color-card)}
+body.light-theme .org-box{background:var(--color-card)}
+body.light-theme .swot-cell{background:var(--color-card)}
+</style>
+<style>.slide {background-color: color-mix(in srgb, var(--color-slide-bg) 75%, transparent) !important;}</style>
+<!-- Cyberpunk Neon animated background: neon rain over a glowing skyline -->
+<style>
+    .bg-cyber {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        overflow: hidden;
+        pointer-events: none;
+        background: linear-gradient(180deg, #05060f 0%, #0d1030 55%, #1a1040 100%);
+    }
+    .bg-cyber canvas { display: block; width: 100%; height: 100%; }
+    .bg-cyber::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 4px);
+    }
+</style>
+<script>
+    (function () {
+        'use strict';
+        document.addEventListener('DOMContentLoaded', function () {
+            var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+            var layer = document.createElement('div');
+            layer.className = 'bg-cyber';
+            var cv = document.createElement('canvas');
+            layer.appendChild(cv);
+            document.body.appendChild(layer);
+            var ctx = cv.getContext('2d');
+            var W = 0, H = 0, drops = [], win = [], t = 0, fc = 0;
+            var sky = document.createElement('canvas');
+            var sctx = sky.getContext('2d');
+
+            function buildSky() {
+                sky.width = Math.max(1, Math.round(W));
+                sky.height = Math.max(1, Math.round(H));
+                sctx.clearRect(0, 0, W, H);
+                sctx.fillStyle = '#070812';
+                sctx.fillRect(0, H * .72, W, H * .28);
+                win = [];
+                var x = 0;
+                while (x < W) {
+                    var bw = 60 + Math.random() * 110;
+                    var bh = H * .06 + Math.random() * H * .16;
+                    var by = H - bh;
+                    sctx.fillStyle = '#0a0c1c';
+                    sctx.fillRect(x, by, bw, bh);
+                    if (Math.random() < .4) sctx.fillRect(x + bw * .45, by - 14, 3, 14);
+                    for (var wx = x + 5; wx < x + bw - 8; wx += 9)
+                        for (var wy = by + 6; wy < H - 8; wy += 11)
+                            if (Math.random() < .22) {
+                                var col = Math.random() < .5 ? 'rgba(0,229,255,.85)' : 'rgba(255,77,170,.75)';
+                                win.push({ x: wx, y: wy, on: Math.random() < .5, col: col });
+                            }
+                    x += bw + 4;
+                }
+            }
+
+            function resize() {
+                var dpr = Math.min(window.devicePixelRatio || 1, 2);
+                W = window.innerWidth; H = window.innerHeight;
+                cv.width = W * dpr; cv.height = H * dpr;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                var n = Math.round(W * H / 3800);
+                drops = [];
+                for (var i = 0; i < n; i++) drops.push({
+                    x: Math.random() * W, y: Math.random() * H,
+                    len: 12 + Math.random() * 20, s: 8 + Math.random() * 9,
+                    c: Math.random() < .5 ? '0,229,255' : '255,77,170'
+                });
+                buildSky();
+            }
+
+            function lightning() {
+                if (Math.random() > .006) return;
+                var x = W * (0.2 + Math.random() * 0.6), y = 0;
+                ctx.strokeStyle = 'rgba(200,240,255,.35)';
+                ctx.lineWidth = 7;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                while (y < H * .55) { y += 30 + Math.random() * 45; x += (Math.random() - .5) * 90; ctx.lineTo(x, y); }
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(235,250,255,.95)';
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                while (y > 0) { y -= 30 + Math.random() * 45; x += (Math.random() - .5) * 90; ctx.lineTo(x, y); }
+                ctx.stroke();
+            }
+
+            function frame() {
+                t += reduced ? 0 : .016;
+                fc++;
+                ctx.clearRect(0, 0, W, H);
+                // glow orbs
+                ctx.globalCompositeOperation = 'lighter';
+                for (var o = 0; o < 3; o++) {
+                    var ox = W * (0.2 + 0.3 * o) + Math.sin(t * .7 + o * 2) * 60;
+                    var oy = H * (0.25 + o * 0.12) + Math.cos(t * .9 + o) * 40;
+                    var og = ctx.createRadialGradient(ox, oy, 0, ox, oy, 130);
+                    og.addColorStop(0, o % 2 ? 'rgba(255,77,170,.28)' : 'rgba(0,229,255,.28)');
+                    og.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = og;
+                    ctx.beginPath(); ctx.arc(ox, oy, 130, 0, 6.283); ctx.fill();
+                }
+                ctx.globalCompositeOperation = 'source-over';
+                // skyline
+                ctx.drawImage(sky, 0, 0, W, H);
+                // flickering windows
+                if (fc % 5 === 0)
+                    for (var w = 0; w < win.length; w++)
+                        if (Math.random() < .03) win[w].on = Math.random() < .5;
+                for (var w2 = 0; w2 < win.length; w2++)
+                    if (win[w2].on) { ctx.fillStyle = win[w2].col; ctx.fillRect(win[w2].x, win[w2].y, 3, 4); }
+                // neon rain
+                ctx.lineWidth = 1.6;
+                for (var i = 0; i < drops.length; i++) {
+                    var d = drops[i];
+                    if (!reduced) {
+                        d.y += d.s;
+                        d.x -= d.s * .18;
+                        if (d.y > H) { d.y = -20; d.x = Math.random() * W; }
+                        if (d.x < -10) d.x = W + 10;
+                    }
+                    ctx.strokeStyle = 'rgba(' + d.c + ',.55)';
+                    ctx.beginPath();
+                    ctx.moveTo(d.x, d.y);
+                    ctx.lineTo(d.x + d.len * .18, d.y - d.len);
+                    ctx.stroke();
+                }
+                if (!reduced) lightning();
+                requestAnimationFrame(frame);
+            }
+            window.addEventListener('resize', resize);
+            resize();
+            requestAnimationFrame(frame);
+        });
+    })();
+</script>
+
+</head>
+<body>
+<button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">Light</button>
+<div class="frame-16-9" id="presentation-frame">
+<div class="slide active">
+<div class="cover-wrap">
+<div class="cover-glow g1"></div>
+<div class="cover-glow g2"></div>
+<div class="logo-row">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNjRweCIKICBoZWlnaHQ9IjY0cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjMDBmZmM4IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIiAvPgogIDxsaW5lIHgxPSIxMiIgeDI9IjEyIiB5MT0iOCIgeTI9IjEyIiAvPgogIDxsaW5lIHgxPSIxMiIgeDI9IjEyLjAxIiB5MT0iMTYiIHkyPSIxNiIgLz4KPC9zdmc+Cg==" alt="GreenGrid leaf circuit icon">
+<div class="nm">Green<span>Grid</span></div>
+</div>
+<div class="slide-kicker">AI-Powered Building Energy Optimization</div>
+<h1 class="slide-title" style="font-size:3.8em;max-width:78%;">Cut Commercial Building Energy Waste by up to 30% — With AI, No New Hardware</h1>
+<p class="slide-sub" style="max-width:62%;margin-top:1rem;">Seed investment opportunity · Milan, Italy · 2026</p>
+<div style="display:flex;gap:1rem;margin-top:1.4rem;flex-wrap:wrap;">
+<span class="badge">€480k ARR</span>
+<span class="badge">190% YoY</span>
+<span class="badge">28 paying buildings</span>
+<span class="badge">96% retention</span>
+</div>
+<div style="position:absolute;bottom:3rem;right:4rem;text-align:right;">
+<div style="font-size:1.5em;color:var(--color-muted);">Marco Rossi · CEO</div>
+<div style="font-size:1.5em;color:var(--color-accent);">investors@greengrid.eu</div>
+</div>
+</div>
+</div>
+<div class="slide">
+<div class="slide-pad">
+<div class="slide-num">02 · Problem</div>
+<div class="slide-kicker">The Waste Is Invisible</div>
+<h2 class="slide-title">Commercial Buildings Waste Up to 35% of Their Energy</h2>
+<p class="slide-sub">Heating, cooling and lighting run when no one needs them — a silent, systemic drain on operating budgets and carbon targets.</p>
+<div class="grid" style="grid-template-columns:1.05fr 1fr;">
+<div class="card" style="display:flex;flex-direction:column;justify-content:center;">
+<div class="icon-row">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjZmYyZTk3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik01LjExNiA0LjEwNEExIDEgMCAwIDEgNi4xMSAzaDExLjc4YTEgMSAwIDAgMSAuOTk0IDEuMTA1TDE3LjE5IDIwLjIxQTIgMiAwIDAgMSAxNS4yIDIySDguOGEyIDIgMCAwIDEtMi0xLjc5eiIgLz4KICA8cGF0aCBkPSJNNiAxMmE1IDUgMCAwIDEgNiAwIDUgNSAwIDAgMCA2IDAiIC8+Cjwvc3ZnPgo=" alt="Energy waste icon">
+<h3 style="color:var(--color-accent-2);">Why It Persists</h3>
+</div>
+<ul class="use-list">
+<li>Static schedules and manual controls ignore real occupancy.</li>
+<li>HVAC, lighting and sensors operate in disconnected silos.</li>
+<li>Facility teams lack real-time, actionable intelligence.</li>
+<li>Retrofits are expensive, disruptive and slow to deploy.</li>
+</ul>
+</div>
+<div class="grid" style="grid-template-columns:1fr;gap:1rem;">
+<div class="card stat" style="flex:1;">
+<div class="big" style="color:var(--color-accent-2);">35%</div>
+<div class="lbl">of commercial building energy is wasted on unneeded heating, cooling and lighting</div>
+</div>
+<div class="card stat" style="flex:1;">
+<div class="big">€18B</div>
+<div class="lbl">European building energy management market in 2026</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="slide">
+<div class="slide-pad">
+<div class="slide-num">03 · Solution</div>
+<div class="slide-kicker">Software-Only Intelligence</div>
+<h2 class="slide-title">The GreenGrid Platform</h2>
+<p class="slide-sub">Connects to existing sensors and HVAC systems, then uses AI to cut energy use by up to 30% — with no hardware replacement.</p>
+<div class="grid" style="grid-template-columns:1fr 1fr 1fr;align-content:start;">
+<div class="card">
+<div class="icon-row">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDBweCIKICBoZWlnaHQ9IjQwcHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjMDBmZmM4IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik0xNSAzaDZ2NiIgLz4KICA8cGF0aCBkPSJNMTAgMTQgMjEgMyIgLz4KICA8cGF0aCBkPSJNMTggMTN2NmEyIDIgMCAwIDEtMiAySDVhMiAyIDAgMCAxLTItMlY4YTIgMiAwIDAgMSAyLTJoNiIgLz4KPC9zdmc+Cg==" alt="Plug connect icon">
+<h3>1 · Connect</h3>
+</div>
+<p>Integrates with a building's existing BMS, sensors and HVAC via open APIs — no rip-and-replace.</p>
+</div>
+<div class="card violet">
+<div class="icon-row">
+<img src="ai-brain.40.7b61ff.svg" alt="AI brain icon">
+<h3>2 · Optimize</h3>
+</div>
+<p>AI models learn occupancy, weather and thermal patterns to continuously optimize setpoints and schedules.</p>
+</div>
+<div class="card magenta">
+<div class="icon-row">
+<img src="chart-down.40.ff2e97.svg" alt="Chart down icon">
+<h3>3 · Save</h3>
+</div>
+<p>Verified energy reductions of up to 30%, with real-time dashboards and automated reporting.</p>
+</div>
+</div>
+<div style="margin-top:1.4rem;">
+<div class="flow">
+<div class="flow-step"><div class="n">01</div><div class="t">Existing<br>Sensors</div></div>
+<div class="flow-arrow">→</div>
+<div class="flow-step"><div class="n">02</div><div class="t">GreenGrid<br>AI Engine</div></div>
+<div class="flow-arrow">→</div>
+<div class="flow-step"><div class="n">03</div><div class="t">HVAC &amp;<br>Lighting</div></div>
+<div class="flow-arrow">→</div>
+<div class="flow-step"><div class="n">04</div><div class="t">Up to 30%<br>Energy Saved</div></div>
+</div>
+</div>
+</div>
+</div>
+<div class="slide">
+<div class="slide-pad">
+<div class="slide-num">04 · Market</div>
+<div class="slide-kicker">A Large, Fast-Growing Market</div>
+<h2 class="slide-title">European Building Energy Management</h2>
+<p class="slide-sub">A €18B market in 2026, growing 16% annually — driven by regulation, energy prices and net-zero mandates.</p>
+<div class="grid" style="grid-template-columns:1fr 1fr;">
+<div class="card stat">
+<div class="big">€18B</div>
+<div class="lbl">2026 European market size</div>
+<div class="bar-track" style="margin-top:1rem;"><div class="bar-fill" style="width:100%;"></div></div>
+</div>
+<div class="card stat magenta">
+<div class="big" style="color:var(--color-accent-2);">16%</div>
+<div class="lbl">annual growth rate</div>
+<div class="bar-track" style="margin-top:1rem;"><div class="bar-fill" style="width:64%;background:linear-gradient(90deg,var(--color-accent-2),var(--color-accent-3));"></div></div>
+</div>
+<div class="card" style="grid-column:1/-1;">
+<h3>Why Now — Market Drivers</h3>
+<div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:.9rem;margin-top:.8rem;">
+<div style="font-size:1.5em;color:var(--color-text);line-height:1.4;">◆ EU Energy Performance of Buildings Directive tightening</div>
+<div style="font-size:1.5em;color:var(--color-text);line-height:1.4;">◆ Volatile energy prices forcing opex reduction</div>
+<div style="font-size:1.5em;color:var(--color-text);line-height:1.4;">◆ Corporate net-zero and ESG reporting mandates</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="slide">
+<div class="slide-pad">
+<div class="slide-num">05 · Model</div>
+<div class="slide-kicker">Predictable, Scalable SaaS</div>
+<h2 class="slide-title">Business Model</h2>
+<p class="slide-sub">SaaS priced per square metre, plus a one-off setup fee — aligning our revenue with the size of the value we create.</p>
+<div class="grid" style="grid-template-columns:1fr 1.15fr;">
+<div class="card stat" style="justify-content:center;">
+<div class="icon-row" style="justify-content:center;">
+<img src="euro-coin.48.00ffc8.svg" alt="Euro coin icon">
+</div>
+<div class="big">€0.35</div>
+<div class="lbl">per m² / month · recurring SaaS</div>
+<div style="margin-top:1rem;font-size:1.5em;color:var(--color-accent-3);font-weight:700;">+ one-off setup fee per building</div>
+</div>
+<div class="card">
+<h3>Unit Economics Snapshot</h3>
+<table class="table-cyber" style="margin-top:.7rem;">
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Pricing</td><td>€0.35/m²/month + setup</td></tr>
+<tr><td>Current ARR</td><td>€480k</td></tr>
+<tr><td>Paying buildings</td><td>28</td></tr>
+<tr><td>Customer retention</td><td>96%</td></tr>
+<tr><td>YoY growth</td><td>190%</td></tr>
+</table>
+</div>
+</div>
+<div style="margin-top:1.2rem;display:flex;gap:1rem;flex-wrap:wrap;">
+<span class="badge">Recurring revenue</span>
+<span class="badge">Land &amp; expand per portfolio</span>
+<span class="badge">No hardware capex</span>
+<span class="badge">High gross margin</span>
+</div>
+</div>
+</div>
+<div class="slide">
+<div class="slide-pad">
+<div class="slide-num">06 · Traction</div>
+<div class="slide-kicker">Momentum Proven</div>
+<h2 class="slide-title">Traction So Far</h2>
+<p class="slide-sub">28 paying buildings, €480k ARR, 190% year-over-year growth and 96% customer retention.</p>
+<div class="grid" style="grid-template-columns:repeat(4,1fr);align-content:start;">
+<div class="card stat"><div class="big">28</div><div class="lbl">paying buildings</div></div>
+<div class="card stat magenta"><div class="big" style="color:var(--color-accent-2);">€480k</div><div class="lbl">ARR</div></div>
+<div class="card stat violet"><div class="big" style="color:var(--color-accent-3);">190%</div><div class="lbl">YoY growth</div></div>
+<div class="card stat"><div class="big">96%</div><div class="lbl">customer retention</div></div>
+</div>
+<div style="margin-top:1.3rem;">
+<div class="timeline">
+<div class="tl-row">
+<div class="tl-when">2023</div>
+<div class="tl-dot"><span></span><div class="tl-line"></div></div>
+<div class="tl-body">Founded in Milan by Marco Rossi and Anna Bianchi.</div>
+</div>
+<div class="tl-row">
+<div class="tl-when">2024</div>
+<div class="tl-dot"><span></span><div class="tl-line"></div></div>
+<div class="tl-body">Platform launched; first paying commercial buildings onboarded.</div>
+</div>
+<div class="tl-row">
+<div class="tl-when">2025</div>
+<div class="tl-dot"><span></span><div class="tl-line"></div></div>
+<div class="tl-body">Scaled to 28 buildings; ARR reaches €480k; retention holds at 96%.</div>
+</div>
+<div class="tl-row">
+<div class="tl-when">2026</div>
+<div class="tl-dot"><span></span></div>
+<div class="tl-body">190% YoY growth; preparing Germany and Spain expansion.</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="slide">
+<div class="slide-pad">
+<div class="slide-num">07 · Team</div>
+<div class="slide-kicker">Operators &amp; Engineers</div>
+<h2 class="slide-title">The Team</h2>
+<p class="slide-sub">14 people across engineering, sales and customer success — led by founders with deep energy and AI pedigree.</p>
+<div class="org-chart">
+<div class="org-top">
+<div class="nm">Marco Rossi · CEO</div>
+<div class="rl">ex-Enel</div>
+</div>
+<div class="org-line"></div>
+<div class="org-row">
+<div class="org-box">
+<div class="rl">Anna Bianchi · CTO</div>
+<div class="ds">ex-Politecnico AI Lab</div>
+</div>
+<div class="org-box">
+<div class="rl">Engineering</div>
+<div class="ds">AI, platform &amp; integrations</div>
+</div>
+<div class="org-box">
+<div class="rl">Sales</div>
+<div class="ds">Commercial building portfolios</div>
+</div>
+<div class="org-box">
+<div class="rl">Customer Success</div>
+<div class="ds">Onboarding &amp; retention</div>
+</div>
+</div>
+</div>
+<div style="margin-top:1.2rem;display:flex;gap:1rem;flex-wrap:wrap;">
+<span class="badge">14 people</span>
+<span class="badge">Milan HQ</span>
+<span class="badge">Energy + AI DNA</span>
+</div>
+</div>
+</div>
+<div class="slide">
+<div class="slide-pad">
+<div class="slide-num">08 · Ask</div>
+<div class="slide-kicker">Join the Grid</div>
+<h2 class="slide-title">The Ask</h2>
+<p class="slide-sub">€3M seed to reach €3M ARR in 24 months and expand into Germany and Spain.</p>
+<div class="ask-grid">
+<div class="ask-big">
+<div class="amt">€3M</div>
+<div class="sub">Seed round · to reach €3M ARR in 24 months</div>
+</div>
+<div class="card">
+<div class="icon-row">
+<img src="rocket-launch.40.00ffc8.svg" alt="Rocket launch icon">
+<h3>Growth</h3>
+</div>
+<p>Scale commercial teams and customer success to accelerate ARR from €480k to €3M.</p>
+</div>
+<div class="card violet">
+<div class="icon-row">
+<img src="globe-europe.40.7b61ff.svg" alt="Globe Europe icon">
+<h3>Expansion</h3>
+</div>
+<p>Enter Germany and Spain with localized integrations and sales presence.</p>
+</div>
+<div class="card magenta">
+<div class="icon-row">
+<img src="ai-brain.40.ff2e97.svg" alt="AI brain icon">
+<h3>Product</h3>
+</div>
+<p>Deepen AI optimization models and expand BMS/HVAC integration coverage.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<button id="prev-slide" class="nav-btn" aria-label="Previous slide">‹</button>
+<button id="next-slide" class="nav-btn" aria-label="Next slide">›</button>
+<div class="counter" id="counter">1 / 8</div>
+<script>
+(function(){
+  var slides = document.querySelectorAll('.slide');
+  var current = 0;
+  var total = slides.length;
+  var counter = document.getElementById('counter');
+  var prevBtn = document.getElementById('prev-slide');
+  var nextBtn = document.getElementById('next-slide');
+  var themeToggle = document.getElementById('theme-toggle');
+
+  function showSlide(index){
+    slides[current].classList.remove('active');
+    current = (index + total) % total;
+    slides[current].classList.add('active');
+    counter.textContent = (current + 1) + ' / ' + total;
+  }
+
+  prevBtn.addEventListener('click', function(){ showSlide(current - 1); });
+  nextBtn.addEventListener('click', function(){ showSlide(current + 1); });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'ArrowLeft') showSlide(current - 1);
+    if(e.key === 'ArrowRight') showSlide(current + 1);
+  });
+
+  themeToggle.addEventListener('click', function(){
+    document.body.classList.toggle('light-theme');
+    themeToggle.textContent = document.body.classList.contains('light-theme') ? 'Dark' : 'Light';
+  });
+})();
+</script>
+<script>
+    (function () {
+        const zoom = () => {
+            const f = document.querySelector('.frame-16-9');
+            if (!f) return;
+            const [fw, fh] = [f.clientWidth, f.clientHeight];
+            document.querySelectorAll('.slide').forEach(s => {
+                s.style.transform = s.style.width = s.style.height = '';
+                const [sw, sh] = [s.scrollWidth, s.scrollHeight];
+                if (sh > fh || sw > fw) {
+                    const z = Math.min(fw / sw, fh / sh) * 0.8;
+                    s.style.cssText += `transform:scale(${z});transform-origin:top left;width:${100 / z}%;height:${100 / z}%;`;
+                }
+            });
+        };
+
+        // All'avvio e dopo il caricamento
+        zoom();
+        window.addEventListener('load', zoom);
+
+        // Eventi
+        let t;
+        window.addEventListener('resize', () => (clearTimeout(t), t = setTimeout(zoom, 200)));
+        document.querySelectorAll('.slide').forEach(s => {
+            const o = new MutationObserver(() => setTimeout(zoom, 150));
+            o.observe(s, { attributes: true, attributeFilter: ['class'] });
+        });
+    })();
+</script>
+</body>
+</html>

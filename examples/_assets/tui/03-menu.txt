@@ -1,0 +1,31 @@
+﻿┌┤AGENT - AI Chat Console├─────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Chat  File  Settings  Session  Web  Help                                                                             │
+│ New Chat             Ctrl+N ────────────────────────────────────────────────────────────────────────────────────────╮│
+│ Clear History        Ctrl+L er · / opens commands · @ files · ? shortcuts · F1 help · F10 the menu.                 ││
+│ TTS (/tts)                                                                                                          ││
+│ Commands (/...)                                                                                                     ││
+│ Retry Last (/retry)  Ctrl+Y 1 — the API keeps answering in parallel (http://localhost:5291/v1/chat/completions)     ││
+│ Exit                 Ctrl+Q                                                                                         ││
+││·                                                                                                                   ││
+││Some system models are not installed yet (tts, lingua). The app keeps working — the affected features (voice,       ││
+││podcast, multilingual search) will activate automatically after the next update.                                    ││
+││                                                                                                                    ││
+││·                                                                                                                   ││
+││Tools updated: Web, File, Git, TaskScheduler. They take effect from the next message (no restart needed).           ││
+││                                                                                                                    ││
+││❯ you                                                                                                               ││
+││Give me 3 quick tips to answer customer emails faster.                                                              ││
+││                                                                                                                    ││
+││◆ agent                                                                                                             ││
+││LLM returned no response                                                                                            ││
+││                                                                                                                    ││
+││                                                                                                                    ││
+││                                                                                                                    ││
+││                                                                                                                    ││
+││ Type a message or / for commands...                                                                                ││
+│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+│                                                                                                                      │
+│● · localhost:5291 · DeepSeekBridge · deepseek-web/deepseek-chat · tools: Web, File, Git, TaskScheduler · ctx 36/1M · │
+│ F1 help · F10 menu · / commands · @ files · ? shortcuts · Esc close · Ctrl+C cancel                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+

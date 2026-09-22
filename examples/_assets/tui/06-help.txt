@@ -1,0 +1,31 @@
+﻿┌┤AGENT - AI Chat Console├─────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Cha┏┥agent help┝━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓     │
+│╭┤Ch┃QUICK START                                                                                                ┃────╮│
+││Typ┃  • Type a message and press Enter to talk to the agents (default/web/search/word/spreadsheet/email/multi).┃    ││
+││   ┃  • / opens the command palette (filters as you type): /model switches LLM, /files uploads documents, /voic┃    ││
+││·  ┃  • @ opens the uploaded files (attach/detach) · ? shortcuts · F1 this help · F10 the top menu.            ┃    ││
+││ser┃  • The bottom bar shows server, provider, model, session and context.                                     ┃    ││
+││   ┃                                                                                                           ┃    ││
+││·  ┃COMMANDS  (type / to open the live list)                                                                   ┃    ││
+││Som┃  /attach [id]                Toggle a file attachment for the chat (menu when no id)                      ┃    ││
+││pod┃  /clear                      Reset the current session history (keeps the session)                        ┃    ││
+││   ┃  /crashreport                Toggle sending sanitized crash reports to the GitHub repository              ┃    ││
+││·  ┃  /docs                       Open the online documentation in your browser                                ┃    ││
+││Too┃  /email                      Configure email (SMTP sending and IMAP reading)                              ┃    ││
+││   ┃  /exit  (also /quit)         Exit the terminal UI (Ctrl+Q, Ctrl+C twice, Ctrl+D)                          ┃    ││
+││❯ y┃  /features [name] [on|off]   Show or toggle session feature flags (voice, tts, ...)                       ┃    ││
+││Giv┃  /files add <path>|rm <id>|listUpload+attach a file, delete one, or list uploads                          ┃    ││
+││   ┃  /general                    Configure general settings (logging, auto-start, documents area)             ┃    ││
+││◆ a┃  /health                     Ping the server and report latency                                           ┃    ││
+││LLM┃  /help  (also /?)            Show help: commands, shortcuts, API endpoints, online docs                   ┃    ││
+││   ┃  /model [name]               Switch the LLM provider (menu when no name given)                            ┃    ││
+││   ┃— scroll with ↑↓ / PgUp-PgDn · close with Esc or Enter —                                                   ┃    ││
+││   ┃                                                                                                           ┃    ││
+││   ┃                                                                                                           ┃    ││
+││   ┃                                                                                               ⟦► Close ◄⟧▖┃    ││
+│╰───┃                                                                                               ▝▀▀▀▀▀▀▀▀▀▀▘┃────╯│
+│    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛     │
+│● · localhost:5291 · DeepSeekBridge · deepseek-web/deepseek-chat · tools: Web, File, Git, TaskScheduler · ctx 36/1M · │
+│ F1 help · F10 menu · / commands · @ files · ? shortcuts · Esc close · Ctrl+C cancel                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+

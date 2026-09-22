@@ -1,0 +1,31 @@
+﻿┌┤AGENT - AI Chat Console├─────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Chat  File  Settings  Session  Web  Help                                                                             │
+│╭┤Chat├──────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
+││  █████╗  ██████╗ ███████╗███╗   ██╗████████╗                                                                       ││
+││ ██╔══██╗█┏┥Agent tools┝━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓           ││
+││ ███████║█┃                                                                                             ┃           ││
+││ ██╔══██║█┃ Core (always on): FileTool, GitTool, TaskSchedulerTool                                      ┃           ││
+││ ██║  ██║╚┃ ☐ EMailTool — Email operations for agent use: list, search, read, send, reply and save att  ┃           ││
+││ ╚═╝  ╚═╝ ┃ ☑ WebTool — Browser automation: navigate pages, click, fill forms, extract content, web se  ┃           ││
+││          ┃                                                                                             ┃           ││
+││          ┃                                                                                             ┃           ││
+││·         ┃                                                                                             ┃           ││
+││Welcome to┃                                                                                             ┃           ││
+││Type a mes┃                                                                                             ┃           ││
+││          ┃                                                                                             ┃           ││
+││·         ┃                                                                                             ┃           ││
+││server: ht┃ ↑↓ move · Space toggle · Close/Esc saves automatically                                      ┃tions)     ││
+││          ┃                                                                                             ┃           ││
+││·         ┃                                                                                             ┃           ││
+││Some syste┃                                                                                             ┃ice,       ││
+││podcast, m┃                                                                                             ┃           ││
+││          ┃                                                                                 ⟦► Close ◄⟧▖┃           ││
+││          ┃                                                                                 ▝▀▀▀▀▀▀▀▀▀▀▘┃           ││
+││          ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛           ││
+││                                                                                                                    ││
+│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+│                                                                                                                      │
+│● · localhost:5291 · DeepSeekBridge · deepseek-web/deepseek-chat · tools: File, Web, Git, TaskScheduler · ctx 0/1M · T│
+│ F1 help · F10 menu · / commands · @ files · ? shortcuts · Esc close · Ctrl+C cancel                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+

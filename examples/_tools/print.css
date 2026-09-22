@@ -1,0 +1,26 @@
+@page { size: A5; margin: 2cm 1.8cm; }
+@page :first { margin: 0; }
+html, body { margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', 'Calibri', Arial, sans-serif; font-size: 11pt;
+  line-height: 1.55; color: #1f2937; }
+h1 { font-size: 21pt; color: #0f172a; margin: 0 0 .6em; }
+h2 { font-size: 15pt; color: #1e293b; margin: 1.2em 0 .4em; }
+h3 { font-size: 12.5pt; color: #334155; }
+p, li { orphans: 2; widows: 2; }
+img { max-width: 100%; height: auto; }
+blockquote { border-left: 4px solid #38bdf8; margin: 1em 0; padding: .4em 1em;
+  background: #f1f5f9; color: #334155; }
+code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-size: 10pt; }
+pre code { display: block; padding: 10px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 10pt; }
+th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+th { background: #e2e8f0; }
+nav#TOC { page-break-after: always; }
+nav#TOC ul { list-style: none; padding-left: 1em; }
+section.level1 { page-break-before: always; }
+header#title-block-header { page-break-after: always; text-align: center; padding-top: 34%; }
+header#title-block-header h1.title { font-size: 30pt; }
+header#title-block-header p.subtitle { font-size: 15pt; color: #475569; }
+header#title-block-header p.author, header#title-block-header p.date { font-size: 12pt; color: #64748b; }
+.bookcover { page-break-after: always; text-align: center; margin: 0; }
+.bookcover img { width: 100%; height: auto; display: block; }

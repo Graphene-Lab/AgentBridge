@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Nimbus · Customer Support Onboarding</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-size:1.2vw}
+body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:var(--color-bg,#1a1a2e);transition:background .3s}
+:root{--xs:.5rem;--sm:.9rem;--md:1.5rem;--lg:2.2rem;--font-min:1.5rem;--color-bg:#f4f6fa;--color-slide-bg:#ffffff;--color-text:#1a1a2e;--color-accent:#2c4bd6;--color-controls-bg:rgba(0,0,0,.65);--color-controls-text:#ffffff}
+body.dark{--color-bg:#1a1a2e;--color-slide-bg:#22223a;--color-text:#f4f6fa;--color-accent:#8fa8ff;--color-controls-bg:rgba(255,255,255,.35);--color-controls-text:#ffffff}
+.frame-16-9{width:95%;max-width:95vw;aspect-ratio:16/9;background:var(--color-slide-bg);position:relative;overflow:hidden;border-radius:1.8rem;box-shadow:0 2rem 4rem rgba(0,0,0,.6);transition:background .3s}
+.frame-16-9>*{position:absolute;box-sizing:border-box}
+.slide{top:0;left:0;width:100%;height:100%;background:var(--color-slide-bg);opacity:0;visibility:hidden;transform:scale(1.08) translateY(15px);filter:blur(8px);z-index:1;transition:opacity .7s cubic-bezier(.25,.46,.45,.94),transform .7s cubic-bezier(.25,.46,.45,.94),filter .7s cubic-bezier(.25,.46,.45,.94),visibility 0s linear .7s}
+.slide.active{opacity:1;visibility:visible;transform:scale(1) translateY(0);filter:blur(0);z-index:2;transition:opacity .7s cubic-bezier(.25,.46,.45,.94),transform .7s cubic-bezier(.25,.46,.45,.94),filter .7s cubic-bezier(.25,.46,.45,.94),visibility 0s linear 0s}
+.nav-btn{position:fixed;top:50%;transform:translateY(-50%);width:3.4rem;height:3.4rem;border:none;border-radius:50%;background:var(--color-controls-bg);color:var(--color-controls-text);font-size:1.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:100;transition:background .2s,transform .1s}
+.nav-btn:hover{background:var(--color-accent)}
+.nav-btn:active{transform:translateY(-50%) scale(.95)}
+#prev-slide{left:1rem}
+#next-slide{right:1rem}
+.counter{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:var(--color-controls-bg);color:var(--color-controls-text);padding:.5rem 1rem;border-radius:1rem;font-size:1.5rem;z-index:100;pointer-events:none}
+.theme-toggle{position:fixed;top:1.5rem;right:1.5rem;background:var(--color-slide-bg);color:var(--color-text);border:1px solid var(--color-accent);border-radius:2rem;padding:.6rem 1.2rem;font-size:1.5rem;cursor:pointer;z-index:100;box-shadow:0 .5rem 1rem rgba(0,0,0,.1);opacity:.35;transition:opacity .3s}
+.theme-toggle:hover{opacity:1}
+.wrap{position:absolute;left:5%;top:5%;width:90%;height:90%}
+h1{font-size:3.4rem;color:var(--color-text);line-height:1.1}
+h2{font-size:2.6rem;color:var(--color-text);margin-bottom:1.2rem}
+h3{font-size:1.6rem;color:var(--color-accent)}
+h4{font-size:1.5rem;color:var(--color-accent)}
+p{font-size:1.5rem;color:var(--color-text);line-height:1.5}
+.card{background:var(--color-slide-bg);border:2px solid var(--color-accent);border-radius:1rem;padding:1.2rem}
+.card-s{background:var(--color-slide-bg);border:1px solid var(--color-accent);border-radius:.8rem;padding:1rem}
+.row{display:flex;gap:1.6rem;height:78%}
+.col{display:flex;flex-direction:column;gap:1rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.grid2s{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
+ul{font-size:1.5rem;color:var(--color-text);line-height:1.9;list-style:none}
+img{display:block}
+</style>
+<style>.slide {background-color: color-mix(in srgb, var(--color-slide-bg) 75%, transparent) !important;}</style>
+<!-- Minimalist White animated background: breathing pastel haze -->
+<style>
+    .bg-minimal {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        overflow: hidden;
+        pointer-events: none;
+        background: #fbfcfe;
+    }
+    body.dark .bg-minimal { background: #101418; }
+    .bg-minimal canvas { display: block; width: 100%; height: 100%; }
+    .bg-minimal::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse at center, transparent 60%, rgba(30, 40, 70, .10) 100%);
+    }
+</style>
+<script>
+    (function () {
+        'use strict';
+        document.addEventListener('DOMContentLoaded', function () {
+            var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+            var layer = document.createElement('div');
+            layer.className = 'bg-minimal';
+            var cv = document.createElement('canvas');
+            layer.appendChild(cv);
+            document.body.appendChild(layer);
+            var ctx = cv.getContext('2d');
+            var W = 0, H = 0, blobs = [], dots = [], t = 0;
+            var dark = document.body.classList.contains('dark');
+
+            function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+
+            function palette() {
+                return dark
+                    ? { blobs: [[90, 130, 200], [150, 190, 230], [200, 170, 230], [160, 200, 210]], dot: [220, 230, 245] }
+                    : { blobs: [[190, 214, 246], [220, 235, 250], [246, 214, 236], [214, 238, 234]], dot: [120, 140, 175] };
+            }
+
+            function resize() {
+                var dpr = Math.min(window.devicePixelRatio || 1, 2);
+                W = window.innerWidth; H = window.innerHeight;
+                cv.width = W * dpr; cv.height = H * dpr;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                var n = Math.max(3, Math.round(W * H / 260000));
+                blobs = [];
+                for (var i = 0; i < n; i++) blobs.push({
+                    x: Math.random() * W, y: Math.random() * H,
+                    r: Math.min(W, H) * (0.22 + Math.random() * 0.3),
+                    vx: (Math.random() - .5) * .22, vy: (Math.random() - .5) * .22,
+                    c: i, ph: Math.random() * 6.283
+                });
+                var nd = Math.round(W * H / 24000);
+                dots = [];
+                for (var j = 0; j < nd; j++) dots.push({
+                    x: Math.random() * W, y: Math.random() * H,
+                    r: .4 + Math.random() * 1.4, s: .06 + Math.random() * .25,
+                    ph: Math.random() * 6.283
+                });
+            }
+
+            function frame() {
+                t += reduced ? 0 : .004;
+                var p = palette();
+                ctx.clearRect(0, 0, W, H);
+                ctx.globalCompositeOperation = 'lighter';
+                for (var i = 0; i < blobs.length; i++) {
+                    var b = blobs[i];
+                    if (!reduced) { b.x += b.vx; b.y += b.vy; }
+                    if (b.x < -b.r) b.x = W + b.r; if (b.x > W + b.r) b.x = -b.r;
+                    if (b.y < -b.r) b.y = H + b.r; if (b.y > H + b.r) b.y = -b.r;
+                    var r = b.r * (1 + Math.sin(t * 10 + b.ph) * .1);
+                    var g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r);
+                    g.addColorStop(0, rgba(p.blobs[b.c % p.blobs.length], dark ? .22 : .35));
+                    g.addColorStop(1, rgba(p.blobs[b.c % p.blobs.length], 0));
+                    ctx.fillStyle = g;
+                    ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 6.283); ctx.fill();
+                }
+                ctx.globalCompositeOperation = 'source-over';
+                for (var j = 0; j < dots.length; j++) {
+                    var d = dots[j];
+                    if (!reduced) {
+                        d.x += Math.sin(t * 3 + d.ph) * d.s * 2;
+                        d.y += Math.cos(t * 2.4 + d.ph * 1.3) * d.s * 1.6;
+                    }
+                    ctx.fillStyle = rgba(p.dot, .18 + .2 * Math.abs(Math.sin(t * 2 + d.ph)));
+                    ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 6.283); ctx.fill();
+                }
+                requestAnimationFrame(frame);
+            }
+
+            var mo = new MutationObserver(function () { dark = document.body.classList.contains('dark'); });
+            mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+            window.addEventListener('resize', resize);
+            resize();
+            requestAnimationFrame(frame);
+        });
+    })();
+</script>
+
+</head>
+<body>
+<button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">Dark</button>
+<div class="frame-16-9" id="presentation-frame">
+
+<div class="slide active">
+<div class="wrap" style="display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:1.2rem;margin-bottom:1.6rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNjRweCIKICBoZWlnaHQ9IjY0cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik0xNy41IDE5SDlhNyA3IDAgMSAxIDYuNzEtOWgxLjc5YTQuNSA0LjUgMCAxIDEgMCA5WiIgLz4KPC9zdmc+Cg==" alt="Nimbus cloud logo">
+<div>
+<h1>Welcome to Nimbus Support</h1>
+<p style="font-size:1.6rem;color:var(--color-accent);margin-top:.4rem">Onboarding training for new customer-support agents</p>
+</div>
+</div>
+<div style="display:flex;gap:1.6rem;flex:1">
+<div style="flex:1.4;display:flex;flex-direction:column;gap:1rem;justify-content:center">
+<p style="font-size:1.5rem;line-height:1.6">You are joining the team behind <strong>Nimbus</strong> — a project-management SaaS used by <strong>8,000 teams</strong> to plan projects, assign tasks, track progress and share documents in one workspace.</p>
+<p style="font-size:1.5rem;line-height:1.6">In the next few slides you will learn our product, our tone of voice, the ticket workflow, escalation rules, the tools we use, and the best practices that make our support great.</p>
+</div>
+<div class="card" style="flex:1;display:flex;flex-direction:column;gap:1rem;justify-content:center;padding:1.4rem">
+<h3>This deck covers</h3>
+<ul>
+<li>1. Our product in one page</li>
+<li>2. Our tone of voice</li>
+<li>3. The ticket workflow</li>
+<li>4. How to escalate</li>
+<li>5. The tools we use</li>
+<li>6. Best practices</li>
+<li>7. Summary &amp; key takeaways</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+<div class="slide">
+<div class="wrap">
+<h2>Our product in one page</h2>
+<div class="row">
+<div style="flex:1.2;display:flex;flex-direction:column;gap:1rem">
+<div class="card">
+<h3 style="margin-bottom:.4rem">What is Nimbus?</h3>
+<p>A project-management SaaS that helps teams plan projects, assign tasks, track progress and share documents in one workspace.</p>
+</div>
+<div class="card">
+<h3 style="margin-bottom:.4rem">Who uses it?</h3>
+<p><strong>8,000 teams</strong> — from startups to large enterprises — rely on Nimbus every day to keep their work organized.</p>
+</div>
+</div>
+<div style="flex:1.6">
+<h3 style="font-size:1.5rem;color:var(--color-text);margin-bottom:.8rem">What Nimbus does, in four pillars</h3>
+<div class="grid2s" style="height:calc(100% - 2.5rem)">
+<div class="card-s" style="display:flex;flex-direction:column;gap:.5rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDBweCIKICBoZWlnaHQ9IjQwcHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik04IDJ2NCIgLz4KICA8cGF0aCBkPSJNMTYgMnY0IiAvPgogIDxyZWN0IHdpZHRoPSI0MHB4IiBoZWlnaHQ9IjQwcHgiIHg9IjMiIHk9IjQiIHJ4PSIyIiAvPgogIDxwYXRoIGQ9Ik0zIDEwaDE4IiAvPgo8L3N2Zz4K" alt="Plan projects">
+<h4>Plan projects</h4>
+<p style="font-size:1.3rem;line-height:1.4">Timelines, milestones and roadmaps in a single view.</p>
+</div>
+<div class="card-s" style="display:flex;flex-direction:column;gap:.5rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDBweCIKICBoZWlnaHQ9IjQwcHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxyZWN0IHdpZHRoPSI0MHB4IiBoZWlnaHQ9IjQwcHgiIHg9IjMiIHk9IjMiIHJ4PSIyIiAvPgogIDxwYXRoIGQ9Im05IDEyIDIgMiA0LTQiIC8+Cjwvc3ZnPgo=" alt="Assign tasks">
+<h4>Assign tasks</h4>
+<p style="font-size:1.3rem;line-height:1.4">Owners, due dates and priorities for every piece of work.</p>
+</div>
+<div class="card-s" style="display:flex;flex-direction:column;gap:.5rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDBweCIKICBoZWlnaHQ9IjQwcHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxjaXJjbGUgY3g9IjUiIGN5PSI2IiByPSIzIiAvPgogIDxwYXRoIGQ9Ik01IDl2NiIgLz4KICA8Y2lyY2xlIGN4PSI1IiBjeT0iMTgiIHI9IjMiIC8+CiAgPHBhdGggZD0iTTEyIDN2MTgiIC8+CiAgPGNpcmNsZSBjeD0iMTkiIGN5PSI2IiByPSIzIiAvPgogIDxwYXRoIGQ9Ik0xNiAxNS43QTkgOSAwIDAgMCAxOSA5IiAvPgo8L3N2Zz4K" alt="Track progress">
+<h4>Track progress</h4>
+<p style="font-size:1.3rem;line-height:1.4">Live dashboards show what is on track and what is at risk.</p>
+</div>
+<div class="card-s" style="display:flex;flex-direction:column;gap:.5rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDBweCIKICBoZWlnaHQ9IjQwcHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxjaXJjbGUgY3g9IjE4IiBjeT0iNSIgcj0iMyIgLz4KICA8Y2lyY2xlIGN4PSI2IiBjeT0iMTIiIHI9IjMiIC8+CiAgPGNpcmNsZSBjeD0iMTgiIGN5PSIxOSIgcj0iMyIgLz4KICA8bGluZSB4MT0iOC41OSIgeDI9IjE1LjQyIiB5MT0iMTMuNTEiIHkyPSIxNy40OSIgLz4KICA8bGluZSB4MT0iMTUuNDEiIHgyPSI4LjU5IiB5MT0iNi41MSIgeTI9IjEwLjQ5IiAvPgo8L3N2Zz4K" alt="Share documents">
+<h4>Share documents</h4>
+<p style="font-size:1.3rem;line-height:1.4">Files live next to the work, so context is never lost.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="slide">
+<div class="wrap">
+<h2>Our tone of voice</h2>
+<div class="row">
+<div style="flex:1.3;display:flex;flex-direction:column;gap:1rem">
+<div class="grid2">
+<div class="card" style="text-align:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIiAvPgogIDxwYXRoIGQ9Ik04IDE0czEuNSAyIDQgMiA0LTIgNC0yIiAvPgogIDxsaW5lIHgxPSI5IiB4Mj0iOS4wMSIgeTE9IjkiIHkyPSI5IiAvPgogIDxsaW5lIHgxPSIxNSIgeDI9IjE1LjAxIiB5MT0iOSIgeTI9IjkiIC8+Cjwvc3ZnPgo=" alt="Friendly" style="margin:0 auto">
+<h3 style="font-size:1.5rem;margin-top:.5rem">Friendly</h3>
+<p style="font-size:1.3rem;margin-top:.3rem">Warm and human, never robotic.</p>
+</div>
+<div class="card" style="text-align:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik0yLjA2MiAxMi4zNDhhMSAxIDAgMCAxIDAtLjY5NiAxMC43NSAxMC43NSAwIDAgMSAxOS44NzYgMCAxIDEgMCAwIDEgMCAuNjk2IDEwLjc1IDEwLjc1IDAgMCAxLTE5Ljg3NiAwIiAvPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIC8+Cjwvc3ZnPgo=" alt="Clear" style="margin:0 auto">
+<h3 style="font-size:1.5rem;margin-top:.5rem">Clear</h3>
+<p style="font-size:1.3rem;margin-top:.3rem">Say exactly what you mean.</p>
+</div>
+<div class="card" style="text-align:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik01IDEyaDE0IiAvPgo8L3N2Zz4K" alt="Concise" style="margin:0 auto">
+<h3 style="font-size:1.5rem;margin-top:.5rem">Concise</h3>
+<p style="font-size:1.3rem;margin-top:.3rem">Short answers beat long essays.</p>
+</div>
+<div class="card" style="text-align:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIiAvPgogIDxwYXRoIGQ9Ik00LjkyOSA0LjkyOSAxOS4wNyAxOS4wNzEiIC8+Cjwvc3ZnPgo=" alt="No jargon" style="margin:0 auto">
+<h3 style="font-size:1.5rem;margin-top:.5rem">Never jargon</h3>
+<p style="font-size:1.3rem;margin-top:.3rem">Plain language for everyone.</p>
+</div>
+</div>
+</div>
+<div class="card" style="flex:1;display:flex;flex-direction:column;gap:1rem;justify-content:center;padding:1.4rem">
+<h3>Always remember to</h3>
+<ul>
+<li>✔ Thank the customer</li>
+<li>✔ Confirm the fix</li>
+</ul>
+<div style="border-top:1px solid var(--color-accent);padding-top:1rem;margin-top:.5rem">
+<p style="font-size:1.3rem;font-style:italic">"Thanks for reaching out! We've reset your access — could you confirm you can log in now?"</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="slide">
+<div class="wrap">
+<h2>The ticket workflow</h2>
+<div style="display:flex;gap:1rem;height:70%;align-items:stretch">
+<div class="card" style="flex:1;display:flex;flex-direction:column;gap:.6rem;text-align:center;justify-content:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDRweCIKICBoZWlnaHQ9IjQ0cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwb2x5bGluZSBwb2ludHM9IjIyIDEyIDE2IDEyIDE0IDE1IDEwIDE1IDggMTIgMiAxMiIgLz4KICA8cGF0aCBkPSJNNS40NSA1LjExIDIgMTJ2NmEyIDIgMCAwIDAgMiAyaDE2YTIgMiAwIDAgMCAyLTJ2LTZsLTMuNDUtNi44OUEyIDIgMCAwIDAgMTYuNzYgNEg3LjI0YTIgMiAwIDAgMC0xLjc5IDEuMTF6IiAvPgo8L3N2Zz4K" alt="Ticket arrives" style="align-self:center">
+<h3 style="font-size:1.4rem">1. Ticket arrives</h3>
+<p style="font-size:1.3rem">A new request lands in the helpdesk console.</p>
+</div>
+<div style="display:flex;align-items:center;font-size:2rem;color:var(--color-accent)">→</div>
+<div class="card" style="flex:1;display:flex;flex-direction:column;gap:.6rem;text-align:center;justify-content:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDRweCIKICBoZWlnaHQ9IjQ0cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIiAvPgogIDxwYXRoIGQ9Ik0xMiA2djZsNCAyIiAvPgo8L3N2Zz4K" alt="Acknowledge within 15 minutes" style="align-self:center">
+<h3 style="font-size:1.4rem">2. Acknowledge</h3>
+<p style="font-size:1.3rem">Reply within <strong>15 minutes</strong>.</p>
+</div>
+<div style="display:flex;align-items:center;font-size:2rem;color:var(--color-accent)">→</div>
+<div class="card" style="flex:1;display:flex;flex-direction:column;gap:.6rem;text-align:center;justify-content:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDRweCIKICBoZWlnaHQ9IjQ0cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Im0yMSAyMS00LjM0LTQuMzQiIC8+CiAgPGNpcmNsZSBjeD0iMTEiIGN5PSIxMSIgcj0iOCIgLz4KPC9zdmc+Cg==" alt="Diagnose" style="align-self:center">
+<h3 style="font-size:1.4rem">3. Diagnose</h3>
+<p style="font-size:1.3rem">Find the root cause of the issue.</p>
+</div>
+<div style="display:flex;align-items:center;font-size:2rem;color:var(--color-accent)">→</div>
+<div class="card" style="flex:1;display:flex;flex-direction:column;gap:.6rem;text-align:center;justify-content:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDRweCIKICBoZWlnaHQ9IjQ0cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik0xNC43IDYuM2ExIDEgMCAwIDAgMCAxLjRsMS42IDEuNmExIDEgMCAwIDAgMS40IDBsMy4xMDYtMy4xMDVjLjMyLS4zMjIuODYzLS4yMi45ODMuMjE4YTYgNiAwIDAgMS04LjI1OSA3LjA1N2wtNy45MSA3LjkxYTEgMSAwIDAgMS0yLjk5OS0zbDcuOTEtNy45MWE2IDYgMCAwIDEgNy4wNTctOC4yNTljLjQzOC4xMi41NC42NjIuMjE5Ljk4NHoiIC8+Cjwvc3ZnPgo=" alt="Solve or escalate" style="align-self:center">
+<h3 style="font-size:1.4rem">4. Solve or escalate</h3>
+<p style="font-size:1.3rem">Fix it, or hand it off cleanly.</p>
+</div>
+<div style="display:flex;align-items:center;font-size:2rem;color:var(--color-accent)">→</div>
+<div class="card" style="flex:1;display:flex;flex-direction:column;gap:.6rem;text-align:center;justify-content:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDRweCIKICBoZWlnaHQ9IjQ0cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIiAvPgogIDxwYXRoIGQ9Im05IDEyIDIgMiA0LTQiIC8+Cjwvc3ZnPgo=" alt="Confirm with the customer" style="align-self:center">
+<h3 style="font-size:1.4rem">5. Confirm</h3>
+<p style="font-size:1.3rem">Verify the fix with the customer.</p>
+</div>
+<div style="display:flex;align-items:center;font-size:2rem;color:var(--color-accent)">→</div>
+<div class="card" style="flex:1;display:flex;flex-direction:column;gap:.6rem;text-align:center;justify-content:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDRweCIKICBoZWlnaHQ9IjQ0cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik0xMS41MjUgMi4yOTVhLjUzLjUzIDAgMCAxIC45NSAwbDIuMzEgNC42NzlhMi4xMjMgMi4xMjMgMCAwIDAgMS41OTUgMS4xNmw1LjE2Ni43NTZhLjUzLjUzIDAgMCAxIC4yOTQuOTA0bC0zLjczNiAzLjYzOGEyLjEyMyAyLjEyMyAwIDAgMC0uNjExIDEuODc4bC44ODIgNS4xNGEuNTMuNTMgMCAwIDEtLjc3MS41NmwtNC42MTgtMi40MjhhMi4xMjIgMi4xMjIgMCAwIDAtMS45NzMgMEw2LjM5NiAyMS4wMWEuNTMuNTMgMCAwIDEtLjc3LS41NmwuODgxLTUuMTM5YTIuMTIyIDIuMTIyIDAgMCAwLS42MTEtMS44NzlMMi4xNiA5Ljc5NWEuNTMuNTMgMCAwIDEgLjI5NC0uOTA2bDUuMTY1LS43NTVhMi4xMjIgMi4xMjIgMCAwIDAgMS41OTctMS4xNnoiIC8+Cjwvc3ZnPgo=" alt="Close with a satisfaction survey" style="align-self:center">
+<h3 style="font-size:1.4rem">6. Close</h3>
+<p style="font-size:1.3rem">Send the satisfaction survey.</p>
+</div>
+</div>
+<div style="margin-top:1rem;background:var(--color-slide-bg);border:2px solid var(--color-accent);border-radius:.8rem;padding:.9rem 1.2rem;text-align:center">
+<p>SLA at a glance: acknowledge in <strong>15 min</strong> · resolve or escalate in <strong>30 min</strong> · close with a survey.</p>
+</div>
+</div>
+</div>
+
+<div class="slide">
+<div class="wrap">
+<h2>How to escalate</h2>
+<div class="row">
+<div style="flex:1.1;display:flex;flex-direction:column;gap:1rem">
+<h3>Escalate when…</h3>
+<div class="card" style="display:flex;gap:1rem;align-items:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDRweCIKICBoZWlnaHQ9IjQ0cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik01IDIyaDE0IiAvPgogIDxwYXRoIGQ9Ik01IDJoMTQiIC8+CiAgPHBhdGggZD0iTTE3IDIydi00LjE3MmEyIDIgMCAwIDAtLjU4Ni0xLjQxNEwxMiAxMmwtNC40MTQgNC40MTRBMiAyIDAgMCAwIDcgMTcuODI4VjIyIiAvPgogIDxwYXRoIGQ9Ik03IDJ2NC4xNzJhMiAyIDAgMCAwIC41ODYgMS40MTRMMTIgMTJsNC40MTQtNC40MTRBMiAyIDAgMCAwIDE3IDYuMTcyVjIiIC8+Cjwvc3ZnPgo=" alt="Unresolved in 30 minutes">
+<p>The ticket is <strong>unresolved after 30 minutes</strong>.</p>
+</div>
+<div class="card" style="display:flex;gap:1rem;align-items:center">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDRweCIKICBoZWlnaHQ9IjQ0cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIiAvPgogIDxwYXRoIGQ9Ik0xNiAxNnMtMS41LTItNC0yLTQgMi00IDIiIC8+CiAgPHBhdGggZD0iTTcuNSA4IDEwIDkiIC8+CiAgPHBhdGggZD0ibTE0IDkgMi41LTEiIC8+CiAgPHBhdGggZD0iTTkgMTBoLjAxIiAvPgogIDxwYXRoIGQ9Ik0xNSAxMGguMDEiIC8+Cjwvc3ZnPgo=" alt="Customer is upset">
+<p>The <strong>customer is upset</strong> or the situation is sensitive.</p>
+</div>
+</div>
+<div style="flex:1.4;display:flex;flex-direction:column;gap:1rem">
+<h3>Escalation checklist</h3>
+<div class="grid2s" style="flex:1">
+<div class="card-s">
+<h4>1. Write a clear summary</h4>
+<p style="font-size:1.3rem;line-height:1.4">What happened, what you tried, what you need.</p>
+</div>
+<div class="card-s">
+<h4>2. Tag a senior agent</h4>
+<p style="font-size:1.3rem;line-height:1.4">Assign the ticket to the right owner.</p>
+</div>
+<div class="card-s">
+<h4>3. Keep the customer informed</h4>
+<p style="font-size:1.3rem;line-height:1.4">Tell them it is being handled.</p>
+</div>
+<div class="card-s">
+<h4>4. Log every step</h4>
+<p style="font-size:1.3rem;line-height:1.4">The next agent needs full context.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="slide">
+<div class="wrap">
+<h2>The tools we use</h2>
+<div class="grid2" style="height:70%">
+<div class="card" style="display:flex;gap:1rem;align-items:flex-start;padding:1.3rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik0zIDExaDNhMiAyIDAgMCAxIDIgMnYzYTIgMiAwIDAgMS0yIDJINWEyIDIgMCAwIDEtMi0ydi01Wm0wIDBhOSA5IDAgMSAxIDE4IDBtMCAwdjVhMiAyIDAgMCAxLTIgMmgtMWEyIDIgMCAwIDEtMi0ydi0zYTIgMiAwIDAgMSAyLTJoM1oiIC8+CiAgPHBhdGggZD0iTTIxIDE2djJhNCA0IDAgMCAxLTQgNGgtNSIgLz4KPC9zdmc+Cg==" alt="Helpdesk console">
+<div>
+<h3 style="font-size:1.5rem">Helpdesk console</h3>
+<p style="font-size:1.3rem;line-height:1.5;margin-top:.3rem">Where tickets arrive, get assigned and are tracked to closure.</p>
+</div>
+</div>
+<div class="card" style="display:flex;gap:1rem;align-items:flex-start;padding:1.3rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik00IDE5LjV2LTE1QTIuNSAyLjUgMCAwIDEgNi41IDJIMTlhMSAxIDAgMCAxIDEgMXYxOGExIDEgMCAwIDEtMSAxSDYuNWExIDEgMCAwIDEgMC01SDIwIiAvPgo8L3N2Zz4K" alt="Internal knowledge base">
+<div>
+<h3 style="font-size:1.5rem">Internal knowledge base</h3>
+<p style="font-size:1.3rem;line-height:1.5;margin-top:.3rem">Your first stop for solutions, guides and known issues.</p>
+</div>
+</div>
+<div class="card" style="display:flex;gap:1rem;align-items:flex-start;padding:1.3rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik0yIDIwaC4wMSIgLz4KICA8cGF0aCBkPSJNNyAyMHYtNCIgLz4KICA8cGF0aCBkPSJNMTIgMjB2LTgiIC8+CiAgPHBhdGggZD0iTTE3IDIwVjgiIC8+CiAgPHBhdGggZD0iTTIyIDR2MTYiIC8+Cjwvc3ZnPgo=" alt="Status page">
+<div>
+<h3 style="font-size:1.5rem">Status page</h3>
+<p style="font-size:1.3rem;line-height:1.5;margin-top:.3rem">Check for ongoing incidents before you diagnose.</p>
+</div>
+</div>
+<div class="card" style="display:flex;gap:1rem;align-items:flex-start;padding:1.3rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik0xMiA2VjJIOCIgLz4KICA8cGF0aCBkPSJNMTUgMTF2MiIgLz4KICA8cGF0aCBkPSJNMiAxMmgyIiAvPgogIDxwYXRoIGQ9Ik0yMCAxMmgyIiAvPgogIDxwYXRoIGQ9Ik0yMCAxNmEyIDIgMCAwIDEtMiAySDguODI4YTIgMiAwIDAgMC0xLjQxNC41ODZsLTIuMjAyIDIuMjAyQS43MS43MSAwIDAgMSA0IDIwLjI4NlY4YTIgMiAwIDAgMSAyLTJoMTJhMiAyIDAgMCAxIDIgMnoiIC8+CiAgPHBhdGggZD0iTTkgMTF2MiIgLz4KPC9zdmc+Cg==" alt="Chat with engineering">
+<div>
+<h3 style="font-size:1.5rem">Chat with engineering</h3>
+<p style="font-size:1.3rem;line-height:1.5;margin-top:.3rem">For deep technical issues that need a developer's eye.</p>
+</div>
+</div>
+</div>
+<div style="margin-top:1.2rem;background:var(--color-slide-bg);border:2px solid var(--color-accent);border-radius:.8rem;padding:1rem 1.2rem;text-align:center">
+<p>Tip: keep the knowledge base, the status page and the engineering chat open in tabs — you will use them every day.</p>
+</div>
+</div>
+</div>
+
+<div class="slide">
+<div class="wrap">
+<h2>Best practices</h2>
+<div class="grid2" style="height:80%">
+<div class="card" style="display:flex;gap:1rem;align-items:flex-start;padding:1.3rem">
+<img src="book-search.44.4a6cf7.svg" alt="Search the knowledge base first">
+<div>
+<h3 style="font-size:1.5rem">Search the knowledge base first</h3>
+<p style="font-size:1.3rem;line-height:1.5;margin-top:.3rem">Most answers already exist. Check before you write.</p>
+</div>
+</div>
+<div class="card" style="display:flex;gap:1rem;align-items:flex-start;padding:1.3rem">
+<img src="calendar-x.44.4a6cf7.svg" alt="Never promise a date you cannot keep">
+<div>
+<h3 style="font-size:1.5rem">Never promise a date you cannot keep</h3>
+<p style="font-size:1.3rem;line-height:1.5;margin-top:.3rem">Under-promise and over-deliver — trust is everything.</p>
+</div>
+</div>
+<div class="card" style="display:flex;gap:1rem;align-items:flex-start;padding:1.3rem">
+<img src="pencil.44.4a6cf7.svg" alt="Log every step">
+<div>
+<h3 style="font-size:1.5rem">Log every step</h3>
+<p style="font-size:1.3rem;line-height:1.5;margin-top:.3rem">A well-documented ticket saves the whole team time.</p>
+</div>
+</div>
+<div class="card" style="display:flex;gap:1rem;align-items:flex-start;padding:1.3rem">
+<img src="trophy.44.4a6cf7.svg" alt="Aim for a CSAT of 4.5 or higher">
+<div>
+<h3 style="font-size:1.5rem">Aim for a CSAT of 4.5 or higher</h3>
+<p style="font-size:1.3rem;line-height:1.5;margin-top:.3rem">Every interaction is a chance to earn a great score.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="slide">
+<div class="wrap">
+<h2>Summary &amp; key takeaways</h2>
+<div class="row">
+<div style="flex:1.3;display:flex;flex-direction:column;gap:1rem">
+<div class="card">
+<h3 style="margin-bottom:.4rem">The essentials</h3>
+<ul style="line-height:1.7">
+<li>• Know the product: four pillars, 8,000 teams.</li>
+<li>• Speak plainly: friendly, clear, concise, no jargon.</li>
+<li>• Follow the flow: acknowledge in 15 min, resolve in 30.</li>
+<li>• Escalate early with a clear summary and full logs.</li>
+<li>• Use the knowledge base, status page and engineering chat.</li>
+<li>• Document everything and protect the customer's trust.</li>
+</ul>
+</div>
+<div class="card">
+<h3 style="margin-bottom:.4rem">Your first week</h3>
+<p style="font-size:1.3rem;line-height:1.5">Shadow a senior agent, read the knowledge base end to end, and take your first tickets with a buddy reviewing your replies.</p>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:1rem">
+<div class="card" style="text-align:center;padding:1.4rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxwYXRoIGQ9Ik0xMCAxNC42NnYxLjYyNmEyIDIgMCAwIDEtLjk3NiAxLjY5NkE1IDUgMCAwIDAgNyAyMS45NzgiIC8+CiAgPHBhdGggZD0iTTE0IDE0LjY2djEuNjI2YTIgMiAwIDAgMCAuOTc2IDEuNjk2QTUgNSAwIDAgMSAxNyAyMS45NzgiIC8+CiAgPHBhdGggZD0iTTE4IDloMS41YTEgMSAwIDAgMCAwLTVIMTgiIC8+CiAgPHBhdGggZD0iTTQgMjJoMTYiIC8+CiAgPHBhdGggZD0iTTYgOWE2IDYgMCAwIDAgMTIgMFYzYTEgMSAwIDAgMC0xLTFIN2ExIDEgMCAwIDAtMSAxeiIgLz4KICA8cGF0aCBkPSJNNiA5SDQuNWExIDEgMCAwIDEgMC01SDYiIC8+Cjwvc3ZnPgo=" alt="CSAT target" style="margin:0 auto 0.6rem">
+<h3>CSAT 4.5+</h3>
+<p style="font-size:1.3rem">Our shared quality bar.</p>
+</div>
+<div class="card" style="text-align:center;padding:1.4rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIiAvPgogIDxwYXRoIGQ9Ik0xMiA2djZsNCAyIiAvPgo8L3N2Zz4K" alt="SLA target" style="margin:0 auto 0.6rem">
+<h3>15 / 30 min</h3>
+<p style="font-size:1.3rem">Acknowledge / resolve-or-escalate.</p>
+</div>
+<div class="card" style="text-align:center;padding:1.4rem">
+<img src="data:image/svg+xml;base64,PHN2ZwogIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICB3aWR0aD0iNDhweCIKICBoZWlnaHQ9IjQ4cHgiCiAgdmlld0JveD0iMCAwIDI0IDI0IgogIGZpbGw9Im5vbmUiCiAgc3Ryb2tlPSIjNGE2Y2Y3IgogIHN0cm9rZS13aWR0aD0iMiIKICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIKPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIiAvPgogIDxwYXRoIGQ9Ik04IDE0czEuNSAyIDQgMiA0LTIgNC0yIiAvPgogIDxsaW5lIHgxPSI5IiB4Mj0iOS4wMSIgeTE9IjkiIHkyPSI5IiAvPgogIDxsaW5lIHgxPSIxNSIgeDI9IjE1LjAxIiB5MT0iOSIgeTI9IjkiIC8+Cjwvc3ZnPgo=" alt="Tone reminder" style="margin:0 auto 0.6rem">
+<h3>Be human</h3>
+<p style="font-size:1.3rem">Thank, confirm, close the loop.</p>
+</div>
+</div>
+</div>
+<div style="margin-top:1rem;background:var(--color-slide-bg);border:2px solid var(--color-accent);border-radius:.8rem;padding:.9rem 1.2rem;text-align:center">
+<p>Welcome aboard — every great support interaction starts with listening well. Questions? Ask your team lead or post in the support channel.</p>
+</div>
+</div>
+</div>
+
+</div>
+<button class="nav-btn" id="prev-slide" aria-label="Previous slide">‹</button>
+<button class="nav-btn" id="next-slide" aria-label="Next slide">›</button>
+<div class="counter" id="counter">1 / 8</div>
+<script>
+(function(){
+var slides=document.querySelectorAll('.slide'),cur=0,total=slides.length,
+counter=document.getElementById('counter'),prev=document.getElementById('prev-slide'),
+next=document.getElementById('next-slide'),toggle=document.getElementById('theme-toggle');
+function show(i){slides[cur].classList.remove('active');cur=(i+total)%total;slides[cur].classList.add('active');counter.textContent=(cur+1)+' / '+total;}
+prev.addEventListener('click',function(){show(cur-1);});
+next.addEventListener('click',function(){show(cur+1);});
+document.addEventListener('keydown',function(e){if(e.key==='ArrowLeft')show(cur-1);if(e.key==='ArrowRight')show(cur+1);});
+toggle.addEventListener('click',function(){document.body.classList.toggle('dark');toggle.textContent=document.body.classList.contains('dark')?'Light':'Dark';});
+})();
+</script>
+<script>
+    (function () {
+        const zoom = () => {
+            const f = document.querySelector('.frame-16-9');
+            if (!f) return;
+            const [fw, fh] = [f.clientWidth, f.clientHeight];
+            document.querySelectorAll('.slide').forEach(s => {
+                s.style.transform = s.style.width = s.style.height = '';
+                const [sw, sh] = [s.scrollWidth, s.scrollHeight];
+                if (sh > fh || sw > fw) {
+                    const z = Math.min(fw / sw, fh / sh) * 0.8;
+                    s.style.cssText += `transform:scale(${z});transform-origin:top left;width:${100 / z}%;height:${100 / z}%;`;
+                }
+            });
+        };
+
+        // All'avvio e dopo il caricamento
+        zoom();
+        window.addEventListener('load', zoom);
+
+        // Eventi
+        let t;
+        window.addEventListener('resize', () => (clearTimeout(t), t = setTimeout(zoom, 200)));
+        document.querySelectorAll('.slide').forEach(s => {
+            const o = new MutationObserver(() => setTimeout(zoom, 150));
+            o.observe(s, { attributes: true, attributeFilter: ['class'] });
+        });
+    })();
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+﻿┌┤AGENT - AI Chat Console├─────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Chat  File  Settings  Session  Web  Help                                                                             │
+│╭┤Chat├──────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
+││Type a message and press Enter · / opens commands · @ files · ? shortcuts · F1 help · F10 the menu.                 ││
+││                                                                                                                    ││
+││·                                                                                                                   ││
+││server: ht┏┥LLM & Providers┝━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓tions)     ││
+││          ┃ Active provider DeepSeekBridge                               ▼                              ┃           ││
+││·         ┃ Active model: deepseek-web/deepseek-chat                                                    ┃           ││
+││Some syste┃ API key                                                                                     ┃ice,       ││
+││podcast, m┃                                                                                             ┃           ││
+││          ┃ Configured providers (Add/Edit/Remove apply immediately):                                   ┃           ││
+││·         ┃ Ollama                                                                                      ┃           ││
+││Tools upda┃ LanLLM                                                                                      ┃           ││
+││          ┃ DeepSeek                                                                                    ┃           ││
+││❯ you     ┃ Zai                                                                                         ┃           ││
+││Give me 3 ┃ Gemini                                                                                      ┃           ││
+││          ┃ DeepSeekBridge   (active)                                                                   ┃           ││
+││◆ agent   ┃                                                                                             ┃           ││
+││LLM return┃                                                                                             ┃           ││
+││          ┃                                                                       ⟦ Close ⟧▖ ⟦► Save ◄⟧▖┃           ││
+││          ┃                                                                       ▝▀▀▀▀▀▀▀▀▘ ▝▀▀▀▀▀▀▀▀▀▘┃           ││
+││          ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛           ││
+││                                                                                                                    ││
+││                                                                                                                    ││
+│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+│                                                                                                                      │
+│● · localhost:5291 · DeepSeekBridge · deepseek-web/deepseek-chat · tools: Web, File, Git, TaskScheduler · ctx 36/1M · │
+│ F1 help · F10 menu · / commands · @ files · ? shortcuts · Esc close · Ctrl+C cancel                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
