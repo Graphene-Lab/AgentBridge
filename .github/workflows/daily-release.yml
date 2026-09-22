@@ -19,11 +19,11 @@ name: Daily auto-release check
 
 on:
   schedule:
-    # 02:00 and 03:00 UTC. The job proceeds only when the Europe/Rome local hour is 04, so
-    # exactly one real run lands at 04:00 Italian year-round: 03:00 UTC in winter (CET=UTC+1)
-    # and 02:00 UTC in summer (CEST=UTC+2); the other slot no-ops. Two slots give redundancy
-    # against a single delayed scheduled run.
-    - cron: '0 2,3 * * *'
+    # 02:00, 03:00 and 04:00 UTC. The gate below proceeds for any run at/after 04:00
+    # Europe/Rome, so the release lands in the Italian morning year-round: 02:00 UTC is
+    # 04:00 CEST in summer, 03:00 UTC is 04:00 CET in winter; the extra slots are
+    # redundancy against a single scheduled run being skipped or delayed by GitHub.
+    - cron: '0 2,3,4 * * *'
   workflow_dispatch:
     inputs:
       ignore_time:
@@ -43,6 +43,13 @@ concurrency:
 jobs:
   check-and-trigger:
     runs-on: ubuntu-latest
+    env:
+      # gh CLI needs an explicit token env var inside Actions. Without it every gh call
+      # fails: the detection's `gh release view` failed open to "no previous release"
+      # and the `gh workflow run` trigger failed with exit 4 ("set the GH_TOKEN
+      # environment variable"), so the daily automation never fired. The job's
+      # permissions (contents:read + actions:write) are enough for both.
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Italian-time gate
         id: gate
@@ -50,10 +57,17 @@ jobs:
         run: |
           HR=$(TZ=Europe/Rome date +%H)
           echo "Europe/Rome hour: ${HR}:00"
-          if [ "${{ github.event.inputs.ignore_time }}" = "true" ] || [ "$HR" = "04" ]; then
+          # TOLERANT lower bound, NOT an exact-hour match. GitHub's scheduler can delay a
+          # `schedule` run by hours (observed 2026-09-20/21/22: the 02:00 UTC slot fired at
+          # ~07:00 UTC = 09:00 CEST). The old exact `[ "$HR" = "04" ]` gate silently skipped
+          # every delayed run, so NO daily release happened despite source changes. Proceed for
+          # any run at/after 04:00 Italian: the cron slots are all early-morning UTC, so the
+          # release still lands in the Italian morning, and the "already released today" tag
+          # guard in the detect step keeps it to one release per day.
+          if [ "${{ github.event.inputs.ignore_time }}" = "true" ] || [ "$((10#$HR))" -ge 4 ]; then
             echo "proceed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Not 04:00 Europe/Rome — skipping this UTC slot."
+            echo "Before 04:00 Europe/Rome — skipping this UTC slot."
             echo "proceed=false" >> "$GITHUB_OUTPUT"
           fi
 
