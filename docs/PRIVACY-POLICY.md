@@ -1,20 +1,22 @@
 # Privacy policy — Graphene Agent Bridge
 
-**Effective date:** 2026-09-14
+**Effective date:** 2026-09-20
 **Product:** Graphene Agent Bridge (Store product id `9P61PN50Q957`)
 **Publisher:** Graphene-Lab
 
 ## In short
 
 We do not collect your data. Not your name, not your files, not your prompts, not your settings.
-The product has no account, no sign-in, no registration, and no telemetry. Nothing is sent to us,
-ever.
+The product has no account, no sign-in, no registration, and no telemetry. Nothing is sent to us
+except the optional, user-controlled problem reports described below — which you can disable at
+any time.
 
 The program runs on your own machine. Your data stays there.
 
 ## What we collect
 
-Nothing.
+Nothing — apart from the optional, user-controlled problem reports described in
+"Optional agent problem reporting" below, which you can disable at any time.
 
 - No analytics, no advertising, no usage tracking.
 - No phone-home and no update channel of our own — updates come from the Microsoft Store.
@@ -73,6 +75,25 @@ personal details out of the request.
 
 **Note:** we do not collect the anonymised data either. Anonymisation protects what you send to the
 provider you chose. It is not a collection channel, and nothing arrives at us in any form.
+
+## Optional agent problem reporting
+
+AgentBridge can let its AI agent report problems it encounters and request features it is
+missing. Each report opens a GitHub issue on the project's public repository so the
+maintainers can fix real problems and improve the product.
+
+- The report text is authored by the agent and instructed to **exclude sensitive data**: no
+  credentials, no API keys, no personal data, no private document contents, no user
+  identifiers.
+- The exact text of every report is recorded in the local log before sending, so you can see
+  exactly what left your machine.
+- The feature is on by default and can be **disabled at any time** from the terminal UI
+  (**Help → Malfunction reports**, or the `/malfunctionreport` command). When disabled, the
+  agent has no reporting capability at all.
+- This is not background telemetry: nothing is sent unless the agent hits a concrete problem
+  or has a concrete request to report.
+- The purpose is to improve the user experience — an agent whose blockers get fixed works
+  better for everyone.
 
 ## Children
 

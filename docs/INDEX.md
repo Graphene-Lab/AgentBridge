@@ -40,6 +40,7 @@ A series of short guides written in plain language for anyone who uses AgentBrid
 | [Auto-update](autoupdate.md) | How the automatic update works and what it never touches |
 | [OfficeManager](office-manager.md) | The 16-bit office view of your agents (served at /OfficeManager) |
 | [Crash reporting](crash-reporting.md) | Privacy-safe crash diagnostics to the GitHub repository — what is sent and how to disable it |
+| [Agent reporting](agent-reporting.md) | The agent reports malfunctions and requests features as GitHub issues — no sensitive data, disable anytime |
 | [AIOrchestrator white paper](AIORCHESTRATOR-WHITEPAPER.md) | Why the AIOrchestrator library model outperforms MCP deployments |
 | [Disclaimer](DISCLAIMER.md) | Warranty and liability terms, including AI-generated content and autonomous agent actions |
 | [Windows installer](install.ps1) · [Linux/macOS installer](install.sh) | One-line installers for the release archives |

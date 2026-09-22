@@ -85,6 +85,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="MenuAutoUpdate" xml:space="preserve"><value>_Auto-Update: {0}</value></data>
   <data name="MenuCheckUpdates" xml:space="preserve"><value>_Check for updates… (/update)</value></data>
   <data name="MenuCrashReport" xml:space="preserve"><value>_Crash report: {0}</value></data>
+  <data name="MenuMalfunctionReport" xml:space="preserve"><value>_Malfunction reports: {0}</value></data>
   <data name="MenuExit" xml:space="preserve"><value>_Exit</value></data>
   <data name="MenuChat" xml:space="preserve"><value>_Chat</value></data>
   <data name="MenuClearHistory" xml:space="preserve"><value>_Clear History</value></data>
@@ -118,6 +119,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="CmdUpdate" xml:space="preserve"><value>Check GitHub for a newer version and install it</value></data>
   <data name="CmdFeatures" xml:space="preserve"><value>Show or toggle session feature flags (voice, tts, ...)</value></data>
   <data name="CmdCrashReport" xml:space="preserve"><value>Toggle sending sanitized crash reports to the GitHub repository</value></data>
+  <data name="CmdMalfunctionReport" xml:space="preserve"><value>Toggle agent malfunction reports and feature requests to the GitHub repository</value></data>
   <data name="CmdNew" xml:space="preserve"><value>Start a new session (fresh conversation, new id)</value></data>
   <data name="CmdClear" xml:space="preserve"><value>Reset the current session history (keeps the session)</value></data>
   <data name="CmdStatus" xml:space="preserve"><value>Show session state and platform capabilities</value></data>
@@ -223,6 +225,8 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="NoteOfficeManagerNoDesktop" xml:space="preserve"><value>OfficeManager needs a desktop environment to open the browser — no graphical session detected</value></data>
   <data name="NoteCrashReportEnabled" xml:space="preserve"><value>crash report sending enabled</value></data>
   <data name="NoteCrashReportDisabled" xml:space="preserve"><value>crash report sending disabled</value></data>
+  <data name="NoteMalfunctionReportEnabled" xml:space="preserve"><value>agent malfunction report sending enabled</value></data>
+  <data name="NoteMalfunctionReportDisabled" xml:space="preserve"><value>agent malfunction report sending disabled</value></data>
   <data name="NoteOpenBrowserFailed" xml:space="preserve"><value>could not open the browser: {0}</value></data>
   <data name="NoteSipUsage" xml:space="preserve"><value>usage: /sip status | config [set &lt;key&gt; &lt;value&gt;|reload] | call &lt;sip-uri&gt; | answer on|off | hangup</value></data>
   <data name="NoteSipUnavailable" xml:space="preserve"><value>SIP unavailable (HTTP {0})</value></data>

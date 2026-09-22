@@ -35,6 +35,20 @@ public static class AgentTools
     /// Currently the only one: OfficeTool (vendored officecli engine).</summary>
     public static readonly string[] ClassBTools = { "OfficeTool" };
 
+    /// <summary>Agent reporting tools — the agent's own voice toward the maintainers
+    /// (MalfunctionReporterTool: malfunction reports and feature requests as GitHub issues).
+    /// Appended to every agent set when active, like the core tools; the user controls them
+    /// with their own persisted gate (TUI Help → Malfunction reports). Active = the tool's
+    /// own Enabled AND the tools.json policy both allow it.</summary>
+    public static readonly string[] ReportingTools = { "MalfunctionReporterTool" };
+
+    /// <summary>Whether a reporting tool is active: its own persisted gate wins over the
+    /// default, and the tools.json policy can veto it too. Non-reporting names are always true.
+    /// Name comparison is case-insensitive, like every other tool-name lookup in this class.</summary>
+    public static bool IsReportingToolActive(string name) =>
+        !ReportingTools.Contains(name, StringComparer.OrdinalIgnoreCase) ||
+        (AIOrchestrator.API.MalfunctionReporterTool.Enabled && IsEnabled(name));
+
     /// <summary>Agent-set presets (id → tool names) in TUI display order. Tool names are the
     /// API contract; a preset only activates the ones that are actually loaded at runtime.</summary>
     public static readonly (string Id, string[] Tools)[] Presets =
@@ -166,10 +180,12 @@ public static class AgentTools
     }
 
     /// <summary>Dynamic "all-files" set: every tool currently loaded that the per-tool config
-    /// leaves enabled (core tools included — they default ON like everything else).</summary>
+    /// leaves enabled (core tools included — they default ON like everything else). Reporting
+    /// tools follow their own gate too: disabled means absent from every set.</summary>
     public static string[] AllFilesTools() => Catalog()
         .Select(c => c.Name)
         .Where(IsEnabled)
+        .Where(IsReportingToolActive)
         .ToArray();
 
     /// <summary>Effective per-tool status: an explicit tools.json value wins; otherwise class-B
@@ -185,6 +201,25 @@ public static class AgentTools
         foreach (var core in CoreTools)
             if (IsEnabled(core) && !set.Contains(core))
                 set.Add(core);
+        // Reporting tools join every set when active (see ReportingTools) — the agent can
+        // report a blocker or request a feature from any agent set, not just all-files.
+        return WithReporting(set.ToArray());
+    }
+
+    /// <summary>Normalizes a tool list against the reporting gate: active reporting tools are
+    /// present, inactive ones removed. Applied to preset resolution and to the TUI's custom
+    /// selection (save, send and display) so an explicit combination can never contradict
+    /// the user's Help-menu toggle for the reporting tool. Name comparison is
+    /// case-insensitive; the canonical spelling from <see cref="ReportingTools"/> is what gets
+    /// added.</summary>
+    public static string[] WithReporting(string[] tools)
+    {
+        var set = tools
+            .Where(t => !ReportingTools.Contains(t, StringComparer.OrdinalIgnoreCase) || IsReportingToolActive(t))
+            .ToList();
+        foreach (var rep in ReportingTools)
+            if (IsReportingToolActive(rep) && !set.Contains(rep, StringComparer.OrdinalIgnoreCase))
+                set.Add(rep);
         return set.ToArray();
     }
 

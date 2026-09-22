@@ -57,7 +57,7 @@ The top menu bar has six menus (labels follow the UI language):
 | **Settings** (IT: *Impostazioni*) | LLM & Provider (`/providers`) · Email (SMTP + IMAP) (`/email`) · General (`/general`) · Tools (`/tools`) · TTS Engine (`/ttsengine`) · SIP (`/sip`) · Telegram (`/telegram`) |
 | **Session** (IT: *Sessione*) | LLM Model (`/model`) · Voice (`/voice`) · Session Features (`/features`) · Status (`/status`) · Health (`/health`) |
 | **Web** | GUI (`/web`) · OfficeManager (`/officemanager`) |
-| **Help** (IT: *Aiuto*) | Auto-Update · Crash report · Check for updates (`/update`) · Help (`F1`) · Shortcuts (`?`) · Documentation (`/docs`) · Report Issues… · About |
+| **Help** (IT: *Aiuto*) | Auto-Update · Crash report · Malfunction reports · Check for updates (`/update`) · Help (`F1`) · Shortcuts (`?`) · Documentation (`/docs`) · Report Issues… · About |
 
 The right end of the menu row shows a busy indicator while an operation runs
 (`[indexing…]` / `[generating…]` / `[listening…]`, localised), so you can see at a glance
@@ -75,6 +75,7 @@ that the agent is working.
 | `/general` | Open the **General** panel — logging, documents path, auto-start |
 | `/model [name]` | Switch the LLM provider for **this chat** (menu when no name given; context-window checked) — the default for new chats is the active provider set in **Settings → LLM & Provider**, it never changes when you use `/model` |
 | `/tools [name]` · `/agent` | Choose the agent's tools: quick presets or an individual-tool checklist (Space toggles; see below) |
+| `/malfunctionreport` | Toggle the agent's malfunction reports and feature requests to the GitHub repository (Help menu toggle; see [Agent reporting](agent-reporting.md)) |
 | `/voice [lang]` | Dictate from the server microphone into the input |
 | `/tts [text]` | Speak the last agent reply (or the given text) — Kokoro TTS, WAV playback |
 | `/ttsengine [name]` | Show the known TTS engines and set the active one (persisted to `appsettings.json`) |

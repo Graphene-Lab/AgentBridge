@@ -156,6 +156,34 @@ foreach (var off in new[] { "0", "false", "OFF", " no " })
 Environment.SetEnvironmentVariable(AgentTools.SplitEnvVar, savedSplit);
 Check("the switch is restored to what this run inherited", AgentTools.SplitEnabled == DefaultSplitState(savedSplit));
 
+// ── Reporting tools (MalfunctionReporterTool, own persisted gate) ──
+// The reporting tool is a native system tool appended to every set while its gate is
+// active; WithReporting normalizes explicit lists (TUI custom selection) the same way.
+Console.WriteLine("\nReporting tools:");
+Check("MalfunctionReporterTool counts as a system tool", AgentTools.IsSystemTool("MalfunctionReporterTool"));
+Check("reporting tool active by default", AgentTools.IsReportingToolActive("MalfunctionReporterTool"));
+Check("email-agent gains the reporting tool", AgentTools.Resolve("email-agent").Contains("MalfunctionReporterTool"));
+Check("all-files includes the reporting tool", AgentTools.Resolve("all-files").Contains("MalfunctionReporterTool"));
+Check("WithReporting adds it to a plain list", AgentTools.WithReporting(new[] { "FileTool" }).Contains("MalfunctionReporterTool"));
+Check("WithReporting does not duplicate an existing entry",
+    AgentTools.WithReporting(new[] { "FileTool", "MalfunctionReporterTool" }).Count(n => n == "MalfunctionReporterTool") == 1);
+Check("WithReporting normalizes a lowercase name to one canonical entry",
+    AgentTools.WithReporting(new[] { "FileTool", "malfunctionreportertool" })
+        .Count(n => n.Equals("MalfunctionReporterTool", StringComparison.OrdinalIgnoreCase)) == 1);
+AIOrchestrator.API.MalfunctionReporterTool.Enabled = false;
+Check("disabled reporting tool: not active", !AgentTools.IsReportingToolActive("MalfunctionReporterTool"));
+Check("disabled reporting tool: lowercase name also inactive", !AgentTools.IsReportingToolActive("malfunctionreportertool"));
+Check("disabled reporting tool: dropped from presets", !AgentTools.Resolve("email-agent").Contains("MalfunctionReporterTool"));
+Check("disabled reporting tool: dropped from all-files", !AgentTools.Resolve("all-files").Contains("MalfunctionReporterTool"));
+Check("disabled reporting tool: WithReporting removes it",
+    !AgentTools.WithReporting(new[] { "FileTool", "MalfunctionReporterTool" }).Contains("MalfunctionReporterTool"));
+Check("disabled reporting tool: WithReporting removes a lowercase name too",
+    !AgentTools.WithReporting(new[] { "FileTool", "malfunctionreportertool" })
+        .Any(n => n.Equals("MalfunctionReporterTool", StringComparison.OrdinalIgnoreCase)));
+AIOrchestrator.API.MalfunctionReporterTool.Enabled = true;
+Check("re-enabled reporting tool: active again", AgentTools.IsReportingToolActive("MalfunctionReporterTool"));
+Check("non-reporting names are unaffected by the gate", AgentTools.IsReportingToolActive("FileTool"));
+
 static bool DefaultSplitState(string? value) =>
     string.IsNullOrWhiteSpace(value) || value.Trim().ToLowerInvariant() is not ("0" or "false" or "off" or "no");
 

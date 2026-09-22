@@ -53,6 +53,11 @@ handling itself, and never touches the report payload with any configuration.
 
 Disabling stops only the **sending** — the local crash log is unchanged.
 
+> **Related:** the agent can also open its own **malfunction reports and feature requests**
+> as GitHub issues. That is a separate feature with its own toggle
+> (**Help → Malfunction reports** / `/malfunctionreport`) — see
+> [Agent reporting](agent-reporting.md).
+
 ## Repository setup
 
 The target repository (`Graphene-Lab/AgentBridge`, public) has issues enabled and ships a

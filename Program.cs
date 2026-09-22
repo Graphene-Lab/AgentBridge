@@ -466,6 +466,12 @@ if (!CrashReporter.LoadState())
 CrashReporter.Repo = app.Configuration["CrashReport:Repo"] ?? CrashReporter.Repo;
 CrashReporter.Token = app.Configuration["CrashReport:Token"];
 
+// Agent reporting toggle (TUI Help → Malfunction reports / /malfunctionreport): the agent
+// opens malfunction reports and feature requests as GitHub issues through the SAME delivery
+// pipeline (MalfunctionReporterTool → CrashReporter.SendIssue). Own persisted gate in the
+// OS app-data folder, independent from CrashReport:Enabled; default ON.
+AIOrchestrator.API.MalfunctionReporterTool.LoadState();
+
 // Agent-tool errors (a tool method execution that threw and was surfaced to the agent) flow
 // into the SAME GitHub-issue pipeline as critical errors: ToolErrorReporter (AIOrchestrator)
 // subscribes to UISupportGeneric's method-execution events and reports through CrashReporter,

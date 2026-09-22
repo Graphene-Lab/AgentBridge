@@ -211,6 +211,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Toggle agent malfunction reports and feature requests to the GitHub repository'.
+        /// </summary>
+        public static string CmdMalfunctionReport {
+            get {
+                return ResourceManager.GetString("CmdMalfunctionReport", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Open the online documentation in your browser'.
         /// </summary>
         public static string CmdDocs {
@@ -994,6 +1003,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to '_Malfunction reports: {0}'.
+        /// </summary>
+        public static string MenuMalfunctionReport {
+            get {
+                return ResourceManager.GetString("MenuMalfunctionReport", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to '_Documentation (/docs)'.
         /// </summary>
         public static string MenuDocumentation {
@@ -1350,6 +1368,24 @@ namespace AgentBridge.Resources {
         public static string NoteCrashReportEnabled {
             get {
                 return ResourceManager.GetString("NoteCrashReportEnabled", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'agent malfunction report sending disabled'.
+        /// </summary>
+        public static string NoteMalfunctionReportDisabled {
+            get {
+                return ResourceManager.GetString("NoteMalfunctionReportDisabled", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'agent malfunction report sending enabled'.
+        /// </summary>
+        public static string NoteMalfunctionReportEnabled {
+            get {
+                return ResourceManager.GetString("NoteMalfunctionReportEnabled", resourceCulture);
             }
         }
 

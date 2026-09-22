@@ -20,6 +20,9 @@ using Terminal.Gui.Views;
 
 // Terminal.Gui.Drawing.Attribute collides with System.Attribute (implicit using).
 using TuiAttribute = Terminal.Gui.Drawing.Attribute;
+// The agent reporting tool (malfunction reports / feature requests as GitHub issues) —
+// short alias so the Help-menu toggle reads cleanly.
+using MalfunctionReporterTool = AIOrchestrator.API.MalfunctionReporterTool;
 
 // ═══════════════════════════════════════════════════════════════════════
 //  Terminal.Gui v2 — LOCAL DEVELOPER GUIDE (READ BEFORE EDITING THIS TUI)
@@ -244,6 +247,8 @@ public static class ConsoleTui
             // No menu voice: the Help menu hosts a dedicated state toggle for this one
             // (crashReportItem in BuildUI) — see ValidateMenuCoverage.
             new("crashreport", "", Dictionary.CmdCrashReport, (t, _) => t.CrashReportAsync()),
+            // No menu voice: dedicated state toggle in the Help menu (malfunctionReportItem).
+            new("malfunctionreport", "", Dictionary.CmdMalfunctionReport, (t, _) => t.MalfunctionReportAsync()),
         };
 
         private const uint SndAsync = 0x0001;
@@ -497,6 +502,18 @@ public static class ConsoleTui
                 crashReportItem.Title = string.Format(Dictionary.MenuCrashReport, CrashReporter.Enabled ? Dictionary.On : Dictionary.Off);
             });
 
+            // Agent reporting toggle: whether the agent can open malfunction reports and feature
+            // requests as GitHub issues (see AIOrchestrator/API/MalfunctionReporterTool.cs).
+            // Own persisted gate, independent from the crash-report one above.
+            MenuItem malfunctionReportItem = null!;
+            malfunctionReportItem = new MenuItem(string.Format(Dictionary.MenuMalfunctionReport, MalfunctionReporterTool.Enabled ? Dictionary.On : Dictionary.Off), Key.Empty, () =>
+            {
+                MalfunctionReporterTool.Toggle();
+                Log.LogStep($"TUI MalfunctionReport toggled: {MalfunctionReporterTool.Enabled}", monitor: true);
+                AddNote(MalfunctionReporterTool.Enabled ? Dictionary.NoteMalfunctionReportEnabled : Dictionary.NoteMalfunctionReportDisabled);
+                malfunctionReportItem.Title = string.Format(Dictionary.MenuMalfunctionReport, MalfunctionReporterTool.Enabled ? Dictionary.On : Dictionary.Off);
+            });
+
             // Menus are assembled from the Commands registry (single source): each item
             // below is a command whose label/accelerator/action come from its registry
             // entry, so /help, the "/" palette and the menus can never drift apart.
@@ -544,6 +561,7 @@ public static class ConsoleTui
                 {
                     autoUpdateItem,
                     crashReportItem,
+                    malfunctionReportItem,
                     CommandMenuItem("update"),
                     CommandMenuItem("help"),
                     CommandMenuItem("shortcuts"),
@@ -1169,8 +1187,9 @@ public static class ConsoleTui
 
                 var attached = SnapshotAttached();
                 // Additive extension: an explicit tool combination (custom checklist
-                // selection) overrides the agent set resolved from `model`.
-                var custom = _customTools is { Count: > 0 } ? _customTools : null;
+                // selection) overrides the agent set resolved from `model`. Reporting
+                // tools are normalized to their own gate (see AgentTools.WithReporting).
+                var custom = _customTools is { Count: > 0 } ? AgentTools.WithReporting(_customTools.ToArray()) : null;
                 var body = JsonSerializer.Serialize(new
                 {
                     model = _agentSet,
@@ -1435,9 +1454,10 @@ public static class ConsoleTui
         }
 
         // The tools that will actually run in the chat: the custom checklist selection
-        // when set, otherwise the agent-set preset.
+        // when set, otherwise the agent-set preset. Reporting tools are normalized to
+        // their own gate in both paths (see AgentTools.WithReporting).
         private string[] EffectiveTools() => _customTools is { Count: > 0 }
-            ? _customTools.ToArray()
+            ? AgentTools.WithReporting(_customTools.ToArray())
             : AgentTools.Resolve(_agentSet);
 
         // The tools shown in the status bar: only the ones actually loaded at runtime
@@ -1649,6 +1669,13 @@ public static class ConsoleTui
         {
             CrashReporter.Toggle();
             AddNote(CrashReporter.Enabled ? Dictionary.NoteCrashReportEnabled : Dictionary.NoteCrashReportDisabled);
+            return Task.CompletedTask;
+        }
+
+        private Task MalfunctionReportAsync()
+        {
+            MalfunctionReporterTool.Toggle();
+            AddNote(MalfunctionReporterTool.Enabled ? Dictionary.NoteMalfunctionReportEnabled : Dictionary.NoteMalfunctionReportDisabled);
             return Task.CompletedTask;
         }
 
@@ -2518,7 +2545,10 @@ public static class ConsoleTui
             // The picker must never contradict the effective state: a core tool the config
             // disabled is not listed either (see docs-dev/ARCHITECTURE.md, "Agent sets & tool policy").
             var coreEnabled = AgentTools.CoreTools.Where(AgentTools.IsEnabled).ToArray();
-            var toggleable = catalog.Where(c => !AgentTools.CoreTools.Contains(c.Name)).ToList();
+            // Reporting tools are not checklist rows: they have their own dedicated toggle
+            // (Help → Malfunction reports) and are force-included in the combination when
+            // active — like the core tools above, the checklist cannot contradict that gate.
+            var toggleable = catalog.Where(c => !AgentTools.CoreTools.Contains(c.Name) && !AgentTools.ReportingTools.Contains(c.Name)).ToList();
             var coreLabel = new Label
             {
                 Text = coreEnabled.Length > 0
@@ -2563,6 +2593,8 @@ public static class ConsoleTui
                 if (source.IsMarked(i)) marked.Add(toolNames[i]);
             foreach (var core in coreEnabled)
                 if (!marked.Contains(core)) marked.Add(core);
+            // Reporting tools follow their own gate, not the checklist (see AgentTools.WithReporting).
+            marked = AgentTools.WithReporting(marked.ToArray()).ToList();
             if (marked.Count > 0)
             {
                 _agentSet = "default-agent";   // the `tools` field overrides it server-side
