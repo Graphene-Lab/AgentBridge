@@ -103,6 +103,13 @@ jobs:
 
       - name: Open or update the issue
         shell: bash
+        env:
+          # The collect step wrote these to $GITHUB_OUTPUT (step outputs), not to the
+          # environment. Without this mapping they are unset here and `set -u` aborts on
+          # the first reference.
+          FAIL_JOB: ${{ steps.collect.outputs.fail_job }}
+          FAIL_STEP: ${{ steps.collect.outputs.fail_step }}
+          WF_FILE: ${{ steps.collect.outputs.wf_file }}
         run: |
           set -uo pipefail
           SIG="${RUN_NAME} — ${FAIL_JOB:-unknown}/${FAIL_STEP:-unknown}"
