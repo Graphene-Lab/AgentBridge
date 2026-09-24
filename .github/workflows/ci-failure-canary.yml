@@ -1,0 +1,23 @@
+name: CI failure canary
+
+# TEMPORARY live-test workflow used once to verify the "Auto-issue on workflow failure"
+# mechanism end-to-end: it fails on purpose so the watcher opens a tracked issue with the
+# error log. It has no side effects (no build, no release). Remove after the test.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Simulated failure (auto-issue live test)
+        shell: bash
+        run: |
+          echo "Controlled canary: verifying the Auto-issue on workflow failure mechanism."
+          echo "This failure is intentional and safe to ignore — it is a test only."
+          echo "::error::Simulated CI failure for auto-issue verification (test only, no real breakage)"
+          exit 1
