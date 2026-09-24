@@ -90,10 +90,12 @@ jobs:
           TODAY_VER="1.$TODAY"
           echo "today_version=$TODAY_VER" >> "$GITHUB_OUTPUT"
 
-          # date-key = yy*10000 + MM*100 + dd, from a version like 1.26.09.16 or 1.26.9.16
+          # date-key = yy*10000 + MM*100 + dd, from a version like 1.26.09.16 or 1.26.9.16,
+          # or a git tag like v1.26.09.22 (the leading "v" is stripped first, otherwise the
+          # tag's "v1" reaches 10# and aborts with "value too great for base").
           # (leading zeros stripped via 10# so 08/09 are not read as octal).
           dkey() {
-            local v="${1#1.}"; v="${v%-prerelease}"
+            local v="${1#v}"; v="${v#1.}"; v="${v%-prerelease}"
             local yy mm dd
             IFS=. read -r yy mm dd <<<"$v"
             yy=$((10#${yy:-0})); mm=$((10#${mm:-0})); dd=$((10#${dd:-0}))
