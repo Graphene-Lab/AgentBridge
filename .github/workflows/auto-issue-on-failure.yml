@@ -19,6 +19,7 @@ on:
       - "macOS smoke test"
       - "Build Microsoft Store MSIX"
       - "Sync docs to wiki"
+      - "CI failure canary"
     types:
       - completed
 
