@@ -13,8 +13,16 @@ using KokoroSharp.Utilities;
 //  (501) until the assets are present, so clients only activate TTS when the
 //  platform actually supports it.
 //
-//  The engine is initialized lazily on first use (loading the 325 MB model takes
-//  seconds and RAM); a static lock serializes synthesis because the underlying
+//  The engine is initialized in two steps so that merely ASKING whether TTS works
+//  never costs what RUNNING it costs. Loading the model is heavy: measured on this
+//  repo's own assets, one availability check used to take the process from 125 MB to
+//  628 MB of resident memory and add ~8 threads, spending about 0.7 s of CPU on
+//  every cold call (issue #25) — and the status / capabilities endpoints are polled
+//  by the TUI and the web clients, so a user who never speaks still paid for the
+//  whole model. EnsureVoices() answers availability from the assets and the voice
+//  catalogue alone (the same call now ends at ~226 MB with no ONNX session loaded);
+//  the session is created by EnsureSynth() only when audio is really requested, and
+//  is reused after that. A static lock serializes synthesis because the underlying
 //  synthesizer queues jobs internally.
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -25,23 +33,28 @@ public static class TtsEngine
     private static KokoroWavSynthesizer? _synth;
     private static List<string> _voices = new();
     private static string? _unavailableReason;
+    private static bool _voicesChecked;
 
-    /// <summary>True when the TTS engine could be initialized (model + voices present).</summary>
+    /// <summary>True when TTS can run on this machine (model + voices present).
+    /// Cheap: it checks the assets and the voice catalogue WITHOUT loading the model,
+    /// so the polled status/capabilities endpoints never pay for the ONNX session.
+    /// </summary>
     public static bool IsAvailable
     {
-        get { EnsureInitialized(); return _synth != null; }
+        get { EnsureVoices(); return _unavailableReason == null; }
     }
 
     /// <summary>Human-readable reason when <see cref="IsAvailable"/> is false.</summary>
     public static string UnavailableReason
     {
-        get { EnsureInitialized(); return _unavailableReason ?? "TTS not initialized"; }
+        get { EnsureVoices(); return _unavailableReason ?? "TTS not initialized"; }
     }
 
-    /// <summary>Kokoro voice ids currently loaded from voices/, sorted.</summary>
+    /// <summary>Kokoro voice ids currently loaded from voices/, sorted. Cheap — see
+    /// <see cref="IsAvailable"/> for why the catalogue is read without the model.</summary>
     public static IReadOnlyList<string> Voices
     {
-        get { EnsureInitialized(); return _voices; }
+        get { EnsureVoices(); return _voices; }
     }
 
     /// <summary>
@@ -56,9 +69,9 @@ public static class TtsEngine
     /// </summary>
     public static byte[] Synthesize(string text, string? voice, double? speed, string? lang = null)
     {
-        EnsureInitialized();
-        if (_synth == null)
-            throw new InvalidOperationException(UnavailableReason);
+        // The heavy step happens here, on a request that actually wants audio — never
+        // while a client is only asking whether TTS exists (see the class header).
+        var synth = EnsureSynth();
         // The single TTS normalization (canonical apostrophes — the typographic ’ breaks the
         // Italian elision — plus markdown/emoji removal, punctuation spacing and the English
         // "AI" pronunciation for Italian), shared with every TTS consumer.
@@ -82,7 +95,7 @@ public static class TtsEngine
         byte[] pcm;
         lock (Sync)
         {
-            pcm = _synth.Synthesize(text, kokoroVoice, config);
+            pcm = synth.Synthesize(text, kokoroVoice, config);
         }
         return WrapWav(pcm);
     }
@@ -186,16 +199,30 @@ public static class TtsEngine
         return id;
     }
 
-    private static void EnsureInitialized()
+    /// <summary>Resolves the model and voice paths the engine uses (the app base
+    /// directory, where the release archive puts them).</summary>
+    private static (string ModelPath, string VoicesDir) AssetPaths()
     {
-        if (_synth != null || _unavailableReason != null) return;
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        return (Path.Combine(baseDir, "kokoro.onnx"), Path.Combine(baseDir, "voices"));
+    }
+
+    /// <summary>
+    /// Answers whether the TTS assets are usable, WITHOUT loading the model: checks
+    /// kokoro.onnx and voices/ are there and reads the voice catalogue. This is what
+    /// <see cref="IsAvailable"/>, <see cref="Voices"/> and the status/capabilities
+    /// endpoints use, so polling them costs a directory read instead of the whole
+    /// ONNX session. The result is cached: the assets only change with an update, and
+    /// an update restarts the process.
+    /// </summary>
+    private static void EnsureVoices()
+    {
+        if (_voicesChecked || _unavailableReason != null) return;
         lock (Sync)
         {
-            if (_synth != null || _unavailableReason != null) return;
+            if (_voicesChecked || _unavailableReason != null) return;
 
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var modelPath = Path.Combine(baseDir, "kokoro.onnx");
-            var voicesDir = Path.Combine(baseDir, "voices");
+            var (modelPath, voicesDir) = AssetPaths();
 
             if (!File.Exists(modelPath))
             {
@@ -215,19 +242,47 @@ public static class TtsEngine
                     .Select(v => v.Name)
                     .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                _synth = new KokoroWavSynthesizer(modelPath);
                 if (_voices.Count == 0)
                 {
                     _unavailableReason = "voices/ contains no Kokoro voices.";
-                    _synth.Dispose();
-                    _synth = null;
+                    return;
                 }
+                _voicesChecked = true;
             }
             catch (Exception ex)
             {
                 _unavailableReason = $"TTS initialization failed: {ex.Message}";
-                _synth?.Dispose();
-                _synth = null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Creates the Kokoro synthesizer: loads the ONNX model into memory and starts the
+    /// runtime thread pool. This is the expensive step (hundreds of MB, dozens of
+    /// threads, seconds) and must be reached only from a request that really wants
+    /// audio — see the class header for why it is not part of availability.
+    /// </summary>
+    private static KokoroWavSynthesizer EnsureSynth()
+    {
+        var existing = _synth;
+        if (existing != null) return existing;
+        lock (Sync)
+        {
+            if (_synth != null) return _synth;
+            EnsureVoices();
+            if (_unavailableReason != null)
+                throw new InvalidOperationException(_unavailableReason);
+
+            var (modelPath, _) = AssetPaths();
+            try
+            {
+                _synth = new KokoroWavSynthesizer(modelPath);
+                return _synth;
+            }
+            catch (Exception ex)
+            {
+                _unavailableReason = $"TTS initialization failed: {ex.Message}";
+                throw new InvalidOperationException(_unavailableReason, ex);
             }
         }
     }
