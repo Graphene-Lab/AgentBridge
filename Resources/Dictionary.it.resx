@@ -328,6 +328,12 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="ProviderContextInvalid" xml:space="preserve"><value>La finestra di contesto deve essere un numero positivo</value></data>
   <data name="MaxIterationsReached" xml:space="preserve"><value>Raggiunto il massimo di iterazioni ({0})</value></data>
   <data name="NoLlmResponse" xml:space="preserve"><value>Il LLM non ha restituito alcuna risposta</value></data>
+  <data name="LlmNoKey" xml:space="preserve"><value>Nessuna chiave API configurata per questo fornitore. Aggiungi la tua chiave API nelle impostazioni del fornitore.</value></data>
+  <data name="LlmAuthError" xml:space="preserve"><value>Il fornitore ha rifiutato la tua chiave API (autenticazione fallita). Controlla che la chiave sia corretta e attiva per questo fornitore.</value></data>
+  <data name="LlmModelNotFound" xml:space="preserve"><value>Il modello configurato per questo fornitore non è stato trovato. Controlla il nome del modello nelle impostazioni del fornitore.</value></data>
+  <data name="LlmQuotaExceeded" xml:space="preserve"><value>È stata raggiunta la quota o il limite di richieste del fornitore. Riprova più tardi o verifica il tuo account.</value></data>
+  <data name="LlmTimeout" xml:space="preserve"><value>Il fornitore ha impiegato troppo tempo a rispondere. Riprova.</value></data>
+  <data name="LlmNetworkError" xml:space="preserve"><value>Impossibile raggiungere il fornitore. Controlla la connessione a internet e l'indirizzo del fornitore.</value></data>
   <data name="Done" xml:space="preserve"><value>Fatto</value></data>
   <data name="NoOutputGenerated" xml:space="preserve"><value>Nessun output generato</value></data>
   <data name="MenuSettings" xml:space="preserve"><value>_Impostazioni</value></data>

@@ -1775,9 +1775,24 @@ static bool IsAddressInUse(Exception ex)
 static string? ResultText(AgentResult result) => result.Code switch
 {
     AgentResultCode.MaxIterationsReached => string.Format(Dictionary.MaxIterationsReached, result.Iterations),
-    AgentResultCode.NoLlmResponse => Dictionary.NoLlmResponse,
+    AgentResultCode.NoLlmResponse => LlmFailureText(result.FailureReason),
     AgentResultCode.NoMessage => Dictionary.Done,
     _ => null,
+};
+
+// Maps the locale-neutral FailureReason the engine carries on a no-answer result to a
+// specific, actionable localized message, so a failed provider call (bad key, model not
+// found, quota, timeout, network) no longer looks like a plain "no response". Falls back to
+// the generic no-response text for an empty turn or an unknown reason.
+static string LlmFailureText(string? reason) => reason switch
+{
+    "no_key" => Dictionary.LlmNoKey,
+    "http_401" or "http_403" => Dictionary.LlmAuthError,
+    "http_404" => Dictionary.LlmModelNotFound,
+    "http_429" => Dictionary.LlmQuotaExceeded,
+    "timeout" => Dictionary.LlmTimeout,
+    "network" => Dictionary.LlmNetworkError,
+    _ => Dictionary.NoLlmResponse,
 };
 
 // Extracts plain text from an OpenAI message content field: a plain string, or the

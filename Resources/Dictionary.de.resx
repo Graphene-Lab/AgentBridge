@@ -279,6 +279,12 @@ Der vorherige Dokumentbereich ist weiterhin aktiv — es wurde nichts geändert.
   <data name="ProviderContextInvalid" xml:space="preserve"><value>Das Kontextfenster muss eine positive Zahl sein</value></data>
   <data name="MaxIterationsReached" xml:space="preserve"><value>Maximale Iterationen ({0}) erreicht</value></data>
   <data name="NoLlmResponse" xml:space="preserve"><value>Das LLM hat keine Antwort geliefert</value></data>
+  <data name="LlmNoKey" xml:space="preserve"><value>Für diesen Anbieter ist kein API-Schlüssel konfiguriert. Füge deinen API-Schlüssel in den Anbieter-Einstellungen hinzu.</value></data>
+  <data name="LlmAuthError" xml:space="preserve"><value>Der Anbieter hat deinen API-Schlüssel abgelehnt (Authentifizierung fehlgeschlagen). Prüfe, ob der Schlüssel korrekt und aktiv ist.</value></data>
+  <data name="LlmModelNotFound" xml:space="preserve"><value>Das für diesen Anbieter konfigurierte Modell wurde nicht gefunden. Prüfe den Modellnamen in den Anbieter-Einstellungen.</value></data>
+  <data name="LlmQuotaExceeded" xml:space="preserve"><value>Das Kontingent oder Rate-Limit des Anbieters wurde erreicht. Versuche es später erneut oder prüfe dein Konto.</value></data>
+  <data name="LlmTimeout" xml:space="preserve"><value>Der Anbieter hat zu lange zum Antworten gebraucht. Bitte versuche es erneut.</value></data>
+  <data name="LlmNetworkError" xml:space="preserve"><value>Der Anbieter konnte nicht erreicht werden. Prüfe deine Internetverbindung und die Anbieter-Adresse.</value></data>
   <data name="Done" xml:space="preserve"><value>Fertig</value></data>
   <data name="NoOutputGenerated" xml:space="preserve"><value>Keine Ausgabe erzeugt</value></data>
 

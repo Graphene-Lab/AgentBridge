@@ -279,6 +279,12 @@ Powered by Terminal.Gui</value></data>
   <data name="ProviderContextInvalid" xml:space="preserve"><value>Окно контекста должно быть положительным числом</value></data>
   <data name="MaxIterationsReached" xml:space="preserve"><value>Достигнут максимум итераций ({0})</value></data>
   <data name="NoLlmResponse" xml:space="preserve"><value>LLM не вернул ответ</value></data>
+  <data name="LlmNoKey" xml:space="preserve"><value>Для этого провайдера не настроен API-ключ. Добавьте свой API-ключ в настройках провайдера.</value></data>
+  <data name="LlmAuthError" xml:space="preserve"><value>Провайдер отклонил ваш API-ключ (ошибка аутентификации). Проверьте, что ключ верный и активен для этого провайдера.</value></data>
+  <data name="LlmModelNotFound" xml:space="preserve"><value>Модель, настроенная для этого провайдера, не найдена. Проверьте имя модели в настройках провайдера.</value></data>
+  <data name="LlmQuotaExceeded" xml:space="preserve"><value>Достигнута квота или лимит запросов провайдера. Повторите попытку позже или проверьте аккаунт.</value></data>
+  <data name="LlmTimeout" xml:space="preserve"><value>Провайдер слишком долго отвечал. Повторите попытку.</value></data>
+  <data name="LlmNetworkError" xml:space="preserve"><value>Не удалось связаться с провайдером. Проверьте подключение к интернету и адрес провайдера.</value></data>
   <data name="Done" xml:space="preserve"><value>Готово</value></data>
   <data name="NoOutputGenerated" xml:space="preserve"><value>Вывод не сгенерирован</value></data>
 

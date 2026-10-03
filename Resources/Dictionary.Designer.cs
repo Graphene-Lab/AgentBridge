@@ -1255,6 +1255,60 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'No API key is configured for this provider. Add your API key in the provider settings.'.
+        /// </summary>
+        public static string LlmNoKey {
+            get {
+                return ResourceManager.GetString("LlmNoKey", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'The provider rejected your API key (authentication failed). Check that the key is correct and active for this provider.'.
+        /// </summary>
+        public static string LlmAuthError {
+            get {
+                return ResourceManager.GetString("LlmAuthError", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'The model configured for this provider was not found. Check the model name in the provider settings.'.
+        /// </summary>
+        public static string LlmModelNotFound {
+            get {
+                return ResourceManager.GetString("LlmModelNotFound", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'The provider&apos;s quota or rate limit was reached. Try again later or check your account.'.
+        /// </summary>
+        public static string LlmQuotaExceeded {
+            get {
+                return ResourceManager.GetString("LlmQuotaExceeded", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'The provider took too long to respond. Please try again.'.
+        /// </summary>
+        public static string LlmTimeout {
+            get {
+                return ResourceManager.GetString("LlmTimeout", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Could not reach the provider. Check your internet connection and the provider address.'.
+        /// </summary>
+        public static string LlmNetworkError {
+            get {
+                return ResourceManager.GetString("LlmNetworkError", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to '(none)'.
         /// </summary>
         public static string None {

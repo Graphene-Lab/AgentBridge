@@ -409,6 +409,12 @@ The previous documents area is still active — nothing was changed.</value></da
   <!-- Locale-neutral result codes from AIOrchestrator (AgentResultCode) rendered for the current language. -->
   <data name="MaxIterationsReached" xml:space="preserve"><value>Max iterations ({0}) reached</value></data>
   <data name="NoLlmResponse" xml:space="preserve"><value>LLM returned no response</value></data>
+  <data name="LlmNoKey" xml:space="preserve"><value>No API key is configured for this provider. Add your API key in the provider settings.</value></data>
+  <data name="LlmAuthError" xml:space="preserve"><value>The provider rejected your API key (authentication failed). Check that the key is correct and active for this provider.</value></data>
+  <data name="LlmModelNotFound" xml:space="preserve"><value>The model configured for this provider was not found. Check the model name in the provider settings.</value></data>
+  <data name="LlmQuotaExceeded" xml:space="preserve"><value>The provider's quota or rate limit was reached. Try again later or check your account.</value></data>
+  <data name="LlmTimeout" xml:space="preserve"><value>The provider took too long to respond. Please try again.</value></data>
+  <data name="LlmNetworkError" xml:space="preserve"><value>Could not reach the provider. Check your internet connection and the provider address.</value></data>
   <data name="Done" xml:space="preserve"><value>Done</value></data>
   <data name="NoOutputGenerated" xml:space="preserve"><value>No output generated</value></data>
   <!-- Tool checklist (/tools, alias /agent) and Telegram dialog (menu Session → Telegram). -->

@@ -279,6 +279,12 @@ La zone de documents précédente est toujours active — rien n'a été modifi�
   <data name="ProviderContextInvalid" xml:space="preserve"><value>La fenêtre de contexte doit être un nombre positif</value></data>
   <data name="MaxIterationsReached" xml:space="preserve"><value>Nombre maximal d'itérations ({0}) atteint</value></data>
   <data name="NoLlmResponse" xml:space="preserve"><value>Le LLM n'a renvoyé aucune réponse</value></data>
+  <data name="LlmNoKey" xml:space="preserve"><value>Aucune clé API n'est configurée pour ce fournisseur. Ajoutez votre clé API dans les paramètres du fournisseur.</value></data>
+  <data name="LlmAuthError" xml:space="preserve"><value>Le fournisseur a rejeté votre clé API (authentification échouée). Vérifiez que la clé est correcte et active pour ce fournisseur.</value></data>
+  <data name="LlmModelNotFound" xml:space="preserve"><value>Le modèle configuré pour ce fournisseur est introuvable. Vérifiez le nom du modèle dans les paramètres du fournisseur.</value></data>
+  <data name="LlmQuotaExceeded" xml:space="preserve"><value>Le quota ou la limite de requêtes du fournisseur a été atteint. Réessayez plus tard ou vérifiez votre compte.</value></data>
+  <data name="LlmTimeout" xml:space="preserve"><value>Le fournisseur a mis trop de temps à répondre. Veuillez réessayer.</value></data>
+  <data name="LlmNetworkError" xml:space="preserve"><value>Impossible de joindre le fournisseur. Vérifiez votre connexion Internet et l'adresse du fournisseur.</value></data>
   <data name="Done" xml:space="preserve"><value>Terminé</value></data>
   <data name="NoOutputGenerated" xml:space="preserve"><value>Aucune sortie générée</value></data>
 
