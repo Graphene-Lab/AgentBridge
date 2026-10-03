@@ -497,7 +497,8 @@ app.UseCors();
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
 
 var officeDir = Path.Combine(AppContext.BaseDirectory, "OfficeManager");
-if (Directory.Exists(officeDir))
+var officeAvailable = Directory.Exists(officeDir);
+if (officeAvailable)
 {
     var officeFiles = new PhysicalFileProvider(officeDir);
     app.UseStaticFiles(new StaticFileOptions { FileProvider = officeFiles, RequestPath = "/OfficeManager" });
@@ -510,6 +511,66 @@ else
 {
     Console.WriteLine("OfficeManager/ not found next to the executable — the web office is unavailable.");
 }
+
+// GET / — the browser landing page for the base address.
+//
+// AgentBridge is an API server, so before this the bare root (http://localhost:5290/)
+// returned a bare 404. That confused anyone opening the base URL — most visibly the
+// "Open the AI assistant" link on the AI-ERP login page, which points at the assistant's
+// base address. This page turns that dead end into a useful entry point: it confirms the
+// server is up and links to the browser UI (the AI office) and the API. It is fully
+// self-contained (inline CSS, no external assets) so it renders with nothing else loaded.
+app.MapGet("/", () =>
+{
+    var officeLink = officeAvailable
+        ? "<a class=\"cta\" href=\"/OfficeManager\">Open the AI office &rarr;</a>"
+        : "<p class=\"muted\">The web office is not installed next to the executable.</p>";
+    var html = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentBridge</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+         font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: #0f1115; color: #e6e6e6; }
+  .card { max-width: 34rem; padding: 2.5rem 2rem; text-align: center;
+          background: #171a21; border: 1px solid #262b36; border-radius: 14px;
+          box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  h1 { margin: 0 0 .25rem; font-size: 1.6rem; }
+  .ok { color: #5ad37a; font-weight: 600; }
+  p { line-height: 1.5; }
+  .muted { color: #9aa4b2; }
+  .cta { display: inline-block; margin: 1.25rem 0; padding: .7rem 1.4rem;
+         background: #3b82f6; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600; }
+  .cta:hover { background: #2f6fd6; }
+  .links { margin-top: 1rem; font-size: .9rem; }
+  .links a { color: #7fb0ff; text-decoration: none; margin: 0 .5rem; }
+  .links a:hover { text-decoration: underline; }
+  code { background: #0b0d11; padding: .1rem .35rem; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>AgentBridge</h1>
+    <p><span class="ok">&#10003; Running</span> &mdash; the AI assistant server is up.</p>
+    __OFFICE__
+    <p class="muted">This is the assistant's base address. Use the button above for the browser
+    interface, or point a client at the OpenAI-compatible API.</p>
+    <div class="links">
+      <a href="/OfficeManager">AI office</a>
+      <a href="/health">Health</a>
+      <a href="/v1/models">API models</a>
+    </div>
+  </div>
+</body>
+</html>
+""".Replace("__OFFICE__", officeLink);
+    return Results.Content(html, "text/html; charset=utf-8");
+});
 
 app.Map("/ws/office", async (HttpContext context) =>
 {

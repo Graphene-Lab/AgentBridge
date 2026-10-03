@@ -30,6 +30,7 @@ client or MCP client can drive the AI agents without modification to the agent c
 | `POST /v1/voice/listen` | One-shot speech recognition from the server microphone (Windows only) |
 | `GET /v1/audio/voices` | TTS voices available on this platform |
 | `POST /mcp` | Native MCP JSON-RPC endpoint (`initialize`, `tools/list`, `tools/call`) |
+| `GET /` | Browser landing page for the base address (confirms the server is up, links to the office and the API) |
 | `GET /OfficeManager` | The OfficeManager web app (static files; see [OfficeManager](office-manager.md)) |
 | `GET /ws/office` | OfficeManager duplex WebSocket hub (agent lifecycle + chat protocol) |
 | `POST /v1/office/events` | Ingest agent lifecycle events forwarded by OTHER processes (AIOffice app, voice panels) |
