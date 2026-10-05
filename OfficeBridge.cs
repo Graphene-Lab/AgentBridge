@@ -361,7 +361,8 @@ public static class OfficeBridge
             finally { session.Gate.Release(); }
 
             var text = result.Message
-                ?? (result.Success ? AgentBridge.Resources.Dictionary.NoOutputGenerated : result.Error ?? "error");
+                ?? AgentResultDisplay.ResultText(result)
+                ?? AgentBridge.Resources.Dictionary.NoOutputGenerated;
             Chat(empId, "assistant", text);
         }
         catch (Exception ex)

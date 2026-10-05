@@ -790,7 +790,7 @@ app.MapPost("/v1/chat/completions", async (
                 // Locale-neutral result codes (AgentResultCode) are rendered through the localized
                 // dictionary in the current system language; LLM text (Message/Error) passes
                 // through as-is. "No output generated" is also localized (Dictionary.NoOutputGenerated).
-                var text = r.Message ?? ResultText(r) ?? Dictionary.NoOutputGenerated;
+                var text = r.Message ?? AgentResultDisplay.ResultText(r) ?? Dictionary.NoOutputGenerated;
                 // Keep the dynamic-hash correlation current (see StatelessConversation.cs): the
                 // rolling transcript hash INCLUDING this reply is recorded under the
                 // conversation, or marked pending when the request was a true one-shot — so the
@@ -1507,7 +1507,7 @@ app.MapPost("/mcp", async (HttpContext http, CancellationToken ct) =>
                     var orchestrator = session?.Orchestrator ?? owned!;
                     var result = AgentTools.ExecuteSplit(orchestrator, prompt!, agentToolNames, maxIterations);
                     session?.AddTurnUsage(result.Usage);
-                    var text = result.Message ?? ResultText(result) ?? Dictionary.NoOutputGenerated;
+                    var text = result.Message ?? AgentResultDisplay.ResultText(result) ?? Dictionary.NoOutputGenerated;
 
                     return McpOk(id, hasId, new
                     {
@@ -1769,31 +1769,10 @@ static bool IsAddressInUse(Exception ex)
     return false;
 }
 
-// Renders a locale-neutral AgentResultCode through the localized dictionary for the
-// current system language. Returns null when the result carries real LLM text
-// (Message/Error) or completed normally — the caller falls through to those first.
-static string? ResultText(AgentResult result) => result.Code switch
-{
-    AgentResultCode.MaxIterationsReached => string.Format(Dictionary.MaxIterationsReached, result.Iterations),
-    AgentResultCode.NoLlmResponse => LlmFailureText(result.FailureReason),
-    AgentResultCode.NoMessage => Dictionary.Done,
-    _ => null,
-};
-
-// Maps the locale-neutral FailureReason the engine carries on a no-answer result to a
-// specific, actionable localized message, so a failed provider call (bad key, model not
-// found, quota, timeout, network) no longer looks like a plain "no response". Falls back to
-// the generic no-response text for an empty turn or an unknown reason.
-static string LlmFailureText(string? reason) => reason switch
-{
-    "no_key" => Dictionary.LlmNoKey,
-    "http_401" or "http_403" => Dictionary.LlmAuthError,
-    "http_404" => Dictionary.LlmModelNotFound,
-    "http_429" => Dictionary.LlmQuotaExceeded,
-    "timeout" => Dictionary.LlmTimeout,
-    "network" => Dictionary.LlmNetworkError,
-    _ => Dictionary.NoLlmResponse,
-};
+// The locale-neutral AgentResultCode / FailureReason → localized phrase mapping lives in
+// AgentResultDisplay (shared with the OfficeManager employee bubbles) so the wording is a
+// single source of truth across every chat surface. Call sites use
+//   result.Message ?? AgentResultDisplay.ResultText(result) ?? Dictionary.NoOutputGenerated
 
 // Extracts plain text from an OpenAI message content field: a plain string, or the
 // structured content array (text / image_url parts) some clients send. image_url parts

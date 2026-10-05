@@ -293,9 +293,11 @@ Rules and conventions:
   into the resx files, never hardcoded in `Tui.cs`.
 - **System-generated agent results are localised too.** AIOrchestrator no longer returns
   hardcoded English messages ("Max iterations reached", "LLM returned no response", the
-  "Done" fallback): it returns a locale-neutral `AgentResultCode` enum and AgentBridge maps
-  each code to the phrase in the dictionary for the current language (see
-  `AgentResult.cs` / `Program.cs` → `ResultText`). The agent's own LLM text passes through
+  "Done" fallback): it returns a locale-neutral `AgentResultCode` enum (plus a machine
+  `FailureReason` for a failed provider call) and AgentBridge maps each code to the phrase in
+  the dictionary for the current language (see `AgentResult.cs` and the shared
+  `AgentResultDisplay.cs`, used by every chat surface — the HTTP/MCP endpoints and the
+  OfficeManager employee bubbles alike). The agent's own LLM text passes through
   untouched, since the model is instructed to reply in the language of the request.
 - Voice/TTS languages (`/voice`, `/tts`) keep following `SystemLang` (machine `CurrentUICulture`
   via `SystemLang.Get()`), independently of the UI dictionary.
