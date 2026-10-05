@@ -187,14 +187,63 @@ public static class FileCache
 {
     private static readonly ConcurrentDictionary<string, CachedFile> _cache = new();
 
+    // Uploaded files are volatile by design (lost on restart) and meant for short-lived
+    // chat sessions. Retaining every upload for the whole process lifetime makes memory
+    // grow without bound on a long-running agent, so the cache is bounded two ways, the
+    // same way SessionStore bounds conversations: a periodic idle sweep drops files that
+    // nothing has read for a while, and a total-bytes cap evicts the least-recently-used
+    // entries when a burst of large uploads would otherwise balloon the process. A file an
+    // active chat keeps referencing is touched on every read and never evicted under it.
+    private static readonly System.Threading.Timer CleanupTimer =
+        new(_ => Cleanup(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+
+    /// <summary>Idle time after which an unreferenced upload is dropped (default: 1 hour,
+    /// matching the chat-session idle timeout — a file outlives its conversation, not more).</summary>
+    public static TimeSpan IdleTimeout { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>Hard cap on the total bytes of all retained uploads (default 512 MB). When
+    /// exceeded, the least-recently-used files are evicted until back under the cap.</summary>
+    public static long MaxTotalBytes { get; set; } = 512L * 1024 * 1024;
+
     /// <summary>Stores an uploaded file under its id (overwrites on duplicate id).</summary>
-    public static void Store(CachedFile file) => _cache[file.Id] = file;
-    /// <summary>Returns the cached file for an id, or null when not found.</summary>
-    public static CachedFile? Get(string id) => _cache.TryGetValue(id, out var f) ? f : null;
+    public static void Store(CachedFile file)
+    {
+        file.LastUsed = DateTime.UtcNow;
+        _cache[file.Id] = file;
+        EvictToCap();
+    }
+    /// <summary>Returns the cached file for an id, or null when not found. Bumps its
+    /// last-used stamp so an actively referenced file is not evicted.</summary>
+    public static CachedFile? Get(string id)
+    {
+        if (_cache.TryGetValue(id, out var f)) { f.LastUsed = DateTime.UtcNow; return f; }
+        return null;
+    }
     /// <summary>Returns all cached files (unordered).</summary>
     public static IEnumerable<CachedFile> GetAll() => _cache.Values;
     /// <summary>Removes a cached file by id (returns false when absent).</summary>
     public static bool Remove(string id) => _cache.TryRemove(id, out _);
+
+    // Drops the least-recently-used uploads until the retained bytes are back under the cap.
+    private static void EvictToCap()
+    {
+        long total = 0;
+        foreach (var f in _cache.Values) total += f.SizeBytes;
+        if (total <= MaxTotalBytes) return;
+        foreach (var f in _cache.Values.OrderBy(f => f.LastUsed))
+        {
+            if (total <= MaxTotalBytes) break;
+            if (_cache.TryRemove(f.Id, out _)) total -= f.SizeBytes;
+        }
+    }
+
+    // Drops uploads idle for longer than IdleTimeout.
+    private static void Cleanup()
+    {
+        var cutoff = DateTime.UtcNow - IdleTimeout;
+        foreach (var (id, f) in _cache)
+            if (f.LastUsed < cutoff) _cache.TryRemove(id, out _);
+    }
 }
 
 /// <summary>
@@ -218,4 +267,8 @@ public class CachedFile
     public long SizeBytes { get; init; }
     /// <summary>Upload timestamp (UTC).</summary>
     public DateTime StoredAt { get; init; }
+    /// <summary>Last time this file was stored or read (UTC). Drives the idle eviction in
+    /// <see cref="FileCache"/> — a file an active chat keeps referencing stays warm, an
+    /// abandoned one is dropped. Set by the cache, not the caller.</summary>
+    public DateTime LastUsed { get; set; }
 }

@@ -300,7 +300,10 @@ curl http://localhost:5290/v1/files -F "file=@report.csv" -F "purpose=assistants
   `content_format`; `status` is `processed`/`unsupported`.
 - `GET /v1/files/{id}/content` returns the original bytes; `DELETE /v1/files/{id}` removes the
   file (`{"deleted": true}`, `404` when unknown). Chat references files via `file_ids`.
-- Limits: 25 MB per upload; in-memory cache, lost on restart (volatile by design).
+- Limits: 25 MB per upload; in-memory cache, lost on restart (volatile by design). To keep a
+  long-running agent from accumulating uploads, a file is dropped automatically once it has gone
+  unread for an hour (the same idle window as a chat session), and the least-recently-used files
+  are evicted past a 512 MB total. A file an active chat keeps referencing is never evicted.
 
 ## `GET /v1/models` — agents **and** LLM providers
 
