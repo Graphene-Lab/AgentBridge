@@ -46,12 +46,36 @@ each split into words**: `FileTool.FileSearch` → **"File Tool, File Search"**.
   - Subagent / one-shot employees are **visual only** — their conversation belongs to
     their parent agent.
 
+## Seeing who is working, and answering from the office
+
+OfficeManager is built so you can read the whole office at a glance and reply to an
+employee without leaving the view.
+
+- **Names are always shown.** Every employee that is backed by a real agent wears a
+  nameplate above its head, so you can tell at once who is who. The idle pool employee
+  shows *"unoccupied"* instead.
+- **Side roster ("ON THE JOB").** A panel on the right lists every employee that
+  currently has a task, each with a **completion bar** and a status:
+  - **WORKING** (blue) — the agent is running; the bar fills as it completes its steps;
+  - **NEEDS YOU** (yellow) — the agent answered and is waiting for your reply;
+  - **DONE** (green) — the task finished.
+  The panel hides itself when nobody is working. Clicking a row opens that employee's
+  answer window.
+- **Message icon and answer window.** When an employee needs something from you to go on
+  (its reply reads like a question or a request), a small **speech-bubble icon** appears
+  above its head. **Click the icon** (or the employee's row in the roster) to open a
+  window showing what the employee needs and a text field to answer right there — your
+  answer goes to the same conversation, exactly as if you had hired the employee and typed
+  in the chat. The icon clears as soon as you answer.
+
 ## How it works
 
 AgentBridge and OfficeManager talk over a **duplex WebSocket** (`/ws/office`): the server
-pushes employee lifecycle events (spawn/assign/running/method/closed + chat messages), the
-browser sends `chat_send` and `close`. The full wire protocol is documented in
-`OfficeBridge.cs` (AgentBridge source).
+pushes employee lifecycle events (spawn/assign/running/method/progress/needs/closed + chat
+messages), the browser sends `chat_send` and `close`. The `progress` event carries the
+agent's step count (the completion bar) and `needs` says whether the employee is waiting on
+you or has finished. The full wire protocol is documented in `OfficeBridge.cs` (AgentBridge
+source).
 
 Agents created by other processes are reflected by calling
 `AgentHarness.ForwardGlobalProgressTo("http://localhost:5290")` once at their startup

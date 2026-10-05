@@ -119,3 +119,152 @@ html, body {
 
 #snd:hover { background: #3a2410; }
 #snd.off { color: #6e5c42; border-color: #4a3a22; }
+
+/* ---- side roster: employees on the job, with completion bars (issue #30) ---- */
+#roster {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 232px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  background: rgba(16, 8, 2, 0.88);
+  border: 3px solid #baa272;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+  padding: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #baa272 #170d02;
+  z-index: 20;
+}
+#roster.empty { display: none; }
+#roster .rhead {
+  font-size: 10px;
+  color: #baa272;
+  letter-spacing: 1px;
+  padding: 2px 2px 8px;
+  border-bottom: 2px solid #3a2410;
+  margin-bottom: 6px;
+}
+#roster .rrow {
+  padding: 6px 4px;
+  border-bottom: 1px solid #2a1808;
+  cursor: pointer;
+}
+#roster .rrow:hover { background: rgba(186, 162, 114, 0.12); }
+#roster .rname {
+  font-size: 10px;
+  color: #ffe9a8;
+  margin-bottom: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#roster .rbar {
+  height: 8px;
+  background: #2a1808;
+  border: 1px solid #4a3a22;
+  margin-bottom: 4px;
+}
+#roster .rfill {
+  height: 100%;
+  width: 0;
+  background: #6ea0c8;
+  transition: width 0.25s steps(12);
+}
+#roster .rrow.working .rfill { background: #6ea0c8; }
+#roster .rrow.waiting .rfill { background: #f4d03f; }
+#roster .rrow.done .rfill { background: #6fbf73; }
+#roster .rstatus {
+  font-size: 8px;
+  color: #8a7452;
+}
+#roster .rrow.waiting .rstatus { color: #f4d03f; }
+#roster .rrow.done .rstatus { color: #6fbf73; }
+
+/* ---- per-employee answer window (issue #30) ---- */
+#askbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+#askbox.open { display: flex; }
+#askbox .askpanel {
+  width: min(520px, 92vw);
+  background: #170d02;
+  border: 3px solid #baa272;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.5);
+  padding: 14px;
+}
+#askbox .askhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid #3a2410;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+#askbox #askname {
+  font-size: 12px;
+  color: #c6483c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#askbox #askclose {
+  font: inherit;
+  font-size: 14px;
+  color: #baa272;
+  background: #241407;
+  border: 2px solid #baa272;
+  width: 26px;
+  height: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+#askbox #askclose:hover { background: #3a2410; }
+#askbox .askmsg {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #baa272;
+  min-height: 40px;
+  max-height: 40vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 12px;
+}
+#askbox .askrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border-top: 2px solid #3a2410;
+  padding-top: 10px;
+}
+#askbox #askinput {
+  flex: 1;
+  background: #100a02;
+  border: 2px solid #4a3a22;
+  outline: none;
+  color: #e8dab0;
+  font: inherit;
+  font-size: 11px;
+  padding: 8px;
+  caret-color: #baa272;
+}
+#askbox #askinput:focus { border-color: #baa272; }
+#askbox #askinput:disabled { color: #6e5c42; }
+#askbox #asksend {
+  font: inherit;
+  font-size: 10px;
+  color: #170d02;
+  background: #baa272;
+  border: 2px solid #baa272;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+#askbox #asksend:hover { background: #d4bd8c; }
+#askbox #asksend:disabled { color: #6e5c42; background: #2a1808; border-color: #4a3a22; cursor: default; }

@@ -53,6 +53,7 @@ const WORK_COOLDOWN_MS = 15000;        // desk attraction disabled after a work 
 const IDLE_LINE = "I have nothing to do";
 const DOOR = { x0: 72, x1: 156, y0: 152, y1: 212 };   // spawn/despawn strip in front of the door
 const PIX_FONT = '8px "Press Start 2P", monospace';
+const NAME_FONT = '9px "Press Start 2P", monospace';   // agent nameplate — one size up for visibility
 const EMP_SPRITES = ["employee A", "employee B", "employee C", "employee D", "employee E"];
 
 /* boss auto-pilot: after BOSS_AUTO_MS without arrow input the boss wanders on its own
@@ -245,6 +246,12 @@ class Person {
     this.kind = "idle";
     this.label = "";
     this.running = false;
+    this.iteration = 0;        // tool-call steps of the current run (completion bar)
+    this.needsReply = false;   // the agent answered and is waiting for the user's answer
+    this.done = false;         // the last chat run finished without needing the user
+    this.lastMsg = "";         // last assistant message (shown in the answer window)
+    this._iconRect = null;     // screen rect of the message icon (set each render, for hit-testing)
+    this._headTop = null;      // top y of the head furniture (nameplate + icon), for bubble placement
     this.returningHome = false;
     this.homeX = 0; this.homeY = 0; this.homePath = null;
   }
@@ -320,6 +327,7 @@ let waypoints = [];
 let ws = null;
 let wsRetry = null;
 let connected = false;
+let askEmp = null;         // employee currently shown in the answer window
 
 function markBossActivity() {            // any action (movement or speech) — drives the "boss" label
   lastBossActivity = performance.now();
@@ -430,6 +438,12 @@ function onServerMessage(json) {
     case "method":
       setMethod(m.empId, m.method);
       break;
+    case "progress":
+      setIteration(m.empId, m.iteration);
+      break;
+    case "needs":
+      setNeeds(m.empId, m.value, m.done);
+      break;
     case "closed":
       closeEmployee(m.empId);
       break;
@@ -440,6 +454,7 @@ function onServerMessage(json) {
       Chat.say("", m.text || "server error", "sys");
       break;
   }
+  renderRoster();
 }
 
 /* the snapshot is the authoritative roster (sent on connect/hello): despawn employees the
@@ -470,6 +485,9 @@ function spawnEmployee(m) {
   e.kind = m.kind || "idle";
   e.label = m.label || "";
   e.running = !!m.running;
+  e.iteration = m.iteration || 0;
+  e.needsReply = !!m.needsReply;
+  e.done = !!m.done;
   e.idleUntil = Math.random() * 2000;
   e.blockedUntil = 0;
   e.stuckT = 0; e.lastX = x; e.lastY = y;
@@ -496,7 +514,20 @@ function setRunning(empId, value) {
   if (!e) return;
   e.running = value;
   if (!value && e.bubble && e.bubble.kind === "method") e.bubble = null;
-  if (value) e.noWorkUntil = 0;                       // an agent employee may be attracted right away
+  if (value) { e.noWorkUntil = 0; e.done = false; }   // a new run starts: the bar is no longer "done"
+}
+
+function setIteration(empId, iteration) {
+  const e = employees.find(e => e.empId === empId);
+  if (!e) return;
+  if ((iteration || 0) > e.iteration) e.iteration = iteration;
+}
+
+function setNeeds(empId, value, done) {
+  const e = employees.find(e => e.empId === empId);
+  if (!e) return;
+  e.needsReply = !!value;
+  e.done = !!done;
 }
 
 function setMethod(empId, method) {
@@ -527,6 +558,7 @@ function closeEmployee(empId) {
 function chatFromServer(m) {
   if (m.role === "assistant") {
     const e = employees.find(e => e.empId === m.empId);
+    if (e) e.lastMsg = m.text;
     Chat.say(e && e.label ? e.label : "agent", m.text);
     Sfx.reply();
   } else if (m.role === "user") {
@@ -929,11 +961,130 @@ function engageAt(px, py) {
   }
 }
 
+/* ---------- answer window + side roster (issue #30) ---------- */
+
+/* completion bar fraction for an employee: fills with the run's tool-call steps while working
+   (capped below 1 so it never claims done before the agent actually finishes), holds high and
+   amber while waiting on the user, full green when the task is done, empty otherwise. */
+const BAR_EXPECT = 10;
+function barPct(e) {
+  if (e.running) return Math.min(e.iteration / BAR_EXPECT, 0.92);
+  if (e.needsReply) return 0.92;
+  if (e.done) return 1;
+  return 0;
+}
+function statusClass(e) {
+  if (e.running) return "working";
+  if (e.needsReply) return "waiting";
+  if (e.done) return "done";
+  return "idle";
+}
+function statusWord(e) {
+  if (e.running) return "WORKING";
+  if (e.needsReply) return "NEEDS YOU";
+  if (e.done) return "DONE";
+  return "IDLE";
+}
+
+/* rebuild the right-side roster of employees that currently have a task (an agent behind them) */
+function renderRoster() {
+  const panel = document.getElementById("roster");
+  const list = document.getElementById("rosterlist");
+  if (!panel || !list) return;
+  const active = employees.filter(e => e.agentId && !e.returningHome);
+  if (!active.length) { panel.classList.add("empty"); list.innerHTML = ""; return; }
+  panel.classList.remove("empty");
+  list.innerHTML = "";
+  for (const e of active) {
+    const row = document.createElement("div");
+    row.className = "rrow " + statusClass(e);
+    const nm = document.createElement("div");
+    nm.className = "rname";
+    nm.textContent = e.label || e.name || "employee";
+    const bar = document.createElement("div");
+    bar.className = "rbar";
+    const fill = document.createElement("div");
+    fill.className = "rfill";
+    fill.style.width = Math.round(barPct(e) * 100) + "%";
+    bar.appendChild(fill);
+    const st = document.createElement("div");
+    st.className = "rstatus";
+    st.textContent = statusWord(e);
+    row.appendChild(nm); row.appendChild(bar); row.appendChild(st);
+    row.addEventListener("click", () => openAskbox(e));
+    list.appendChild(row);
+  }
+}
+
+function askboxOpen() {
+  const box = document.getElementById("askbox");
+  return !!box && box.classList.contains("open");
+}
+
+function hitMessageIcon(px, py) {
+  for (const e of employees) {
+    const ic = e._iconRect;
+    if (ic && px >= ic.x - 5 && px <= ic.x + ic.w + 5 && py >= ic.y - 5 && py <= ic.y + ic.h + 5) return e;
+  }
+  return null;
+}
+
+/* open the per-employee answer window: shows what the employee needs (its last message) and a
+   text field to reply. Works for any employee; sending is gated by the same rules as the chat. */
+function openAskbox(emp) {
+  if (!emp) return;
+  askEmp = emp;
+  document.getElementById("askname").textContent = emp.label || emp.name || "employee";
+  const body = document.getElementById("askmsg");
+  if (emp.running) body.textContent = "Working… I'll answer as soon as I can.";
+  else if (emp.needsReply && emp.lastMsg) body.textContent = emp.lastMsg;
+  else if (emp.lastMsg) body.textContent = emp.lastMsg;
+  else body.textContent = "(nothing to report yet)";
+  const inp = document.getElementById("askinput");
+  inp.value = "";
+  const chatable = emp.kind !== "subagent" && emp.kind !== "stateless";
+  inp.disabled = !chatable || emp.running || !connected;
+  inp.placeholder = !chatable ? "this employee cannot be chatted with"
+    : emp.running ? "still working…"
+    : !connected ? "not connected" : "type your answer…";
+  document.getElementById("asksend").disabled = inp.disabled;
+  document.getElementById("askbox").classList.add("open");
+  setTimeout(() => { try { inp.focus(); } catch (e) { } }, 30);
+}
+
+function closeAskbox() {
+  askEmp = null;
+  const box = document.getElementById("askbox");
+  if (box) box.classList.remove("open");
+}
+
+function sendAsk() {
+  if (!askEmp) return;
+  const inp = document.getElementById("askinput");
+  const text = (inp.value || "").trim();
+  if (!text) return;
+  if (!connected) { Chat.say("", "OFFICE MANAGER — not connected to AgentBridge", "sys"); return; }
+  if (askEmp.kind === "subagent" || askEmp.kind === "stateless") {
+    Chat.say("", (askEmp.label || "this employee") + " cannot be chatted with", "sys");
+    return;
+  }
+  if (askEmp.running) { Chat.say("", (askEmp.label || askEmp.name) + " is still working…", "sys"); return; }
+  Sfx.send();
+  ws.send(JSON.stringify({ type: "chat_send", empId: askEmp.empId, prompt: text }));
+  inp.value = "";
+  closeAskbox();
+}
+
 /* ---------- input ---------- */
 function initInput() {
   const input = document.getElementById("input");
   window.addEventListener("keydown", (e) => {
     Sfx.ensure();
+    if (askboxOpen()) {
+      // the answer window owns the keyboard while open: arrows edit the answer, Esc closes
+      if (e.key === "Escape") { closeAskbox(); e.preventDefault(); }
+      return;
+    }
     switch (e.key) {
       case "ArrowUp":    keys.up = true; break;
       case "ArrowDown":  keys.down = true; break;
@@ -960,17 +1111,21 @@ function initInput() {
       case "ArrowRight": keys.right = false; break;
     }
   });
-  // keep the cursor in the input at all times
-  const focus = () => input.focus();
+  // keep the cursor in the input at all times — except while the answer window owns the keyboard
+  const focus = () => { if (askboxOpen()) return; input.focus(); };
   window.addEventListener("blur", () => { keys.up = keys.down = keys.left = keys.right = false; setTimeout(focus, 60); });
   document.addEventListener("click", focus);
 
-  // mouse hire (canvas coordinates from screen coords)
+  // mouse hire (canvas coordinates from screen coords); the message icon above a waiting
+  // employee takes priority — clicking it opens the answer window instead of hiring
   const cv = document.getElementById("game");
   cv.addEventListener("mousedown", (e) => {
     const r = cv.getBoundingClientRect();
     const s = r.width / W;
-    engageAt((e.clientX - r.left) / s, (e.clientY - r.top) / s);
+    const px = (e.clientX - r.left) / s, py = (e.clientY - r.top) / s;
+    const icon = hitMessageIcon(px, py);
+    if (icon) { openAskbox(icon); return; }
+    engageAt(px, py);
   });
 
   // hover: reveal the nameplate of the agent employee under the cursor (labels are not
@@ -999,12 +1154,25 @@ function initInput() {
     Sfx.ensure();
   });
 
+  // answer window: send button, close button, and the answer field's own Enter/Esc
+  document.getElementById("asksend").addEventListener("click", sendAsk);
+  document.getElementById("askclose").addEventListener("click", closeAskbox);
+  document.getElementById("askinput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { sendAsk(); e.preventDefault(); }
+    else if (e.key === "Escape") { closeAskbox(); e.preventDefault(); }
+  });
+  // clicking the dim backdrop (not the panel) closes the window
+  document.getElementById("askbox").addEventListener("mousedown", (e) => {
+    if (e.target.id === "askbox") closeAskbox();
+  });
+
   focus();
 }
 
 /* ---------- rendering ---------- */
 const cv = document.getElementById("game");
 const ctx = cv.getContext("2d");
+let hoveredEmp = null;   // employee under the cursor (kept for the hover highlight; nameplate is now always on)
 
 function fitCanvas() {
   // the office + chat form one centred column: the chat is never wider than the office
@@ -1025,51 +1193,85 @@ function drawPerson(p) {
   ctx.restore();
 }
 
-/* Unified head-badge system: drawBadge renders the gold-framed plate above a person and
-   badgeText decides WHICH text (if any) that person carries:
+/* Unified head-furniture system: drawHeadFurniture renders everything stacked above a person's
+   head and returns the top y so the speech bubble can sit above it (never covering the text).
+   plateText decides the nameplate text:
      - the boss carries "boss" while he is not keyboard-driven (labelVisible);
-     - an employee WITHOUT a bound agent (agentId === null) carries "unoccupied" — the server
-       is supposed to keep one agent per employee, so this flags the momentary gap instead of
-       pretending the desk is staffed; hidden while the employee walks home.
-   Bubbles are drawn AFTER badges and stacked above them (see drawBubble), so a badge never
-   covers the bubble text. Future badge kinds only need a new branch in badgeText. */
+     - an agent employee (agentId !== null) ALWAYS carries its name — names are kept visible
+       so you can read who is who at a glance (issue #30);
+     - an employee WITHOUT a bound agent carries "unoccupied" — the server keeps one agent per
+       employee, so this flags the momentary gap instead of pretending the desk is staffed.
+   On top of the nameplate, a waiting agent (needsReply) carries a message icon that opens the
+   answer window when clicked. Hidden while the employee walks home. */
 function labelVisible() {
   return !phoneActive && !(keys.up || keys.down || keys.left || keys.right);
 }
 
-function badgeText(p) {
+function plateText(p) {
   if (p.isBoss) return labelVisible() ? "boss" : null;
-  return !p.agentId && !p.returningHome ? "unoccupied" : null;
+  if (p.returningHome) return null;
+  if (p.agentId) return p.label || null;     // agent employees always show their name (more visible)
+  return "unoccupied";
 }
 
-function drawBadge(p) {
-  const text = badgeText(p);
-  if (!text) return;
-  ctx.font = PIX_FONT;
-  const w = ctx.measureText(text).width + 8, h = 11;
-  const x = p.fx - w / 2, y = p.fy - CHAR_H - h - 2;
-  ctx.fillStyle = "#111";
-  ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = "#baa272";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x, y, w, h);
-  ctx.fillStyle = "#baa272";
-  ctx.fillText(text, x + 4, y + h - 2);
+/* Unified head furniture: the nameplate (boss / agent name / "unoccupied") and, when the
+   agent is waiting on the user, a message icon stacked above it. Returns the top y of the
+   whole stack so the speech bubble can sit above it; records the icon rect for hit-testing. */
+const PLATE_H = 13;
+function drawHeadFurniture(p) {
+  let top = p.fy - CHAR_H - 2;
+  p._iconRect = null;
+  const plate = plateText(p);
+  if (plate) {
+    ctx.font = p.isBoss ? PIX_FONT : NAME_FONT;
+    const w = ctx.measureText(plate).width + 8, h = PLATE_H;
+    const x = p.fx - w / 2, y = top - h;
+    if (p.isBoss) {
+      ctx.fillStyle = "#111"; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = "#baa272"; ctx.lineWidth = 1; ctx.strokeRect(x, y, w, h);
+      ctx.fillStyle = "#baa272"; ctx.fillText(plate, x + 4, y + h - 3);
+    } else {
+      ctx.fillStyle = "rgba(16,8,2,0.92)"; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = "#baa272"; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      ctx.fillStyle = "#ffe9a8"; ctx.fillText(plate, x + 4, y + h - 3);
+    }
+    top = y;
+  }
+  if (!p.isBoss && p.needsReply && !p.returningHome) {
+    const s = 14;
+    const x = p.fx - s / 2, y = top - s - 1;
+    drawMessageGlyph(x, y, s);
+    p._iconRect = { x, y, w: s, h: s };
+    top = y;
+  }
+  return top;
 }
 
-/* agent nameplate (short id) shown ONLY when the mouse hovers the employee — it is
-   kept off the default render to avoid clutter and per-frame text cost */
-let hoveredEmp = null;
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
 
-function drawEmployeeLabel(p) {
-  if (!p.label || p.returningHome || p !== hoveredEmp || badgeText(p)) return;
-  ctx.font = PIX_FONT;
-  const w = ctx.measureText(p.label).width + 6, h = 10;
-  const x = p.fx - w / 2, y = p.fy - CHAR_H - h - 2;
-  ctx.fillStyle = "rgba(0,0,0,0.75)";
-  ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = "#e8dab0";
-  ctx.fillText(p.label, x + 3, y + h - 3);
+/* the "needs your answer" speech-bubble glyph drawn above a waiting employee's head */
+function drawMessageGlyph(x, y, s) {
+  const bh = s - 5;
+  ctx.fillStyle = "#f4d03f";
+  ctx.strokeStyle = "#241200";
+  ctx.lineWidth = 1.5;
+  roundRect(x, y, s, bh, 3); ctx.fill(); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + 3, y + bh - 1);
+  ctx.lineTo(x + 8, y + bh - 1);
+  ctx.lineTo(x + 3, y + bh + 4);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#241200";
+  const cy = y + bh / 2;
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(x + 3.5 + i * 3.5, cy, 1, 0, 7); ctx.fill(); }
 }
 
 /* wrap a speech text and return the bubble size (w, h) at the pixel font size */
@@ -1097,9 +1299,7 @@ function drawBubble(p) {
   if (!b || b.until < performance.now()) return;
   const { lines, w, h } = wrapBubble(b.text);
 
-  let baseY = p.fy - CHAR_H - 4;
-  if (badgeText(p)) baseY -= 13;                                  // stack above the always-on head badge
-  else if (!p.isBoss && p === hoveredEmp && p.label && !p.returningHome) baseY -= 12;   // above the hovered nameplate
+  let baseY = (p._headTop != null ? p._headTop : p.fy - CHAR_H - 2) - 2;
   const x = p.fx - w / 2;
   let y = baseY - h;
   if (y < 2) y = p.fy + CHAR_H / 2;                 // below the head when there is no room above
@@ -1174,15 +1374,14 @@ function render() {
   }
   if (cursor < H) ctx.drawImage(IMG.top, 0, cursor, W, H - cursor, 0, cursor, W, H - cursor);
   drawClock();
-  for (const p of all) if (badgeText(p)) drawBadge(p);   // unified badges: "boss" / "unoccupied"
-  for (const p of employees) drawEmployeeLabel(p);
-  for (const p of all) drawBubble(p);                    // bubbles on top of badges — text is never hidden
+  for (const p of all) p._headTop = drawHeadFurniture(p);   // nameplate + message icon (sets _iconRect)
+  for (const p of all) drawBubble(p);                        // bubbles above the head furniture — text never hidden
   if (engaged) drawEngagedMark();                    // "!" above the hired employee (clears any bubble)
 }
 
 function drawEngagedMark() {
   const b = engaged.bubble;
-  let y = engaged.fy - CHAR_H - 10;
+  let y = (engaged._headTop != null ? engaged._headTop : engaged.fy - CHAR_H - 2) - 14;
   if (b && b.until >= performance.now()) y -= wrapBubble(b.text).h + 6;   // above the speech bubble
   const x = engaged.fx;
   ctx.fillStyle = "#f4d03f";

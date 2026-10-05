@@ -24,6 +24,27 @@
     </div>
   </div>
 </div>
+
+<!-- side roster: the employees that currently have a task, with completion bars (issue #30) -->
+<div id="roster" class="empty" aria-label="employees on the job">
+  <div class="rhead">ON THE JOB</div>
+  <div id="rosterlist"></div>
+</div>
+
+<!-- per-employee answer window: what the employee needs + a field to reply (issue #30) -->
+<div id="askbox" role="dialog" aria-modal="true" aria-labelledby="askname">
+  <div class="askpanel">
+    <div class="askhead">
+      <span id="askname">employee</span>
+      <button id="askclose" type="button" title="close">&times;</button>
+    </div>
+    <div id="askmsg" class="askmsg"></div>
+    <div class="askrow">
+      <input id="askinput" type="text" maxlength="500" autocomplete="off" spellcheck="false" aria-label="answer">
+      <button id="asksend" type="button">SEND</button>
+    </div>
+  </div>
+</div>
 <script src="/OfficeManager/assets/office-mask.js"></script>
 <script src="/OfficeManager/game.js"></script>
 </body>

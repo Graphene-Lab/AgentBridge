@@ -21,11 +21,13 @@ using AIOrchestrator;
 //
 //  Wire protocol (JSON text frames, camelCase):
 //    Server → Client:
-//      {"type":"snapshot","employees":[{empId,agentId,kind,sprite,label,running}...]}
+//      {"type":"snapshot","employees":[{empId,agentId,kind,sprite,label,running,iteration,needsReply,done}...]}
 //      {"type":"spawn",  empId, agentId, kind:"idle"|"session"|"stateless"|"subagent", sprite, label}
 //      {"type":"assign", empId, agentId, label}          // an idle employee became a session agent
 //      {"type":"running",empId, value:bool}              // agent run started/finished
 //      {"type":"method", empId, method}                  // tool method the agent is executing
+//      {"type":"progress",empId, iteration}              // tool-call step count of the current run (completion bar)
+//      {"type":"needs",  empId, value:bool, done:bool}   // the agent answered: waiting on the user (value) or finished (done)
 //      {"type":"closed", empId}                          // agent instance closed → return to door, despawn
 //      {"type":"chat",   empId, role:"user"|"assistant"|"sys", text}
 //      {"type":"error",  text}
@@ -58,6 +60,9 @@ public static class OfficeBridge
         public int Sprite;
         public string Label = "";
         public bool Running;
+        public int Iteration;                         // tool-call steps of the current run (drives the completion bar)
+        public bool NeedsReply;                       // the agent answered and is waiting for the user's answer (chat surface)
+        public bool Done;                             // the last chat run finished without needing the user (bar full)
     }
 
     private static readonly ConcurrentDictionary<string, Employee> Employees = new();   // empId → employee
@@ -156,6 +161,7 @@ public static class OfficeBridge
                     case AgentHarness.AgentState.Running: SetRunningLocked(empId, true); break;
                     case AgentHarness.AgentState.Iteration:
                         SetRunningLocked(empId, true);
+                        SetIterationLocked(empId, e.Iteration);
                         if (!string.IsNullOrEmpty(e.MethodName))
                             Broadcast(new { type = "method", empId, method = e.MethodName });
                         break;
@@ -181,6 +187,7 @@ public static class OfficeBridge
                     case AgentHarness.AgentState.Running: SetRunningLocked(empId, true); break;
                     case AgentHarness.AgentState.Iteration:
                         SetRunningLocked(empId, true);
+                        SetIterationLocked(empId, e.Iteration);
                         if (!string.IsNullOrEmpty(e.MethodName))
                             Broadcast(new { type = "method", empId, method = e.MethodName });
                         break;
@@ -223,6 +230,17 @@ public static class OfficeBridge
         if (!Employees.TryGetValue(empId, out var emp)) return;
         emp.Running = value;
         Broadcast(new { type = "running", empId, value });
+    }
+
+    // Tool-call step count of the current run, forwarded so the office can draw a completion
+    // bar. Only broadcast when it actually advances (the harness re-reports the same iteration
+    // on some state transitions; a no-op frame would be noise).
+    private static void SetIterationLocked(string empId, int iteration)
+    {
+        if (!Employees.TryGetValue(empId, out var emp)) return;
+        if (iteration <= emp.Iteration) return;
+        emp.Iteration = iteration;
+        Broadcast(new { type = "progress", empId, iteration });
     }
 
     private static void CloseLocked(string empId)
@@ -346,6 +364,14 @@ public static class OfficeBridge
 
     private static async Task RunAgentAsync(string empId, ActiveSession session, string prompt)
     {
+        // A new turn starts: the completion bar resets and the employee is no longer waiting
+        // on the user (the user just answered, by definition).
+        lock (Sync)
+        {
+            if (Employees.TryGetValue(empId, out var e0)) { e0.Iteration = 0; e0.NeedsReply = false; e0.Done = false; }
+        }
+        Broadcast(new { type = "progress", empId, iteration = 0 });
+        Broadcast(new { type = "needs", empId, value = false, done = false });
         SetRunning(empId, true);
         try
         {
@@ -364,6 +390,16 @@ public static class OfficeBridge
                 ?? AgentResultDisplay.ResultText(result)
                 ?? AgentBridge.Resources.Dictionary.NoOutputGenerated;
             Chat(empId, "assistant", text);
+            // The agent answered. If its reply reads like a request for the user (a question or
+            // a "please provide …"), flag the employee as waiting on the user — the office shows
+            // a message icon so the user can answer right from the office. Otherwise the task is
+            // done and the completion bar fills.
+            bool needs = LooksLikeNeedsInput(text);
+            lock (Sync)
+            {
+                if (Employees.TryGetValue(empId, out var e1)) { e1.NeedsReply = needs; e1.Done = !needs; }
+            }
+            Broadcast(new { type = "needs", empId, value = needs, done = !needs });
         }
         catch (Exception ex)
         {
@@ -426,7 +462,8 @@ public static class OfficeBridge
             employees = employees.Select(e => new
             {
                 empId = e.EmpId, agentId = e.AgentId, kind = e.Kind,
-                sprite = e.Sprite, label = e.Label, running = e.Running
+                sprite = e.Sprite, label = e.Label, running = e.Running,
+                iteration = e.Iteration, needsReply = e.NeedsReply, done = e.Done
             }),
         }));
     }
@@ -443,6 +480,29 @@ public static class OfficeBridge
 
     private static string ShortLabel(string id) =>
         id.Length > 12 ? id[..12] : id;
+
+    // Phrases that clearly mean "the agent cannot go on without the user". Kept deliberately
+    // narrow (multi-word, unambiguous) so a plain statement or a completed result never trips
+    // it; the trailing "?" rule catches the common question form. Used only to decide whether
+    // the office shows the "needs your answer" message icon — a wrong call here is cosmetic
+    // (the reply is always in the chat log regardless), never a lost message.
+    private static readonly string[] NeedsInputPhrases =
+    {
+        "please provide", "please tell me", "please specify", "please confirm",
+        "please let me know", "i need more", "need more information", "need more info",
+        "could you provide", "could you tell me", "could you clarify", "awaiting your",
+        "what should i", "which one", "i don't have", "i do not have", "i still need",
+        "to continue i need", "i need you to",
+    };
+
+    private static bool LooksLikeNeedsInput(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        var t = text.Trim();
+        if (t.EndsWith("?") || t.EndsWith("？")) return true;
+        var lower = t.ToLowerInvariant();
+        return NeedsInputPhrases.Any(p => lower.Contains(p));
+    }
 
     private static async Task SendLoopAsync(WebSocketClient client, CancellationToken ct)
     {

@@ -257,6 +257,52 @@ auto-scrolls. User text is HTML-escaped (`esc()`).
 The **"boss" label** appears above the boss after 10 s of idleness and hides on
 any movement or speech; it also hides while the phone line is active.
 
+## Head furniture: nameplates, message icon, roster, answer window (issue #30)
+
+Everything stacked above a person's head is drawn by one function,
+`drawHeadFurniture(p)`, which returns the **top y** of the stack so the speech
+bubble can be placed above it (the bubble never covers the nameplate or the
+icon). The stack, bottom-up:
+
+1. **Nameplate** (`plateText`): the boss shows "boss" (only when idle,
+   `labelVisible`); an **agent employee** (`agentId !== null`) shows its label
+   **always** — names are deliberately always-on now (one size up, `NAME_FONT`,
+   bright text on a dark plate) so the office is readable at a glance; an
+   employee with no bound agent shows "unoccupied". Hidden while `returningHome`.
+2. **Message icon** (`drawMessageGlyph`): a gold speech-bubble glyph drawn above
+   the nameplate when `p.needsReply` is true. Its screen rect is recorded in
+   `p._iconRect` each frame for hit-testing.
+
+`render()` calls `drawHeadFurniture` for every person (storing `p._headTop`),
+then draws bubbles, then the engaged "!" marker — all positioned relative to
+`_headTop` so the layers never collide.
+
+**Server signals.** Two new WebSocket events drive the visual state (see
+`OfficeBridge.cs`): `progress {empId, iteration}` carries the agent's tool-call
+step count, and `needs {empId, value, done}` says whether the employee is waiting
+on the user (`value`) or finished (`done`). `needs` is set in `RunAgentAsync`
+after the assistant reply, using `LooksLikeNeedsInput` (a conservative heuristic:
+a trailing "?", or one of a short list of unambiguous request phrases). A wrong
+call there is cosmetic — the reply is always in the chat log regardless.
+
+**Client state.** `Person` carries `iteration`, `needsReply`, `done`, `lastMsg`
+(the last assistant text, shown in the answer window). `barPct(e)` maps them to
+the completion-bar fraction (running → `iteration/BAR_EXPECT` capped at 0.92;
+waiting → 0.92; done → 1; else 0); `statusClass`/`statusWord` give the roster
+colour/label.
+
+**Side roster** (`#roster`, `renderRoster()`): a fixed right-hand panel listing
+every employee with a live agent (`agentId && !returningHome`), each with a
+completion bar and status; it hides itself (`.empty`) when none are active.
+Called at the end of `onServerMessage`.
+
+**Answer window** (`#askbox`, `openAskbox`/`sendAsk`): opened by clicking the
+message icon (`hitMessageIcon`) or a roster row. Shows the employee's last
+message and a text field; sending issues the same `chat_send {empId, prompt}` the
+bottom chat uses. While it is open the answer field owns the keyboard: the global
+key handler returns early (so arrows edit the answer, not the boss), `Escape`
+closes it, and the focus-stealing `focus()` helper is suppressed via `askboxOpen()`.
+
 ## Wall clock
 
 `drawClock()` draws a live analogue clock (hour/minute/second hands) on the
