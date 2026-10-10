@@ -99,3 +99,7 @@ tools/store/*.wixobj
 tools/store/obj/
 tools/store/store-secrets.local.json
 tools/store/store-msi/
+
+# Kokoro TTS model (~310 MB) — exceeds GitHub's 100 MB file limit; provided at build time
+# by the DownloadKokoroModel target (VoiceAgent bin / local file / curl). Never commit it.
+kokoro.onnx
