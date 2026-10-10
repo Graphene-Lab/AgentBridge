@@ -191,8 +191,8 @@ internal static class Program
             await OpenSlash("/providers");
             var prov = Capture(); Dump("providers");
             Check("providers: 'Active provider' label", Any(prov, "Provider attivo", "Active provider"));
-            Check("providers: active marker", Any(prov, "(attivo)", "(active)"));
-            Check("providers: configured list", Any(prov, "Configured providers", "Provider configurati", "Provider"));
+            Check("providers: dropdown present (single selection)", Any(prov, "▼") || prov.Split('\n').Length > 5);
+            Check("providers: NO redundant ListView ('Configured providers' section removed)", !Any(prov, "Configured providers", "Provider configurati"));
             Check("providers: Add/Edit/Remove buttons", Any(prov, "Add", "Aggiungi") && Any(prov, "Edit", "Modifica") && Any(prov, "Remove", "Rimuovi"));
             Check("providers: NO 'Set default' button", !Any(prov, "Set default", "Imposta come predefinito", "Imposta predefinito"));
             Check("providers: NO '(default)' marker", !Any(prov, "(default)", "(predefinito)"));

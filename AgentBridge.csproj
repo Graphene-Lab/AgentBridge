@@ -190,6 +190,10 @@
        bin" filter mechanically, no per-plugin dependency lists to maintain. -->
   <ItemGroup>
     <_PluginProject Include="..\*Tool\*Tool.csproj" />
+    <!-- PowerBITool lives at PowerBITool\PowerBITool.csproj (not matching the
+         ..\*Tool\*Tool.csproj glob name pattern is fine, but keep the explicit
+         include so it stays on the same ship pipeline regardless of layout). -->
+    <_PluginProject Include="..\PowerBITool\PowerBITool.csproj" Condition="Exists('..\PowerBITool\PowerBITool.csproj')" />
   </ItemGroup>
   <Target Name="ShipToolPlugins" AfterTargets="Build" Condition="'@(_PluginProject)' != ''">
     <MSBuild Projects="@(_PluginProject)" Targets="Build" Properties="Configuration=$(Configuration);RuntimeIdentifier=;CopyLocalLockFileAssemblies=true" />

@@ -4030,6 +4030,11 @@ public static class ConsoleTui
         // configured providers. Save makes the dropdown selection the definitive active
         // provider (persisted as the default + adopted by the running chat) and closes the
         // panel only when validation passes.
+        // LLM / Provider panel — simplified to a single DropDownList for provider selection.
+        // The dropdown is the ONLY way to pick the active provider; the previously redundant
+        // "Configured providers" ListView has been removed. The selected provider in the
+        // dropdown is what Save activates (persisted as default + adopted by the running chat).
+        // The API key field always corresponds to the provider shown in the dropdown.
         private void ShowProvidersPanel()
         {
             Log.LogStep("TUI Providers panel opened", monitor: true);
@@ -4037,22 +4042,13 @@ public static class ConsoleTui
             {
                 Title = Dictionary.SetupLlmTab,
                 Width = Dim.Percent(80),
-                // Fixed height (issue #13, refined for issue #21): the panel is a fixed
-                // stack (active provider, active model, api key, validation,
-                // configured-providers list, Add/Edit/Remove) with the Save/Close footer
-                // anchored at the bottom. The footer is a 3-row band and the Add/Edit/
-                // Remove buttons are 2 rows tall, so the dialog must be tall enough that
-                // the bottom-anchored footer never lands on the Add/Edit/Remove row —
-                // otherwise the footer's background hides those buttons and a click on
-                // them is swallowed. 20 rows = 14 content + the Add/Edit/Remove band +
-                // the footer + borders, so nothing collides on any console tall enough
-                // to show the panel (the Windows default is 25 rows).
-                Height = 20,
+                // Compact layout: provider dropdown, active model, API key, validation,
+                // Add/Edit/Remove buttons, and the Save/Close footer.
+                Height = 14,
                 SchemeName = "Dark",
             };
 
             var providerDropdown = new DropDownList { ReadOnly = true };
-            var providersList = new ListView();
 
             providerDropdown.X = 17; providerDropdown.Y = 0; providerDropdown.Width = 46;
             dlg.Add(new Label { Text = Dictionary.SetupActiveProvider, X = 1, Y = 0, Width = 15 }, providerDropdown);
@@ -4066,19 +4062,15 @@ public static class ConsoleTui
             };
             dlg.Add(activeModelLabel);
 
-            // API key of the provider the user is working with, editable right here
-            // (issue #11: the key was only reachable through the provider's Edit dialog, so
-            // users could not find where to paste it). The field follows the provider
-            // highlighted in the configured-providers list (falling back to the active
-            // provider in the dropdown) and Save writes the edited value back for that same
-            // provider through the single key-mutation path (ProviderConfigs.SetApiKey).
-            // Local providers simply leave it empty. The field is added to the view tree
-            // AFTER the Add/Edit/Remove buttons so the keyboard focus order (dropdown →
-            // list → Add → Edit) that the setup tests rely on is preserved.
+            // API key of the provider selected in the dropdown, editable right here.
+            // Save writes the edited value back for the dropdown-selected provider
+            // through the single key-mutation path (ProviderConfigs.SetApiKey).
+            // Local providers simply leave it empty.
             dlg.Add(new Label { Text = Dictionary.ProviderApiKey, X = 1, Y = 2, Width = 18 });
             var apiKeyField = new TextField { Text = "", X = 20, Y = 2, Width = 44, Secret = true };
+            dlg.Add(apiKeyField);
 
-            // Validation message shown next to the dropdown when no provider is selected.
+            // Validation message shown below the fields when no provider is selected.
             var validationLabel = new Label
             {
                 Text = "", X = 1, Y = 3, Width = Dim.Fill() - 2,
@@ -4086,47 +4078,24 @@ public static class ConsoleTui
             };
             dlg.Add(validationLabel);
 
-            int y = 4;
-            dlg.Add(new Label { Text = Dictionary.SetupConfiguredProviders, X = 1, Y = y, Width = Dim.Fill() });
-            y++;
-            providersList.X = 1; providersList.Y = y; providersList.Width = 62; providersList.Height = 6;
-            dlg.Add(providersList);
-            y += 7;
+            // Add/Edit/Remove buttons for managing the provider list.
+            int y = 5;
             var addBtn = new Button { Text = Dictionary.SetupAdd, X = 1, Y = y };
             var editBtn = new Button { Text = Dictionary.SetupEdit, X = Pos.Right(addBtn) + 1, Y = y };
             var removeBtn = new Button { Text = Dictionary.SetupRemove, X = Pos.Right(editBtn) + 1, Y = y };
             dlg.Add(addBtn, editBtn, removeBtn);
-            dlg.Add(apiKeyField);
 
-            // The list mirrors the dropdown selection with a single "(attivo)" marker — the
-            // user sees exactly one active provider, no redundant "default" tag.
+            // The dropdown's ValueChanged updates the model label and the API key field.
             providerDropdown.ValueChanged += (_, _) =>
             {
-                RefreshProviderList();
-                // Move the list highlight to the provider shown in the dropdown so the key
-                // field (which follows the list) stays in sync when the active provider
-                // changes. One-way only: browsing the list does NOT change the active
-                // provider, so there is no feedback loop.
-                var idx = ProviderConfigs.All.ToList()
-                    .FindIndex(p => string.Equals(p.ProviderName, providerDropdown.Text, StringComparison.OrdinalIgnoreCase));
-                if (idx >= 0) providersList.SelectedItem = idx;
+                UpdateActiveModelLabel();
                 LoadApiKeyForSelection();
             };
-            // Keep the key field in sync with the provider highlighted in the list, so the
-            // field always shows the key that Save will write back for (issue #13).
-            providersList.ValueChanged += (_, _) => LoadApiKeyForSelection();
-            void RefreshProviderList()
+
+            void UpdateActiveModelLabel()
             {
-                providersList.Source = new ListWrapper<string>(new ObservableCollection<string>(
-                    ProviderConfigs.All.Select(p =>
-                        string.Equals(p.ProviderName, providerDropdown.Text, StringComparison.OrdinalIgnoreCase)
-                            ? p.ProviderName + $"  {Dictionary.SetupActiveMarker}"
-                            : p.ProviderName)));
-                // Active model: the REAL session model when the dropdown shows the provider
-                // in use (the configured ModelName is often empty even though a concrete model
-                // is active — the session knows the truth); otherwise the selected provider's
-                // configured model as a preview of what would activate.
-                var sel = ProviderConfigs.All.FirstOrDefault(p => p.ProviderName == providerDropdown.Text);
+                var sel = ProviderConfigs.All.FirstOrDefault(p =>
+                    string.Equals(p.ProviderName, providerDropdown.Text, StringComparison.OrdinalIgnoreCase));
                 if (sel != null && string.Equals(sel.ProviderName, _provider, StringComparison.OrdinalIgnoreCase)
                     && !string.IsNullOrWhiteSpace(_modelName))
                     activeModelLabel.Text = string.Format(Dictionary.SetupActiveModel, _modelName);
@@ -4135,6 +4104,7 @@ public static class ConsoleTui
                 else
                     activeModelLabel.Text = Dictionary.SetupActiveModelDefault;
             }
+
             // Full refresh after a provider was added/edited/removed (dropdown included).
             void RefreshProviders()
             {
@@ -4147,36 +4117,21 @@ public static class ConsoleTui
                     providerDropdown.Text = names.Contains(_provider, StringComparer.OrdinalIgnoreCase)
                         ? _provider
                         : ProviderConfigs.Default.ProviderName;
-                RefreshProviderList();
-                // Highlight the active provider in the list so the key field opens showing
-                // its key (the field follows the list selection); the user then moves the
-                // highlight to edit another provider's key.
-                var activeIdx = names.FindIndex(n => string.Equals(n, providerDropdown.Text, StringComparison.OrdinalIgnoreCase));
-                if (activeIdx >= 0) providersList.SelectedItem = activeIdx;
+                UpdateActiveModelLabel();
                 LoadApiKeyForSelection();
             }
-            // Loads the current API key into the panel's key field so the user can see and
-            // edit it without opening the provider's Edit dialog (issue #11). The field
-            // follows the provider the user is working with: the row highlighted in the
-            // configured-providers list when there is one, otherwise the provider shown in
-            // the "Active provider" dropdown — the same provider Save writes the key back
-            // for. Previously it followed only the dropdown, so selecting a provider in the
-            // list and typing its key looked like it did nothing (issue #13).
+
+            // Loads the current API key for the dropdown-selected provider into the key field.
             void LoadApiKeyForSelection()
             {
-                var name = SelectedProviderName() ?? providerDropdown.Text;
+                var name = providerDropdown.Text;
                 apiKeyField.Text = !string.IsNullOrWhiteSpace(name)
                     && ProviderConfigs.TryGet(name, out var cfg) && cfg != null
                     ? cfg.ApiKey ?? ""
                     : "";
             }
-            RefreshProviders();
 
-            string? SelectedProviderName()
-            {
-                var i = providersList.SelectedItem;
-                return i is >= 0 && i < ProviderConfigs.All.Count ? ProviderConfigs.All[i.Value].ProviderName : null;
-            }
+            RefreshProviders();
 
             addBtn.Accepted += (_, _) =>
             {
@@ -4191,9 +4146,8 @@ public static class ConsoleTui
             };
             editBtn.Accepted += (_, _) =>
             {
-                // Edit the provider selected in the list; fall back to the active one when
-                // nothing is highlighted so the button always opens the edit form.
-                var name = SelectedProviderName() ?? providerDropdown.Text;
+                // Edit the provider currently shown in the dropdown.
+                var name = providerDropdown.Text;
                 if (string.IsNullOrWhiteSpace(name)) { AddNote(Dictionary.SetupSelectToEdit); return; }
                 Log.LogStep($"TUI Providers: Edit provider '{name}'", monitor: true);
                 var cfg = ShowProviderDialog(ProviderConfigs.Get(name));
@@ -4204,8 +4158,8 @@ public static class ConsoleTui
             };
             removeBtn.Accepted += (_, _) =>
             {
-                var name = SelectedProviderName();
-                if (name == null) { AddNote(Dictionary.SetupSelectToRemove); return; }
+                var name = providerDropdown.Text;
+                if (string.IsNullOrWhiteSpace(name)) { AddNote(Dictionary.SetupSelectToRemove); return; }
                 if (MessageBox.Query(_app, Dictionary.SetupRemoveProviderTitle,
                         string.Format(Dictionary.SetupRemoveProviderText, name), Dictionary.Cancel, Dictionary.SetupRemove) != 1)
                     return;
@@ -4216,7 +4170,7 @@ public static class ConsoleTui
                     return;
                 }
                 AddNote(string.Format(Dictionary.SetupProviderRemoved, name));
-                if (providerDropdown.Text == name)
+                if (string.Equals(providerDropdown.Text, name, StringComparison.OrdinalIgnoreCase))
                 {
                     providerDropdown.Text = ProviderConfigs.Default.ProviderName;
                     _ = SwitchModelAsync(ProviderConfigs.Default.ProviderName);
@@ -4235,20 +4189,12 @@ public static class ConsoleTui
                     return;
                 }
                 validationLabel.Text = "";
-                // Persist an edited API key for the provider the user is working with — the
-                // row highlighted in the configured-providers list, falling back to the
-                // active-provider dropdown (issue #13: the key used to be written only for
-                // the dropdown provider, so a key typed while a different provider was
-                // selected in the list was stored against the wrong provider and looked
-                // "not saved"). Written only when the value actually changed, so opening
-                // and saving without touching the key never rewrites providers.json.
-                var keyTarget = SelectedProviderName() ?? chosen;
-                if (!string.IsNullOrWhiteSpace(keyTarget)
-                    && ProviderConfigs.TryGet(keyTarget, out var chosenCfg) && chosenCfg != null)
+                // Persist an edited API key for the dropdown-selected provider.
+                if (ProviderConfigs.TryGet(chosen, out var chosenCfg) && chosenCfg != null)
                 {
                     var newKey = (apiKeyField.Text ?? "").Trim();
                     if (!string.Equals(newKey, chosenCfg.ApiKey ?? "", StringComparison.Ordinal))
-                        ProviderConfigs.SetApiKey(keyTarget, newKey, persist: true);
+                        ProviderConfigs.SetApiKey(chosen, newKey, persist: true);
                 }
                 // The dropdown selection is the definitive active provider: persist it as the
                 // default (new chats start from it) and adopt it for the running process.
