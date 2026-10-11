@@ -16,9 +16,21 @@ using System.Reflection;
 /// DEBUG tripwire that refuses to start when config json sits next to the assemblies.</summary>
 public static class AppConfig
 {
+    private static string? _persistentDir;
+
+    /// <summary>The default persistent-config folder, next to the executable.</summary>
+    private static string DefaultPersistentDir => Path.Combine(AppContext.BaseDirectory, "PersistentData");
+
     /// <summary>User-editable configuration folder: inside the app folder but never part of
-    /// any update (it is not in the release archive and the updater never touches it).</summary>
-    public static string PersistentDir => Path.Combine(AppContext.BaseDirectory, "PersistentData");
+    /// any update (it is not in the release archive and the updater never touches it).
+    ///
+    /// When the app folder is not writable — the app installed under a protected location
+    /// (C:\Program Files on Windows, a system directory on Linux/macOS) and run without
+    /// elevation, or read-only media — the folder falls back to the OS app-data folder so the
+    /// app still starts. <see cref="Initialize"/> resolves it once; before that the property
+    /// reports the default location. Regression: crash report #83 (DirectoryNotFoundException
+    /// at startup because the config provider was built on a folder that could not be created).</summary>
+    public static string PersistentDir => _persistentDir ?? DefaultPersistentDir;
 
     /// <summary>Server/user configuration file (persistent, user-editable).</summary>
     public static string AppSettingsFile => Path.Combine(PersistentDir, "appsettings.json");
@@ -52,7 +64,35 @@ public static class AppConfig
         // child's) resolve against the install dir, never against the caller's terminal.
         try { Directory.SetCurrentDirectory(AppContext.BaseDirectory); } catch { }
 
-        try { Directory.CreateDirectory(PersistentDir); } catch { }
+        // Resolve a writable persistent-config folder. The default is PersistentData next to the
+        // executable; when that cannot be created or written (read-only install dir, no write
+        // permission — e.g. the app installed under C:\Program Files and run without elevation,
+        // or read-only media) fall back to the OS app-data folder. Without this the app boots
+        // but crashes a few lines later when the ASP.NET config provider is built: the
+        // PhysicalFileProvider constructor throws DirectoryNotFoundException on a missing
+        // folder, and the failure is silent until then. Regression: crash report #83.
+        var preferred = DefaultPersistentDir;
+        if (EnsureWritable(preferred))
+        {
+            _persistentDir = preferred;
+        }
+        else
+        {
+            // Fallback to the OS app-data folder. GetFolderPath can return an empty string on a
+            // misconfigured environment (no XDG_DATA_HOME and no resolvable HOME on Linux); a
+            // relative fallback would then resolve against the CWD and break the config seeding,
+            // so require a rooted path and fall back to the temp dir otherwise.
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var root = !string.IsNullOrWhiteSpace(appData) && Path.IsPathRooted(appData)
+                ? appData
+                : Path.GetTempPath();
+            var fallback = Path.Combine(root, "agent", "PersistentData");
+            EnsureWritable(fallback);
+            _persistentDir = fallback;
+            Console.Error.WriteLine(
+                $"AppConfig: cannot write to {preferred} (read-only folder or no permission) — " +
+                $"persistent configuration moved to {fallback}");
+        }
 
         MigrateLegacy(AppSettingsFile, "appsettings.json");
         MigrateLegacy(ProvidersFile, "providers.json");
@@ -98,6 +138,25 @@ public static class AppConfig
         catch (Exception ex)
         {
             Console.Error.WriteLine($"AppConfig: cannot migrate legacy '{fileName}': {ex.Message}");
+        }
+    }
+
+    /// <summary>Creates <paramref name="dir"/> if missing and verifies it is actually writable
+    /// (a folder can exist yet be read-only). Returns true when the folder is usable for
+    /// persistent configuration, false when it could not be created or written.</summary>
+    private static bool EnsureWritable(string dir)
+    {
+        try
+        {
+            Directory.CreateDirectory(dir);
+            var probe = Path.Combine(dir, ".writetest");
+            File.WriteAllText(probe, "");
+            File.Delete(probe);
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 

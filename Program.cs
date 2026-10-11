@@ -207,13 +207,21 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 // first, so environment variables and the command line still override it (as when the file sat
 // at the content root). The Web SDK's own content-root appsettings providers stay in the chain
 // but find nothing, because no appsettings.json is shipped next to the exe anymore.
-builder.Configuration.Sources.Insert(0, new JsonConfigurationSource
+// AppConfig has already resolved a writable PersistentData (falling back to the OS app-data
+// folder when the install dir is read-only); the Directory.Exists guard is defense-in-depth so a
+// still-missing folder (both locations unwritable) boots with defaults instead of throwing —
+// the PhysicalFileProvider constructor throws DirectoryNotFoundException on a missing folder.
+// Regression: crash report #83.
+if (Directory.Exists(AppConfig.PersistentDir))
 {
-    FileProvider = new PhysicalFileProvider(AppConfig.PersistentDir),
-    Path = "appsettings.json",
-    Optional = true,
-    ReloadOnChange = false
-});
+    builder.Configuration.Sources.Insert(0, new JsonConfigurationSource
+    {
+        FileProvider = new PhysicalFileProvider(AppConfig.PersistentDir),
+        Path = "appsettings.json",
+        Optional = true,
+        ReloadOnChange = false
+    });
+}
 
 // ── Port separation — DEBUG and RELEASE are designed to coexist on one machine ──
 // The installed release keeps the documented default ports (Urls http://localhost:5290,
