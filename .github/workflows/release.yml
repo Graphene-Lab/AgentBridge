@@ -242,6 +242,16 @@ jobs:
 
       # Builds against the published NuGet packages (Graphene.AIOrchestrator 1.* and its
       # dependencies) — the sibling repos are private and never checked out here.
+      #
+      # SYMBOLS ARE DELIBERATELY KEPT (DebugType=portable, the Release default): the automatic
+      # crash reports read the stack trace with fNeedFileInfo and can only show file+line when
+      # the .pdb is available at runtime on the user's machine. A single-file app cannot carry
+      # embedded symbols (IncludeSymbolsInSingleFile is unsupported since .NET 5), so the
+      # portable .pdb ships next to the single-file exe inside the archive and the loader picks
+      # it up from there (its PDB/document-name check rejects a stale or mismatched .pdb, so an
+      # updated exe is never paired with wrong line numbers). Stripping symbols here
+      # (DebugType=None, the previous setting) produced reports whose project frames had no
+      # line numbers at all — the crash issues of 2026-10-11 were exactly that.
       - name: Publish
         shell: bash
         run: |
@@ -249,7 +259,7 @@ jobs:
             --self-contained true \
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
-            -p:DebugType=None -p:DebugSymbols=false \
+            -p:DebugType=portable \
             ${{ needs.check-version.outputs.publish_props }} \
             -o ./publish
 
