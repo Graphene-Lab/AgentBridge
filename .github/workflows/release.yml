@@ -587,38 +587,14 @@ jobs:
             artifacts/**/*.tar.gz
             artifacts/**/*.msi
           body: |
-            ### Settings, rebuilt around separate panels
+            ### Settings Save buttons now save changes
 
-            The single tabbed "Main settings" window is gone. Settings now opens as focused
-            panels — **LLM & Provider**, **Email (SMTP + IMAP)** and **General** — each with
-            its own **Save** that closes only when its values validate, so a bad value in one
-            area never blocks the others.
+            Fixed **Save** in **LLM & Provider**, **Email**, **General** and **SIP** settings.
+            Previously, the dialog could close before the save handler ran, leaving changes
+            unapplied. Save now runs validation and saving before closing the dialog, and
+            invalid values keep the dialog open for correction.
 
-            ### Provider management is clearer
-
-            The **active-provider dropdown** is now the single way to change which provider is
-            active: pick one, press Save, and the choice persists across restarts. The active
-            provider is marked **(attivo)** in the list, the dropdown and the list always agree,
-            and the old "Set default" button is gone. **Edit** opens the provider selected in
-            the list, and the API-key field shows the stored key masked.
-
-            ### SIP telephony is now a real settings panel
-
-            The SIP page used to be read-only. It is now a full editable panel: enable/disable,
-            listen port, registrar, credentials, answer mode and PIN, plus call / hang-up /
-            reload actions.
-
-            ### Voice moved to the Session menu
-
-            Voice starts a one-shot dictation, so it is no longer a "setting": it now lives
-            under **Session**, alongside the model switch and session features. The TTS engine
-            panel gained a **reset to default**.
-
-            ### Documentation on the wiki
-
-            The user guides now live on the GitHub wiki, kept in sync automatically from the
-            repository. **Help → Documentation** (and `/docs`) opens
-            https://github.com/Graphene-Lab/AgentBridge/wiki.
+            Delivered attachments are also highlighted in bright yellow in the terminal UI.
           generate_release_notes: true
 
   # Microsoft Store submission: once the release exists with the MSI attached, point the
