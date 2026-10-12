@@ -1555,7 +1555,9 @@ public static class ConsoleTui
         private sealed class ChatRoleColorizer(Editor chat, Color userColor) : IVisualLineTransformer
         {
             private const string UserRole = "user";
+            private const string AttachmentRole = "attachment";
             private TuiAttribute? _userAttribute;
+            private TuiAttribute? _attachmentAttribute;
             private string _text = "";
             private string[] _roles = [];
 
@@ -1568,16 +1570,33 @@ public static class ConsoleTui
                     _roles = ComputeRoles(text);
                 }
                 int index = line.DocumentLine.LineNumber - 1;
-                if (index < 0 || index >= _roles.Length || _roles[index] != UserRole) return;
-                _userAttribute ??= new TuiAttribute(userColor, Color.Black);
-                foreach (CellVisualLineElement element in line.Elements)
-                    element.Attribute = _userAttribute.Value;
+                if (index < 0 || index >= _roles.Length) return;
+                if (_roles[index] == UserRole)
+                {
+                    _userAttribute ??= new TuiAttribute(userColor, Color.Black);
+                    foreach (CellVisualLineElement element in line.Elements)
+                        element.Attribute = _userAttribute.Value;
+                }
+                else if (_roles[index] == AttachmentRole)
+                {
+                    _attachmentAttribute ??= new TuiAttribute(Color.BrightYellow, Color.Black);
+                    foreach (CellVisualLineElement element in line.Elements)
+                        element.Attribute = _attachmentAttribute.Value;
+                }
             }
 
             // One role per document line: the trimmed line is a role header → switch the
             // block; anything else (body, blanks, attachments) inherits the block's role.
             private static string[] ComputeRoles(string text)
             {
+                // Attachment lines are matched from the same localized resources AppendEntry
+                // writes, so detection stays correct in every language: the marker is
+                // "<prefix>{0}", the hint is a fixed line.
+                var marker = Dictionary.ChatAttachmentMarker ?? "";
+                int placeholder = marker.IndexOf("{0}", StringComparison.Ordinal);
+                var markerPrefix = placeholder >= 0 ? marker[..placeholder] : marker;
+                var hint = Dictionary.ChatAttachmentHint ?? "";
+
                 var roles = new List<string>();
                 var isUser = false;
                 var start = 0;
@@ -1591,7 +1610,11 @@ public static class ConsoleTui
                         || line.SequenceEqual(Dictionary.HistoryError)
                         || line.SequenceEqual("·"))
                         isUser = false;
-                    roles.Add(isUser ? UserRole : "");
+                    if ((markerPrefix.Length > 0 && line.StartsWith(markerPrefix, StringComparison.Ordinal))
+                        || (hint.Length > 0 && line.SequenceEqual(hint)))
+                        roles.Add(AttachmentRole);
+                    else
+                        roles.Add(isUser ? UserRole : "");
                 }
                 return roles.ToArray();
             }
