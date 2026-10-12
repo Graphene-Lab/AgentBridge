@@ -1980,8 +1980,12 @@ public static class ConsoleTui
             dlg.Add(status, enabled, passHint, pinHint, saveErr);
 
             var save = new Button { Text = Dictionary.SetupSave, X = 1, Y = 14 };
-            save.Accepted += async (_, _) =>
+            save.Accepting += async (_, e) =>
             {
+                // By design, Terminal.Gui forwards unhandled Accept actions to the dialog,
+                // which can close it and raise its own events. Handle the action here so
+                // this handler controls validation, saving, and when the dialog closes.
+                e.Handled = true;
                 saveErr.Text = "";
                 // Each field is posted only when it actually changed (secrets only when a
                 // new value was typed), so saving never clobbers an untouched secret.
@@ -4202,8 +4206,12 @@ public static class ConsoleTui
             };
 
             var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
-            save.Accepted += (_, _) =>
+            save.Accepting += (_, e) =>
             {
+                // By design, Terminal.Gui forwards unhandled Accept actions to the dialog,
+                // which can close it and raise its own events. Handle the action here so
+                // this handler controls validation, saving, and when the dialog closes.
+                e.Handled = true;
                 var chosen = (providerDropdown.Text ?? "").Trim();
                 if (chosen.Length == 0
                     || !ProviderConfigs.All.Any(p => string.Equals(p.ProviderName, chosen, StringComparison.OrdinalIgnoreCase)))
@@ -4285,8 +4293,12 @@ public static class ConsoleTui
             dlg.Add(imapErr);
 
             var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
-            save.Accepted += (_, _) =>
+            save.Accepting += (sender, e) =>
             {
+                // By design, Terminal.Gui forwards unhandled Accept actions to the dialog,
+                // which can close it and raise its own events. Handle the action here so
+                // this handler controls validation, saving, and when the dialog closes.
+                e.Handled = true;
                 smtpErr.Text = "";
                 imapErr.Text = "";
                 bool ok = true;
@@ -4364,8 +4376,12 @@ public static class ConsoleTui
             dlg.Add(logEnabled, autoStart, pathErr);
 
             var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
-            save.Accepted += (_, _) =>
+            save.Accepting += (_, e) =>
             {
+                // By design, Terminal.Gui forwards unhandled Accept actions to the dialog,
+                // which can close it and raise its own events. Handle the action here so
+                // this handler controls validation, saving, and when the dialog closes.
+                e.Handled = true;
                 pathErr.Text = "";
                 if (!AIOrchestrator.Setup.TrySetDocumentsPath(docsPath.Text ?? "", out var pathNote))
                 {
