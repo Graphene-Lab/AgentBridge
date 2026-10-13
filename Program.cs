@@ -1698,6 +1698,20 @@ if (useTui)
         // connects to it instead of hosting a second (conflicting) server.
         hostError = ex.Message;
     }
+    // True when the exception chain bottoms out on a missing embedded resource — the
+    // signature of a damaged or half-finished install/update where the localized UI
+    // strings cannot be read (issue #96). The terminal UI is built from those strings
+    // in ConsoleTui's static initializer, so such a failure surfaces as a
+    // TypeInitializationException wrapping a MissingManifestResourceException before
+    // the alternate screen is even entered. Used to degrade to server-only instead of
+    // crash-looping (the crash handler would restart the process every 60 s into the
+    // same unreadable-resource failure).
+    static bool HasMissingUiResource(Exception? ex)
+    {
+        for (var e = ex; e != null; e = e.InnerException)
+            if (e is System.Resources.MissingManifestResourceException) return true;
+        return false;
+    }
     try
     {
 #if DEBUG
@@ -1734,6 +1748,21 @@ if (useTui)
 #else
         await ConsoleTui.RunAsync(tuiUrl, hostError);
 #endif
+    }
+    catch (Exception ex) when (HasMissingUiResource(ex))
+    {
+        // The localized UI strings could not be loaded: the embedded resource set is
+        // unreadable, which only happens on a damaged or half-finished install/update
+        // (issue #96). The terminal UI cannot be built, but the HTTP server is healthy,
+        // so keep serving instead of dying and letting the crash handler restart the
+        // process every 60 s into the same failure. The console writers were silenced
+        // for the TUI — restore them so this message is actually visible.
+        try { Console.SetOut(realStandardOutput); Console.SetError(realStandardError); } catch { }
+        Console.Error.WriteLine("AgentBridge: the interface language files could not be loaded (damaged or incomplete install/update).");
+        Console.Error.WriteLine("The terminal UI cannot start, but the server keeps running — the API stays available.");
+        Console.Error.WriteLine("Reinstall the latest version to restore the terminal UI.");
+        Log.LogStep("TUI disabled: UI resources unreadable (" + ex.GetType().Name + ") — running server-only", monitor: true);
+        await app.WaitForShutdownAsync();
     }
     finally
     {
