@@ -197,14 +197,44 @@ internal static class Program
             Check("providers: NO 'Set default' button", !Any(prov, "Set default", "Imposta come predefinito", "Imposta predefinito"));
             Check("providers: NO '(default)' marker", !Any(prov, "(default)", "(predefinito)"));
 
-            // The Edit button must be present and hit-testable. Firing the edit
-            // dialog from the puppet pump is unreliable (a synthetic mouse click /
-            // Enter raised inside the nested modal loop mis-triggers or is swallowed
-            // by the dialog default), so the harness verifies the button exists and
-            // is wired (hit-test confirms a Button "Modifica"); the dialog-open path
-            // is verified by code review (editBtn.Accepted -> ShowProviderDialog).
-            var editBtn = FindButton("Modifica") ?? FindButton("Edit");
+            // The three list-operation buttons must actually DO something when clicked.
+            // They used to be dead: a Button wired only with .Accepted lets the Accept
+            // bubble to the Dialog, which closes itself, so the action never ran and the
+            // panel just vanished (issue #94). They are now wired through
+            // Tui.OnButtonClicked (.Accepting + Handled), so a click opens the dialog.
+            var addBtn = FindButton("Aggiungi…") ?? FindButton("Add…") ?? FindButton("Add");
+            Check("providers: Add button present & hit-testable", addBtn != null);
+            if (addBtn != null)
+            {
+                await MouseClick(addBtn.Value.x, addBtn.Value.y);
+                var addCap = Capture();
+                Check("providers: clicking Add opens the Add provider dialog",
+                    Any(addCap, "Aggiungi provider", "Add provider"));
+                Key("escape"); await Task.Delay(600);
+            }
+
+            var editBtn = FindButton("Modifica…") ?? FindButton("Edit…") ?? FindButton("Edit");
             Check("providers: Edit button present & hit-testable", editBtn != null);
+            if (editBtn != null)
+            {
+                await MouseClick(editBtn.Value.x, editBtn.Value.y);
+                var editCap = Capture();
+                Check("providers: clicking Edit opens the Edit provider dialog",
+                    Any(editCap, "Modifica provider", "Edit provider"));
+                Key("escape"); await Task.Delay(600);
+            }
+
+            var removeBtn = FindButton("Rimuovi") ?? FindButton("Remove");
+            Check("providers: Remove button present & hit-testable", removeBtn != null);
+            if (removeBtn != null)
+            {
+                await MouseClick(removeBtn.Value.x, removeBtn.Value.y);
+                // Removal must ask first — the confirmation popup is part of the contract.
+                var rmCap = Capture();
+                Check("providers: clicking Remove asks for confirmation first",
+                    Any(rmCap, "Rimuovi provider", "Remove provider"));
+                Key("escape"); await Task.Delay(600);
+            }
             await ClosePanel();
 
             // ── 2. Email panel (SMTP + IMAP merged) ──

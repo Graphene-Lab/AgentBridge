@@ -197,6 +197,11 @@ provider panel:
 - `/model` switches **only the current chat** on the fly — it never changes the active
   provider configured here. New chats (Chat → New Chat, `/new`) always start from the active
   provider.
+- **Remove** never deletes silently: it first asks for confirmation in a popup
+  ("Remove 'X' from the configuration?"). Choosing **Cancel** leaves the provider untouched;
+  choosing **Remove** deletes it and persists the change. The provider that is currently
+  active is switched back to the default one, and the last remaining provider cannot be
+  removed, so the app is never left without a provider.
 - The provider list stays in sync with `GET /v1/models`, so an added provider can be switched
   to right away.
 

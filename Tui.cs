@@ -2018,15 +2018,15 @@ public static class ConsoleTui
                 Log.LogStep($"TUI SIP panel saved (restart={restart})", monitor: true);
             };
             var reload = new Button { Text = Dictionary.SetupSipReload, X = Pos.Right(save) + 1, Y = 14 };
-            reload.Accepted += async (_, _) =>
+            OnButtonClicked(reload, async () =>
             {
                 var (error, restart, message) = await SipBridge.ReloadConfigAsync();
                 AddNote(error ?? message);
                 RefreshStatus();
                 _ = RefreshSipStatusAsync();
-            };
+            });
             var answerBtn = new Button { Text = Dictionary.SetupSipAnswerToggle, X = Pos.Right(reload) + 1, Y = 14 };
-            answerBtn.Accepted += async (_, _) =>
+            OnButtonClicked(answerBtn, async () =>
             {
                 var on = !SipBridge.IsAnswerEnabled;
                 var body = JsonSerializer.Serialize(new { on }, JsonOpts);
@@ -2035,9 +2035,9 @@ public static class ConsoleTui
                     ? string.Format(Dictionary.NoteSipAnswerChanged, on ? Dictionary.On : Dictionary.Off)
                     : string.Format(Dictionary.NoteSipCallFailed, "answer", await ReadErrorAsync(resp)));
                 RefreshStatus();
-            };
+            });
             var callBtn = new Button { Text = Dictionary.SetupSipCall, X = 1, Y = 16 };
-            callBtn.Accepted += async (_, _) =>
+            OnButtonClicked(callBtn, async () =>
             {
                 var uri = await PromptOnUiThreadAsync(Dictionary.SetupSipCall, "");
                 if (string.IsNullOrWhiteSpace(uri)) return;
@@ -2047,14 +2047,14 @@ public static class ConsoleTui
                     ? string.Format(Dictionary.NoteSipCallOk, uri)
                     : string.Format(Dictionary.NoteSipCallFailed, uri, await ReadErrorAsync(resp)));
                 RefreshStatus();
-            };
+            });
             var hangupBtn = new Button { Text = Dictionary.SetupSipHangup, X = Pos.Right(callBtn) + 1, Y = 16 };
-            hangupBtn.Accepted += async (_, _) =>
+            OnButtonClicked(hangupBtn, async () =>
             {
                 using var resp = await _http.PostAsync("/v1/sip/hangup", new StringContent("{}", Encoding.UTF8, "application/json"));
                 AddNote(resp.IsSuccessStatusCode ? Dictionary.NoteSipHangup : Dictionary.NoteSipUnavailableCall);
                 RefreshStatus();
-            };
+            });
             dlg.Add(save, reload, answerBtn, callBtn, hangupBtn);
 
             var close = new Button { Text = Dictionary.Close };
@@ -2247,7 +2247,7 @@ public static class ConsoleTui
                 RefreshStatus();
                 _ = RefreshTelegramStatusAsync();
             }
-            sendBtn.Accepted += (_, _) => SubmitLoginCode(codeField.Text ?? "");
+            OnButtonClicked(sendBtn, () => SubmitLoginCode(codeField.Text ?? ""));
             codeField.KeyDown += (_, key) =>
             {
                 if (key == Key.Enter) { key.Handled = true; SubmitLoginCode(codeField.Text ?? ""); }
@@ -2264,7 +2264,7 @@ public static class ConsoleTui
             var reloadBtn = new Button { Text = Dictionary.DlgTelegramReload, X = Pos.Right(configBtn) + 1, Y = 12 };
             var toggleBtn = new Button { Text = Dictionary.DlgTelegramToggleEnable, X = 1, Y = 14 };
 
-            allowBtn.Accepted += async (_, _) =>
+            OnButtonClicked(allowBtn, async () =>
             {
                 Log.LogStep("TUI /telegram: Consenti utente", monitor: true);
                 var who = await PromptOnUiThreadAsync(Dictionary.DlgTelegramAllow, "");
@@ -2277,8 +2277,8 @@ public static class ConsoleTui
                     _ = RefreshTelegramStatusAsync();
                 }
                 codeField.SetFocus();   // the nested prompt refocused the main input — bring focus back into the panel
-            };
-            disallowBtn.Accepted += async (_, _) =>
+            });
+            OnButtonClicked(disallowBtn, async () =>
             {
                 Log.LogStep("TUI /telegram: Blocca utente", monitor: true);
                 var who = await PromptOnUiThreadAsync(Dictionary.DlgTelegramDisallow, "");
@@ -2291,10 +2291,10 @@ public static class ConsoleTui
                     _ = RefreshTelegramStatusAsync();
                 }
                 codeField.SetFocus();   // the nested prompt refocused the main input — bring focus back into the panel
-            };
-            configBtn.Accepted += (_, _) => { Log.LogStep("TUI /telegram: Mostra configurazione"); RunCommandByName("telegram", "config"); };
-            reloadBtn.Accepted += (_, _) => { Log.LogStep("TUI /telegram: Ricarica configurazione", monitor: true); RunCommandByName("telegram", "config reload"); };
-            toggleBtn.Accepted += async (_, _) =>
+            });
+            OnButtonClicked(configBtn, () => { Log.LogStep("TUI /telegram: Mostra configurazione"); RunCommandByName("telegram", "config"); });
+            OnButtonClicked(reloadBtn, () => { Log.LogStep("TUI /telegram: Ricarica configurazione", monitor: true); RunCommandByName("telegram", "config reload"); });
+            OnButtonClicked(toggleBtn, async () =>
             {
                 Log.LogStep("TUI /telegram: toggle abilitazione", monitor: true);
                 var (error, restart, message) = await TelegramBridge.SetConfigAsync("Enabled", TelegramBridge.IsEnabled ? "false" : "true");
@@ -2309,7 +2309,7 @@ public static class ConsoleTui
                 }
                 RefreshStatus();
                 _ = RefreshTelegramStatusAsync();
-            };
+            });
 
             dlg.Add(status, hint, codeLabel, codeField, sendBtn, allowBtn, disallowBtn, configBtn, reloadBtn, toggleBtn);
             var close = new Button { Text = Dictionary.Close };
@@ -2353,9 +2353,9 @@ public static class ConsoleTui
                 }
             };
             var ok = new Button { Text = Dictionary.Ok, IsDefault = true };
-            ok.Accepted += (_, _) => { result = (field.Text ?? "").Trim(); _app.RequestStop(dlg); };
+            OnButtonClicked(ok, () => { result = (field.Text ?? "").Trim(); _app.RequestStop(dlg); });
             var cancel = new Button { Text = Dictionary.Cancel };
-            cancel.Accepted += (_, _) => _app.RequestStop(dlg);
+            OnButtonClicked(cancel, () => _app.RequestStop(dlg));
             dlg.Add(field, hint);
             // AddButton makes the LAST button the Enter default: Cancel first, OK last so
             // Enter confirms (same convention as the provider edit dialog).
@@ -2813,7 +2813,7 @@ public static class ConsoleTui
             dlg.Add(currentLabel, list, msg);
 
             var setBtn = new Button { Text = Dictionary.TtsEngineSetSelected, X = 1, Y = 11 };
-            setBtn.Accepted += (_, _) =>
+            OnButtonClicked(setBtn, () =>
             {
                 var i = list.SelectedItem;
                 if (i is not { } idx || idx < 0 || idx >= engines.Count) { msg.Text = Dictionary.TtsEnginePickOne; return; }
@@ -2821,15 +2821,15 @@ public static class ConsoleTui
                 current = CurrentTtsEngine();
                 currentLabel.Text = string.Format(Dictionary.TtsEngineCurrent, current);
                 Log.LogStep($"TUI TTS engine set to {current}", monitor: true);
-            };
+            });
             var resetBtn = new Button { Text = Dictionary.TtsEngineReset, X = Pos.Right(setBtn) + 1, Y = 11 };
-            resetBtn.Accepted += (_, _) =>
+            OnButtonClicked(resetBtn, () =>
             {
                 msg.Text = ApplyTtsEngine(TtsEngineSupport.DefaultEngine);
                 current = CurrentTtsEngine();
                 currentLabel.Text = string.Format(Dictionary.TtsEngineCurrent, current);
                 Log.LogStep("TUI TTS engine reset to default", monitor: true);
-            };
+            });
             dlg.Add(setBtn, resetBtn);
 
             var close = new Button { Text = Dictionary.Close };
@@ -3122,7 +3122,7 @@ public static class ConsoleTui
             }
 
             var addBtn = new Button { Text = Dictionary.FilesAdd, X = 1, Y = Pos.Bottom(msg) + 1 };
-            addBtn.Accepted += async (_, _) =>
+            OnButtonClicked(addBtn, async () =>
             {
                 var path = await PromptOnUiThreadAsync(Dictionary.FilesAdd, Dictionary.FilesAddPrompt);
                 if (string.IsNullOrWhiteSpace(path)) { list.SetFocus(); return; }
@@ -3150,17 +3150,17 @@ public static class ConsoleTui
                 }
                 catch (Exception ex) { msg.Text = string.Format(Dictionary.NoteUploadFailed, ex.Message); }
                 list.SetFocus();
-            };
+            });
             var toggleBtn = new Button { Text = Dictionary.FilesToggleAttach, X = Pos.Right(addBtn) + 1, Y = Pos.Bottom(msg) + 1 };
-            toggleBtn.Accepted += (_, _) =>
+            OnButtonClicked(toggleBtn, () =>
             {
                 if (!TrySelected(out var idx)) { msg.Text = Dictionary.FilesPickOne; return; }
                 ToggleAttach(Snapshot()[idx]);
                 RefreshList();
                 list.SetFocus();
-            };
+            });
             var removeBtn = new Button { Text = Dictionary.FilesRemove, X = Pos.Right(toggleBtn) + 1, Y = Pos.Bottom(msg) + 1 };
-            removeBtn.Accepted += async (_, _) =>
+            OnButtonClicked(removeBtn, async () =>
             {
                 if (!TrySelected(out var idx)) { msg.Text = Dictionary.FilesPickOne; return; }
                 var f = Snapshot()[idx];
@@ -3177,7 +3177,7 @@ public static class ConsoleTui
                 catch (Exception ex) { msg.Text = string.Format(Dictionary.NoteDeleteFailed, ex.Message); }
                 RefreshList();
                 list.SetFocus();
-            };
+            });
             dlg.Add(addBtn, toggleBtn, removeBtn);
 
             var close = new Button { Text = Dictionary.Close };
@@ -4039,6 +4039,23 @@ public static class ConsoleTui
         // A tabbed modal window (models/providers, email SMTP, IMAP, general) mirroring the
         // AIOrchestrator settings. Field edits are applied on Save; provider list operations
         // (Add/Edit/Remove) apply immediately and persist to providers.json.
+
+        // Wires an action to a Button that lives INSIDE a dialog body (not in the footer
+        // button row). Terminal.Gui v2 raises Accepting first and, when nothing handles it,
+        // bubbles the Accept up to the Dialog — which closes itself — so a handler attached
+        // only to Accepted never runs and the panel just disappears on click (issue #94:
+        // "Add", "Edit" and "Remove" did nothing). Marking Accepting handled stops the
+        // bubble and runs the action, for both mouse clicks and Enter. Footer buttons added
+        // with Dialog.AddButton take the default-button path and are unaffected.
+        private static void OnButtonClicked(Button btn, Action action)
+        {
+            btn.Accepting += (_, e) =>
+            {
+                e.Handled = true;
+                action();
+            };
+        }
+
         private Task ShowProvidersPanelAsync()
         {
             var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -4160,7 +4177,7 @@ public static class ConsoleTui
 
             RefreshProviders();
 
-            addBtn.Accepted += (_, _) =>
+            OnButtonClicked(addBtn, () =>
             {
                 Log.LogStep("TUI Providers: Add provider button", monitor: true);
                 var cfg = ShowProviderDialog(null);
@@ -4170,8 +4187,8 @@ public static class ConsoleTui
                 else
                     AddNote(string.Format(Dictionary.SetupProviderExists, cfg.ProviderName));
                 RefreshProviders();
-            };
-            editBtn.Accepted += (_, _) =>
+            });
+            OnButtonClicked(editBtn, () =>
             {
                 // Edit the provider currently shown in the dropdown.
                 var name = providerDropdown.Text;
@@ -4182,8 +4199,8 @@ public static class ConsoleTui
                 ProviderConfigs.Upsert(cfg, persist: true);
                 AddNote(string.Format(Dictionary.SetupProviderUpdated, cfg.ProviderName));
                 RefreshProviders();
-            };
-            removeBtn.Accepted += (_, _) =>
+            });
+            OnButtonClicked(removeBtn, () =>
             {
                 var name = providerDropdown.Text;
                 if (string.IsNullOrWhiteSpace(name)) { AddNote(Dictionary.SetupSelectToRemove); return; }
@@ -4203,7 +4220,7 @@ public static class ConsoleTui
                     _ = SwitchModelAsync(ProviderConfigs.Default.ProviderName);
                 }
                 RefreshProviders();
-            };
+            });
 
             var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
             save.Accepting += (_, e) =>
@@ -4464,7 +4481,7 @@ public static class ConsoleTui
 
             ProviderConfig? result = null;
             var ok = new Button { Text = Dictionary.Ok, IsDefault = true };
-            ok.Accepted += (_, _) =>
+            OnButtonClicked(ok, () =>
             {
                 var providerName = (nameField.Text ?? "").Trim();
                 if (providerName.Length == 0)
@@ -4517,9 +4534,9 @@ public static class ConsoleTui
                 };
                 Log.LogStep($"TUI Provider dialog OK: {providerName} ({proto})", monitor: true);
                 _app.RequestStop(dlg);
-            };
+            });
             var cancel = new Button { Text = Dictionary.Cancel };
-            cancel.Accepted += (_, _) => { Log.LogStep("TUI Provider dialog cancelled"); _app.RequestStop(dlg); };
+            OnButtonClicked(cancel, () => { Log.LogStep("TUI Provider dialog cancelled"); _app.RequestStop(dlg); });
             // Last-added button becomes the Enter default (TG v2.4.17): Cancel first,
             // OK last so Enter CONFIRMS the edit (issue #8: edits appeared to not save
             // because Enter triggered Annulla instead).
