@@ -298,6 +298,39 @@ The two Editor roles in `Tui.cs`:
 | 7 | **`Dim.Fill()`-based heights collapse in stacked dialog layouts** | A ListView with `Height = Dim.Fill() - 7` inside a modal dialog rendered **1 row** (the Fill math resolved against the dialog's content box, went negative and clamped) | Use **fixed heights** for stacked lists in a dialog (preset list + tool list in `ShowToolsDialog`); `Dim.Fill() - n` is safe only for a single list against a tall dialog (picker pattern) |
 | 8 | **Editing `Dictionary.*.resx` from the CLI does not regenerate `Dictionary.Designer.cs`** | New `Dictionary.X` members are missing → compile errors CS0117 | The VS custom tool only runs in the IDE; from the CLI run `scripts/regenerate-dictionary-designer.ps1` (replicates StronglyTypedResourceBuilder output, UTF-8 no BOM) |
 | 9 | **`KeyBindings.Add(Key.Enter, …)` on a `ListView` throws** | "A binding for Enter exists ([Accept], Key=Enter)" — the ListView already binds Enter → `Accept` by default; re-adding it breaks the dialog mid-construction | Do NOT add it; subscribe to `list.Accepted` only — it fires through the default binding once the list has focus |
+| 10 | **A background write to `Console.Error` corrupts the whole screen** | Stray error text and fragments of the previous reply appear in the empty area, the header menu and the footer, then vanish on the next redraw (issue #93, seen when the agent tried a task it had no tool for) | When the TUI owns the console, `Program.cs` nulls **both** `Console.Out` and `Console.Error` (see the `useTui` block). See box below |
+
+### 10 — `Console.Error` writes corrupt the TUI screen (issue #93)
+
+Symptom: while the agent works on a task that fails (e.g. generating a PDF it has
+no tool for), error text and pieces of the previous answer appear scattered across
+the empty area, the top menu bar and the bottom tool bar, and disappear again after
+a while.
+
+Root cause: the engine (`Graphene.AIOrchestrator` / `AgentHarness`) writes
+diagnostics straight to `Console.Error` from background threads — the document
+pipeline logs `FATAL: {ex}` in `CreateDocument.Create`, and `RagDocumentProcessor`
+logs `⚠ Reindex failed` / `⚠ CreateVectorStreaming` and friends. `stdout`
+(`Console.Out`, fd 1) and `stderr` (`Console.Error`, fd 2) are **two streams onto
+the same terminal**: a background `Console.Error` write interleaves with
+Terminal.Gui's own `stdout` output mid-escape-sequence, so the cursor model goes
+out of sync and bytes land in arbitrary screen regions until the next full redraw
+overwrites them.
+
+Fix (in `Program.cs`, the process that owns the console): when `useTui` is true,
+redirect **both** writers to `TextWriter.Null` in Release, exactly as `Console.Out`
+was already handled — the pre-fix code nulled only `Console.Out`, leaving
+`Console.Error` live. The real writers are captured at the top of `Program.cs`
+(`realStandardOutput` / `realStandardError`) and restored first thing in the
+`UnhandledException` handler, so a genuine crash still prints a readable report
+after leaving the alternate screen. In DEBUG both writers stay live so
+`--headless` and the test harnesses still see output.
+
+Rule for contributors: **never** rely on `Console.Out`/`Console.Error` being visible
+while the TUI runs — surface messages through the UI instead. A standalone
+reproduction of the interleaving (leak vs. null) is trivial: a background thread
+`Console.Error.WriteLine` while the main thread writes `Console.Out` shows the
+stray text leak with stderr live and vanish with `Console.SetError(TextWriter.Null)`.
 
 ### 6 — Web client launch: the `ESC[8;30;120t` console leak
 

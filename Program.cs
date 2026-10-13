@@ -18,6 +18,11 @@ using Terminal.Gui.Input;
 // is never silently black; the TUI clears the console when it draws.
 Console.WriteLine($"AgentBridge {Assembly.GetExecutingAssembly().GetName().Version} starting — loading components, please wait...");
 
+// The TUI nulls Console.Out/Error while it owns the screen (see the useTui block
+// below). Capture the real writers now so the crash handler can restore them and
+// still print a readable report when the process dies mid-TUI.
+var realStandardOutput = Console.Out;
+var realStandardError = Console.Error;
 // Crash-safe console: when the process dies with an unhandled exception while the TUI
 // owns the console, the screen is left black — and the AIOrchestrator crash handler
 // below then sleeps 60 s before auto-restarting, so the user would stare at a black
@@ -26,6 +31,11 @@ Console.WriteLine($"AgentBridge {Assembly.GetExecutingAssembly().GetName().Versi
 // the AIOrchestrator handler still logs the crash to file and restarts afterwards.
 AppDomain.CurrentDomain.UnhandledException += (_, e) =>
 {
+    // Restore the real console writers first: in TUI mode Console.Out/Error are
+    // TextWriter.Null, which would otherwise swallow both the alt-screen exit and
+    // the crash report printed just below.
+    try { Console.SetOut(realStandardOutput); } catch { }
+    try { Console.SetError(realStandardError); } catch { }
     try { Console.ResetColor(); } catch { }
     if (!OperatingSystem.IsWindows())
     {
@@ -266,11 +276,20 @@ var interactive = !Console.IsInputRedirected && !Console.IsOutputRedirected && !
 var useTui = forceTui || (!forceHeadless && interactive);
 
 // Suppress library/console output when the TUI is active — SIPSorcery (SIP),
-// WTelegramClient (Telegram) and other third-party libraries write directly to
-// Console.Out, which would garble the Terminal.Gui screen.  In DEBUG builds we
-// keep the real writer so --headless / test harnesses still see output.
+// WTelegramClient (Telegram), the AIOrchestrator engine (RagDocumentProcessor
+// reindex warnings, the document-creation "FATAL" line) and other third-party
+// libraries write directly to Console.Out AND Console.Error. Both streams share the
+// same terminal, so a background write interleaves with Terminal.Gui's own output
+// and corrupts the screen: stray error text and fragments of the previous reply
+// appear in the empty area, the header and the footer, then vanish on the next
+// redraw (issue #93). Silence both writers in Release; keep them in DEBUG so
+// --headless and the test harnesses still see output.
 if (useTui)
-    Console.SetOut(Environment.GetCommandLineArgs().Any(a => a.Contains("DEBUG")) ? Console.Out : TextWriter.Null);
+{
+    bool keepConsoleOutput = Environment.GetCommandLineArgs().Any(a => a.Contains("DEBUG"));
+    Console.SetOut(keepConsoleOutput ? realStandardOutput : TextWriter.Null);
+    Console.SetError(keepConsoleOutput ? realStandardError : TextWriter.Null);
+}
 
 // The TUI needs a real console (cursor control, key input): forcing it on a
 // redirected console would crash on the console APIs, so fall back to server-only.
