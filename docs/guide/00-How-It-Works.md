@@ -27,6 +27,8 @@ There is also a quicker way, if you already know what the conversation is about:
 
 The status bar at the bottom of the window always shows the tools active in the conversation you are in, so you know at a glance what the agent can do. If you later add a new tool to the `Tools` folder, AgentBridge picks it up by itself within about half a minute — no restart, and no configuration.
 
+And when you ask for something the current tools cannot do but another installed tool can, the agent tells you which one to switch on instead of just saying it is unable — so you can open **`/tools`** and tick it.
+
 ## The documents area — the agent's knowledge of your office
 
 If tools are the hands, the documents area is the **memory of the office**.

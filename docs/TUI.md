@@ -134,6 +134,11 @@ enabled (class-A plugins ON by default; class-B `OfficeTool` OFF unless enabled 
 The status bar shows the active tools with readable names (`tools: File, Web, Git`), so
 you always know what the agent can do in this conversation.
 
+When you ask for something the current tool set cannot do but another installed tool
+can, the agent no longer just says it is unable: it tells you which tool to turn on and
+to pick it from the **Tools** menu (`/tools`). It only suggests a tool when the request
+clearly matches what that tool does, so a normal question is answered as usual.
+
 ## Telegram chat
 
 `/telegram` turns AgentBridge into a **Telegram chat client** (a userbot): people write to
