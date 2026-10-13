@@ -362,6 +362,13 @@ public static class ConsoleTui
             if (!string.IsNullOrEmpty(_hostError))
                 _history.Add(new Entry { Role = "system", Text = string.Format(Dictionary.HostErrorNote, _hostError) });
 
+            // Warn in the chat when the persisted documents area is no longer usable (the
+            // folder was deleted, the drive went offline): the DocumentsPath getter returns
+            // the stale value as-is, so probe it here. Non-blocking — the app keeps running
+            // and only the document tools are affected until the path is fixed in Settings.
+            if (!AIOrchestrator.Setup.IsDocumentsPathUsable(AIOrchestrator.Setup.DocumentsPath, out var docsPathError))
+                _history.Add(new Entry { Role = "system", Text = string.Format(Dictionary.DocsPathStartupWarning, docsPathError) });
+
             // The /tools selection is persistent (toolset.json under PersistentData): the
             // custom combination or preset chosen in the last run is applied now, before the
             // first chat request, so the enabled tools survive a TUI restart.

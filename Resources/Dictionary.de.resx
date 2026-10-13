@@ -249,6 +249,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupInvalidImapPortTitle" xml:space="preserve"><value>Ungültiger IMAP-Port</value></data>
   <data name="SetupInvalidImapPortText" xml:space="preserve"><value>Der IMAP-Port muss eine Zahl sein (z. B. 993). Korrigieren Sie ihn und drücken Sie erneut Speichern.</value></data>
   <data name="SetupInvalidDocsPathTitle" xml:space="preserve"><value>Ungültiger Dokumentpfad</value></data>
+  <data name="DocsPathStartupWarning" xml:space="preserve"><value>⚠ Dokumentenbereich nicht verfügbar — {0} Öffnen Sie Einstellungen → Allgemein, um einen gültigen Pfad festzulegen.</value></data>
   <data name="SetupInvalidDocsPathText" xml:space="preserve"><value>{0}
 
 Der vorherige Dokumentbereich ist weiterhin aktiv — es wurde nichts geändert.</value></data>

@@ -298,6 +298,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupInvalidImapPortTitle" xml:space="preserve"><value>Porta IMAP non valida</value></data>
   <data name="SetupInvalidImapPortText" xml:space="preserve"><value>La porta IMAP deve essere un numero (es. 993). Correggila e premi di nuovo Salva.</value></data>
   <data name="SetupInvalidDocsPathTitle" xml:space="preserve"><value>Percorso documenti non valido</value></data>
+  <data name="DocsPathStartupWarning" xml:space="preserve"><value>⚠ area documenti non disponibile — {0} Apri Impostazioni → Generali per impostare un percorso valido.</value></data>
   <data name="SetupInvalidDocsPathText" xml:space="preserve"><value>{0}
 
 L'area documenti precedente è ancora attiva — non è stato modificato nulla.</value></data>

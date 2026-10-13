@@ -375,6 +375,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupInvalidImapPortTitle" xml:space="preserve"><value>Invalid IMAP port</value></data>
   <data name="SetupInvalidImapPortText" xml:space="preserve"><value>The IMAP port must be a number (e.g. 993). Fix it and press Save again.</value></data>
   <data name="SetupInvalidDocsPathTitle" xml:space="preserve"><value>Invalid documents path</value></data>
+  <data name="DocsPathStartupWarning" xml:space="preserve"><value>⚠ documents area unavailable — {0} Open Settings → General to set a valid path.</value></data>
   <data name="SetupInvalidDocsPathText" xml:space="preserve"><value>{0}
 
 The previous documents area is still active — nothing was changed.</value></data>

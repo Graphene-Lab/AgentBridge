@@ -2569,6 +2569,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'DocsPathStartupWarning'.
+        /// </summary>
+        public static string DocsPathStartupWarning {
+            get {
+                return ResourceManager.GetString("DocsPathStartupWarning", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Invalid documents path'.
         /// </summary>
         public static string SetupInvalidDocsPathTitle {

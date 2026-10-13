@@ -249,6 +249,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupInvalidImapPortTitle" xml:space="preserve"><value>Port IMAP non valide</value></data>
   <data name="SetupInvalidImapPortText" xml:space="preserve"><value>Le port IMAP doit être un nombre (ex. 993). Corrigez-le et appuyez à nouveau sur Enregistrer.</value></data>
   <data name="SetupInvalidDocsPathTitle" xml:space="preserve"><value>Chemin des documents non valide</value></data>
+  <data name="DocsPathStartupWarning" xml:space="preserve"><value>⚠ zone de documents indisponible — {0} Ouvrez Paramètres → Général pour définir un chemin valide.</value></data>
   <data name="SetupInvalidDocsPathText" xml:space="preserve"><value>{0}
 
 La zone de documents précédente est toujours active — rien n'a été modifié.</value></data>

@@ -249,6 +249,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupInvalidImapPortTitle" xml:space="preserve"><value>Неверный IMAP-порт</value></data>
   <data name="SetupInvalidImapPortText" xml:space="preserve"><value>IMAP-порт должен быть числом (например, 993). Исправьте его и нажмите «Сохранить» снова.</value></data>
   <data name="SetupInvalidDocsPathTitle" xml:space="preserve"><value>Неверный путь к документам</value></data>
+  <data name="DocsPathStartupWarning" xml:space="preserve"><value>⚠ область документов недоступна — {0} Откройте «Параметры» → «Общие», чтобы задать допустимый путь.</value></data>
   <data name="SetupInvalidDocsPathText" xml:space="preserve"><value>{0}
 
 Прежняя область документов по-прежнему активна — ничего не изменено.</value></data>
