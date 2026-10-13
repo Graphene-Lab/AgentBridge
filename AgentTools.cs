@@ -176,7 +176,29 @@ public static class AgentTools
     {
         var (orchestratorTools, subagentTools) = SplitForOrchestration(resolvedToolNames);
         return harness.ExecuteAction(prompt, orchestratorTools, subagentNames: subagentTools,
-            maxIterations: maxIterations, attachments: attachments, isLocalUser: isLocalUser);
+            maxIterations: maxIterations, attachments: attachments, isLocalUser: isLocalUser,
+            contextNote: InactiveToolsHint(resolvedToolNames));
+    }
+
+    /// <summary>Host context note telling the agent which tools are installed on this machine but
+    /// NOT part of the current chat's tool set, so that when a request needs one of them the agent
+    /// points the user at the Tools menu instead of just saying it cannot do the task (issue #97).
+    /// The "active" set is the resolved tool names of the current agent set — a plugin that IS in
+    /// the set is reachable (directly or through the work subagent) and is therefore NOT suggested.
+    /// Reporting tools are excluded: they are toggled from the Help menu, not the Tools menu.
+    /// Returns null when there is nothing inactive to surface (so the note is omitted entirely).</summary>
+    public static string? InactiveToolsHint(string[]? activeToolNames)
+    {
+        var active = new HashSet<string>(activeToolNames ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+        var inactive = Catalog()
+            .Where(t => !active.Contains(t.Name))
+            .Where(t => !ReportingTools.Contains(t.Name, StringComparer.OrdinalIgnoreCase))
+            .ToArray();
+        if (inactive.Length == 0) return null;
+        var list = string.Join(", ", inactive.Select(t => $"{t.Name} ({t.Description})"));
+        return "[Other tools are installed on this system but are not active in this chat right now: " + list + ". " +
+               "If the user's request needs one of these, do NOT say you cannot do it — instead tell the user to activate that tool from the Tools menu. " +
+               "Suggest a tool only when it clearly matches what the user asked for; if none matches, answer normally.]";
     }
 
     /// <summary>Dynamic "all-files" set: every tool currently loaded that the per-tool config
