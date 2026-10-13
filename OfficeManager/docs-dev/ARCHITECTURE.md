@@ -303,6 +303,59 @@ bottom chat uses. While it is open the answer field owns the keyboard: the globa
 key handler returns early (so arrows edit the answer, not the boss), `Escape`
 closes it, and the focus-stealing `focus()` helper is suppressed via `askboxOpen()`.
 
+## The "Currently doing" line (issue #98)
+
+Every active employee states **what** it is working on, not only how far it got:
+the roster row carries a `Currently doing: <request>` line above its bar, and the
+answer window opens with the request (line 1) and the progress bar (line 2).
+
+**Where the text comes from.** The engine's `GlobalProgress` stream does **not**
+carry the user's prompt — only `MethodName`, `Message` (the raw LLM payload on
+`Iteration`, the assistant text on `Initiative`/`Completed`) and the lifecycle
+state. So AgentBridge reports the request itself, from `AgentTools.ExecuteSplit`,
+the single entry point of every textual chat path of this host (TUI, HTTP
+`/v1/chat/completions`, MCP, Telegram, the office chat): it calls
+`OfficeBridge.ReportTask(harness.InstanceId, prompt)` **before** the run starts.
+`AgentHarness.InstanceId` is generated at construction (and replaced by the
+session id for session-backed agents), so it already matches the key the office
+uses for the employee.
+
+Because a one-shot agent reports before its first `Running` event has created the
+employee, `ReportTask` parks the summary in `TaskByAgent` (agentKey → summary) and
+`SpawnLocked` picks it up there; once the employee exists the summary is pushed
+with `task {empId, task}` and travels in the `spawn` frame and in the snapshot, so
+a tab that connects later sees it too. The summary is the **first non-empty line**
+of the request, whitespace-collapsed and capped at 90 characters on a word
+boundary (`SummarizeTask`), so a pasted document never floods the panel. It is
+**kept after the run ends** — a finished task must stay readable — and dropped when
+the employee leaves with its agent (`CloseLocked`); entries whose agent never
+reached an employee are pruned past `TaskMapCap`.
+
+The voice path (`VoiceConversation`) owns its own loop inside the engine and never
+passes through `ExecuteSplit`, so a phone conversation reports no request; the
+subagents the engine launches and the instances forwarded by other applications
+(`POST /v1/office/events`) don't either. All of them fall back to the tool in
+hand, see below — never an empty line where there is something to say.
+
+**Client state.** `Person` carries `task` (the request) and `method` (the last
+tool method seen). `doingText(e)` picks between them: the request when the host
+reported one, otherwise `methodWords(e.method)` — the same PascalCase-split the
+speech bubble uses — and `""` when neither is known. `renderRoster()` adds a
+`.rtask` line only when `doingText` is non-empty, with the full text in the row's
+`title`; the CSS clamps it to two lines (`-webkit-line-clamp`).
+
+The answer window's status block (`#askdoing`) is filled by `fillAskStatus(emp)`,
+split out of `openAskbox` so `onServerMessage` can refresh it on **every** event
+while the window is open — the bar keeps moving without touching `#askinput`, so
+an answer being typed is never eaten. The block's class carries the status
+(`askdoing working|waiting|done`), which drives the bar and status colours.
+
+**Tests.** `e2e/OfficeTaskLine/protocol.test.mjs` drives a running AgentBridge
+over the real WebSocket (report → frame → snapshot → survive-the-run → truncation);
+`e2e/OfficeTaskLine/client.test.mjs` runs `game.js` in node's `vm` with a fake
+DOM and asserts the roster row and the answer window (precedence, fallback, live
+refresh, empty cases).
+
 ## Wall clock
 
 `drawClock()` draws a live analogue clock (hour/minute/second hands) on the

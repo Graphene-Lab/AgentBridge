@@ -26,6 +26,7 @@ using AIOrchestrator;
 //      {"type":"assign", empId, agentId, label}          // an idle employee became a session agent
 //      {"type":"running",empId, value:bool}              // agent run started/finished
 //      {"type":"method", empId, method}                  // tool method the agent is executing
+//      {"type":"task",   empId, task}                    // the request the employee is working on ("Currently doing …")
 //      {"type":"progress",empId, iteration}              // tool-call step count of the current run (completion bar)
 //      {"type":"needs",  empId, value:bool, done:bool}   // the agent answered: waiting on the user (value) or finished (done)
 //      {"type":"closed", empId}                          // agent instance closed → return to door, despawn
@@ -59,6 +60,7 @@ public static class OfficeBridge
         public string Kind = "idle";                  // idle | session | stateless | subagent
         public int Sprite;
         public string Label = "";
+        public string Task = "";                        // one-line summary of the request being worked on (issue #98)
         public bool Running;
         public int Iteration;                         // tool-call steps of the current run (drives the completion bar)
         public bool NeedsReply;                       // the agent answered and is waiting for the user's answer (chat surface)
@@ -67,6 +69,7 @@ public static class OfficeBridge
 
     private static readonly ConcurrentDictionary<string, Employee> Employees = new();   // empId → employee
     private static readonly ConcurrentDictionary<string, string> ByAgent = new();       // agentKey → empId
+    private static readonly ConcurrentDictionary<string, string> TaskByAgent = new();   // agentKey → "currently doing" summary (issue #98)
     private static readonly HashSet<string> SessionAgents = new();                      // instanceIds backed by a session
     private static readonly HashSet<string> PendingAssign = new();                      // idle empIds waiting for the next session
     private static readonly ConcurrentDictionary<string, WebSocketClient> Clients = new();
@@ -218,10 +221,13 @@ public static class OfficeBridge
             Kind = kind,
             Sprite = _nextSprite++ % SpriteCount,
             Label = label,
+            // A one-shot agent reports its request before its first progress event creates the
+            // employee, so the task is picked up from the pending map here (issue #98).
+            Task = agentKey != null && TaskByAgent.TryGetValue(agentKey, out var pendingTask) ? pendingTask : "",
         };
         Employees[empId] = emp;
         if (agentKey != null) ByAgent[agentKey] = empId;
-        Broadcast(new { type = "spawn", empId, agentId = agentKey, kind, sprite = emp.Sprite, label });
+        Broadcast(new { type = "spawn", empId, agentId = agentKey, kind, sprite = emp.Sprite, label, task = emp.Task });
         return empId;
     }
 
@@ -246,8 +252,63 @@ public static class OfficeBridge
     private static void CloseLocked(string empId)
     {
         if (!Employees.TryRemove(empId, out var emp)) return;
-        if (emp.AgentId != null) ByAgent.TryRemove(emp.AgentId, out _);
+        if (emp.AgentId != null)
+        {
+            ByAgent.TryRemove(emp.AgentId, out _);
+            TaskByAgent.TryRemove(emp.AgentId, out _);
+        }
         Broadcast(new { type = "closed", empId });
+    }
+
+    /// <summary>Reports the request an agent instance is working on, so the office can show it as
+    /// the employee's "currently doing" line (issue #98). Called by
+    /// <see cref="AgentTools.ExecuteSplit"/> — the single entry point of every textual chat path
+    /// of this host (TUI, HTTP, MCP, Telegram, the office chat itself) — right before the run
+    /// starts, so the line is already there when the employee appears at the door.
+    ///
+    /// The task is kept after the run ends: the roster then reads "DONE — &lt;the request&gt;", which
+    /// is what makes finished work trackable. It is dropped when the employee leaves with its agent.
+    ///
+    /// Agents this process does not route through <see cref="AgentTools.ExecuteSplit"/> (a
+    /// subagent launched inside the engine, or an instance forwarded by another application) never
+    /// report a task: the office falls back to showing their current tool method.</summary>
+    public static void ReportTask(string? agentKey, string? request)
+    {
+        if (string.IsNullOrWhiteSpace(agentKey) || string.IsNullOrWhiteSpace(request)) return;
+        var summary = SummarizeTask(request!);
+        if (summary.Length == 0) return;
+        TaskByAgent[agentKey] = summary;
+        // Runs that never reach an employee (an agent that dies before its first progress event)
+        // would otherwise leave their entry behind forever: prune the ones nobody is showing.
+        if (TaskByAgent.Count > TaskMapCap)
+        {
+            foreach (var orphan in TaskByAgent.Keys.Where(k => !ByAgent.ContainsKey(k)).ToArray())
+                TaskByAgent.TryRemove(orphan, out _);
+        }
+        lock (Sync)
+        {
+            if (!ByAgent.TryGetValue(agentKey, out var empId)) return;      // applied at spawn
+            if (!Employees.TryGetValue(empId, out var emp) || emp.Task == summary) return;
+            emp.Task = summary;
+            Broadcast(new { type = "task", empId, task = summary });
+        }
+    }
+
+    private const int TaskMapCap = 256;
+    private const int TaskMaxLen = 90;
+
+    /// <summary>One line out of a user request: its first non-empty line, whitespace collapsed and
+    /// capped, so a pasted document never floods the roster. The cap falls on a word boundary when
+    /// there is one in the second half of the cut, so the line never ends mid-word.</summary>
+    private static string SummarizeTask(string request)
+    {
+        var line = request.Split('\n').FirstOrDefault(l => !string.IsNullOrWhiteSpace(l)) ?? "";
+        var flat = string.Join(' ', line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        if (flat.Length <= TaskMaxLen) return flat;
+        var head = flat[..TaskMaxLen];
+        var lastSpace = head.LastIndexOf(' ');
+        if (lastSpace > TaskMaxLen / 2) head = head[..lastSpace];
+        return head.TrimEnd() + "…";
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -462,7 +523,7 @@ public static class OfficeBridge
             employees = employees.Select(e => new
             {
                 empId = e.EmpId, agentId = e.AgentId, kind = e.Kind,
-                sprite = e.Sprite, label = e.Label, running = e.Running,
+                sprite = e.Sprite, label = e.Label, task = e.Task, running = e.Running,
                 iteration = e.Iteration, needsReply = e.NeedsReply, done = e.Done
             }),
         }));

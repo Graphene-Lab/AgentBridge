@@ -174,6 +174,10 @@ public static class AgentTools
     public static AgentResult ExecuteSplit(AgentHarness harness, string prompt, string[] resolvedToolNames,
         int maxIterations = 200, IEnumerable<UISupportGeneric.FileAttachment>? attachments = null, bool isLocalUser = false)
     {
+        // Tell the office which request this instance is working on, before the run starts, so the
+        // employee already carries its "currently doing" line when it appears at the door
+        // (issue #98 — see OfficeBridge.ReportTask).
+        OfficeBridge.ReportTask(harness.InstanceId, prompt);
         var (orchestratorTools, subagentTools) = SplitForOrchestration(resolvedToolNames);
         return harness.ExecuteAction(prompt, orchestratorTools, subagentNames: subagentTools,
             maxIterations: maxIterations, attachments: attachments, isLocalUser: isLocalUser,

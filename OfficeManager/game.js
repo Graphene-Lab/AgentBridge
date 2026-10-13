@@ -245,6 +245,8 @@ class Person {
     this.agentId = null;   // bound agent instance key; null = no agent behind this employee
     this.kind = "idle";
     this.label = "";
+    this.task = "";            // the request this employee is working on ("Currently doing", issue #98)
+    this.method = "";          // last tool method seen — the fallback for the "currently doing" line
     this.running = false;
     this.iteration = 0;        // tool-call steps of the current run (completion bar)
     this.needsReply = false;   // the agent answered and is waiting for the user's answer
@@ -309,6 +311,17 @@ function methodWords(name) {
   return parts.length > 1
     ? splitWords(parts[0]) + ", " + splitWords(parts.slice(1).join("."))
     : splitWords(name);
+}
+
+/* What an employee is busy with, for its "Currently doing" line (issue #98): the request it
+   was given, when this host knows it (every chat started from the TUI, the API, Telegram or
+   the office itself); otherwise the tool it has in hand right now — a subagent launched
+   inside the engine, or an instance forwarded by another application, never reports a
+   request, but its current method still says what it is busy with. */
+function doingText(e) {
+  if (e.task) return e.task;
+  if (e.method) return methodWords(e.method);
+  return "";
 }
 
 /* ---------- world state ---------- */
@@ -438,6 +451,9 @@ function onServerMessage(json) {
     case "method":
       setMethod(m.empId, m.method);
       break;
+    case "task":
+      setTask(m.empId, m.task);
+      break;
     case "progress":
       setIteration(m.empId, m.iteration);
       break;
@@ -455,6 +471,7 @@ function onServerMessage(json) {
       break;
   }
   renderRoster();
+  if (askEmp && askboxOpen()) fillAskStatus(askEmp);   // keep the open window's task/bar live
 }
 
 /* the snapshot is the authoritative roster (sent on connect/hello): despawn employees the
@@ -484,6 +501,7 @@ function spawnEmployee(m) {
   e.agentId = m.agentId || null;
   e.kind = m.kind || "idle";
   e.label = m.label || "";
+  e.task = m.task || "";
   e.running = !!m.running;
   e.iteration = m.iteration || 0;
   e.needsReply = !!m.needsReply;
@@ -534,7 +552,16 @@ function setMethod(empId, method) {
   const e = employees.find(e => e.empId === empId);
   if (!e) return;
   e.running = true;
+  e.method = method || "";
   e.sayMethod(method);
+}
+
+/* the request this employee is working on, pushed by the server as soon as the run starts
+   (and kept after it ends, so a finished task stays readable — issue #98) */
+function setTask(empId, task) {
+  const e = employees.find(e => e.empId === empId);
+  if (!e) return;
+  e.task = task || "";
 }
 
 function closeEmployee(empId) {
@@ -1001,6 +1028,15 @@ function renderRoster() {
     const nm = document.createElement("div");
     nm.className = "rname";
     nm.textContent = e.label || e.name || "employee";
+    row.appendChild(nm);
+    const doing = doingText(e);
+    if (doing) {
+      const tk = document.createElement("div");
+      tk.className = "rtask";
+      tk.textContent = "Currently doing: " + doing;
+      tk.title = doing;                       // the full request, the row shows at most two lines
+      row.appendChild(tk);
+    }
     const bar = document.createElement("div");
     bar.className = "rbar";
     const fill = document.createElement("div");
@@ -1010,7 +1046,7 @@ function renderRoster() {
     const st = document.createElement("div");
     st.className = "rstatus";
     st.textContent = statusWord(e);
-    row.appendChild(nm); row.appendChild(bar); row.appendChild(st);
+    row.appendChild(bar); row.appendChild(st);
     row.addEventListener("click", () => openAskbox(e));
     list.appendChild(row);
   }
@@ -1029,12 +1065,27 @@ function hitMessageIcon(px, py) {
   return null;
 }
 
+/* The status block of the answer window: line 1 is what the employee is busy with, line 2 how
+   far it got (issue #98). Split out of openAskbox so the bar keeps moving while the window is
+   open — it is refreshed on every server event, and never touches the answer field. */
+function fillAskStatus(emp) {
+  const doing = doingText(emp);
+  const box = document.getElementById("askdoing");
+  // show the block whenever there is something to say: the request, or progress to track
+  box.style.display = (doing || emp.running || emp.needsReply || emp.done) ? "" : "none";
+  box.className = "askdoing " + statusClass(emp) + (doing ? "" : " notask");
+  document.getElementById("asktask").textContent = doing;
+  document.getElementById("askfill").style.width = Math.round(barPct(emp) * 100) + "%";
+  document.getElementById("askstatus").textContent = statusWord(emp);
+}
+
 /* open the per-employee answer window: shows what the employee needs (its last message) and a
    text field to reply. Works for any employee; sending is gated by the same rules as the chat. */
 function openAskbox(emp) {
   if (!emp) return;
   askEmp = emp;
   document.getElementById("askname").textContent = emp.label || emp.name || "employee";
+  fillAskStatus(emp);
   const body = document.getElementById("askmsg");
   if (emp.running) body.textContent = "Working… I'll answer as soon as I can.";
   else if (emp.needsReply && emp.lastMsg) body.textContent = emp.lastMsg;

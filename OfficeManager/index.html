@@ -38,6 +38,15 @@
       <span id="askname">employee</span>
       <button id="askclose" type="button" title="close">&times;</button>
     </div>
+    <!-- what the employee is busy with, and how far it got (issue #98) -->
+    <div id="askdoing" class="askdoing">
+      <div class="askdoinglabel">CURRENTLY DOING</div>
+      <div id="asktask" class="asktask"></div>
+      <div class="askprog">
+        <div id="askbar" class="askbar"><div id="askfill" class="askfill"></div></div>
+        <span id="askstatus" class="askstatus"></span>
+      </div>
+    </div>
     <div id="askmsg" class="askmsg"></div>
     <div class="askrow">
       <input id="askinput" type="text" maxlength="500" autocomplete="off" spellcheck="false" aria-label="answer">

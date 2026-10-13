@@ -55,27 +55,41 @@ employee without leaving the view.
   nameplate above its head, so you can tell at once who is who. The idle pool employee
   shows *"unoccupied"* instead.
 - **Side roster ("ON THE JOB").** A panel on the right lists every employee that
-  currently has a task, each with a **completion bar** and a status:
+  currently has a task. Each row shows **what the employee is doing**, then the
+  **completion bar** and the status:
+  - a **"Currently doing"** line with the request the employee is working on — the first
+    line of what the user asked (long requests are shortened to two lines, the full text is
+    in the tooltip);
   - **WORKING** (blue) — the agent is running; the bar fills as it completes its steps;
   - **NEEDS YOU** (yellow) — the agent answered and is waiting for your reply;
-  - **DONE** (green) — the task finished.
-  The panel hides itself when nobody is working. Clicking a row opens that employee's
-  answer window.
+  - **DONE** (green) — the task finished. The line stays readable after the run ends, so
+    you can see what each worker has finished, not only what it is doing right now.
+
+  An employee whose request the office cannot know (a subagent launched by another agent, or
+  an instance forwarded by a different application) shows the **tool it has in hand**
+  instead — `PresentationTool.CreatePresentation` reads as "Presentation Tool, Create
+  Presentation". The panel hides itself when nobody is working. Clicking a row opens that
+  employee's answer window.
 - **Message icon and answer window.** When an employee needs something from you to go on
   (its reply reads like a question or a request), a small **speech-bubble icon** appears
   above its head. **Click the icon** (or the employee's row in the roster) to open a
-  window showing what the employee needs and a text field to answer right there — your
-  answer goes to the same conversation, exactly as if you had hired the employee and typed
-  in the chat. The icon clears as soon as you answer.
+  window showing **what the employee is currently doing** and its progress bar first, then
+  what it needs from you, with a text field to answer right there — your answer goes to the
+  same conversation, exactly as if you had hired the employee and typed in the chat. The
+  task line and the bar keep updating while the window is open, and never disturb the answer
+  you are typing. The icon clears as soon as you answer.
 
 ## How it works
 
 AgentBridge and OfficeManager talk over a **duplex WebSocket** (`/ws/office`): the server
-pushes employee lifecycle events (spawn/assign/running/method/progress/needs/closed + chat
-messages), the browser sends `chat_send` and `close`. The `progress` event carries the
-agent's step count (the completion bar) and `needs` says whether the employee is waiting on
-you or has finished. The full wire protocol is documented in `OfficeBridge.cs` (AgentBridge
-source).
+pushes employee lifecycle events (spawn/assign/running/method/task/progress/needs/closed +
+chat messages), the browser sends `chat_send` and `close`. The `progress` event carries the
+agent's step count (the completion bar), `needs` says whether the employee is waiting on
+you or has finished, and `task` carries the request the employee is working on. AgentBridge
+reports that request for every chat it starts — from the terminal, the HTTP API, Telegram or
+the office itself — right before the run begins, so the line is already there when the
+employee appears at the door. The full wire protocol is documented in `OfficeBridge.cs`
+(AgentBridge source).
 
 Agents created by other processes are reflected by calling
 `AgentHarness.ForwardGlobalProgressTo("http://localhost:5290")` once at their startup
