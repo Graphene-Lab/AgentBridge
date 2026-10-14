@@ -38,6 +38,9 @@ each split into words**: `FileTool.FileSearch` → **"File Tool, File Search"**.
   disappears).
 - The bottom chat sends prompts to the **engaged employee** and shows the responses.
   Typed text appears in the bubble above the boss's head.
+  - As soon as you send a task the employee leaves for a desk and starts working at
+    it, even while he is still your hire: you keep talking to him and he does not wait
+    until you pick somebody else.
   - Chatting with an **idle** employee **creates a new agent** for it: it becomes a real
     session employee and a replacement idle employee appears at the door, so you can
     always spawn a new parallel agent.

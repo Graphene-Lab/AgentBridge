@@ -670,6 +670,15 @@ function updateBossAuto(dt, now) {
 }
 
 /* ---------- employee AI (BFS path following) ---------- */
+
+/* Whether an employee has work in hand: its agent is running, or it is already on its way
+   to a desk / standing at one. A hired employee with work in hand goes and does it instead
+   of standing at attention — a task given to the employee you are talking to starts right
+   away, not only after you pick somebody else (issue #101). */
+function hasWork(e) {
+  return !!(e.running || e.workSpot || e.workAt);
+}
+
 function updateEmployee(e, dt) {
   e.anim(dt);
   const now = performance.now();
@@ -681,9 +690,9 @@ function updateEmployee(e, dt) {
     Sfx.coffee();
   }
 
-  if (e === engaged) {
+  if (e === engaged && !hasWork(e)) {
     e.moving = false;
-    e.setDir(boss.x - e.x, boss.y - e.y);    // face the boss while hired
+    e.setDir(boss.x - e.x, boss.y - e.y);    // face the boss while hired and free
     return;
   }
   if (e.returningHome) { updateReturnHome(e, dt, now); return; }
@@ -887,8 +896,11 @@ function disengage() {
 function updateEngagement() {
   const now = performance.now();
   if (engaged) {
+    // The contact rule is about the BOSS walking away. While the hired employee walks to
+    // its desk to work it must not release itself by leaving the contact radius (issue #101).
     if (now - engagedSince > INACTIVE_MS ||
-        (engagedBy === "contact" && Math.hypot(boss.x - engaged.x, boss.y - engaged.y) > DISENGAGE_R)) {
+        (engagedBy === "contact" && !hasWork(engaged) &&
+         Math.hypot(boss.x - engaged.x, boss.y - engaged.y) > DISENGAGE_R)) {
       disengage();
     }
   } else if (!bossAuto) {

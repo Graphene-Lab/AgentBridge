@@ -203,7 +203,7 @@ Only one employee can be hired at a time. Hire methods:
 
 | Method | Trigger | Engagement ends when |
 |---|---|---|
-| contact | boss within `ENGAGE_R` (70 px, feet distance) | boss moves beyond `DISENGAGE_R` (92 px) or 1 min of boss inactivity |
+| contact | boss within `ENGAGE_R` (70 px, feet distance) | boss moves beyond `DISENGAGE_R` (92 px) — measured only while the hired employee is free, see below — or 1 min of boss inactivity |
 | tab | nearest employee on the first press, then **cycles** through the roster (each press releases the current hire and hires the next, wrapping) | 1 min of boss inactivity |
 | mouse | click on the employee sprite; clicking a **different** employee switches to it (releases the current hire first, like Tab), clicking the floor or the already-hired employee keeps the current hire | 1 min of boss inactivity |
 | — | **Escape** releases the current hire at any time | — |
@@ -229,10 +229,24 @@ block proximity hiring indefinitely). Contact hires additionally end when the
 boss leaves the area (`DISENGAGE_R`).
 A hired employee stops, faces the boss, and gets a persistent yellow **"!"**
 marker above its head (drawn above the current speech bubble), plus the
-"Boss, give orders!" greeting. Details that prevent visual glitches:
+"Boss, give orders!" greeting. **The stop only applies while the employee has
+nothing to do**: `hasWork(e)` (`running`, or already heading to / standing at a
+desk) lets a hired employee go and do the job instead of standing at attention.
+Without it a task given to the employee you are talking to left him frozen in
+place until you hired somebody else (issue #101). Two consequences, both
+intentional:
 
-- Hiring an employee clears its current path and pauses it — a hired employee
-  stands still and never resumes a route that leads back through the boss zone.
+- the contact release measures the **boss** walking away, not the employee: while
+  the hired employee walks to his desk the hire is kept (otherwise the employee
+  would release himself by leaving the contact radius, and the chat would drop
+  mid-task);
+- a hired employee that is already working keeps his desk pose and direction
+  instead of turning to face the boss.
+
+Details that prevent visual glitches:
+
+- Hiring an employee clears its current path — a hired, idle employee stands
+  still and never resumes a route that leads back through the boss zone.
 - After a contact fire the employee is paused for `REENGAGE_PAUSE` (1.5 s) and
   the contact check skips paused employees — no stop/start oscillation when the
   boss lingers near the boundary.
