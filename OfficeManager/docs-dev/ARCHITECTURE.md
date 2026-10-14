@@ -205,12 +205,19 @@ Only one employee can be hired at a time. Hire methods:
 |---|---|---|
 | contact | boss within `ENGAGE_R` (70 px, feet distance) | boss moves beyond `DISENGAGE_R` (92 px) or 1 min of boss inactivity |
 | tab | nearest employee on the first press, then **cycles** through the roster (each press releases the current hire and hires the next, wrapping) | 1 min of boss inactivity |
-| mouse | click on the employee sprite | 1 min of boss inactivity |
+| mouse | click on the employee sprite; clicking a **different** employee switches to it (releases the current hire first, like Tab), clicking the floor or the already-hired employee keeps the current hire | 1 min of boss inactivity |
 | — | **Escape** releases the current hire at any time | — |
 
 `engageNextTab()` implements the cycling: the released employee gets a
 `REENGAGE_PAUSE` cooldown so the contact check cannot instantly re-hire it
 (which would make Tab flip-flop between two nearby employees).
+
+`engageAt()` implements the mouse hit-test (a box around the sprite). It must
+**not** bail out when someone is already hired — that made the mouse select only
+the first employee and forced the user to Tab for every change (issue #103).
+Instead it resolves the clicked employee first: a different employee switches
+(release-then-hire, same `REENGAGE_PAUSE` as Tab), the same employee or empty
+floor is a no-op so the hire is never lost by an accidental click.
 
 The inactivity clock is **`engagedSince`**, started at the hire moment and
 refreshed by **boss speech only** (`markBossSpeech()` — typed messages, the

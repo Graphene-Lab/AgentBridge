@@ -979,13 +979,19 @@ function engageNextTab() {
 }
 
 function engageAt(px, py) {
-  if (engaged) return;
+  let target = null;
   for (const e of employees) {
     if (px >= e.fx - 24 && px <= e.fx + 24 && py >= e.fy - CHAR_H + 4 && py <= e.fy - 8) {
-      engage(e, "mouse");
-      return;
+      target = e;
+      break;
     }
   }
+  // clicking the floor, or the employee already hired, keeps the current hire untouched;
+  // clicking a different employee switches to it (release the current one first, exactly
+  // like Tab does) so the mouse can select any employee at any time, not only the first
+  if (!target || target === engaged) return;
+  if (engaged) disengage();
+  engage(target, "mouse");
 }
 
 /* ---------- answer window + side roster (issue #30) ---------- */

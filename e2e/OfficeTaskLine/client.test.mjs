@@ -238,6 +238,40 @@ function run() {
   T("an empty task clears the line",
     (setTask("emp-1", ""), doingText(e1) === ""));
 
+  // ── issue #103: the mouse selects any employee at any time, not only the first ──
+  if (engaged) disengage();
+  spawnEmployee({ empId: "m-A", agentId: "s-A", kind: "session", sprite: 0, label: "mouse A", task: "" });
+  spawnEmployee({ empId: "m-B", agentId: "s-B", kind: "session", sprite: 1, label: "mouse B", task: "" });
+  const eA = employees.find(e => e.empId === "m-A");
+  const eB = employees.find(e => e.empId === "m-B");
+  eA.x = 200; eA.y = 400;   // fx/fy are getters off x/y — place them away from the door
+  eB.x = 600; eB.y = 400;
+  const hitA = [200, 340], hitB = [600, 340], floor = [100, 650];
+
+  engageAt(hitA[0], hitA[1]);
+  T("first mouse click hires the clicked employee", engaged === eA,
+    engaged ? engaged.empId : "none");
+
+  engageAt(hitB[0], hitB[1]);
+  T("a second mouse click on a DIFFERENT employee switches the hire",
+    engaged === eB, engaged ? engaged.empId : "none");
+  T("switching releases the previous hire (re-engage pause set on it)",
+    eA.blockedUntil > performance.now(), "blockedUntil=" + eA.blockedUntil);
+
+  engageAt(hitB[0], hitB[1]);
+  T("clicking the already-hired employee keeps it hired", engaged === eB,
+    engaged ? engaged.empId : "none");
+
+  engageAt(floor[0], floor[1]);
+  T("clicking the empty floor keeps the current hire (no accidental release)",
+    engaged === eB, engaged ? engaged.empId : "none");
+
+  disengage();
+  engageAt(hitA[0], hitA[1]);
+  T("after releasing, the mouse hires again", engaged === eA,
+    engaged ? engaged.empId : "none");
+  if (engaged) disengage();
+
   __results = R;
 })();
 `;
