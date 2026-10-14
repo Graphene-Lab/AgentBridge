@@ -955,20 +955,39 @@ function sendMessage() {
   markBossSpeech();
   Sfx.send();
 
-  // Send is inhibited unless an employee is engaged (and the target can be talked to).
   if (!connected) { Chat.say("", "OFFICE MANAGER — not connected to AgentBridge", "sys"); return; }
-  if (!engaged) { Chat.say("", "hire an employee first (tab or click)", "sys"); return; }
-  if (engaged.kind === "subagent" || engaged.kind === "stateless") {
-    Chat.say("", (engaged.label || "this employee") + " cannot be chatted with", "sys");
-    return;
+
+  // A request does not require picking an employee first (issue #100). When the boss is not
+  // already talking to someone who can take the message, it is assigned automatically: to a
+  // free employee (one with no task in hand) if there is one, otherwise to a brand-new
+  // employee hired for the request. A deliberate hire that is free keeps priority, so the
+  // conversation you chose is never stolen from under you.
+  if (!canTakeRequest(engaged)) {
+    const free = employees.find(e => e.kind === "idle" && !e.returningHome);
+    if (free) {
+      if (engaged) disengage();
+      engage(free, "auto");
+    } else {
+      // Every employee is busy: hire a new one. The server creates the session and the new
+      // employee appears at the door already working on this request.
+      if (!(boss.bubble && boss.bubble.kind))
+        boss.bubble = { text, until: performance.now() + BUBBLE_MS, kind: null };
+      ws.send(JSON.stringify({ type: "chat_hire", prompt: text }));
+      return;
+    }
   }
-  if (engaged.running) { Chat.say("", (engaged.label || engaged.name) + " is still working…", "sys"); return; }
 
   // What the user typed appears in the bubble above the boss's head; the server echoes the
   // message into the chat log (role "user"), so the log is consistent across tabs.
   if (!(boss.bubble && boss.bubble.kind))           // keep a persistent zone bubble (phone/coffee)
     boss.bubble = { text, until: performance.now() + BUBBLE_MS, kind: null };
   ws.send(JSON.stringify({ type: "chat_send", empId: engaged.empId, prompt: text }));
+}
+
+/* Whether this employee can take a new chat request right now: it exists, is a chatable
+   session (not a visual-only subagent/one-shot) and is not already running. */
+function canTakeRequest(e) {
+  return !!e && e.kind !== "subagent" && e.kind !== "stateless" && !e.running;
 }
 
 /* Tab cycles through the employees: hires the nearest one first, then every
@@ -1506,7 +1525,7 @@ async function boot() {
   buildBehind();
   initInput();
   fitCanvas();
-  Chat.say("", "OFFICE MANAGER - arrows: move boss - tab/click: hire - enter: talk - esc: release/close", "sys");
+  Chat.say("", "OFFICE MANAGER - arrows: move boss - tab/click: hire - enter: talk (a request with no hire goes to a free employee) - esc: release/close", "sys");
   connect();
   requestAnimationFrame(frame);
 }

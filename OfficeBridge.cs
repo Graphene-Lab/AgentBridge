@@ -35,12 +35,16 @@ using AIOrchestrator;
 //    Client → Server:
 //      {"type":"hello"}
 //      {"type":"chat_send", empId, prompt}
+//      {"type":"chat_hire", prompt}
 //      {"type":"close", empId}
 //
 //  chat_send on an idle employee creates a session (AgentHarness) for it and
 //  spawns a replacement idle employee at the door; on a session employee it
 //  runs ExecuteAction on that session (the same conversation the TUI would
 //  use). Subagent/stateless employees are visual-only and refuse chat.
+//  chat_hire is the "nobody is free" request from the office (issue #100): it
+//  always creates a brand-new session — a new employee appears at the door —
+//  and runs the prompt on it, without taking over any existing idle employee.
 // ═══════════════════════════════════════════════════════════════════════
 
 /// <summary>WebSocket hub + agent-lifecycle tracker for the OfficeManager visual protocol.</summary>
@@ -365,6 +369,13 @@ public static class OfficeBridge
                         _ = Task.Run(() => HandleChatSendAsync(empId, prompt.Trim()));
                     break;
                 }
+                case "chat_hire":
+                {
+                    var prompt = Str(root, "prompt");
+                    if (!string.IsNullOrWhiteSpace(prompt))
+                        _ = Task.Run(() => HandleChatHireAsync(prompt.Trim()));
+                    break;
+                }
                 case "close":
                 {
                     var empId = Str(root, "empId");
@@ -421,6 +432,39 @@ public static class OfficeBridge
 
         Chat(empId, "user", prompt);
         await RunAgentAsync(empId, session, prompt);
+    }
+
+    /// <summary>Hires a brand-new employee for a request (issue #100): the office sends this
+    /// when every employee already has a task, so the request must not wait. Unlike the idle
+    /// branch of <see cref="HandleChatSendAsync"/> this does NOT add to <see cref="PendingAssign"/>,
+    /// so <see cref="OnSessionCreated"/> spawns a fresh session employee at the door instead of
+    /// taking over an existing idle one. The new employee is attached to the run through the
+    /// agentKey the create event just registered.</summary>
+    private static async Task HandleChatHireAsync(string prompt)
+    {
+        ActiveSession? session = null;
+        string? empId = null;
+        lock (Sync)
+        {
+            try
+            {
+                session = SessionStore.Create(_provider, _anonymize);
+            }
+            catch (Exception ex)
+            {
+                Error($"Could not hire a new employee: {ex.Message}");
+                return;
+            }
+            // Create fired SessionCreated synchronously, which registered ByAgent[session.Id].
+            ByAgent.TryGetValue(session.Id, out empId);
+            if (empId == null)
+            {
+                Error("Could not attach the request to the new employee.");
+                return;
+            }
+        }
+        Chat(empId, "user", prompt);
+        await RunAgentAsync(empId, session!, prompt);
     }
 
     private static async Task RunAgentAsync(string empId, ActiveSession session, string prompt)

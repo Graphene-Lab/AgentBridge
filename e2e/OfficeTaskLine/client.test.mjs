@@ -118,6 +118,7 @@ function run() {
     atob: (s) => Buffer.from(s, "base64").toString("binary"),
     OFFICE_MASK_W: 4, OFFICE_MASK_H: 4, OFFICE_MASK_B64: "AAAA",
     location: { protocol: "http:", host: "localhost:5290" },
+    sent,   // the frames the game pushed to the WebSocket — read by the issue #100 checks
   };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
@@ -270,6 +271,93 @@ function run() {
   engageAt(hitA[0], hitA[1]);
   T("after releasing, the mouse hires again", engaged === eA,
     engaged ? engaged.empId : "none");
+  if (engaged) disengage();
+
+  // ── issue #100: a request with no hire is auto-assigned (a free employee, or a new hire) ──
+  connected = true;
+  ws = new WebSocket("ws://test"); ws.readyState = 1;
+  const lastFrame = () => (sent.length ? JSON.parse(sent[sent.length - 1]) : null);
+  const clearAll = () => {
+    if (engaged) disengage();
+    for (const e of [...employees]) despawnEmployee(e);
+    sent.length = 0;
+  };
+
+  // 1) a free (idle) employee exists → auto-engage it and send the request to it
+  clearAll();
+  spawnEmployee({ empId: "free-1", kind: "idle", sprite: 0, label: "", task: "" });
+  const free1 = employees.find(e => e.empId === "free-1");
+  free1.x = 300; free1.y = 500;
+  el("input").value = "write me a report";
+  sendMessage();
+  T("no hire needed: the request auto-engages a free employee", engaged === free1,
+    engaged ? engaged.empId : "none");
+  T("the auto-selected employee is the idle (task-free) one",
+    !!engaged && engaged.kind === "idle", engaged ? engaged.kind : "none");
+  T("the request is sent as chat_send to the auto-selected employee",
+    lastFrame() && lastFrame().type === "chat_send" && lastFrame().empId === "free-1",
+    JSON.stringify(lastFrame()));
+  T("the typed request shows above the boss's head",
+    boss.bubble && boss.bubble.text === "write me a report",
+    boss.bubble ? boss.bubble.text : "no bubble");
+
+  // 2) every employee busy → hire a brand-new one via chat_hire
+  clearAll();
+  spawnEmployee({ empId: "busy-1", agentId: "s-b1", kind: "session", sprite: 1, label: "b1", task: "x" });
+  employees.find(e => e.empId === "busy-1").running = true;
+  el("input").value = "another task please";
+  sendMessage();
+  T("with every employee busy the request is not refused", lastFrame() != null);
+  T("a chat_hire frame is sent to create a new employee",
+    lastFrame() && lastFrame().type === "chat_hire" && lastFrame().prompt === "another task please",
+    JSON.stringify(lastFrame()));
+  T("the busy employee is not hijacked as the hire",
+    !(engaged && engaged.empId === "busy-1"), engaged ? engaged.empId : "none");
+
+  // 3) a deliberate, free hire keeps priority (not switched to another employee)
+  clearAll();
+  spawnEmployee({ empId: "eng-1", agentId: "s-e1", kind: "session", sprite: 2, label: "e1", task: "" });
+  spawnEmployee({ empId: "free-2", kind: "idle", sprite: 3, label: "", task: "" });
+  const eng1 = employees.find(e => e.empId === "eng-1");
+  engage(eng1, "tab");
+  el("input").value = "follow up";
+  sendMessage();
+  T("a free deliberate hire keeps priority",
+    engaged === eng1 && lastFrame().empId === "eng-1",
+    (engaged ? engaged.empId : "none") + "/" + JSON.stringify(lastFrame()));
+
+  // 4) the hire is busy → the request goes to a free employee instead of being refused
+  clearAll();
+  spawnEmployee({ empId: "run-1", agentId: "s-r1", kind: "session", sprite: 0, label: "r1", task: "t" });
+  spawnEmployee({ empId: "free-3", kind: "idle", sprite: 1, label: "", task: "" });
+  const run1 = employees.find(e => e.empId === "run-1");
+  engage(run1, "tab"); run1.running = true;
+  el("input").value = "new request while my hire is busy";
+  sendMessage();
+  T("a request while the hire is busy is routed to a free employee",
+    engaged && engaged.empId === "free-3" && lastFrame().empId === "free-3",
+    (engaged ? engaged.empId : "none") + "/" + JSON.stringify(lastFrame()));
+
+  // 5) a non-chatable hire (subagent) falls through to a free employee
+  clearAll();
+  spawnEmployee({ empId: "sub-1", agentId: "s-x::sub", kind: "subagent", sprite: 0, label: "sub", task: "" });
+  spawnEmployee({ empId: "free-4", kind: "idle", sprite: 2, label: "", task: "" });
+  const sub1 = employees.find(e => e.empId === "sub-1");
+  engage(sub1, "tab");
+  el("input").value = "talk to a free one";
+  sendMessage();
+  T("a non-chatable hire falls through to a free employee",
+    engaged && engaged.empId === "free-4" && lastFrame().empId === "free-4",
+    (engaged ? engaged.empId : "none") + "/" + JSON.stringify(lastFrame()));
+
+  // 6) not connected → nothing is sent
+  clearAll();
+  connected = false;
+  spawnEmployee({ empId: "free-5", kind: "idle", sprite: 0, label: "", task: "" });
+  el("input").value = "hello?";
+  sendMessage();
+  T("not connected: nothing is sent", sent.length === 0, "sent=" + sent.length);
+  connected = true;
   if (engaged) disengage();
 
   __results = R;

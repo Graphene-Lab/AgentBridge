@@ -104,9 +104,45 @@ async function main() {
     LONG.startsWith(body) && LONG[body.length] === " ",
     JSON.stringify({ body, next: LONG[body.length] }));
 
-  a.ws.close(); b.ws.close(); c.ws.close();
+  // ── 6. issue #100: chat_hire creates a brand-new employee and runs the request ──
+  // The office sends chat_hire when every employee already has a task. Unlike chat_send on
+  // an idle employee (which takes over that employee), chat_hire must spawn a NEW session
+  // employee at the door and report the request as its task.
+  const before = (await snapshotEmployees()).length;
+  const HIRE_PROMPT = "Hire someone to draft the weekly summary";
+  const HIRE_TASK = "Hire someone to draft the weekly summary";
+  const d = await connect();
+  d.ws.send(JSON.stringify({ type: "chat_hire", prompt: HIRE_PROMPT }));
+  await sleep(2500);
+  const newSpawns = d.frames.filter(f => f.type === "spawn" && f.kind === "session");
+  check("chat_hire spawns a new session employee", newSpawns.length >= 1,
+    "spawns: " + d.frames.map(f => f.type + ":" + (f.kind || "")).join(","));
+  const hired = newSpawns[0];
+  // The request reaches the employee as a separate `task` frame (ReportTask fires inside the
+  // run, after the spawn), exactly like the idle chat_send path — not in the spawn frame.
+  const hireTaskFrame = hired
+    ? d.frames.find(f => f.type === "task" && f.empId === hired.empId)
+    : null;
+  check("the new employee gets the request as its task",
+    !!hireTaskFrame && hireTaskFrame.task === HIRE_TASK,
+    hireTaskFrame ? JSON.stringify(hireTaskFrame.task) : "no task frame for the hired employee");
+  const hireUserEcho = d.frames.find(f => f.type === "chat" && f.role === "user" && f.text === HIRE_PROMPT);
+  check("the request is echoed into the chat as the user's message", !!hireUserEcho);
+  const after = (await snapshotEmployees()).length;
+  check("the office has one more employee than before the hire", after >= before + 1,
+    `before=${before} after=${after}`);
+
+  a.ws.close(); b.ws.close(); c.ws.close(); d.ws.close();
   console.log(fail === 0 ? "\nAll protocol checks passed." : "\n" + fail + " check(s) FAILED.");
   process.exit(fail === 0 ? 0 : 1);
+}
+
+async function snapshotEmployees() {
+  const s = await connect();
+  await sleep(400);
+  const snap = s.frames.find(f => f.type === "snapshot");
+  s.ws.close();
+  return (snap && snap.employees) || [];
 }
 
 main().catch(e => { console.log("  FAIL could not run: " + e.message); process.exit(1); });

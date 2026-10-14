@@ -44,8 +44,12 @@ each split into words**: `FileTool.FileSearch` → **"File Tool, File Search"**.
   - Chatting with an **idle** employee **creates a new agent** for it: it becomes a real
     session employee and a replacement idle employee appears at the door, so you can
     always spawn a new parallel agent.
-  - **Send is inhibited** when no employee is engaged, and while the engaged agent is
-    still working.
+  - **You never have to pick an employee first.** If nobody is hired — or the one you are
+    talking to is busy or cannot be chatted with — your request is assigned automatically:
+    to a **free employee** (one with no task in hand) when there is one, or, when the whole
+    office is busy, to a **brand-new employee** hired just for the request, who appears at
+    the door already working on it. A deliberate hire that is free always keeps priority, so
+    the conversation you chose is never taken from under you.
   - Subagent / one-shot employees are **visual only** — their conversation belongs to
     their parent agent.
 
@@ -86,7 +90,8 @@ employee without leaving the view.
 
 AgentBridge and OfficeManager talk over a **duplex WebSocket** (`/ws/office`): the server
 pushes employee lifecycle events (spawn/assign/running/method/task/progress/needs/closed +
-chat messages), the browser sends `chat_send` and `close`. The `progress` event carries the
+chat messages), the browser sends `chat_send`, `chat_hire` (to hire a brand-new employee for
+a request when no employee is free) and `close`. The `progress` event carries the
 agent's step count (the completion bar), `needs` says whether the employee is waiting on
 you or has finished, and `task` carries the request the employee is working on. AgentBridge
 reports that request for every chat it starts — from the terminal, the HTTP API, Telegram or
