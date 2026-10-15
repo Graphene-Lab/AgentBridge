@@ -587,14 +587,24 @@ jobs:
             artifacts/**/*.tar.gz
             artifacts/**/*.msi
           body: |
-            ### Settings Save buttons now save changes
+            ### The office now shows what each worker is doing
 
-            Fixed **Save** in **LLM & Provider**, **Email**, **General** and **SIP** settings.
-            Previously, the dialog could close before the save handler ran, leaving changes
-            unapplied. Save now runs validation and saving before closing the dialog, and
-            invalid values keep the dialog open for correction.
+            The roster and the answer window now show the request behind each run, not only
+            how far it got. When several workers run at once you can finally tell them apart
+            (issue #98).
 
-            Delivered attachments are also highlighted in bright yellow in the terminal UI.
+            When a chat needs a tool that is installed but not active, the agent now names
+            the tool and points you to the Tools menu instead of just saying it cannot do the
+            task (issue #97).
+
+            Terminal UI fixes: panel buttons now fire on click (issue #94); the terminal no
+            longer shows stray error output while the UI is running (issue #93); the agent
+            warns in the chat at startup when the documents folder is missing or offline; and
+            if the UI resources cannot be loaded the app falls back to server-only instead of
+            restarting in a loop (issue #96).
+
+            Engine: document tools stay available when the sandbox repository has a different
+            owner, and the tool catalog order is now stable across restarts.
           generate_release_notes: true
 
   # Microsoft Store submission: once the release exists with the MSI attached, point the
