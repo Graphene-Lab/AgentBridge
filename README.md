@@ -441,6 +441,26 @@ exist between them (terminal UI, HTTP API, the OfficeManager web office, Telegra
 bridges, shared session store, plugin loader, update services and the AIOrchestrator
 engine) — is in the [architecture diagram](diagram.md).
 
+# The Story Behind AgentBridge
+
+AgentBridge was created by Andrea Bruno, an AI pioneer whose work spans several areas of artificial intelligence, from machine learning experiments dating back to the 1990s to the development of automated systems operating on the internet.
+
+One example of his early work is an experimental chess engine designed to learn from games rather than relying exclusively on brute-force search ([First AI Implementation](https://github.com/Andrea-Bruno/First-AI-Implementation)). His research also explores the historical development of the ideas and algorithms behind modern large language models ([Who Invented LLM](https://github.com/Andrea-Bruno/who-invented-llm)).
+
+His experience with large-scale online automation was also documented in 2019 by the Italian television programme *Report*, in a story subsequently covered by [Open](https://www.open.online/2019/10/30/report-andrea-bruno-il-grillino-emigrato-in-russia-che-manovrava-migliaia-di-profili/), at a time when today's AI agent ecosystem had not yet become mainstream.
+
+More recently, his work has extended to contributing to other open-source AI agent frameworks, including [Qwen Code](https://github.com/QwenLM/qwen-code/pull/12461) and [Codewhale](https://github.com/codewhale-hq/Codewhale/pull/6604). These contributions address practical aspects of agent execution, concurrency control, and decision-making mechanisms, reflecting an ongoing effort to improve the efficiency and controllability of AI systems.
+
+The focus of AgentBridge is to develop an AI automation framework that combines the flexibility of large language models with deterministic software components, while embracing a *trustless* philosophy. This approach is consistent with other open-source projects in our repository involving cloud technologies, asymmetric cryptography, post-quantum cryptography, and *non-custodial* cryptocurrency wallets.
+
+The underlying principle is simple: users should not have to place unconditional trust in a developer, a service provider, or a black-box AI system when independent verification is technically possible. Digital sovereignty means retaining meaningful control over software, data, models, and computational resources rather than depending entirely on external platforms.
+
+We apply the same philosophy to AgentBridge by publishing benchmarks intended to be reproducible and open to independent scrutiny. The figures presented in this repository reflect our own measurements, but we encourage everyone to run their own tests, inspect the implementation, and challenge our conclusions. Performance depends on hardware, configuration, and workload, and independent verification is the best way to establish what a system can actually deliver.
+
+After all, everyone will tell you that their product is the best in the world. We believe the code, the evidence, and independently reproducible results should speak for themselves.
+
+**Don't trust our claims blindly. Inspect the code, reproduce the benchmarks, and make up your own mind.**
+
 ## Our team
 
 ![The LLM agent team behind AgentBridge](media/our_team.png)
