@@ -12,6 +12,8 @@ To be explicit about what the compatibility is and is not: AgentBridge is OpenAI
 
 It is the first **agentic** **harness** system for next-generation artificial intelligence that introduces significant innovations, raising the bar for all competitors in the industry. The system encapsulates agentic functions in a well-designed sandbox that prevents companies from suffering damage from an AI that is not properly controlled, while at the same time allowing them to entrust real business tasks to the AI, with a very high level of privacy and confidentiality.
 
+AgentBridge stands apart from the harnesses you are familiar with because it is designed to let even people with no technical skills — your grandma, for example — use it without risking damage: file actions are reversible thanks to versioning, the agent is confined to a space bounded by guardrails built in by design, and no code-agent features are provided, precisely to prevent code from being created or executed. It can also be supplied together with our cloud platform, which synchronizes the file area in real time with a private, encrypted cloud located within your own company. In short, it is a product any employer can make available to their employees to support office work and make business processes more efficient. With traditional harnesses, a badly worded prompt could destroy documents, wipe the work drive, or cause other kinds of damage; our focus, by contrast, has been on creating a safe tool for office use.
+
 ![Replace humans in offices](media/agent-bridge-poster.png)
 
 > **Why teams choose this architecture**
