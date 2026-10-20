@@ -453,6 +453,8 @@ His experience with large-scale online automation was also documented in 2019 by
 
 More recently, his work has extended to contributing to other open-source AI agent frameworks, including [Qwen Code](https://github.com/QwenLM/qwen-code/pull/12461) and [Codewhale](https://github.com/codewhale-hq/Codewhale/pull/6604). These contributions address practical aspects of agent execution, concurrency control, and decision-making mechanisms, reflecting an ongoing effort to improve the efficiency and controllability of AI systems.
 
+He is also the author of a different idea of agentic AI, deterministic instead of generative: a technology that does not write code into files, but works at runtime and takes over a large part of what a developer normally does. That project is [UISupportBlazor](https://github.com/Graphene-Lab/UISupportBlazor), and its underlying engine has been merged into AgentBridge to extend what its agents can do.
+
 The focus of AgentBridge is to develop an AI automation framework that combines the flexibility of large language models with deterministic software components, while embracing a *trustless* philosophy. This approach is consistent with other open-source projects in our repository involving cloud technologies, asymmetric cryptography, post-quantum cryptography, and *non-custodial* cryptocurrency wallets.
 
 The underlying principle is simple: users should not have to place unconditional trust in a developer, a service provider, or a black-box AI system when independent verification is technically possible. Digital sovereignty means retaining meaningful control over software, data, models, and computational resources rather than depending entirely on external platforms.
