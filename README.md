@@ -383,6 +383,19 @@ client connects to localhost — is in the **[user manual](docs/MANUAL.md)**.
 The user guides above (`docs/`) ship next to the executable in every release archive;
 the developer guides (`docs-dev/`) stay in the repository only.
 
+## Support
+
+Support is available **24 hours a day, 7 days a week**, through tickets in the GitHub
+[issues](https://github.com/Graphene-Lab/AgentBridge/issues) of this repository. Our team
+activates immediately: we solve problems, give suggestions, and offer highly qualified
+professional support.
+
+The agent can do it too, on request: ask it to report a malfunction or to request a feature and
+it opens the issue itself, with the description already written, so nothing is lost between the
+person who found the problem and the team who has to solve it. Every issue opened this way is
+investigated immediately. How the reporting works — and how to switch it off — is in
+[agent reporting](docs/agent-reporting.md).
+
 ## How it works
 
 `AIOrchestrator` is a .NET library — it cannot run alone. AgentBridge hosts it and exposes
