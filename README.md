@@ -365,6 +365,8 @@ client connects to localhost — is in the **[user manual](docs/MANUAL.md)**.
 
 ## Documentation
 
+> **This README is only the opening presentation.** It gives the idea of the product and its main abilities. The repository carries the complete documentation: architecture, configuration, every command and endpoint, the benchmark method and its results. Read it before judging or evaluating the project — a summary cannot show how the parts fit together, or how the claims were measured.
+
 | Document | Audience / contents |
 |---|---|
 | [User manual](docs/MANUAL.md) | **Start here.** Install, configure the JSON files, use the terminal UI, connect a client |
@@ -385,6 +387,18 @@ the developer guides (`docs-dev/`) stay in the repository only.
 
 `AIOrchestrator` is a .NET library — it cannot run alone. AgentBridge hosts it and exposes
 its chat pipeline as a standard web API. **One process. Your machine. Your agents.**
+
+**Why .NET.** .NET is open source — MIT license, developed in the open at
+[github.com/dotnet/runtime](https://github.com/dotnet/runtime) — and the same code runs on
+Windows, Linux and macOS. It is also a multi-language platform: C#, F#, Visual Basic .NET and
+many other languages compile to the same assembly format (Common Intermediate Language), so a
+tool written in one language loads and runs next to a tool written in another.
+
+To say it plainly: .NET is not — and probably will never be — the main language for deep-learning
+research or for training models. There Python keeps an overwhelming advantage, thanks to
+libraries such as PyTorch and TensorFlow. The picture changes for applied AI and for putting a
+model into production: there .NET has been building a serious and credible ecosystem, and that is
+the part of the work this project covers.
 
 ```mermaid
 flowchart LR
