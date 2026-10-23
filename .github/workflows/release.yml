@@ -587,21 +587,30 @@ jobs:
             artifacts/**/*.tar.gz
             artifacts/**/*.msi
           body: |
-            ### The story behind AgentBridge, and why it is safe for office work
+            ### Suggested prompts, the scheduler console, and a clearer chat line
 
-            The README now tells who built AgentBridge and why: the background of its author
-            and the philosophy the project follows - large language models combined with
-            deterministic software, a trustless approach, digital sovereignty, and benchmarks
-            published so that anyone can reproduce them and check the numbers instead of
-            taking them on trust.
+            The prompt now suggests the next prompt you are likely to type. After a successful
+            reply the TUI asks the new POST /v1/suggest endpoint and shows the answer as ghost
+            text in the empty input: Tab turns it into real text, and anything typed meanwhile
+            is never overwritten. The feature is client-driven - the capability list carries
+            prompt_suggestion, only a client that asks pays for it, and switching it off makes
+            the endpoint answer empty without calling the model.
 
-            A second new passage states the positioning plainly. AgentBridge is designed so
-            that even people with no technical skills can use it without risking damage: file
-            actions are reversible thanks to versioning, the agent works inside guardrails
-            built in by design, and no code-agent features are provided, so no code is created
-            or executed. That is what makes it a tool an employer can hand to employees.
+            /taskscheduler is the deterministic console for the work the agent has planned. It
+            prints the table of scheduled tasks - id, task, next run, recurrence, state and
+            instruction - and pauses, resumes, removes, deletes, re-instructs or replans them by
+            id or by name. The command never reaches the model, so the answer is always the
+            same, and the console is also reachable from the Settings menu.
 
-            No functional changes in this release.
+            The chat opens with an entry-point line that names the three parts in play - the API
+            address, AgentBridge and the provider - together with the active tools; the status
+            bar keeps provider, model and context usage. The TUI client also takes the address
+            Kestrel really bound after start, so a configured port that differs from the bound
+            one no longer ends in "connection refused".
+
+            In the README a new section states what the product is and what it is not: it is not
+            a coding agent, no vibe coding is offered on purpose, the automation is already made
+            and a business owner hands it to the person in the company who automates the work.
           generate_release_notes: true
 
   # Microsoft Store submission: once the release exists with the MSI attached, point the
