@@ -3226,6 +3226,24 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'stalled — no data from the agent, wait stopped'.
+        /// </summary>
+        public static string StatusStalled {
+            get {
+                return ResourceManager.GetString("StatusStalled", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to '(no answer: the agent sent no data for a long time, so the wait was stopped to keep the console usable — press Enter to try again)'.
+        /// </summary>
+        public static string StatusStalledEntry {
+            get {
+                return ResourceManager.GetString("StatusStalledEntry", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'prompt history: {0} entries'.
         /// </summary>
         public static string StatusPromptHistory {

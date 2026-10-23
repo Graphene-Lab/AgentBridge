@@ -153,6 +153,8 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="StatusCancelling" xml:space="preserve"><value>cancelling…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>generating… wait, or Ctrl+C to stop</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>generating…</value></data>
+  <data name="StatusStalled" xml:space="preserve"><value>stalled — no data from the agent, wait stopped</value></data>
+  <data name="StatusStalledEntry" xml:space="preserve"><value>(no answer: the agent sent no data for a long time, so the wait was stopped to keep the console usable — press Enter to try again)</value></data>
   <data name="StatusReplied" xml:space="preserve"><value>replied in {0:0.0}s</value></data>
   <data name="StatusCancelled" xml:space="preserve"><value>cancelled</value></data>
   <data name="StatusError" xml:space="preserve"><value>error</value></data>

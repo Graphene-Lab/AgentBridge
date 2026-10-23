@@ -99,6 +99,8 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="StatusCancelling" xml:space="preserve"><value>annullamento…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>generazione… attendi, o Ctrl+C per fermare</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>generazione…</value></data>
+  <data name="StatusStalled" xml:space="preserve"><value>fermo — nessun dato dall'agente, attesa interrotta</value></data>
+  <data name="StatusStalledEntry" xml:space="preserve"><value>(nessuna risposta: l'agente non ha inviato dati per molto tempo, quindi l'attesa è stata interrotta per mantenere la console utilizzabile — premi Invio per riprovare)</value></data>
   <data name="StatusReplied" xml:space="preserve"><value>risposta in {0:0.0}s</value></data>
   <data name="StatusCancelled" xml:space="preserve"><value>annullato</value></data>
   <data name="StatusError" xml:space="preserve"><value>errore</value></data>

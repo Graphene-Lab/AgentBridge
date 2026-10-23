@@ -94,6 +94,8 @@
   <data name="StatusCancelling" xml:space="preserve"><value>отмена…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>генерация… подождите или Ctrl+C для остановки</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>генерация…</value></data>
+  <data name="StatusStalled" xml:space="preserve"><value>застой — нет данных от агента, ожидание остановлено</value></data>
+  <data name="StatusStalledEntry" xml:space="preserve"><value>(нет ответа: агент долго не передавал никаких данных, поэтому ожидание остановлено, чтобы консоль снова стала доступной — нажмите Enter для повторной попытки)</value></data>
   <data name="StatusReplied" xml:space="preserve"><value>ответ за {0:0.0} с</value></data>
   <data name="StatusCancelled" xml:space="preserve"><value>отменено</value></data>
   <data name="StatusError" xml:space="preserve"><value>ошибка</value></data>

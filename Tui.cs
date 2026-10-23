@@ -133,6 +133,44 @@ public static class ConsoleTui
         private readonly HashSet<string> _busyOps = new(StringComparer.Ordinal);
         private Label? _busyLabel;
 
+        // ── Live activity while a chat request is in flight (issue #106) ──
+        // The reply text only arrives once the WHOLE agent run is over, so a long task (a
+        // presentation is many slow LLM round-trips) looked exactly like a frozen console: an
+        // empty "agent" block and no clue about what, if anything, was still happening. The
+        // engine reports every tool call on AgentHarness.GlobalProgress, so while a chat runs the
+        // current method is mirrored on the status line together with the elapsed seconds —
+        // "still working on create_presentation" instead of a bare, unreadable "generating…".
+        // Written from the agent thread and read on the UI thread, hence volatile.
+        private volatile string _currentActivity = "";
+        // The in-flight run's clock (null when idle), driving the elapsed counter. Assigned when
+        // the run starts and cleared in its finally, both before/after the UI-thread updates.
+        private volatile Stopwatch? _chatStartedAt;
+        // No byte at all on the chat stream for this long means the stream is DEAD, not merely
+        // slow: the server emits an SSE comment keepalive every 15 s while the agent works, so the
+        // default (90 s = six keepalives of complete silence) can never cut short a legitimately
+        // slow tool. Before this there was no cap whatsoever on the wait (Timeout.InfiniteTimeSpan
+        // on purpose, so a long job was never interrupted) — and that meant a wedged run held the
+        // console hostage: _chatRunning stayed 1, every later prompt was refused, and only
+        // restarting the program helped.
+        // Settable through the environment so the wait can be tuned — and tested — without a
+        // rebuild; 0/false/off/no disables the watchdog and restores the old wait-forever behaviour.
+        internal const string ChatStallEnvVar = "AGENTBRIDGE_CHAT_STALL_SECONDS";
+        private static readonly TimeSpan ChatStreamStallTimeout = ResolveChatStreamStallTimeout();
+
+        private static TimeSpan ResolveChatStreamStallTimeout()
+        {
+            var raw = Environment.GetEnvironmentVariable(ChatStallEnvVar)?.Trim();
+            if (string.IsNullOrEmpty(raw)) return TimeSpan.FromSeconds(90);
+            if (raw.Equals("0", StringComparison.Ordinal)
+                || raw.Equals("false", StringComparison.OrdinalIgnoreCase)
+                || raw.Equals("off", StringComparison.OrdinalIgnoreCase)
+                || raw.Equals("no", StringComparison.OrdinalIgnoreCase))
+                return System.Threading.Timeout.InfiniteTimeSpan;
+            return double.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture, out var seconds) && seconds > 0
+                ? TimeSpan.FromSeconds(seconds)
+                : TimeSpan.FromSeconds(90);
+        }
+
         private static readonly JsonSerializerOptions JsonOpts = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
@@ -326,6 +364,12 @@ public static class ConsoleTui
             AIOrchestrator.Setup.IndexingChanged += OnIndexingChanged;
             if (AIOrchestrator.Setup.IsIndexingNow) SetBusy("indexing", true);
 
+            // Live per-tool activity for the status line while the console waits on a run
+            // (issue #106). The process-wide mirror is used on purpose: the TUI is a client of
+            // the server in the same process and does not hold the AgentHarness instance itself,
+            // so per-instance AgentProgress is not reachable from here.
+            AgentHarness.GlobalProgress += OnAgentGlobalProgress;
+
             // Modern dark theme for the whole main window (views reference it by name).
             _baseScheme = new Scheme
             {
@@ -417,6 +461,9 @@ public static class ConsoleTui
             _disposed = true;
             AutoUpdate.OnStatus -= OnUpdateStatus;
             AIOrchestrator.Setup.IndexingChanged -= OnIndexingChanged;
+            // Static event: not detaching would root this instance (and everything it holds)
+            // for the lifetime of the process.
+            AgentHarness.GlobalProgress -= OnAgentGlobalProgress;
             CancelChat();
             try { _app.Dispose(); } catch { }
             _http.Dispose();
@@ -1056,6 +1103,11 @@ public static class ConsoleTui
             if (_spinnerLabel == null || !_spinnerActive) return;
             _spinnerIndex = (_spinnerIndex + 1) % SpinnerChars.Length;
             _spinnerLabel.Text = SpinnerChars[_spinnerIndex];
+            // The elapsed counter on the status line has to tick while the agent works
+            // (issue #106): a run's reply text only arrives at the very end, so without this the
+            // line looks frozen even though work is progressing. This timer already runs on the
+            // UI loop, so UpdateStatus can be called directly (no Ui() re-marshalling).
+            if (Volatile.Read(ref _chatRunning) != 0) UpdateStatus();
         }
 
         private bool CaretOnFirstLine()
@@ -1112,17 +1164,36 @@ public static class ConsoleTui
         {
             var text = (_inputField?.Text ?? "").Trim();
             if (_inputPlaceholderActive || text.Length == 0) return;
-            _inputField!.Text = "";
-            _inputPlaceholderActive = false;
-            _inputField.SchemeName = "Dark";
-            _followBottom = true;
 
             if (text[0] == '/')
             {
+                _inputField!.Text = "";
+                _inputPlaceholderActive = false;
+                _inputField.SchemeName = "Dark";
+                _followBottom = true;
                 Log.LogStep($"TUI submit: {text}");
                 RunCommandLine(text);
                 return;
             }
+
+            // A chat is already running: the gate at the top of SendChatAsync would drop this
+            // prompt, so clearing the field first would silently DESTROY what the user typed —
+            // they see nothing happen and lose the message (issue #106: after a long task such as
+            // a presentation the console looked stuck on the previous task AND swallowed whatever
+            // was typed in the meantime). Keep the text verbatim so it can be sent as soon as
+            // the agent is idle, and show why nothing went out.
+            if (Volatile.Read(ref _chatRunning) != 0)
+            {
+                Log.LogStep($"TUI submit ignored, a chat is already running (input kept): {(text.Length > 100 ? text[..100] + "…" : text)}");
+                _statusNote = Dictionary.StatusGenerating;
+                UpdateStatusUi();
+                return;
+            }
+
+            _inputField!.Text = "";
+            _inputPlaceholderActive = false;
+            _inputField.SchemeName = "Dark";
+            _followBottom = true;
             Log.LogStep($"TUI submit (chat): {(text.Length > 100 ? text[..100] + "…" : text)}", monitor: true);
             CollapseBanner();   // the conversation starts: the ASCII-art banner gives way
             _promptHistory.Add(text);
@@ -1165,6 +1236,12 @@ public static class ConsoleTui
             lock (_stateLock) _chatCts = new CancellationTokenSource();
             SetBusy("generating", true);
             var sw = Stopwatch.StartNew();
+            // Publish the run's clock and reset the activity shown on the status line (issue #106):
+            // the wait now reads "generating… 12s · #2 PresentationTool.create_presentation" as the
+            // engine reports each tool call, instead of a static "generating…" with no indication of
+            // what is happening or how long it has been going on.
+            _currentActivity = "";
+            _chatStartedAt = sw;
             // The transcript is snapshotted ON the UI thread — the only owner of _history — inside
             // the same marshalled block that appends the user turn, and handed back through the task:
             // Ui() only QUEUES the action when called from a background thread, so the snapshot must
@@ -1232,7 +1309,36 @@ public static class ConsoleTui
                 while (true)
                 {
                     _chatCts.Token.ThrowIfCancellationRequested();
-                    var line = await reader.ReadLineAsync(_chatCts.Token);
+                    // Stall watchdog (issue #106). This used to await ReadLineAsync with NO timeout
+                    // whatsoever, so if the agent run ever wedged the wait never ended: _chatRunning
+                    // stayed 1, every following prompt was refused with "generating…" and the console
+                    // could only be freed by closing the program and starting it again — which is
+                    // exactly what was reported. The server emits an SSE comment line every 15 s while
+                    // the agent works (and any real chunk resets the timer too), so complete silence
+                    // for far longer than that means the stream is dead, not merely slow: the answer
+                    // can never arrive, and holding the console hostage buys nothing.
+                    // ReadLineAsync returns a ValueTask, which can be awaited only once and has
+                    // neither WaitAsync nor ContinueWith — AsTask() converts it into a Task that the
+                    // timeout race and the later observation (below) can both safely use.
+                    var readLine = reader.ReadLineAsync(_chatCts.Token).AsTask();
+                    string? line;
+                    try
+                    {
+                        line = await readLine.WaitAsync(ChatStreamStallTimeout, _chatCts.Token);
+                    }
+                    catch (TimeoutException)
+                    {
+                        // Observe the abandoned read so its eventual cancellation cannot surface
+                        // later as an unobserved task exception.
+                        _ = readLine.ContinueWith(t => _ = t.Exception, TaskScheduler.Default);
+                        Log.LogStep($"TUI chat: no data on the stream for {(int)ChatStreamStallTimeout.TotalSeconds}s — "
+                            + "ending the wait so the console stays usable", monitor: true);
+                        _lastFailed = true;
+                        FinishChat(new Entry { Role = "agent", Text = Dictionary.StatusStalledEntry, Error = true });
+                        _statusNote = Dictionary.StatusStalled;
+                        lock (_stateLock) _chatCts?.Cancel();
+                        return;
+                    }
                     if (line == null) break;
                     if (!line.StartsWith("data: ")) continue;
                     var data = line["data: ".Length..];
@@ -1313,6 +1419,10 @@ public static class ConsoleTui
             {
                 Interlocked.Exchange(ref _chatRunning, 0);
                 SetBusy("generating", false);
+                // The run is over: drop the per-tool activity and the elapsed clock so the next
+                // run starts with a clean status line (issue #106).
+                _currentActivity = "";
+                _chatStartedAt = null;
                 lock (_stateLock)
                 {
                     _chatCts?.Dispose();
@@ -1454,7 +1564,18 @@ public static class ConsoleTui
             parts.Add($"mic {(_voiceAvailable ? "✓" : "✗")}");
             if (_sipAvailable && _sipState.Length > 0) parts.Add($"sip: {_sipState}");
             if (_telegramAvailable && _telegramState.Length > 0) parts.Add($"tg: {_telegramState}");
-            if (_chatRunning != 0) parts.Add(Dictionary.StatusGeneratingShort);
+            if (_chatRunning != 0)
+            {
+                // While the console waits on a run, show what the agent is actually doing and for
+                // how long (issue #106) instead of a bare "generating…" that leaves the user
+                // guessing whether anything is still happening at all.
+                var startedAt = _chatStartedAt;
+                var elapsed = startedAt != null ? $" {startedAt.Elapsed.TotalSeconds:0}s" : "";
+                var activity = _currentActivity;
+                parts.Add(activity.Length > 0
+                    ? $"{Dictionary.StatusGeneratingShort}{elapsed} · {activity}"
+                    : $"{Dictionary.StatusGeneratingShort}{elapsed}");
+            }
             if (_statusNote.Length > 0) parts.Add(_statusNote);
             var text = string.Join(" · ", parts.Where(p => p.Length > 0));
             _statusLabel.Text = text.Length > 240 ? text[..240] : text;
@@ -1521,6 +1642,18 @@ public static class ConsoleTui
 
         // ── Top-right busy indicator ──
         private void OnIndexingChanged(bool indexing) => SetBusy("indexing", indexing);
+
+        // Live per-tool activity for the status line while the console waits on a run (issue #106).
+        // Fires on the agent's own thread, so only the volatile field is touched here — the UI-thread
+        // spinner tick (100 ms) is what repaints the status line from it, exactly like the spinner
+        // glyph itself. Only the tool-call events carry a name worth showing; Running/Completed/Failed
+        // add nothing the waiting user can act on.
+        private void OnAgentGlobalProgress(object? sender, AgentHarness.AgentProgressEventArgs e)
+        {
+            if (Volatile.Read(ref _chatRunning) == 0) return;
+            if (e.State != AgentHarness.AgentState.Iteration || string.IsNullOrWhiteSpace(e.MethodName)) return;
+            _currentActivity = $"#{e.Iteration} {e.MethodName}";
+        }
 
         private void SetBusy(string op, bool on)
         {

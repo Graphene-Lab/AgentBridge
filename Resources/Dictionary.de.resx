@@ -94,6 +94,8 @@ Nachricht eingeben und Eingabetaste drücken · / öffnet Befehle · @ Dateien �
   <data name="StatusCancelling" xml:space="preserve"><value>wird abgebrochen…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>wird generiert… warten, oder Strg+C zum Stoppen</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>wird generiert…</value></data>
+  <data name="StatusStalled" xml:space="preserve"><value>Stillstand — keine Daten vom Agenten, Warten beendet</value></data>
+  <data name="StatusStalledEntry" xml:space="preserve"><value>(keine Antwort: Der Agent hat lange keine Daten gesendet, deshalb wurde das Warten beendet, damit die Konsole benutzbar bleibt — Enter für einen neuen Versuch)</value></data>
   <data name="StatusReplied" xml:space="preserve"><value>geantwortet in {0:0.0}s</value></data>
   <data name="StatusCancelled" xml:space="preserve"><value>abgebrochen</value></data>
   <data name="StatusError" xml:space="preserve"><value>Fehler</value></data>

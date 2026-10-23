@@ -94,6 +94,8 @@ Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichie
   <data name="StatusCancelling" xml:space="preserve"><value>annulation…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>génération… attendez, ou Ctrl+C pour arrêter</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>génération…</value></data>
+  <data name="StatusStalled" xml:space="preserve"><value>immobilisme — aucune donnée de l'agent, attente interrompue</value></data>
+  <data name="StatusStalledEntry" xml:space="preserve"><value>(aucune réponse : l'agent n'a envoyé aucune donnée depuis longtemps, l'attente a donc été interrompue pour garder la console utilisable — appuyez sur Entrée pour réessayer)</value></data>
   <data name="StatusReplied" xml:space="preserve"><value>répondu en {0:0.0}s</value></data>
   <data name="StatusCancelled" xml:space="preserve"><value>annulé</value></data>
   <data name="StatusError" xml:space="preserve"><value>erreur</value></data>

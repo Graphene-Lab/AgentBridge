@@ -94,6 +94,8 @@ Escribe un mensaje y pulsa Intro · / abre comandos · @ archivos · ? atajos ·
   <data name="StatusCancelling" xml:space="preserve"><value>cancelando…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>generando… espera, o Ctrl+C para detener</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>generando…</value></data>
+  <data name="StatusStalled" xml:space="preserve"><value>sin actividad — sin datos del agente, espera detenida</value></data>
+  <data name="StatusStalledEntry" xml:space="preserve"><value>(sin respuesta: el agente no envió datos durante mucho tiempo, así que se detuvo la espera para mantener la consola usable — pulsa Enter para reintentar)</value></data>
   <data name="StatusReplied" xml:space="preserve"><value>respondido en {0:0.0}s</value></data>
   <data name="StatusCancelled" xml:space="preserve"><value>cancelado</value></data>
   <data name="StatusError" xml:space="preserve"><value>error</value></data>
