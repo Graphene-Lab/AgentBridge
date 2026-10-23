@@ -41,7 +41,7 @@ project and get a persistent TUI where:
 | Menus | pickers are drawn inside the TUI layout — **Esc always cancels** (`/model`, `/tools`, `/attach`) with a clean screen, no residue |
 | No voice | `/voice` — dictation from the server microphone (Windows), `/tts` — Kokoro neural TTS speaks the replies and plays the WAV |
 | File completion via `@` | `@` palette of **uploaded** files (server-side `/v1/files`), `/files add <path>` uploads and attaches; attachments ride along as `file_ids` |
-| Status shows context | status bar also shows **history tokens / context window**, the active **tools** (readable names, e.g. `File, Web, Git`), TTS/mic availability |
+| Status shows context | status bar also shows **history tokens / context window** and TTS/mic availability; the **tools** (readable names, e.g. `File, Web, Git`) are listed on the entry-point line at the top of the chat |
 | Status page shows tokens | menu **Agent → Status** reports the token usage the provider reported for the last turn and for the whole session (prompt, completion, cached, provider calls). A provider that reports no usage shows `none` rather than a zero, so a guess is never mistaken for a measurement |
 | `/docs` opens docs site | `/docs` opens **this project's** online README; `/help` lists commands, shortcuts, API endpoints and links |
 | — | `/tools` opens the tools checklist (presets + individual tools), `/features` toggles feature flags, `/health` pings the server, `/retry` resends the last prompt, `/web` opens the auto-connected web client |
@@ -54,7 +54,7 @@ The top menu bar has six menus (labels follow the UI language):
 |---|---|
 | **Chat** | New Chat (`Ctrl+N`) · Clear History (`Ctrl+L`) · TTS (`/tts`) · Commands (`/…`) · Retry Last (`Ctrl+Y`) · Exit (`Ctrl+Q`) |
 | **File** | Files (`/files`) · Attach (`/attach`) |
-| **Settings** (IT: *Impostazioni*) | LLM & Provider (`/providers`) · Email (SMTP + IMAP) (`/email`) · General (`/general`) · Tools (`/tools`) · TTS Engine (`/ttsengine`) · SIP (`/sip`) · Telegram (`/telegram`) |
+| **Settings** (IT: *Impostazioni*) | LLM & Provider (`/providers`) · Email (SMTP + IMAP) (`/email`) · General (`/general`) · Tools (`/tools`) · Scheduled tasks (`/taskscheduler`) · TTS Engine (`/ttsengine`) · SIP (`/sip`) · Telegram (`/telegram`) |
 | **Session** (IT: *Sessione*) | LLM Model (`/model`) · Voice (`/voice`) · Session Features (`/features`) · Status (`/status`) · Health (`/health`) |
 | **Web** | GUI (`/web`) · OfficeManager (`/officemanager`) |
 | **Help** (IT: *Aiuto*) | Auto-Update · Crash report · Malfunction reports · Check for updates (`/update`) · Help (`F1`) · Shortcuts (`?`) · Documentation (`/docs`) · Report Issues… · About |
@@ -75,6 +75,7 @@ that the agent is working.
 | `/general` | Open the **General** panel — logging, documents path, auto-start |
 | `/model [name]` | Switch the LLM provider for **this chat** (menu when no name given; context-window checked) — the default for new chats is the active provider set in **Settings → LLM & Provider**, it never changes when you use `/model` |
 | `/tools [name]` · `/agent` | Choose the agent's tools: quick presets or an individual-tool checklist (Space toggles; see below) |
+| `/taskscheduler [list\|suspend\|reactivate\|remove\|delete\|update\|changeplanning …]` | Deterministic console for the planned work: prints the table of scheduled tasks and changes them without going through the model (see [Scheduled tasks](#scheduled-tasks)) |
 | `/malfunctionreport` | Toggle the agent's malfunction reports and feature requests to the GitHub repository (Help menu toggle; see [Agent reporting](agent-reporting.md)) |
 | `/voice [lang]` | Dictate from the server microphone into the input |
 | `/tts [text]` | Speak the last agent reply (or the given text) — Kokoro TTS, WAV playback |
@@ -90,6 +91,28 @@ that the agent is working.
 | `/health` | Ping the server, report latency |
 | `/retry` | Resend the last prompt (also Ctrl+Y) |
 | `/exit` · `/quit` | Exit (also Ctrl+C twice, or Ctrl+D) |
+
+## Scheduled tasks
+
+The agent plans work with the built-in TaskScheduler tool: one-shot or recurring jobs, saved
+as JSON and re-armed after a restart. `/taskscheduler` is the **deterministic** console for
+those plans — it never reaches the model, so the answer is always the same. Bare
+`/taskscheduler` prints a table with the id, task, next run, recurrence, state and
+instruction of every planned task.
+
+| Command | What it does |
+|---|---|
+| `/taskscheduler` · `/taskscheduler list` · `/tasks` · `/scheduler` | Show the table of scheduled tasks |
+| `/taskscheduler suspend <id\|name>` | Pause a task; the definition and the run history are kept |
+| `/taskscheduler reactivate <id\|name>` | Resume a paused task (also `reactive`, `resume`, `enable`) |
+| `/taskscheduler remove <id\|name>` | Remove the task, keep its run logs |
+| `/taskscheduler delete <id\|name>` | Remove the task and its run logs |
+| `/taskscheduler update <id\|name> <instruction>` | Replace the instruction the task executes |
+| `/taskscheduler changeplanning <id\|name> [time=HH:mm] [days=Mon,Wed] [interval=hours] [repeat=true\|false] [start=yyyy-MM-dd] [end=yyyy-MM-dd] [dayofmonth=N] [dayofyear=N]` | Change the recurrence; only the keys you pass change |
+
+The id is the number in the first column, so a long task name is never needed; a name works
+too, in quotes when it contains spaces. Every input that starts with `/` is a command: an
+unknown one answers with an "unknown command" note instead of a chat reply.
 
 ## Web GUI
 
@@ -131,8 +154,8 @@ configuration, just start typing.
 enabled (class-A plugins ON by default; class-B `OfficeTool` OFF unless enabled in
 `tools.json`).
 
-The status bar shows the active tools with readable names (`tools: File, Web, Git`), so
-you always know what the agent can do in this conversation.
+The entry-point line at the top of the chat shows the active tools with readable names
+(`Tools: File, Web, Git`), so you always know what the agent can do in this conversation.
 
 When you ask for something the current tool set cannot do but another installed tool
 can, the agent no longer just says it is unable: it tells you which tool to turn on and

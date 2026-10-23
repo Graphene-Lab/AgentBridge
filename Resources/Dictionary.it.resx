@@ -27,7 +27,6 @@
   <data name="InputPlaceholder" xml:space="preserve"><value>Scrivi un messaggio o / per i comandi...</value></data>
   <data name="WelcomeMessage" xml:space="preserve"><value>Benvenuto in AGENT — parla con gli agenti direttamente dal terminale.
 Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie · F1 aiuto · F10 il menu.</value></data>
-  <data name="ServerNote" xml:space="preserve"><value>server: {0} — l'API continua a rispondere in parallelo ({0}/v1/chat/completions)</value></data>
   <data name="HostErrorNote" xml:space="preserve"><value>avvio host locale non riuscito ({0}) — connessione a un'istanza esistente</value></data>
   <data name="WindowTitle" xml:space="preserve"><value>AGENT - Console chat IA</value></data>
   <data name="ChatFrameTitle" xml:space="preserve"><value>Chat</value></data>
@@ -386,6 +385,8 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="SetupSelectForDefault" xml:space="preserve"><value>seleziona prima un provider</value></data>
   <data name="SetupDefaultSet" xml:space="preserve"><value>provider predefinito: {0}</value></data>
   <data name="NoteSetDefaultFailed" xml:space="preserve"><value>impostazione del predefinito non riuscita: {0}</value></data>
+  <data name="NoteSetDefaultUnreachable" xml:space="preserve"><value>il server locale non ha risposto ({0}); la configurazione è salvata in providers.json ma il processo in esecuzione usa ancora il predefinito precedente</value></data>
+  <data name="NoteServerUnreachable" xml:space="preserve"><value>il server locale non ha risposto ({0})</value></data>
   <data name="NoteSetDefaultFailedHttp" xml:space="preserve"><value>impostazione del predefinito non riuscita (HTTP {0}): {1}</value></data>
   <data name="CmdOpen" xml:space="preserve"><value>Apre un file consegnato dall'agente in una risposta, oppure la cartella degli allegati</value></data>
   <data name="MenuOpenAttachments" xml:space="preserve"><value>Apri allegati</value></data>
@@ -447,4 +448,57 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="FilesToggleAttach" xml:space="preserve"><value>Allega / scollega</value></data>
   <data name="FilesRemove" xml:space="preserve"><value>Rimuovi</value></data>
   <data name="FilesPickOne" xml:space="preserve"><value>Seleziona prima un file.</value></data>
+  <!-- Nota di avvio in chat + suggerimento del prossimo prompt + form provider. -->
+  <data name="SetupPromptSuggestion" xml:space="preserve"><value>Suggerisci il prossimo prompt (Tab per accettarlo)</value></data>
+  <data name="ProviderEditing" xml:space="preserve"><value>Provider: {0}</value></data>
+  <data name="ProviderDescrName" xml:space="preserve"><value>Nome univoco mostrato nell'elenco provider</value></data>
+  <data name="ProviderDescrProtocol" xml:space="preserve"><value>Formato di comunicazione del provider</value></data>
+  <data name="ProviderDescrModel" xml:space="preserve"><value>Id del modello inviato con ogni richiesta</value></data>
+  <data name="ProviderDescrBaseAddress" xml:space="preserve"><value>Radice del server, es. http://localhost:11434/</value></data>
+  <data name="ProviderDescrEndpoint" xml:space="preserve"><value>Percorso aggiunto all'indirizzo base</value></data>
+  <data name="ProviderDescrApiKey" xml:space="preserve"><value>Token per i cloud; vuoto se locale</value></data>
+  <data name="ProviderDescrContextWindow" xml:space="preserve"><value>Token massimi di prompt del modello</value></data>
+  <data name="ProviderDescrTimeout" xml:space="preserve"><value>Secondi prima di interrompere la richiesta</value></data>
+  <data name="ProviderDescrPause" xml:space="preserve"><value>Secondi minimi tra due richieste</value></data>
+  <data name="ProviderDescrCacheType" xml:space="preserve"><value>Cache di prefisso o cache Anthropic</value></data>
+  <data name="ProviderDescrInteractionMode" xml:space="preserve"><value>Tool API oppure comandi CLI</value></data>
+  <data name="ProviderDescrForceTextTools" xml:space="preserve"><value>Tool come testo, non come JSON nativo</value></data>
+  <data name="ProviderDescrNoJsonResponseFormat" xml:space="preserve"><value>Per motori senza output vincolato</value></data>
+  <data name="ProviderDescrVision" xml:space="preserve"><value>Il modello accetta immagini in input</value></data>
+  <data name="ProviderDescrVisionMaxPixels" xml:space="preserve"><value>Ridimensiona le immagini più grandi (0 = nessun limite)</value></data>
+  <data name="ProviderDescrExtraBody" xml:space="preserve"><value>Campi extra del corpo richiesta (oggetto JSON)</value></data>
+  <data name="ProviderCacheType" xml:space="preserve"><value>Tipo di cache</value></data>
+  <data name="ProviderPause" xml:space="preserve"><value>Pausa (sec)</value></data>
+  <data name="ProviderForceTextTools" xml:space="preserve"><value>Tool come testo</value></data>
+  <data name="ProviderNoJsonResponseFormat" xml:space="preserve"><value>Senza formato JSON</value></data>
+  <data name="ProviderExtraBody" xml:space="preserve"><value>Corpo extra (JSON)</value></data>
+  <data name="ProviderInvalidExtraBody" xml:space="preserve"><value>Il corpo extra deve essere un oggetto JSON</value></data>
+  <!-- Console deterministica /taskscheduler (tabella + sottocomandi). -->
+  <data name="CmdTaskscheduler" xml:space="preserve"><value>Mostra e gestisci i task pianificati (deterministico: suspend, reactivate, remove, delete, update, changeplanning)</value></data>
+  <data name="MenuTaskscheduler" xml:space="preserve"><value>Task pianificati</value></data>
+  <data name="TaskschedulerUsage" xml:space="preserve"><value>Uso: /taskscheduler list | suspend &lt;id|nome&gt; | reactivate &lt;id|nome&gt; | remove &lt;id|nome&gt; | delete &lt;id|nome&gt; | update &lt;id|nome&gt; &lt;istruzione&gt; | changeplanning &lt;id|nome&gt; [time=HH:mm] [days=weekdays|Mon,Wed] [interval=ore|none] [repeat=true|false] [start=yyyy-MM-dd] [end=yyyy-MM-dd] [dayofmonth=N] [dayofyear=N]</value></data>
+  <data name="TaskschedulerColId" xml:space="preserve"><value>ID</value></data>
+  <data name="TaskschedulerColTask" xml:space="preserve"><value>TASK</value></data>
+  <data name="TaskschedulerColNext" xml:space="preserve"><value>PROSSIMA</value></data>
+  <data name="TaskschedulerColRecurrence" xml:space="preserve"><value>RICORRENZA</value></data>
+  <data name="TaskschedulerColState" xml:space="preserve"><value>STATO</value></data>
+  <data name="TaskschedulerColInstruction" xml:space="preserve"><value>ISTRUZIONE</value></data>
+  <data name="TaskschedulerEmpty" xml:space="preserve"><value>Nessun task pianificato.</value></data>
+  <data name="TaskschedulerActive" xml:space="preserve"><value>attivo</value></data>
+  <data name="TaskschedulerSuspended" xml:space="preserve"><value>sospeso</value></data>
+  <data name="TaskschedulerNotFound" xml:space="preserve"><value>Nessun task corrisponde a '{0}'.</value></data>
+  <data name="TaskschedulerSuspendedNote" xml:space="preserve"><value>Task '{0}' sospeso.</value></data>
+  <data name="TaskschedulerResumedNote" xml:space="preserve"><value>Task '{0}' riattivato.</value></data>
+  <data name="TaskschedulerRemovedNote" xml:space="preserve"><value>Task '{0}' rimosso (log di esecuzione conservati).</value></data>
+  <data name="TaskschedulerDeletedNote" xml:space="preserve"><value>Task '{0}' eliminato (definizione e log rimossi).</value></data>
+  <data name="TaskschedulerUpdatedNote" xml:space="preserve"><value>Task '{0}' aggiornato.</value></data>
+  <data name="TaskschedulerPlanningNote" xml:space="preserve"><value>Pianificazione del task '{0}' aggiornata.</value></data>
+  <data name="TaskschedulerEveryHours" xml:space="preserve"><value>ogni {0}h</value></data>
+  <data name="TaskschedulerDaily" xml:space="preserve"><value>ogni giorno alle {0}</value></data>
+  <data name="TaskschedulerOnDays" xml:space="preserve"><value>{0} alle {1}</value></data>
+  <data name="TaskschedulerDayOfMonth" xml:space="preserve"><value>giorno {0} alle {1}</value></data>
+  <data name="TaskschedulerDayOfYear" xml:space="preserve"><value>giorno {0} dell'anno alle {1}</value></data>
+  <data name="TaskschedulerOnce" xml:space="preserve"><value>una volta</value></data>
+  <data name="TaskschedulerRange" xml:space="preserve"><value>({0} → {1})</value></data>
+  <data name="TaskschedulerHint" xml:space="preserve"><value>Cambia un piano con /taskscheduler suspend|reactivate|remove|delete|update|changeplanning &lt;id|nome&gt;</value></data>
 </root>

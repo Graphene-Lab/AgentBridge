@@ -25,7 +25,7 @@ The remaining tools are chosen per conversation. From the chat window:
 
 There is also a quicker way, if you already know what the conversation is about: name a ready-made combination after the command, for example **`/tools web-agent`** for a web assistant or **`/tools spreadsheet-files`** for a spreadsheet assistant. If you type a name that does not exist, AgentBridge answers with the list of the names you can use.
 
-The status bar at the bottom of the window always shows the tools active in the conversation you are in, so you know at a glance what the agent can do. If you later add a new tool to the `Tools` folder, AgentBridge picks it up by itself within about half a minute — no restart, and no configuration.
+The entry-point line above the chat always shows the tools active in the conversation you are in, so you know at a glance what the agent can do. If you later add a new tool to the `Tools` folder, AgentBridge picks it up by itself within about half a minute — no restart, and no configuration.
 
 And when you ask for something the current tools cannot do but another installed tool can, the agent tells you which one to switch on instead of just saying it is unable — so you can open **`/tools`** and tick it.
 

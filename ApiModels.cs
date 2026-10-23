@@ -127,6 +127,20 @@ public record VoiceListenRequest
     public int? TimeoutSeconds { get; init; }
 }
 
+/// <summary>Request body for POST /v1/suggest (proprietary next-prompt suggestion).</summary>
+public record SuggestRequest
+{
+    /// <summary>Conversation so far, in order (OpenAI "messages" shape).</summary>
+    public List<SuggestMessage>? Messages { get; init; }
+}
+
+/// <summary>One turn of the conversation sent to POST /v1/suggest.</summary>
+public record SuggestMessage
+{
+    public string? Role { get; init; }
+    public string? Content { get; init; }
+}
+
 /// <summary>Request body for POST /v1/sip/call (proprietary).</summary>
 public record SipCallRequest
 {

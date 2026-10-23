@@ -1290,6 +1290,36 @@ app.MapPost("/v1/voice/listen", async (VoiceListenRequest request, CancellationT
 });
 
 // ─────────────────────────────────────────────────────────────────────
+// POST /v1/suggest — next-prompt suggestion (proprietary)
+//
+// Client-driven enhancement: a UI that supports ghost-text suggestions asks what the user
+// is likely to type next. Chats that never ask (SIP calls, Telegram, any client without
+// this feature) pay no extra computation. Setting off → empty answer, no model call.
+// ─────────────────────────────────────────────────────────────────────
+app.MapPost("/v1/suggest", async (SuggestRequest request, CancellationToken ct) =>
+{
+    if (!AIOrchestrator.Setup.PromptSuggestion || request.Messages == null || request.Messages.Count == 0)
+        return Results.Ok(new { suggestion = "" });
+    try
+    {
+        var transcript = request.Messages
+            .Select(m => (Role: m.Role ?? "user", Text: m.Content ?? ""))
+            .ToList();
+        var suggestion = await AIOrchestrator.PromptSuggestionGenerator.GenerateAsync(transcript, ct);
+        return Results.Ok(new { suggestion });
+    }
+    catch (OperationCanceledException)
+    {
+        return Results.Ok(new { suggestion = "" });
+    }
+    catch (Exception ex)
+    {
+        Log.LogStep($"Prompt suggestion failed: {ex.Message}");
+        return Results.Ok(new { suggestion = "" });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────
 // GET /v1/control — read session state and/or platform capabilities (proprietary)
 //
 // ?session_id=... → that session's state (LLM in use, history estimate, features).
@@ -1689,8 +1719,15 @@ if (useTui)
     try
     {
         await app.StartAsync();
-        if (string.IsNullOrEmpty(tuiUrl) && app.Urls.Count > 0)
-            tuiUrl = app.Urls.First();
+        // app.Urls is authoritative only AFTER StartAsync: it carries the address Kestrel
+        // really bound. The configured value can differ (port taken, launch profile, env
+        // var), and a TUI pointing at a port nothing listens on fails every call with
+        // "connection refused" — so prefer the bound address. Wildcard hosts are mapped
+        // to localhost: the TUI runs on this machine.
+        var bound = app.Urls.FirstOrDefault(u => u.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                    ?? app.Urls.FirstOrDefault();
+        if (!string.IsNullOrEmpty(bound))
+            tuiUrl = bound.Replace("://0.0.0.0", "://localhost").Replace("://[::]", "://localhost");
     }
     catch (Exception ex)
     {
@@ -2089,6 +2126,9 @@ object BuildCapabilities()
             status = SipBridge.Status
         },
         sessions = SessionStore.Count,
+        // Clients whose prompt supports ghost text read this flag; when off they never ask
+        // /v1/suggest, so the feature costs nothing anywhere else.
+        prompt_suggestion = AIOrchestrator.Setup.PromptSuggestion,
         // Runtime data payload readiness (voices/kokoro.onnx/Lingua models ship in the
         // release archive). Additive: older installs missing a payload report it here so
         // the TUI/web can explain the state in human terms instead of showing errors.

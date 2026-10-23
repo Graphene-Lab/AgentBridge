@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AIOrchestrator;
+using AIOrchestrator.API;
 using AgentBridge;
 using AgentBridge.Resources;
 using Terminal.Gui;
@@ -70,8 +71,12 @@ public static class ConsoleTui
         private Editor? _inputField;
         private View? _inputArea;
         private Label? _statusLabel;
+        private ChatRoleColorizer? _chatColorizer;
         private int _inputLines = 1;
         private Scheme _baseScheme = new();
+        // One color for the user's own words: the chat log repaints user messages with it
+        // and the prompt text uses it too, so changing it changes both places.
+        private readonly Color _userTextColor;
         private bool _inputPlaceholderActive = true;
         private bool _suppressCommandMenu;
         private bool _disposed;
@@ -97,6 +102,12 @@ public static class ConsoleTui
         private string _provider = "";
         private string _modelName = "";
         private string _interactionMode = "";
+        // Next-prompt suggestion: shown as ghost text in the empty prompt, Tab accepts it.
+        // Requested from /v1/suggest after a successful reply only when the feature is on;
+        // the server enforces the same setting, and clients that never ask pay nothing.
+        private string _suggestion = "";
+        private int _suggestionGeneration;
+        private bool _entryPointShown;
         private string _tokensLast = "";
         private string _tokensSession = "";
         private int _contextWindow;
@@ -184,7 +195,11 @@ public static class ConsoleTui
 
         // UI strings come from the localized dictionary (system language, English fallback) —
         // see Resources/Dictionary.*.resx. Command names (/help, /model...) are NOT translated.
-        private static string PlaceholderText => Dictionary.InputPlaceholder;
+        // A pending next-prompt suggestion is shown as the prompt's ghost text (see the
+        // /v1/suggest request after a reply); Tab accepts it.
+        // A pending next-prompt suggestion replaces the generic hint while the prompt is
+        // empty: it reads as a watermark and Tab turns it into real text.
+        private string PlaceholderText => _suggestion.Length > 0 ? _suggestion : Dictionary.InputPlaceholder;
 
         // Web GUI (Giraffe AI): a static chat client served by its own launcher, installed
         // and kept up to date next to the executable by WebClientUpdater (see that file).
@@ -251,6 +266,11 @@ public static class ConsoleTui
                 MenuGroup: "settings", MenuTitle: Dictionary.MenuGeneralSettings),
             new("tools", "[name]", Dictionary.CmdAgent, (t, a) => t.SwitchAgentAsync(a), new[] { "/agent" },
                 MenuGroup: "settings", MenuTitle: Dictionary.MenuTools),
+            // Deterministic scheduler console: never reaches the agent. Lists the tasks and
+            // lets the user suspend/reactivate/remove/delete/update/replan them in place.
+            new("taskscheduler", "list|suspend <id|name>|reactivate <id|name>|remove <id|name>|delete <id|name>|update <id|name> <instruction>|changeplanning <id|name> [time=HH:mm] [days=Mon,Tue] [interval=hours] [repeat=true|false] [start=yyyy-MM-dd] [end=yyyy-MM-dd] [dayofmonth=N] [dayofyear=N]",
+                Dictionary.CmdTaskscheduler, (t, a) => t.TaskSchedulerAsync(a), new[] { "/tasks", "/scheduler" },
+                MenuGroup: "settings", MenuTitle: Dictionary.MenuTaskscheduler),
             new("ttsengine", "[name]", Dictionary.CmdTtsEngine, (t, a) => t.TtsEngineAsync(a),
                 MenuGroup: "settings", MenuTitle: Dictionary.MenuTtsEngine),
             new("sip", "status|config [set <key> <value>|reload]|call <sip-uri>|answer on|off|hangup", Dictionary.CmdSip, (t, a) => t.SipAsync(a),
@@ -379,6 +399,14 @@ public static class ConsoleTui
                 HotFocus = new TuiAttribute(Color.Black, Color.BrightMagenta),
             };
             SchemeManager.AddScheme("Dark", _baseScheme);
+            // The user's words are celeste in the chat (ChatRoleColorizer) and in the prompt
+            // (this scheme): one color variable drives both.
+            _userTextColor = MenuBarBackground();
+            SchemeManager.AddScheme("Prompt", new Scheme
+            {
+                Normal = new TuiAttribute(_userTextColor, Color.Black),
+                Focus = new TuiAttribute(_userTextColor, Color.Black),
+            });
             SchemeManager.AddScheme("Hint", new Scheme
             {
                 Normal = new TuiAttribute(Color.Gray, Color.Black),
@@ -402,7 +430,6 @@ public static class ConsoleTui
                 Role = "system",
                 Text = Dictionary.WelcomeMessage,
             });
-            _history.Add(new Entry { Role = "system", Text = string.Format(Dictionary.ServerNote, _serverUrl) });
             if (!string.IsNullOrEmpty(_hostError))
                 _history.Add(new Entry { Role = "system", Text = string.Format(Dictionary.HostErrorNote, _hostError) });
 
@@ -594,6 +621,7 @@ public static class ConsoleTui
                     CommandMenuItem("email"),
                     CommandMenuItem("general"),
                     CommandMenuItem("tools"),
+                    CommandMenuItem("taskscheduler"),
                     CommandMenuItem("ttsengine"),
                     CommandMenuItem("sip"),
                     CommandMenuItem("telegram"),
@@ -663,7 +691,7 @@ public static class ConsoleTui
             // would block focus for every focusable child below it (the input field).
             var contentArea = new View
             {
-                X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 3,
+                X = 0, Y = 1, Width = Dim.Fill(), Height = Dim.Fill() - 2,
                 CanFocus = true,
             };
             _mainWindow.Add(contentArea);
@@ -701,7 +729,8 @@ public static class ConsoleTui
             };
             // User messages are repainted in the menu-bar celeste so they never read as
             // agent text (both are otherwise the same white-on-black scheme).
-            _chatView.LineTransformers.Add(new ChatRoleColorizer(_chatView, MenuBarBackground()));
+            _chatColorizer = new ChatRoleColorizer(_userTextColor);
+            _chatView.LineTransformers.Add(_chatColorizer);
             chatFrame.Add(_chatView);
             // Auto-follow the stream only while the user is at the bottom; scrolling
             // up (wheel or PgUp) stops the yank until they scroll down or send a message.
@@ -737,6 +766,7 @@ public static class ConsoleTui
                 WordWrap = true,
                 Multiline = true,
                 GutterOptions = GutterOptions.None,
+                SchemeName = "Prompt",
             };
             SetPlaceholder();
             _inputField.HasFocusChanged += OnInputFocusChanged;
@@ -789,14 +819,18 @@ public static class ConsoleTui
             if (_inputField == null) return;
             _inputPlaceholderActive = false;
             _inputField.Text = "";
-            _inputField.SchemeName = "Dark";
+            _inputField.SchemeName = "Prompt";
+            _suggestion = "";
         }
 
         private void OnInputFocusChanged(object? sender, HasFocusEventArgs e)
         {
             if (e.NewValue)
             {
-                if (_inputPlaceholderActive) ClearPlaceholder();
+                // Ghost text (hint or next-prompt suggestion) stays visible in the empty
+                // prompt; the caret goes to the start so it reads as a watermark.
+                if (_inputPlaceholderActive && _inputField != null)
+                    _inputField.CaretOffset = 0;
             }
             else if (string.IsNullOrWhiteSpace(_inputField?.Text))
             {
@@ -848,6 +882,20 @@ public static class ConsoleTui
 
         private void OnInputKeyDown(object? sender, Key key)
         {
+            // Tab accepts the suggested next prompt while it is shown as ghost text; every
+            // other key dismisses the suggestion (the first keystroke clears the hint below).
+            if (key == Key.Tab && _inputPlaceholderActive && _suggestion.Length > 0)
+            {
+                key.Handled = true;
+                _inputField!.Text = _suggestion;
+                _inputPlaceholderActive = false;
+                _inputField.SchemeName = "Prompt";
+                _inputField.CaretOffset = _suggestion.Length;
+                _suggestion = "";
+                UpdateInputLayout();
+                return;
+            }
+
             if (_inputPlaceholderActive)
                 ClearPlaceholder();   // the first keystroke dismisses the hint, then falls through
 
@@ -1046,8 +1094,9 @@ public static class ConsoleTui
         private void UpdateInputLayout()
         {
             if (_inputField is not { } ed || _inputArea is not { } area || _chatView is not { } chat) return;
-            if (ed.Viewport.Width <= 0) return;   // not laid out yet
-            var rows = Math.Clamp(EstimateWrapRows(ed.Text ?? "", ed.Viewport.Width), 1, MaxInputLines);
+            var width = ed.Viewport.Width;
+            if (width <= 0) return;   // not laid out yet
+            var rows = Math.Clamp(EstimateWrapRows(ed.Text ?? "", width, ed.CaretOffset), 1, MaxInputLines);
             if (rows == _inputLines) return;
             _inputLines = rows;
             ed.Height = rows;
@@ -1070,14 +1119,94 @@ public static class ConsoleTui
             UpdateInputLayout();
         }
 
-        // Approximate the soft-wrapped visual rows (the Editor wraps at the viewport width).
-        private static int EstimateWrapRows(string text, int width)
+        // Visual rows the prompt needs: a faithful port of the Editor's wrap rule (break at
+        // the last whitespace before the wrap column, hard-break when there is none) plus
+        // the caret's own row. Counting characters alone under-estimated the height — the
+        // editor scrolled to the caret and the first wrapped row (the beginning of the text)
+        // disappeared, and a full row's caret landed on an empty continuation row.
+        private static int EstimateWrapRows(string text, int width, int caret)
         {
             if (text.Length == 0) return 1;
+            text = text.Replace("\r\n", "\n");
+            caret = Math.Clamp(caret, 0, text.Length);
             var rows = 0;
-            foreach (var line in text.Replace("\r\n", "\n").Split('\n'))
-                rows += Math.Max(1, (line.Length + width - 1) / width);
-            return rows;
+            var caretRow = 0;
+            var lineStart = 0;
+            while (true)
+            {
+                var end = text.IndexOf('\n', lineStart);
+                if (end < 0) end = text.Length;
+                var line = text[lineStart..end];
+                var segments = WrapSegments(line, width);
+                var lineRows = Math.Max(1, segments.Count);
+                if (caret >= lineStart && caret <= end)
+                {
+                    var column = caret - lineStart;
+                    var index = segments.FindLastIndex(s => s.Start <= column);
+                    if (index < 0) index = 0;
+                    // A caret at the end of a line that exactly fills the last segment sits
+                    // on the empty continuation row the editor draws (and scrolls to).
+                    var last = segments[^1];
+                    if (column >= line.Length && last.Length > 0 && SegmentWidth(line, last.Start, last.Length) == width)
+                        index++;
+                    caretRow = rows + index + 1;
+                }
+                rows += lineRows;
+                if (end == text.Length) break;
+                lineStart = end + 1;
+            }
+            return Math.Max(rows, caretRow);
+        }
+
+        // Wrap segments of ONE document line, matching Terminal.Gui.Editor's
+        // WordWrapStrategy.ComputeSegments (tabs use the default 4-cell indent).
+        private static List<(int Start, int Length)> WrapSegments(string line, int wrapColumn)
+        {
+            var segments = new List<(int, int)>();
+            if (wrapColumn <= 0) { segments.Add((0, line.Length)); return segments; }
+            var segmentStart = 0;
+            while (segmentStart < line.Length)
+            {
+                var visual = 0;
+                var lastWhitespace = -1;
+                var current = segmentStart;
+                var reachedEnd = false;
+                while (current < line.Length)
+                {
+                    var cellWidth = line[current] == '\t' ? 4 - visual % 4 : 1;
+                    if (visual + cellWidth > wrapColumn && current > segmentStart)
+                    {
+                        if (lastWhitespace >= 0)
+                        {
+                            segments.Add((segmentStart, lastWhitespace - segmentStart));
+                            segmentStart = lastWhitespace;
+                            while (segmentStart < line.Length && char.IsWhiteSpace(line[segmentStart])) segmentStart++;
+                        }
+                        else
+                        {
+                            segments.Add((segmentStart, current - segmentStart));
+                            segmentStart = current;
+                        }
+                        break;
+                    }
+                    if (char.IsWhiteSpace(line[current]) && current > segmentStart) lastWhitespace = current + 1;
+                    visual += cellWidth;
+                    current++;
+                    reachedEnd = true;
+                }
+                if (reachedEnd) { segments.Add((segmentStart, line.Length - segmentStart)); break; }
+                if (segmentStart >= line.Length) break;
+            }
+            if (segments.Count == 0) segments.Add((0, line.Length));
+            return segments;
+        }
+
+        private static int SegmentWidth(string line, int start, int length)
+        {
+            var width = 0;
+            for (int i = start; i < start + length && i < line.Length; i++)
+                width += line[i] == '\t' ? 4 - width % 4 : 1;
+            return width;
         }
 
         // ── Spinner ──
@@ -1140,6 +1269,9 @@ public static class ConsoleTui
             {
                 _inputField.Text = _promptHistory[_histIndex];
                 _inputField.CaretOffset = _inputField.Document?.TextLength ?? 0;
+                _inputPlaceholderActive = false;
+                _inputField.SchemeName = "Prompt";
+                UpdateInputLayout();   // the recalled prompt may wrap: grow before drawing
             }
         }
 
@@ -1158,6 +1290,7 @@ public static class ConsoleTui
                 _inputField.Text = _promptHistory[_histIndex];
             }
             _inputField.CaretOffset = _inputField.Document?.TextLength ?? 0;
+            UpdateInputLayout();
         }
 
         private void Submit()
@@ -1169,7 +1302,8 @@ public static class ConsoleTui
             {
                 _inputField!.Text = "";
                 _inputPlaceholderActive = false;
-                _inputField.SchemeName = "Dark";
+                _inputField.SchemeName = "Prompt";
+                _suggestion = "";
                 _followBottom = true;
                 Log.LogStep($"TUI submit: {text}");
                 RunCommandLine(text);
@@ -1192,7 +1326,8 @@ public static class ConsoleTui
 
             _inputField!.Text = "";
             _inputPlaceholderActive = false;
-            _inputField.SchemeName = "Dark";
+            _inputField.SchemeName = "Prompt";
+            _suggestion = "";
             _followBottom = true;
             Log.LogStep($"TUI submit (chat): {(text.Length > 100 ? text[..100] + "…" : text)}", monitor: true);
             CollapseBanner();   // the conversation starts: the ASCII-art banner gives way
@@ -1401,6 +1536,7 @@ public static class ConsoleTui
                 _connected = true;
                 _statusNote = string.Format(Dictionary.StatusReplied, sw.ElapsedMilliseconds / 1000.0);
                 FinishChat(_pending);
+                _ = Task.Run(RequestSuggestionAsync);
             }
             catch (OperationCanceledException)
             {
@@ -1447,6 +1583,41 @@ public static class ConsoleTui
             });
         }
 
+        // Asks the server for the prompt the user is most likely to type next (the same
+        // feature Qwen Code popularized: ghost text in the prompt, Tab to accept). Runs in
+        // the background after a successful reply, and only when the setting is on — the
+        // server enforces it too, and clients that never ask (SIP, Telegram) pay nothing.
+        private async Task RequestSuggestionAsync()
+        {
+            if (!AIOrchestrator.Setup.PromptSuggestion) return;
+            var generation = Interlocked.Increment(ref _suggestionGeneration);
+            try
+            {
+                var outgoing = new TaskCompletionSource<List<object>>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Ui(() => outgoing.TrySetResult(BuildTranscript()));
+                var body = JsonSerializer.Serialize(new { messages = await outgoing.Task }, JsonOpts);
+                using var resp = await _http.PostAsync("/v1/suggest",
+                    new StringContent(body, Encoding.UTF8, "application/json")).WaitAsync(TimeSpan.FromSeconds(30));
+                if (!resp.IsSuccessStatusCode) return;
+                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                var suggestion = GetStr(doc.RootElement, "suggestion") ?? "";
+                if (generation != _suggestionGeneration) return;
+                Ui(() =>
+                {
+                    if (suggestion.Length == 0 || _chatRunning != 0) return;
+                    _suggestion = suggestion;
+                    // Show it only while the prompt is empty: otherwise keep it for later,
+                    // but never overwrite what the user is typing.
+                    if (_inputField is { } ed && (_inputPlaceholderActive || ed.Text.Length == 0))
+                    {
+                        SetPlaceholder();
+                        ed.CaretOffset = 0;
+                    }
+                });
+            }
+            catch { }
+        }
+
         private async Task<string> ReadErrorAsync(HttpResponseMessage response)
         {
             try
@@ -1478,6 +1649,7 @@ public static class ConsoleTui
             {
                 _chatView.Document = new TextDocument(sb.ToString());
             }
+            _chatColorizer?.SetText(sb.ToString());
             // Setting the caret scrolls the viewport so it stays visible (auto-follow),
             // but only while the user has not scrolled up (see _followBottom).
             if (_followBottom)
@@ -1538,6 +1710,25 @@ public static class ConsoleTui
             });
         }
 
+        // Startup banner and feedback after a provider/tool change: the chain the product is
+        // named after, in two lines — [entry point] <-> AgentBridge <-> [provider] and the
+        // tools the agent actually has. This is the one place that shows the endpoint: the
+        // startup note and the status bar no longer repeat it.
+        private void AddEntryPointNote()
+        {
+            ProviderConfigs.TryGet(_provider, out var cfg);
+            var providerUrl = cfg?.BaseAddress?.ToString().TrimEnd('/') ?? "";
+            var provider = providerUrl.Length > 0 ? providerUrl
+                : _provider.Length > 0 ? _provider : Dictionary.None;
+            var tools = EffectiveLoadedTools().Select(ToolShortName).ToArray();
+            var toolsText = tools.Length > 0 ? string.Join(", ", tools) : Dictionary.None;
+            var label = Dictionary.StatusTools;
+            if (label.Length > 0) label = char.ToUpperInvariant(label[0]) + label[1..];
+            // ⟷ is drawn two cells wide by the terminal font (the layout grid counts one),
+            // so the cell right after it is swallowed: the second space keeps one visible.
+            AddNote($"{_serverUrl} ⟷  AgentBridge ⟷  {provider}\n{label}: {toolsText}");
+        }
+
         // Thread-safe snapshots of the state collections (mutated by background tasks).
         private List<string> SnapshotAttached()
         {
@@ -1552,12 +1743,9 @@ public static class ConsoleTui
         {
             if (_statusLabel == null) return;
             // host:port (not the full URL) tells the user which server they talk to.
-            var parts = new List<string> { _connected ? "●" : "○", ShortServerUrl(_serverUrl) };
+            var parts = new List<string> { _connected ? "●" : "○" };
             if (_provider.Length > 0) parts.Add(_provider);
             if (_modelName.Length > 0 && !string.Equals(_modelName, _provider)) parts.Add(_modelName);
-            var tools = EffectiveLoadedTools();
-            if (tools.Length > 0)
-                parts.Add($"{Dictionary.StatusTools}: {string.Join(", ", tools.Select(ToolShortName))}");
             if (_contextWindow > 0)
                 parts.Add($"ctx {FormatTokens(_historyTokens)}/{FormatTokens(_contextWindow)}");
             parts.Add($"TTS {(_ttsAvailable ? "✓" : "✗")}");
@@ -1608,16 +1796,6 @@ public static class ConsoleTui
             string.Equals(name, "EMailTool", StringComparison.OrdinalIgnoreCase) ? "Email"
             : name.EndsWith("Tool", StringComparison.Ordinal) ? name[..^4]
             : name;
-
-        private static string ShortServerUrl(string url)
-        {
-            try
-            {
-                var u = new Uri(url);
-                return $"{u.Host}:{u.Port}";
-            }
-            catch { return url; }
-        }
 
         private static string FormatTokens(int n) => n switch
         {
@@ -1692,23 +1870,21 @@ public static class ConsoleTui
         // transformer. The role of each document line is derived from the block headers
         // that AppendEntry writes (❯/◆/✗/"·" on their own line); user blocks are repainted
         // in the menu-bar celeste, so they stand apart from the white agent text.
-        private sealed class ChatRoleColorizer(Editor chat, Color userColor) : IVisualLineTransformer
+        private sealed class ChatRoleColorizer(Color userColor) : IVisualLineTransformer
         {
             private const string UserRole = "user";
             private const string AttachmentRole = "attachment";
             private TuiAttribute? _userAttribute;
             private TuiAttribute? _attachmentAttribute;
-            private string _text = "";
             private string[] _roles = [];
+
+            /// <summary>Roles for the document just written to the chat log. Called once per
+            /// rebuild: deriving them inside <see cref="Transform"/> re-read the WHOLE document
+            /// for every visible line on every redraw, which made typing lag on long chats.</summary>
+            public void SetText(string text) => _roles = ComputeRoles(text);
 
             public void Transform(CellVisualLine line)
             {
-                string text = chat.Document.Text;
-                if (text != _text)
-                {
-                    _text = text;
-                    _roles = ComputeRoles(text);
-                }
                 int index = line.DocumentLine.LineNumber - 1;
                 if (index < 0 || index >= _roles.Length) return;
                 if (_roles[index] == UserRole)
@@ -2518,7 +2694,7 @@ public static class ConsoleTui
             return tcs.Task;
         }
 
-        private async Task SwitchModelAsync(string args)
+        private async Task<bool> SwitchModelAsync(string args)
         {
             string name = args.Trim();
             if (string.IsNullOrWhiteSpace(name))
@@ -2527,7 +2703,7 @@ public static class ConsoleTui
                 try
                 {
                     using var resp = await _http.GetAsync("/v1/models").WaitAsync(TimeSpan.FromSeconds(8));
-                    if (!resp.IsSuccessStatusCode) { AddNote(Dictionary.NoteCouldNotLoadProviders); return; }
+                    if (!resp.IsSuccessStatusCode) { AddNote(Dictionary.NoteCouldNotLoadProviders); return false; }
                     using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
                     providers = doc.RootElement.GetProperty("data").EnumerateArray()
                         .Where(x => GetStr(x, "owned_by") == "llm-provider")
@@ -2538,53 +2714,84 @@ public static class ConsoleTui
                 catch (Exception ex)
                 {
                     AddNote(string.Format(Dictionary.NoteCouldNotLoadProvidersEx, ex.Message));
-                    return;
+                    return false;
                 }
-                if (providers.Count == 0) { AddNote(Dictionary.NoteNoProviders); return; }
+                if (providers.Count == 0) { AddNote(Dictionary.NoteNoProviders); return false; }
                 var pick = await PickProviderOnUiThreadAsync(Dictionary.PickSwitchProvider, providers);
-                if (pick == null) return;   // Esc → cancel
+                if (pick == null) return false;   // Esc → cancel
                 name = pick.Trim();
             }
 
             if (string.Equals(name, _provider, StringComparison.OrdinalIgnoreCase))
             {
                 AddNote(string.Format(Dictionary.NoteAlreadyOn, name));
-                return;
+                return true;
             }
 
             AddNote(string.Format(Dictionary.NoteSwitchingProvider, name));
             var body = JsonSerializer.Serialize(new { session_id = _sessionId, llm_provider = name }, JsonOpts);
-            using var resp2 = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
-            if (resp2.IsSuccessStatusCode)
+            try
             {
-                AddNote(string.Format(Dictionary.NoteProviderNow, name));
-                // The switch is session-scoped by design (/model never touches the default
-                // in the settings): refresh the session state so the status line and the
-                // pickers reflect the provider actually in use right away.
-                await RefreshSessionStateAsync();
+                using var resp2 = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
+                if (!resp2.IsSuccessStatusCode)
+                {
+                    AddNote(string.Format(Dictionary.NoteSwitchRefused, (int)resp2.StatusCode, await ReadErrorAsync(resp2)));
+                    return false;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                AddNote(string.Format(Dictionary.NoteSwitchRefused, (int)resp2.StatusCode, await ReadErrorAsync(resp2)));
+                // A switch is a server mutation: without the server the session keeps the
+                // previous provider, so a failure must never be reported as success.
+                AddNote(string.Format(Dictionary.NoteServerUnreachable, ex.Message));
+                return false;
             }
+            AddNote(string.Format(Dictionary.NoteProviderNow, name));
+            // The switch is session-scoped by design (/model never touches the default
+            // in the settings): refresh the session state so the status line and the
+            // pickers reflect the provider actually in use right away.
+            await RefreshSessionStateAsync();
+            return true;
         }
 
         // Asks the server to adopt the marked default provider for the current process: new
         // chat sessions start with it. Only the process-wide default changes — the session
-        // currently open is NOT switched (that is /model's job).
-        private async Task SetDefaultProviderAsync(string name)
+        // currently open is NOT switched (that is /model's job). Returns false (and says why)
+        // when the server did not accept it, so the caller never reports a save that the
+        // running process refused.
+        private async Task<bool> SetDefaultProviderAsync(string name)
         {
             try
             {
                 var body = JsonSerializer.Serialize(new { set_default_provider = name }, JsonOpts);
                 using var resp = await _http.PostAsync("/v1/control", new StringContent(body, Encoding.UTF8, "application/json"));
-                if (!resp.IsSuccessStatusCode)
-                    AddNote(string.Format(Dictionary.NoteSetDefaultFailedHttp, (int)resp.StatusCode, await ReadErrorAsync(resp)));
+                if (resp.IsSuccessStatusCode) return true;
+                AddNote(string.Format(Dictionary.NoteSetDefaultFailedHttp, (int)resp.StatusCode, await ReadErrorAsync(resp)));
+                return false;
+            }
+            catch (HttpRequestException ex)
+            {
+                // providers.json is already written; the running process simply cannot be told.
+                AddNote(string.Format(Dictionary.NoteSetDefaultUnreachable, ex.Message));
+                return false;
             }
             catch (Exception ex)
             {
                 AddNote(string.Format(Dictionary.NoteSetDefaultFailed, ex.Message));
+                return false;
             }
+        }
+
+        // Applies the provider panel's selection to the running server: the session switch and
+        // the process default are two mutations of the same endpoint, so they run in order and
+        // the success note appears only after both were accepted.
+        private async Task ApplyProviderSelectionAsync(string chosen)
+        {
+            if (!string.Equals(chosen, _provider, StringComparison.OrdinalIgnoreCase)
+                && !await SwitchModelAsync(chosen))
+                return;   // SwitchModelAsync already reported the reason
+            if (await SetDefaultProviderAsync(chosen))
+                AddNote(string.Format(Dictionary.SetupActiveProviderSaved, chosen));
         }
 
         private Task SwitchAgentAsync(string args)
@@ -2611,6 +2818,7 @@ public static class ConsoleTui
             AddNote(string.Format(Dictionary.NoteAgentSet, id));
             SaveAgentSelection();
             UpdateStatusUi();
+            AddEntryPointNote();
         }
 
         // ── /tools selection persistence ──
@@ -2776,10 +2984,290 @@ public static class ConsoleTui
             SaveAgentSelection();   // the selection must survive a restart (settings → tools)
             Log.LogStep("TUI /agent tools dialog closed");
             UpdateStatusUi();
+            AddEntryPointNote();    // feedback: which tools the agent now actually has
 
             dlg.Dispose();
             _inputField?.SetFocus();
         }
+
+        // ── /taskscheduler: deterministic scheduler console ──
+        // Slash commands never reach the agent: this one reads and changes the TaskSchedulerTool
+        // state in-process and prints a table, so the user has direct control over the planned work.
+        private Task TaskSchedulerAsync(string args)
+        {
+            var tool = new AIOrchestrator.API.TaskSchedulerTool();
+            var rest = args.Trim();
+            var sub = TakeToken(ref rest).ToLowerInvariant();
+            if (sub.Length == 0 || sub is "list" or "ls")
+            {
+                ShowTasksTable(tool);
+                return Task.CompletedTask;
+            }
+            if (sub is "help" or "?" or "h")
+            {
+                AddNote(Dictionary.TaskschedulerUsage);
+                return Task.CompletedTask;
+            }
+
+            var token = TakeToken(ref rest);
+            var name = ResolveTask(tool, token, out var notFound);
+            if (name == null) { AddNote(notFound); return Task.CompletedTask; }
+
+            string result;
+            switch (sub)
+            {
+                case "suspend":
+                    result = tool.SuspendTask(name);
+                    AddNote(IsError(result) ? result : string.Format(Dictionary.TaskschedulerSuspendedNote, name));
+                    break;
+                case "reactivate" or "reactive" or "reactiva" or "resume" or "enable":
+                    result = tool.ResumeTask(name);
+                    AddNote(IsError(result) ? result : string.Format(Dictionary.TaskschedulerResumedNote, name));
+                    break;
+                case "remove":
+                    result = tool.RemoveTask(name);
+                    AddNote(IsError(result) ? result : string.Format(Dictionary.TaskschedulerRemovedNote, name));
+                    break;
+                case "delete":
+                    result = tool.DeleteTask(name);
+                    AddNote(IsError(result) ? result : string.Format(Dictionary.TaskschedulerDeletedNote, name));
+                    break;
+                case "update":
+                    if (rest.Length == 0) { AddNote(Dictionary.TaskschedulerUsage); return Task.CompletedTask; }
+                    result = tool.UpdateTask(name, rest);
+                    AddNote(IsError(result) ? result : string.Format(Dictionary.TaskschedulerUpdatedNote, name));
+                    break;
+                case "changeplanning":
+                    AddNote(ChangePlanning(tool, name, rest));
+                    break;
+                default:
+                    AddNote(Dictionary.TaskschedulerUsage);
+                    return Task.CompletedTask;
+            }
+            ShowTasksTable(tool);
+            return Task.CompletedTask;
+        }
+
+        private void ShowTasksTable(AIOrchestrator.API.TaskSchedulerTool tool)
+        {
+            using var doc = JsonDocument.Parse(tool.GetTasksJson());
+            var rows = doc.RootElement.EnumerateArray().ToList();
+            if (rows.Count == 0) { AddNote(Dictionary.TaskschedulerEmpty); return; }
+
+            // Widths come from the chat viewport: the instruction column takes what is left,
+            // so no row wraps and the columns stay aligned at any window size.
+            var width = Math.Max(64, (_chatView?.Viewport.Width ?? 100) - 1);
+            var nameWidth = Math.Clamp(width / 5, 12, 22);
+            var recurrenceWidth = Math.Clamp(width / 5, 12, 24);
+            var fixedWidth = 3 + 16 + 9 + 5;   // ID, next run, state and the five separators
+            var instructionWidth = width - fixedWidth - nameWidth - recurrenceWidth;
+            if (instructionWidth < 14)
+            {
+                recurrenceWidth = Math.Max(10, recurrenceWidth - (14 - instructionWidth));
+                instructionWidth = width - fixedWidth - nameWidth - recurrenceWidth;
+            }
+
+            var sb = new StringBuilder();
+            sb.Append(Cell(Dictionary.TaskschedulerColId, 3, right: true)).Append(' ')
+              .Append(Cell(Dictionary.TaskschedulerColTask, nameWidth)).Append(' ')
+              .Append(Cell(Dictionary.TaskschedulerColNext, 16)).Append(' ')
+              .Append(Cell(Dictionary.TaskschedulerColRecurrence, recurrenceWidth)).Append(' ')
+              .Append(Cell(Dictionary.TaskschedulerColState, 9)).Append(' ')
+              .Append(Cell(Dictionary.TaskschedulerColInstruction, instructionWidth)).Append('\n');
+
+            var id = 0;
+            foreach (var row in rows)
+            {
+                id++;
+                sb.Append(Cell(id.ToString(), 3, right: true)).Append(' ')
+                  .Append(Cell(GetStr(row, "name") ?? "", nameWidth)).Append(' ')
+                  .Append(Cell(GetStr(row, "nextRunAt") ?? Dictionary.None, 16)).Append(' ')
+                  .Append(Cell(DescribeRecurrence(row), recurrenceWidth)).Append(' ')
+                  .Append(Cell(GetBool(row, "suspended") ? Dictionary.TaskschedulerSuspended : Dictionary.TaskschedulerActive, 9)).Append(' ')
+                  .Append(Cell((GetStr(row, "instruction") ?? "").Replace('\n', ' ').Trim(), instructionWidth))
+                  .Append('\n');
+            }
+            sb.Append('\n').Append(Dictionary.TaskschedulerHint);
+            AddNote(sb.ToString());
+        }
+
+        private static string DescribeRecurrence(JsonElement row)
+        {
+            var time = GetStr(row, "executionTime") ?? "00:00";
+            string text;
+            if (row.TryGetProperty("intervalHours", out var interval) && interval.ValueKind == JsonValueKind.Number)
+                text = string.Format(Dictionary.TaskschedulerEveryHours, interval.GetDouble().ToString("0.##"));
+            else if (row.TryGetProperty("dayOfYear", out var doy) && doy.ValueKind == JsonValueKind.Number)
+                text = string.Format(Dictionary.TaskschedulerDayOfYear, doy.GetInt32(), time);
+            else if (row.TryGetProperty("dayOfMonth", out var dom) && dom.ValueKind == JsonValueKind.Number)
+                text = string.Format(Dictionary.TaskschedulerDayOfMonth, dom.GetInt32(), time);
+            else if (row.TryGetProperty("daysOfWeek", out var days) && days.ValueKind == JsonValueKind.Array && days.GetArrayLength() > 0)
+                text = string.Format(Dictionary.TaskschedulerOnDays,
+                    string.Join(",", days.EnumerateArray().Select(d => ShortDay(d.GetString() ?? ""))), time);
+            else if (GetBool(row, "repeat"))
+                text = string.Format(Dictionary.TaskschedulerDaily, time);
+            else
+                text = Dictionary.TaskschedulerOnce;
+            var start = GetStr(row, "startDate");
+            var end = GetStr(row, "endDate");
+            if (start != null || end != null)
+                text += " " + string.Format(Dictionary.TaskschedulerRange, start ?? "…", end ?? "…");
+            return text;
+        }
+
+        private static string ShortDay(string day) => day.Length >= 3 ? day[..3] : day;
+
+        private static string? ResolveTask(AIOrchestrator.API.TaskSchedulerTool tool, string token, out string message)
+        {
+            message = token.Length == 0 ? Dictionary.TaskschedulerUsage : string.Format(Dictionary.TaskschedulerNotFound, token);
+            if (token.Length == 0) return null;
+            using var doc = JsonDocument.Parse(tool.GetTasksJson());
+            var names = doc.RootElement.EnumerateArray()
+                .Select(e => GetStr(e, "name") ?? "").Where(n => n.Length > 0).ToList();
+            // A numeric token is the ID shown in the table (1-based, sorted by name).
+            if (int.TryParse(token, out var id) && id >= 1 && id <= names.Count) return names[id - 1];
+            return names.FirstOrDefault(n => string.Equals(n, token, StringComparison.Ordinal))
+                ?? names.FirstOrDefault(n => string.Equals(n, token, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // changeplanning merges key=value options into the current schedule: only the keys
+        // given change. dayofmonth/dayofyear/days are mutually exclusive, like schedule_task.
+        private static string ChangePlanning(AIOrchestrator.API.TaskSchedulerTool tool, string name, string options)
+        {
+            if (string.IsNullOrWhiteSpace(options)) return Dictionary.TaskschedulerUsage;
+            using var doc = JsonDocument.Parse(tool.GetTaskDefinitionJson(name));
+            var def = doc.RootElement;
+            if (def.TryGetProperty("error", out _)) return string.Format(Dictionary.TaskschedulerNotFound, name);
+
+            TimeOnly? time = TimeOnly.TryParse(GetStr(def, "executionTime") ?? "", out var t) ? t : null;
+            var days = DaysOfWeek.None;
+            if (def.TryGetProperty("daysOfWeek", out var daysEl) && daysEl.ValueKind == JsonValueKind.Array)
+                foreach (var day in daysEl.EnumerateArray())
+                    if (Enum.TryParse<DaysOfWeek>(day.GetString(), true, out var flag)) days |= flag;
+            int? dayOfMonth = IntOrNull(def, "dayOfMonth");
+            int? dayOfYear = IntOrNull(def, "dayOfYear");
+            TimeSpan? interval = def.TryGetProperty("intervalHours", out var iv) && iv.ValueKind == JsonValueKind.Number
+                ? TimeSpan.FromHours(iv.GetDouble()) : null;
+            var repeat = GetBool(def, "repeat");
+            DateTime? start = DateTime.TryParse(GetStr(def, "startDate"), out var s) ? s : null;
+            DateTime? end = DateTime.TryParse(GetStr(def, "endDate"), out var e) ? e : null;
+
+            foreach (var option in options.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var eq = option.IndexOf('=');
+                if (eq <= 0) return Dictionary.TaskschedulerUsage;
+                var key = option[..eq].ToLowerInvariant();
+                var value = option[(eq + 1)..];
+                switch (key)
+                {
+                    case "time":
+                        if (!TimeOnly.TryParse(value, out var newTime)) return Dictionary.TaskschedulerUsage;
+                        time = newTime;
+                        break;
+                    case "days":
+                        if (!TryParseDays(value, out days)) return Dictionary.TaskschedulerUsage;
+                        if (days != DaysOfWeek.None)
+                        { dayOfMonth = null; dayOfYear = null; interval = null; }
+                        break;
+                    case "dayofmonth":
+                        if (value is "none" or "off") { dayOfMonth = null; break; }
+                        if (!int.TryParse(value, out var dom)) return Dictionary.TaskschedulerUsage;
+                        dayOfMonth = dom;
+                        dayOfYear = null;
+                        days = DaysOfWeek.None;
+                        interval = null;
+                        break;
+                    case "dayofyear":
+                        if (value is "none" or "off") { dayOfYear = null; break; }
+                        if (!int.TryParse(value, out var doy)) return Dictionary.TaskschedulerUsage;
+                        dayOfYear = doy;
+                        dayOfMonth = null;
+                        days = DaysOfWeek.None;
+                        interval = null;
+                        break;
+                    case "interval":
+                        // interval=none returns to a date-based schedule (intervalHours has
+                        // the highest precedence, so it must be removable).
+                        if (value is "none" or "off") { interval = null; break; }
+                        if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture, out var hours) || hours <= 0)
+                            return Dictionary.TaskschedulerUsage;
+                        interval = TimeSpan.FromHours(hours);
+                        dayOfMonth = null;
+                        dayOfYear = null;
+                        days = DaysOfWeek.None;
+                        break;
+                    case "repeat":
+                        repeat = value is "true" or "1" or "on" or "yes";
+                        break;
+                    case "start":
+                        if (!DateTime.TryParse(value, out var newStart)) return Dictionary.TaskschedulerUsage;
+                        start = newStart;
+                        break;
+                    case "end":
+                        if (!DateTime.TryParse(value, out var newEnd)) return Dictionary.TaskschedulerUsage;
+                        end = newEnd;
+                        break;
+                    default:
+                        return Dictionary.TaskschedulerUsage;
+                }
+            }
+            var result = tool.ChangePlanning(name, time, days, dayOfMonth, dayOfYear, interval, repeat, start, end);
+            return IsError(result) ? result : string.Format(Dictionary.TaskschedulerPlanningNote, name);
+        }
+
+        private static bool TryParseDays(string value, out DaysOfWeek days)
+        {
+            days = DaysOfWeek.None;
+            foreach (var raw in value.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var part = raw.Trim();
+                if (part.Equals("weekdays", StringComparison.OrdinalIgnoreCase)) { days |= DaysOfWeek.Weekdays; continue; }
+                if (part.Equals("weekend", StringComparison.OrdinalIgnoreCase)) { days |= DaysOfWeek.Weekend; continue; }
+                if (part.Equals("all", StringComparison.OrdinalIgnoreCase) || part.Equals("daily", StringComparison.OrdinalIgnoreCase))
+                { days = DaysOfWeek.All; continue; }
+                if (part.Equals("none", StringComparison.OrdinalIgnoreCase)) { days = DaysOfWeek.None; continue; }
+                var flag = Enum.GetValues<DaysOfWeek>()
+                    .FirstOrDefault(d => d != DaysOfWeek.None && d.ToString().StartsWith(part, StringComparison.OrdinalIgnoreCase));
+                if (flag == DaysOfWeek.None) return false;
+                days |= flag;
+            }
+            return true;
+        }
+
+        private static int? IntOrNull(JsonElement element, string name) =>
+            element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null;
+
+        private static bool IsError(string result) => result.StartsWith("Error", StringComparison.Ordinal);
+
+        // First whitespace-delimited token; a leading "..." groups a name containing spaces.
+        private static string TakeToken(ref string rest)
+        {
+            rest = rest.TrimStart();
+            if (rest.Length == 0) return "";
+            if (rest[0] == '"')
+            {
+                var close = rest.IndexOf('"', 1);
+                if (close > 0)
+                {
+                    var quoted = rest[1..close];
+                    rest = rest[(close + 1)..].TrimStart();
+                    return quoted;
+                }
+            }
+            var space = rest.IndexOf(' ');
+            if (space < 0) { var whole = rest; rest = ""; return whole; }
+            var token = rest[..space];
+            rest = rest[(space + 1)..].TrimStart();
+            return token;
+        }
+
+        // One fixed-width table cell: pad to the column, or cut with an ellipsis so a long
+        // value never pushes the following columns out of line.
+        private static string Cell(string text, int width, bool right = false) =>
+            text.Length > width
+                ? (right ? "…" + text[^(width - 1)..] : text[..(width - 1)] + "…")
+                : (right ? text.PadLeft(width) : text.PadRight(width));
 
         private async Task VoiceAsync(string lang)
         {
@@ -2805,8 +3293,9 @@ public static class ConsoleTui
                         if (_inputField == null) return;
                         _inputField.Text = text;
                         _inputPlaceholderActive = false;
-                        _inputField.SchemeName = "Dark";
+                        _inputField.SchemeName = "Prompt";
                         _inputField.CaretOffset = _inputField.Document?.TextLength ?? 0;
+                        UpdateInputLayout();
                     });
                     AddNote(string.Format(Dictionary.NoteDictated, text));
                 }
@@ -4280,11 +4769,14 @@ public static class ConsoleTui
             {
                 var sel = ProviderConfigs.All.FirstOrDefault(p =>
                     string.Equals(p.ProviderName, providerDropdown.Text, StringComparison.OrdinalIgnoreCase));
-                if (sel != null && string.Equals(sel.ProviderName, _provider, StringComparison.OrdinalIgnoreCase)
+                // The configuration wins over the session's cached model name: the server
+                // reloads the provider config before every chat, so the file is what the
+                // next run executes (a just-edited model must show up immediately).
+                if (sel != null && !string.IsNullOrWhiteSpace(sel.ModelName))
+                    activeModelLabel.Text = string.Format(Dictionary.SetupActiveModel, sel.ModelName);
+                else if (sel != null && string.Equals(sel.ProviderName, _provider, StringComparison.OrdinalIgnoreCase)
                     && !string.IsNullOrWhiteSpace(_modelName))
                     activeModelLabel.Text = string.Format(Dictionary.SetupActiveModel, _modelName);
-                else if (sel != null && !string.IsNullOrWhiteSpace(sel.ModelName))
-                    activeModelLabel.Text = string.Format(Dictionary.SetupActiveModel, sel.ModelName);
                 else
                     activeModelLabel.Text = Dictionary.SetupActiveModelDefault;
             }
@@ -4317,16 +4809,45 @@ public static class ConsoleTui
 
             RefreshProviders();
 
+            // Open the shared provider form (Add when name is null) on the NEXT loop
+            // iteration. Running a modal dialog from inside this button's click handler let
+            // the same click reach the new dialog's default button, so Edit looked like it
+            // did nothing and Add closed the panel: the deferred call has no click in flight.
+            void OpenProviderEditor(string? name)
+            {
+                _app.AddTimeout(TimeSpan.Zero, () =>
+                {
+                    ProviderConfig? existing = null;
+                    if (name != null)
+                    {
+                        if (!ProviderConfigs.TryGet(name, out existing)) { AddNote(Dictionary.SetupSelectToEdit); return false; }
+                    }
+                    var cfg = ShowProviderDialog(existing);
+                    if (cfg == null) return false;
+                    if (existing == null)
+                    {
+                        if (ProviderConfigs.Add(cfg, persist: true))
+                            AddNote(string.Format(Dictionary.SetupProviderAdded, cfg.ProviderName));
+                        else
+                            AddNote(string.Format(Dictionary.SetupProviderExists, cfg.ProviderName));
+                    }
+                    else
+                    {
+                        ProviderConfigs.Upsert(cfg, persist: true);
+                        AddNote(string.Format(Dictionary.SetupProviderUpdated, cfg.ProviderName));
+                    }
+                    RefreshProviders();
+                    providerDropdown.Text = cfg.ProviderName;
+                    UpdateActiveModelLabel();
+                    LoadApiKeyForSelection();
+                    return false;
+                });
+            }
+
             OnButtonClicked(addBtn, () =>
             {
                 Log.LogStep("TUI Providers: Add provider button", monitor: true);
-                var cfg = ShowProviderDialog(null);
-                if (cfg == null) return;
-                if (ProviderConfigs.Add(cfg, persist: true))
-                    AddNote(string.Format(Dictionary.SetupProviderAdded, cfg.ProviderName));
-                else
-                    AddNote(string.Format(Dictionary.SetupProviderExists, cfg.ProviderName));
-                RefreshProviders();
+                OpenProviderEditor(null);
             });
             OnButtonClicked(editBtn, () =>
             {
@@ -4334,11 +4855,7 @@ public static class ConsoleTui
                 var name = providerDropdown.Text;
                 if (string.IsNullOrWhiteSpace(name)) { AddNote(Dictionary.SetupSelectToEdit); return; }
                 Log.LogStep($"TUI Providers: Edit provider '{name}'", monitor: true);
-                var cfg = ShowProviderDialog(ProviderConfigs.Get(name));
-                if (cfg == null) return;
-                ProviderConfigs.Upsert(cfg, persist: true);
-                AddNote(string.Format(Dictionary.SetupProviderUpdated, cfg.ProviderName));
-                RefreshProviders();
+                OpenProviderEditor(name);
             });
             OnButtonClicked(removeBtn, () =>
             {
@@ -4387,12 +4904,9 @@ public static class ConsoleTui
                 // The dropdown selection is the definitive active provider: persist it as the
                 // default (new chats start from it) and adopt it for the running process.
                 ProviderConfigs.SetDefault(chosen, persist: true);
-                _ = SetDefaultProviderAsync(chosen);
-                if (!string.Equals(chosen, _provider, StringComparison.OrdinalIgnoreCase))
-                    _ = SwitchModelAsync(chosen);   // same path as /model (HTTP /v1/control)
-                AddNote(string.Format(Dictionary.SetupActiveProviderSaved, chosen));
                 Log.LogStep($"TUI Providers saved (active: {chosen})", monitor: true);
                 _app.RequestStop(dlg);
+                _ = ApplyProviderSelectionAsync(chosen);
             };
             var close = new Button { Text = Dictionary.Close };
             close.Accepted += (_, _) => { Log.LogStep("TUI Providers panel closed (Cancel)"); _app.RequestStop(dlg); };
@@ -4528,9 +5042,17 @@ public static class ConsoleTui
                 Value = SystemExtra.Util.GetAutoStart() ? CheckState.Checked : CheckState.UnChecked,
                 X = 1, Y = 1,
             };
-            var docsPath = AddField(dlg, Dictionary.SetupDocumentsPath, AIOrchestrator.Setup.DocumentsPath, 3);
-            var pathErr = new Label { Text = "", X = 1, Y = 4, Width = Dim.Fill() - 2, SchemeName = "Hint" };
-            dlg.Add(logEnabled, autoStart, pathErr);
+            // Next-prompt suggestion: the server only computes it when a client asks
+            // (/v1/suggest) and this flag is on, so SIP/Telegram chats never pay for it.
+            var suggestion = new CheckBox
+            {
+                Text = Dictionary.SetupPromptSuggestion,
+                Value = AIOrchestrator.Setup.PromptSuggestion ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = 2,
+            };
+            var docsPath = AddField(dlg, Dictionary.SetupDocumentsPath, AIOrchestrator.Setup.DocumentsPath, 4);
+            var pathErr = new Label { Text = "", X = 1, Y = 5, Width = Dim.Fill() - 2, SchemeName = "Hint" };
+            dlg.Add(logEnabled, autoStart, suggestion, pathErr);
 
             var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
             save.Accepting += (_, e) =>
@@ -4547,6 +5069,8 @@ public static class ConsoleTui
                 }
                 AIOrchestrator.Log.IsEnabled = logEnabled.Value == CheckState.Checked;
                 SystemExtra.Util.SetAutoStart(autoStart.Value == CheckState.Checked);
+                AIOrchestrator.Setup.PromptSuggestion = suggestion.Value == CheckState.Checked;
+                AIOrchestrator.Setup.Save();
                 AddNote(pathNote == null ? Dictionary.SetupGeneralSaved : string.Format(Dictionary.SetupSavedWithNote, pathNote));
                 Log.LogStep("TUI General panel saved", monitor: true);
                 _app.RequestStop(dlg);
@@ -4562,107 +5086,148 @@ public static class ConsoleTui
             _inputField?.SetFocus();
         }
 
-        // Modal form to add a new provider or edit an existing one (returns the edited
-        // config on OK, null on cancel). The API-key field serves every cloud provider
-        // (any non-loopback endpoint); local providers simply leave it empty. Keys are
-        // persisted with the provider to providers.json.
+        // ONE form for Add and Edit (dual mode): Add shows an editable name at the top,
+        // Edit shows the provider being edited there instead. Every configurable field of
+        // ProviderConfig is exposed, each with a one-line description, so the panel can set
+        // whatever the provider needs (context window, endpoint, cache, extra body...).
         private ProviderConfig? ShowProviderDialog(ProviderConfig? existing)
         {
+            var adding = existing == null;
             var dlg = new Dialog
             {
-                Title = existing == null ? Dictionary.ProviderAddTitle : string.Format(Dictionary.ProviderEditTitle, existing.ProviderName),
-                Width = 66,
-                Height = 16,
+                Title = adding ? Dictionary.ProviderAddTitle : string.Format(Dictionary.ProviderEditTitle, existing!.ProviderName),
+                Width = Dim.Percent(94),
+                Height = 21,
                 SchemeName = "Dark",
             };
             int y = 0;
-            var nameField = AddField(dlg, Dictionary.ProviderName, existing?.ProviderName, y++);
+            TextField? nameField = null;
+            if (adding)
+            {
+                nameField = AddFormField(dlg, Dictionary.ProviderName, null, Dictionary.ProviderDescrName, ref y);
+            }
+            else
+            {
+                dlg.Add(new Label
+                {
+                    Text = string.Format(Dictionary.ProviderEditing, existing!.ProviderName),
+                    X = 1, Y = y++, Width = Dim.Fill() - 2, SchemeName = "Hint",
+                });
+            }
             var protocol = new DropDownList
             {
                 ReadOnly = true,
-                X = 20, Y = y, Width = 32,
+                X = FormFieldX, Y = y, Width = FormFieldWidth,
                 Source = new ListWrapper<string>(new ObservableCollection<string>(Enum.GetNames<ProviderProtocol>())),
                 Text = (existing?.Protocol ?? ProviderProtocol.OpenAI).ToString(),
             };
-            dlg.Add(new Label { Text = Dictionary.ProviderProtocol, X = 1, Y = y, Width = 18 }, protocol);
+            dlg.Add(new Label { Text = Dictionary.ProviderProtocol, X = 1, Y = y, Width = 18 }, protocol,
+                new Label { Text = Dictionary.ProviderDescrProtocol, X = FormNoteX, Y = y, Width = Dim.Fill() - FormNoteX, SchemeName = "Hint" });
+            y++;
+            var modelField = AddFormField(dlg, Dictionary.ProviderModel, existing?.ModelName, Dictionary.ProviderDescrModel, ref y);
+            var baseField = AddFormField(dlg, Dictionary.ProviderBaseAddress, existing?.BaseAddress.ToString(), Dictionary.ProviderDescrBaseAddress, ref y);
+            var endPointField = AddFormField(dlg, Dictionary.ProviderEndpoint, existing?.EndPoint, Dictionary.ProviderDescrEndpoint, ref y);
+            // Masked API-key field (secret on screen); leave empty for local providers
+            // (localhost/127.0.0.1 endpoint — they are treated as keyless regardless of name).
+            var apiKeyField = AddFormField(dlg, Dictionary.ProviderApiKey, existing?.ApiKey, Dictionary.ProviderDescrApiKey, ref y, secret: true);
+            var ctxField = AddFormField(dlg, Dictionary.ProviderContextWindow, (existing?.ContextWindow ?? 32768).ToString(), Dictionary.ProviderDescrContextWindow, ref y);
+            var timeoutField = AddFormField(dlg, Dictionary.ProviderTimeout, ((int)(existing?.Timeout.TotalSeconds ?? 30)).ToString(), Dictionary.ProviderDescrTimeout, ref y);
+            var pauseField = AddFormField(dlg, Dictionary.ProviderPause, ((int)(existing?.PauseBetweenRequests.TotalSeconds ?? 0)).ToString(), Dictionary.ProviderDescrPause, ref y);
+            var cacheType = new DropDownList
+            {
+                ReadOnly = true,
+                X = FormFieldX, Y = y, Width = FormFieldWidth,
+                Source = new ListWrapper<string>(new ObservableCollection<string>(Enum.GetNames<ProviderCacheType>())),
+                Text = (existing?.CacheType ?? ProviderCacheType.PrefixCache).ToString(),
+            };
+            dlg.Add(new Label { Text = Dictionary.ProviderCacheType, X = 1, Y = y, Width = 18 }, cacheType,
+                new Label { Text = Dictionary.ProviderDescrCacheType, X = FormNoteX, Y = y, Width = Dim.Fill() - FormNoteX, SchemeName = "Hint" });
             y++;
             // Interaction mode: Default leaves the decision to the model size (CLI for small
             // models, API for large ones — ProviderConfig.EffectiveAgentInteractionMode).
             var interactionMode = new DropDownList
             {
                 ReadOnly = true,
-                X = 20, Y = y, Width = 32,
+                X = FormFieldX, Y = y, Width = FormFieldWidth,
                 Source = new ListWrapper<string>(new ObservableCollection<string>(
                     new[] { Dictionary.InteractionModeDefault, nameof(AgentInteractionMode.API), nameof(AgentInteractionMode.CLI) })),
                 Text = existing?.AgentInteractionMode?.ToString() ?? Dictionary.InteractionModeDefault,
             };
-            dlg.Add(new Label { Text = Dictionary.ProviderInteractionMode, X = 1, Y = y, Width = 18 }, interactionMode);
+            dlg.Add(new Label { Text = Dictionary.ProviderInteractionMode, X = 1, Y = y, Width = 18 }, interactionMode,
+                new Label { Text = Dictionary.ProviderDescrInteractionMode, X = FormNoteX, Y = y, Width = Dim.Fill() - FormNoteX, SchemeName = "Hint" });
             y++;
-            var modelField = AddField(dlg, Dictionary.ProviderModel, existing?.ModelName, y++);
-            var baseField = AddField(dlg, Dictionary.ProviderBaseAddress, existing?.BaseAddress.ToString(), y++);
-            var endPointField = AddField(dlg, Dictionary.ProviderEndpoint, existing?.EndPoint, y++);
-            // Masked API-key field (secret on screen); leave empty for local providers
-            // (localhost/127.0.0.1 endpoint — they are treated as keyless regardless of name).
-            var apiKeyField = AddField(dlg, Dictionary.ProviderApiKey, existing?.ApiKey, y++, secret: true);
-            var ctxField = AddField(dlg, Dictionary.ProviderContextWindow, (existing?.ContextWindow ?? 32768).ToString(), y++);
-            var timeoutField = AddField(dlg, Dictionary.ProviderTimeout, ((int)(existing?.Timeout.TotalSeconds ?? 30)).ToString(), y++);
+            var forceTextTools = AddFormCheckBox(dlg, Dictionary.ProviderForceTextTools, existing?.ForceTextToolDefinitions ?? false,
+                Dictionary.ProviderDescrForceTextTools, ref y);
+            var noJsonFormat = AddFormCheckBox(dlg, Dictionary.ProviderNoJsonResponseFormat, existing?.NoJsonResponseFormat ?? false,
+                Dictionary.ProviderDescrNoJsonResponseFormat, ref y);
             // Vision: the provider declares whether its model can understand images. Tools read
             // AIOrchestrator.Vision.Level and only use vision when this is on (a vision-language
             // model). VisionMaxPixels caps the image size sent to the model (0 = no cap).
-            var visionCheck = new CheckBox
-            {
-                Text = Dictionary.ProviderSupportsVision,
-                Value = (existing?.SupportsVision ?? false) ? CheckState.Checked : CheckState.UnChecked,
-                X = 1, Y = y,
-            };
-            dlg.Add(visionCheck);
-            y++;
-            var visionMaxField = AddField(dlg, Dictionary.ProviderVisionMaxPixels, (existing?.VisionMaxPixels ?? 0).ToString(), y++);
+            var visionCheck = AddFormCheckBox(dlg, Dictionary.ProviderSupportsVision, existing?.SupportsVision ?? false,
+                Dictionary.ProviderDescrVision, ref y);
+            var visionMaxField = AddFormField(dlg, Dictionary.ProviderVisionMaxPixels, (existing?.VisionMaxPixels ?? 0).ToString(), Dictionary.ProviderDescrVisionMaxPixels, ref y);
+            var extraBodyField = AddFormField(dlg, Dictionary.ProviderExtraBody,
+                existing?.ExtraBody is { Count: > 0 } eb ? JsonSerializer.Serialize(eb) : "",
+                Dictionary.ProviderDescrExtraBody, ref y);
+            var formErr = new Label { Text = "", X = 1, Y = y, Width = Dim.Fill() - 2, SchemeName = "Hint" };
+            dlg.Add(formErr);
 
             ProviderConfig? result = null;
             var ok = new Button { Text = Dictionary.Ok, IsDefault = true };
             OnButtonClicked(ok, () =>
             {
-                var providerName = (nameField.Text ?? "").Trim();
+                var providerName = adding ? (nameField!.Text ?? "").Trim() : existing!.ProviderName;
                 if (providerName.Length == 0)
                 {
-                    _ = MessageBox.Query(_app, Dictionary.ProviderAddTitle, Dictionary.ProviderNameRequired, Dictionary.Ok);
+                    formErr.Text = Dictionary.ProviderNameRequired;
                     return;
                 }
                 if (!Uri.TryCreate((baseField.Text ?? "").Trim(), UriKind.Absolute, out var uri))
                 {
-                    _ = MessageBox.Query(_app, Dictionary.ProviderAddTitle, Dictionary.ProviderBaseAddressInvalid, Dictionary.Ok);
+                    formErr.Text = Dictionary.ProviderBaseAddressInvalid;
                     return;
                 }
                 if (!int.TryParse((ctxField.Text ?? "").Trim(), out var ctx) || ctx <= 0)
                 {
-                    _ = MessageBox.Query(_app, Dictionary.ProviderAddTitle, Dictionary.ProviderContextInvalid, Dictionary.Ok);
+                    formErr.Text = Dictionary.ProviderContextInvalid;
                     return;
                 }
                 if (!int.TryParse((timeoutField.Text ?? "").Trim(), out var secs) || secs <= 0) secs = 30;
+                if (!int.TryParse((pauseField.Text ?? "").Trim(), out var pause) || pause < 0) pause = 0;
                 if (!Enum.TryParse<ProviderProtocol>((protocol.Text ?? "").Trim(), out var proto)) proto = ProviderProtocol.OpenAI;
+                if (!Enum.TryParse<ProviderCacheType>((cacheType.Text ?? "").Trim(), out var cache)) cache = ProviderCacheType.PrefixCache;
                 // Interaction mode: "Default" (localized) → null → the model-size default applies.
                 var modeText = (interactionMode.Text ?? "").Trim();
                 AgentInteractionMode? mode = null;
                 if (string.Equals(modeText, nameof(AgentInteractionMode.API), StringComparison.OrdinalIgnoreCase)) mode = AgentInteractionMode.API;
                 else if (string.Equals(modeText, nameof(AgentInteractionMode.CLI), StringComparison.OrdinalIgnoreCase)) mode = AgentInteractionMode.CLI;
+                Dictionary<string, object>? extra = null;
+                var extraText = (extraBodyField.Text ?? "").Trim();
+                if (extraText.Length > 0)
+                {
+                    try
+                    {
+                        using var extraDoc = JsonDocument.Parse(extraText);
+                        if (extraDoc.RootElement.ValueKind != JsonValueKind.Object) throw new JsonException();
+                        extra = JsonSerializer.Deserialize<Dictionary<string, object>>(extraText);
+                    }
+                    catch
+                    {
+                        formErr.Text = Dictionary.ProviderInvalidExtraBody;
+                        return;
+                    }
+                }
                 result = new ProviderConfig
                 {
                     ProviderName = providerName,
                     Protocol = proto,
-                    // Editing must never silently drop fields the dialog does not expose
-                    // (issue #8: after a console edit the provider lost CacheType /
-                    // ForceTextToolDefinitions / PauseBetweenRequests). For an ADD the
-                    // provider does not exist yet, so those stay at their defaults.
-                    CacheType = existing?.CacheType
-                        ?? (ProviderConfigs.TryGet(providerName, out var currentAdd) ? currentAdd.CacheType : ProviderCacheType.PrefixCache),
+                    CacheType = cache,
                     AgentInteractionMode = mode,
                     // Editing a provider must never silently drop its default marker.
                     IsDefault = existing?.IsDefault ?? false,
-                    ForceTextToolDefinitions = existing?.ForceTextToolDefinitions
-                        ?? (ProviderConfigs.TryGet(providerName, out var currentForce) ? currentForce.ForceTextToolDefinitions : false),
-                    PauseBetweenRequests = existing?.PauseBetweenRequests
-                        ?? (ProviderConfigs.TryGet(providerName, out var currentPause) ? currentPause.PauseBetweenRequests : TimeSpan.Zero),
+                    ForceTextToolDefinitions = forceTextTools.Value == CheckState.Checked,
+                    NoJsonResponseFormat = noJsonFormat.Value == CheckState.Checked,
+                    PauseBetweenRequests = TimeSpan.FromSeconds(pause),
                     ModelName = (modelField.Text ?? "").Trim(),
                     BaseAddress = uri,
                     EndPoint = (endPointField.Text ?? "").Trim(),
@@ -4671,7 +5236,9 @@ public static class ConsoleTui
                     Timeout = TimeSpan.FromSeconds(secs),
                     SupportsVision = visionCheck.Value == CheckState.Checked,
                     VisionMaxPixels = int.TryParse((visionMaxField.Text ?? "").Trim(), out var vmp) && vmp > 0 ? vmp : 0,
+                    ExtraBody = extra,
                 };
+                formErr.Text = "";
                 Log.LogStep($"TUI Provider dialog OK: {providerName} ({proto})", monitor: true);
                 _app.RequestStop(dlg);
             });
@@ -4682,10 +5249,41 @@ public static class ConsoleTui
             // because Enter triggered Annulla instead).
             dlg.AddButton(cancel);
             dlg.AddButton(ok);
-            dlg.Initialized += (_, _) => nameField.SetFocus();
+            dlg.Initialized += (_, _) => (nameField ?? baseField).SetFocus();
             _app.Run(dlg);
             dlg.Dispose();
             return result;
+        }
+
+        // Form rows: label, value, and a one-line description on the right of the field
+        // (the description is what makes every provider parameter self-explanatory).
+        private const int FormLabelWidth = 18;
+        private const int FormFieldX = 20;
+        private const int FormFieldWidth = 42;
+        private const int FormNoteX = FormFieldX + FormFieldWidth + 1;
+
+        private static TextField AddFormField(View parent, string label, string? value, string description, ref int y, bool secret = false)
+        {
+            parent.Add(new Label { Text = label, X = 1, Y = y, Width = FormLabelWidth });
+            var field = new TextField { Text = value ?? "", X = FormFieldX, Y = y, Width = FormFieldWidth, Secret = secret };
+            parent.Add(field);
+            parent.Add(new Label { Text = description, X = FormNoteX, Y = y, Width = Dim.Fill() - FormNoteX, SchemeName = "Hint" });
+            y++;
+            return field;
+        }
+
+        private static CheckBox AddFormCheckBox(View parent, string label, bool value, string description, ref int y)
+        {
+            var box = new CheckBox
+            {
+                Text = label,
+                Value = value ? CheckState.Checked : CheckState.UnChecked,
+                X = FormFieldX, Y = y, Width = FormFieldWidth,
+            };
+            parent.Add(box);
+            parent.Add(new Label { Text = description, X = FormNoteX, Y = y, Width = Dim.Fill() - FormNoteX, SchemeName = "Hint" });
+            y++;
+            return box;
         }
 
         // Adds a labelled single-line field to a form and returns the field.
@@ -4724,6 +5322,13 @@ public static class ConsoleTui
                     }
                 }
                 await RefreshSessionStateAsync();
+                // Startup greeting: endpoint, active provider and the real tool set. It is a
+                // chat entry (not a fixture under the prompt), so it scrolls away with the text.
+                if (!_entryPointShown)
+                {
+                    _entryPointShown = true;
+                    AddEntryPointNote();
+                }
             }
             catch (Exception ex)
             {

@@ -75,7 +75,6 @@
   <data name="InputPlaceholder" xml:space="preserve"><value>Type a message or / for commands...</value></data>
   <data name="WelcomeMessage" xml:space="preserve"><value>Welcome to AGENT — talk to the agents straight from the terminal.
 Type a message and press Enter · / opens commands · @ files · ? shortcuts · F1 help · F10 the menu.</value></data>
-  <data name="ServerNote" xml:space="preserve"><value>server: {0} — the API keeps answering in parallel ({0}/v1/chat/completions)</value></data>
   <data name="HostErrorNote" xml:space="preserve"><value>local host start failed ({0}) — connecting to an existing instance</value></data>
   <data name="WindowTitle" xml:space="preserve"><value>AGENT - AI Chat Console</value></data>
   <data name="ChatFrameTitle" xml:space="preserve"><value>Chat</value></data>
@@ -470,6 +469,8 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="SetupSelectForDefault" xml:space="preserve"><value>select a provider first</value></data>
   <data name="SetupDefaultSet" xml:space="preserve"><value>default provider: {0}</value></data>
   <data name="NoteSetDefaultFailed" xml:space="preserve"><value>set default failed: {0}</value></data>
+  <data name="NoteSetDefaultUnreachable" xml:space="preserve"><value>the local server did not answer ({0}); the configuration is saved in providers.json but the running process still uses the previous default</value></data>
+  <data name="NoteServerUnreachable" xml:space="preserve"><value>the local server did not answer ({0})</value></data>
   <data name="NoteSetDefaultFailedHttp" xml:space="preserve"><value>set default failed (HTTP {0}): {1}</value></data>
   <data name="CmdOpen" xml:space="preserve"><value>Open a file the agent delivered in a reply, or the attachments folder</value></data>
   <data name="MenuOpenAttachments" xml:space="preserve"><value>Open attachments</value></data>
@@ -531,4 +532,57 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="FilesToggleAttach" xml:space="preserve"><value>Attach / detach</value></data>
   <data name="FilesRemove" xml:space="preserve"><value>Remove</value></data>
   <data name="FilesPickOne" xml:space="preserve"><value>Select a file first.</value></data>
+  <!-- Startup chat note + next-prompt suggestion + the provider form (add/edit). -->
+  <data name="SetupPromptSuggestion" xml:space="preserve"><value>Suggest the next prompt (Tab accepts it)</value></data>
+  <data name="ProviderEditing" xml:space="preserve"><value>Provider: {0}</value></data>
+  <data name="ProviderDescrName" xml:space="preserve"><value>Unique name shown in the provider list</value></data>
+  <data name="ProviderDescrProtocol" xml:space="preserve"><value>Wire format the provider speaks</value></data>
+  <data name="ProviderDescrModel" xml:space="preserve"><value>Model id sent with each request</value></data>
+  <data name="ProviderDescrBaseAddress" xml:space="preserve"><value>Server root, e.g. http://localhost:11434/</value></data>
+  <data name="ProviderDescrEndpoint" xml:space="preserve"><value>Path appended to the base address</value></data>
+  <data name="ProviderDescrApiKey" xml:space="preserve"><value>Token for cloud providers; empty when local</value></data>
+  <data name="ProviderDescrContextWindow" xml:space="preserve"><value>Max prompt tokens the model holds</value></data>
+  <data name="ProviderDescrTimeout" xml:space="preserve"><value>Seconds before a request is aborted</value></data>
+  <data name="ProviderDescrPause" xml:space="preserve"><value>Minimum seconds between two requests</value></data>
+  <data name="ProviderDescrCacheType" xml:space="preserve"><value>Prefix cache or Anthropic prompt cache</value></data>
+  <data name="ProviderDescrInteractionMode" xml:space="preserve"><value>API tool calls or CLI commands</value></data>
+  <data name="ProviderDescrForceTextTools" xml:space="preserve"><value>Declare tools as text, not native JSON</value></data>
+  <data name="ProviderDescrNoJsonResponseFormat" xml:space="preserve"><value>For engines without constrained output</value></data>
+  <data name="ProviderDescrVision" xml:space="preserve"><value>The model accepts image input</value></data>
+  <data name="ProviderDescrVisionMaxPixels" xml:space="preserve"><value>Downscale larger images (0 = no cap)</value></data>
+  <data name="ProviderDescrExtraBody" xml:space="preserve"><value>Extra request-body fields (JSON object)</value></data>
+  <data name="ProviderCacheType" xml:space="preserve"><value>Cache type</value></data>
+  <data name="ProviderPause" xml:space="preserve"><value>Pause (sec)</value></data>
+  <data name="ProviderForceTextTools" xml:space="preserve"><value>Text tool definitions</value></data>
+  <data name="ProviderNoJsonResponseFormat" xml:space="preserve"><value>No JSON response format</value></data>
+  <data name="ProviderExtraBody" xml:space="preserve"><value>Extra body (JSON)</value></data>
+  <data name="ProviderInvalidExtraBody" xml:space="preserve"><value>Extra body must be a JSON object</value></data>
+  <!-- Deterministic /taskscheduler console (table + subcommands). -->
+  <data name="CmdTaskscheduler" xml:space="preserve"><value>Show and manage the scheduled tasks (deterministic: suspend, reactivate, remove, delete, update, changeplanning)</value></data>
+  <data name="MenuTaskscheduler" xml:space="preserve"><value>Scheduled tasks</value></data>
+  <data name="TaskschedulerUsage" xml:space="preserve"><value>Usage: /taskscheduler list | suspend &lt;id|name&gt; | reactivate &lt;id|name&gt; | remove &lt;id|name&gt; | delete &lt;id|name&gt; | update &lt;id|name&gt; &lt;instruction&gt; | changeplanning &lt;id|name&gt; [time=HH:mm] [days=weekdays|Mon,Wed] [interval=hours|none] [repeat=true|false] [start=yyyy-MM-dd] [end=yyyy-MM-dd] [dayofmonth=N] [dayofyear=N]</value></data>
+  <data name="TaskschedulerColId" xml:space="preserve"><value>ID</value></data>
+  <data name="TaskschedulerColTask" xml:space="preserve"><value>TASK</value></data>
+  <data name="TaskschedulerColNext" xml:space="preserve"><value>NEXT RUN</value></data>
+  <data name="TaskschedulerColRecurrence" xml:space="preserve"><value>RECURRENCE</value></data>
+  <data name="TaskschedulerColState" xml:space="preserve"><value>STATE</value></data>
+  <data name="TaskschedulerColInstruction" xml:space="preserve"><value>INSTRUCTION</value></data>
+  <data name="TaskschedulerEmpty" xml:space="preserve"><value>No scheduled tasks.</value></data>
+  <data name="TaskschedulerActive" xml:space="preserve"><value>active</value></data>
+  <data name="TaskschedulerSuspended" xml:space="preserve"><value>suspended</value></data>
+  <data name="TaskschedulerNotFound" xml:space="preserve"><value>No task matches '{0}'.</value></data>
+  <data name="TaskschedulerSuspendedNote" xml:space="preserve"><value>Task '{0}' suspended.</value></data>
+  <data name="TaskschedulerResumedNote" xml:space="preserve"><value>Task '{0}' reactivated.</value></data>
+  <data name="TaskschedulerRemovedNote" xml:space="preserve"><value>Task '{0}' removed (run logs kept).</value></data>
+  <data name="TaskschedulerDeletedNote" xml:space="preserve"><value>Task '{0}' deleted (definition and run logs removed).</value></data>
+  <data name="TaskschedulerUpdatedNote" xml:space="preserve"><value>Task '{0}' updated.</value></data>
+  <data name="TaskschedulerPlanningNote" xml:space="preserve"><value>Planning of task '{0}' updated.</value></data>
+  <data name="TaskschedulerEveryHours" xml:space="preserve"><value>every {0}h</value></data>
+  <data name="TaskschedulerDaily" xml:space="preserve"><value>daily {0}</value></data>
+  <data name="TaskschedulerOnDays" xml:space="preserve"><value>{0} at {1}</value></data>
+  <data name="TaskschedulerDayOfMonth" xml:space="preserve"><value>day {0} at {1}</value></data>
+  <data name="TaskschedulerDayOfYear" xml:space="preserve"><value>day {0} of the year at {1}</value></data>
+  <data name="TaskschedulerOnce" xml:space="preserve"><value>once</value></data>
+  <data name="TaskschedulerRange" xml:space="preserve"><value>({0} → {1})</value></data>
+  <data name="TaskschedulerHint" xml:space="preserve"><value>Change a plan with /taskscheduler suspend|reactivate|remove|delete|update|changeplanning &lt;id|name&gt;</value></data>
 </root>

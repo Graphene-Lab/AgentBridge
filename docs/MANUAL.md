@@ -254,8 +254,8 @@ update.
 ## 4. Use the terminal UI (GUI from the console)
 
 The default launch opens a full-screen chat in your console: menu bar, AGENT logo, a
-streaming chat panel, an input line at the bottom and a status bar showing server,
-provider, model, session and context usage.
+streaming chat panel, an entry-point line at the top (client ⟷ AgentBridge ⟷ provider),
+an input line at the bottom and a status bar showing provider, model and context usage.
 
 **The two "magic" keys:**
 
@@ -291,6 +291,7 @@ see [section 6](#6-connect-a-client-to-localhost)):
 |---|---|---|
 | `/model [name]` | **Switch the LLM provider** | menu when no name given; a context-window guard refuses a switch that would overflow the target model's window. Switches **this chat only** — the default for new chats is configured in Settings → Main settings |
 | `/tools [name]` · `/agent` | **Switch the agent set** | full preset ids: `default-agent` / `web-agent` / `search-agent` / `research-agent` / `document-files` / `spreadsheet-files` / `email-agent` / `office-files` / `multi-files` / `all-files` — different tool sets; bare `/tools` opens the interactive checklist (individual tools; the core tools `FileTool`/`GitTool` are locked and always on — status changeable only via `tools.json` under `PersistentData\`) |
+| `/taskscheduler [list\|suspend\|reactivate\|remove\|delete\|update\|changeplanning …]` | **Planned work console** | deterministic (never reaches the model): prints the table of scheduled tasks and lets you pause, resume, remove, delete, re-instruction or replan them by id or name — see [the TUI guide](TUI.md#scheduled-tasks) |
 | `/voice [lang]` | **Voice dictation** | dictates from the server microphone into the input (Windows) |
 | `/tts [text]` | **Text-to-speech** | speaks the last agent reply (or the given text) with Kokoro TTS; WAV playback |
 | `/sip status\|call\|answer\|hangup` | **SIP telephony** | phone-gate the agent: status, outgoing call, auto-answer on/off, hangup (see [section 7](#7-sip-telephony)) |

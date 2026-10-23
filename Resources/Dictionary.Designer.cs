@@ -1740,6 +1740,18 @@ namespace AgentBridge.Resources {
             }
         }
 
+        public static string NoteSetDefaultUnreachable {
+            get {
+                return ResourceManager.GetString("NoteSetDefaultUnreachable", resourceCulture);
+            }
+        }
+
+        public static string NoteServerUnreachable {
+            get {
+                return ResourceManager.GetString("NoteServerUnreachable", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to 'set default failed (HTTP {0}): {1}'.
         /// </summary>
@@ -2367,15 +2379,6 @@ namespace AgentBridge.Resources {
         public static string ProviderVisionMaxPixels {
             get {
                 return ResourceManager.GetString("ProviderVisionMaxPixels", resourceCulture);
-            }
-        }
-
-        /// <summary>
-        ///   Looks up a localized string similar to 'server: {0} — the API keeps answering in parallel ({0}/v1/chat/completions)'.
-        /// </summary>
-        public static string ServerNote {
-            get {
-                return ResourceManager.GetString("ServerNote", resourceCulture);
             }
         }
 
@@ -4005,6 +4008,312 @@ namespace AgentBridge.Resources {
         public static string FilesPickOne {
             get {
                 return ResourceManager.GetString("FilesPickOne", resourceCulture);
+            }
+        }
+
+        public static string SetupPromptSuggestion {
+            get {
+                return ResourceManager.GetString("SetupPromptSuggestion", resourceCulture);
+            }
+        }
+
+        public static string ProviderEditing {
+            get {
+                return ResourceManager.GetString("ProviderEditing", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrName {
+            get {
+                return ResourceManager.GetString("ProviderDescrName", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrProtocol {
+            get {
+                return ResourceManager.GetString("ProviderDescrProtocol", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrModel {
+            get {
+                return ResourceManager.GetString("ProviderDescrModel", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrBaseAddress {
+            get {
+                return ResourceManager.GetString("ProviderDescrBaseAddress", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrEndpoint {
+            get {
+                return ResourceManager.GetString("ProviderDescrEndpoint", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrApiKey {
+            get {
+                return ResourceManager.GetString("ProviderDescrApiKey", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrContextWindow {
+            get {
+                return ResourceManager.GetString("ProviderDescrContextWindow", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrTimeout {
+            get {
+                return ResourceManager.GetString("ProviderDescrTimeout", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrPause {
+            get {
+                return ResourceManager.GetString("ProviderDescrPause", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrCacheType {
+            get {
+                return ResourceManager.GetString("ProviderDescrCacheType", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrInteractionMode {
+            get {
+                return ResourceManager.GetString("ProviderDescrInteractionMode", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrForceTextTools {
+            get {
+                return ResourceManager.GetString("ProviderDescrForceTextTools", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrNoJsonResponseFormat {
+            get {
+                return ResourceManager.GetString("ProviderDescrNoJsonResponseFormat", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrVision {
+            get {
+                return ResourceManager.GetString("ProviderDescrVision", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrVisionMaxPixels {
+            get {
+                return ResourceManager.GetString("ProviderDescrVisionMaxPixels", resourceCulture);
+            }
+        }
+
+        public static string ProviderDescrExtraBody {
+            get {
+                return ResourceManager.GetString("ProviderDescrExtraBody", resourceCulture);
+            }
+        }
+
+        public static string ProviderCacheType {
+            get {
+                return ResourceManager.GetString("ProviderCacheType", resourceCulture);
+            }
+        }
+
+        public static string ProviderPause {
+            get {
+                return ResourceManager.GetString("ProviderPause", resourceCulture);
+            }
+        }
+
+        public static string ProviderForceTextTools {
+            get {
+                return ResourceManager.GetString("ProviderForceTextTools", resourceCulture);
+            }
+        }
+
+        public static string ProviderNoJsonResponseFormat {
+            get {
+                return ResourceManager.GetString("ProviderNoJsonResponseFormat", resourceCulture);
+            }
+        }
+
+        public static string ProviderExtraBody {
+            get {
+                return ResourceManager.GetString("ProviderExtraBody", resourceCulture);
+            }
+        }
+
+        public static string ProviderInvalidExtraBody {
+            get {
+                return ResourceManager.GetString("ProviderInvalidExtraBody", resourceCulture);
+            }
+        }
+
+        public static string CmdTaskscheduler {
+            get {
+                return ResourceManager.GetString("CmdTaskscheduler", resourceCulture);
+            }
+        }
+
+        public static string MenuTaskscheduler {
+            get {
+                return ResourceManager.GetString("MenuTaskscheduler", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerUsage {
+            get {
+                return ResourceManager.GetString("TaskschedulerUsage", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerColId {
+            get {
+                return ResourceManager.GetString("TaskschedulerColId", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerColTask {
+            get {
+                return ResourceManager.GetString("TaskschedulerColTask", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerColNext {
+            get {
+                return ResourceManager.GetString("TaskschedulerColNext", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerColRecurrence {
+            get {
+                return ResourceManager.GetString("TaskschedulerColRecurrence", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerColState {
+            get {
+                return ResourceManager.GetString("TaskschedulerColState", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerColInstruction {
+            get {
+                return ResourceManager.GetString("TaskschedulerColInstruction", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerEmpty {
+            get {
+                return ResourceManager.GetString("TaskschedulerEmpty", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerActive {
+            get {
+                return ResourceManager.GetString("TaskschedulerActive", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerSuspended {
+            get {
+                return ResourceManager.GetString("TaskschedulerSuspended", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerNotFound {
+            get {
+                return ResourceManager.GetString("TaskschedulerNotFound", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerSuspendedNote {
+            get {
+                return ResourceManager.GetString("TaskschedulerSuspendedNote", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerResumedNote {
+            get {
+                return ResourceManager.GetString("TaskschedulerResumedNote", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerRemovedNote {
+            get {
+                return ResourceManager.GetString("TaskschedulerRemovedNote", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerDeletedNote {
+            get {
+                return ResourceManager.GetString("TaskschedulerDeletedNote", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerUpdatedNote {
+            get {
+                return ResourceManager.GetString("TaskschedulerUpdatedNote", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerPlanningNote {
+            get {
+                return ResourceManager.GetString("TaskschedulerPlanningNote", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerEveryHours {
+            get {
+                return ResourceManager.GetString("TaskschedulerEveryHours", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerDaily {
+            get {
+                return ResourceManager.GetString("TaskschedulerDaily", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerOnDays {
+            get {
+                return ResourceManager.GetString("TaskschedulerOnDays", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerDayOfMonth {
+            get {
+                return ResourceManager.GetString("TaskschedulerDayOfMonth", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerDayOfYear {
+            get {
+                return ResourceManager.GetString("TaskschedulerDayOfYear", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerOnce {
+            get {
+                return ResourceManager.GetString("TaskschedulerOnce", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerRange {
+            get {
+                return ResourceManager.GetString("TaskschedulerRange", resourceCulture);
+            }
+        }
+
+        public static string TaskschedulerHint {
+            get {
+                return ResourceManager.GetString("TaskschedulerHint", resourceCulture);
             }
         }
     }
