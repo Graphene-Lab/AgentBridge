@@ -271,6 +271,39 @@ Think of the documents area as your company's brain. It is a simple folder on di
    directly. The manual ([§3 — Configure the JSON files](docs/MANUAL.md#3-configure-the-json-files))
    documents every field.
 
+## What AgentBridge is — and what it is not
+
+AgentBridge is not meant to be read as a traditional harness: its concept is different from the
+others and, as of this writing, it has no real equivalent. **It is not a coding agent**, and its
+sandbox does not even allow writing code. Where other products propose vibe coding — solutions
+produced by the AI from a prompt — we deliberately do not offer the solution, because vibe coding
+is not a replacement for traditional software engineering, and as commonly written it shows
+problems that experts know well. Building the applications that automate a company with vibe
+coding is work for IT specialists; it is not the purpose of AgentBridge.
+
+A business owner cannot and must not put employees to writing code from prompts. He must give them
+the instrument to automate the company, and AgentBridge is that instrument: the automation is
+already made. It is an agent specialised in office work, safe by design, which does not damage
+anything even when it is given to someone with no technical skill.
+
+The simplest automation it offers: prepare the documents that form the company context and place
+them in a folder the agent can read, then describe, one by one, the work each hypothetical employee
+must do — at what time and with what recurrence. The agent plans the work, and the work is carried
+out as requested and when requested, with tools made for office work. Particular cases can be
+covered by plugins written for them, but that is not the standard case, because AgentBridge already
+ships every tool standard office work needs — including the automation of the management systems
+(ERP) it supports.
+
+The employee who does that work at a certain hour of the morning can be replaced by an agent
+instructed in words, with the same information that employee holds: it answers requests coming from
+outside and gives assistance whenever the context material contains the right company information.
+
+If we published comparisons with other systems, it is because the public asks for them, not because
+those are analogous products. AgentBridge does not require tinkerers, nerds or programmers to be
+used, and it is something a business owner can trust and hand to the person in the company
+responsible for automation — without handing the company's secrets to a third party, thanks to the
+combination with AI models running locally inside the company's own infrastructure.
+
 ## Comparison with Main Alternative Products
 
 AgentBridge belongs to the category of **personal AI agent assistants**. The table is an honest,
@@ -362,6 +395,26 @@ curl http://localhost:5290/health   # {"status":"healthy","timestamp":"..."}
 
 The full step-by-step guide — installation, JSON configuration, the terminal UI and how a
 client connects to localhost — is in the **[user manual](docs/MANUAL.md)**.
+
+## Planned work: the deterministic scheduler console
+
+An agent can schedule one-shot or recurring jobs with the built-in TaskScheduler tool. The plans are saved as JSON, they survive a restart, and each run is a normal agent chat. This is how the office work keeps going without a person starting every task.
+
+The terminal UI adds a deterministic console for those plans. Type `/taskscheduler` and it prints a table: id, task, next run, recurrence, state and instruction. The command never goes to the model, so the answer is always the same.
+
+Every input that starts with `/` is a command, and the host handles it. An unknown command returns an "unknown command" note instead of a chat reply.
+
+| Command | Effect |
+|---|---|
+| `/taskscheduler` or `/taskscheduler list` | Show the table of scheduled tasks |
+| `/taskscheduler suspend <id\|name>` | Pause a task; the definition and the run history are kept |
+| `/taskscheduler reactivate <id\|name>` | Resume a paused task |
+| `/taskscheduler remove <id\|name>` | Remove the task, keep its run logs |
+| `/taskscheduler delete <id\|name>` | Remove the task and its run logs |
+| `/taskscheduler update <id\|name> <instruction>` | Replace the instruction the task executes |
+| `/taskscheduler changeplanning <id\|name> [time=HH:mm] [days=Mon,Wed] [interval=hours|none] [repeat=true\|false] [start=yyyy-MM-dd] [end=yyyy-MM-dd] [dayofmonth=N] [dayofyear=N]` | Change the recurrence; only the keys you pass change |
+
+The id is the number in the first column, so a long task name is never needed. A name can also be used, in quotes when it contains spaces.
 
 ## Documentation
 
