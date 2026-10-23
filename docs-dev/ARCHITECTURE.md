@@ -196,6 +196,18 @@ Full field reference: the AIOrchestrator `docs/providers-config.md`.
 > folders). When the feature under test does **not** need document searches, start with
 > `--SkipIndexingOnStartup true`.
 
+> **The application's own folders are never indexed** (`RagDocumentProcessor.IsAppRuntimePath`).
+> `logs/`, `PersistentData/` and the installation folder are runtime state, not user documents, so
+> they are skipped in `OnFileEvent`/`OnRenamed`/`UpdateVector` and pruned whole from the file walk —
+> they are never even descended into. When the archive root *is* the installation folder (a portable
+> install) only `logs/` and `PersistentData/` are skipped, so a portable install still indexes. This
+> closes the self-sustaining loop of issue #108: indexing wrote a log line, the watcher saw the log
+> change, queued another index pass, forever. Two bounds sit behind it for machine-generated content:
+> `MaxMultiWordNameOrKeyRun` (8 words) and `MaxNameOrKeyElementsPerDocument` (4000 elements).
+> `RagDocumentProcessor.VerboseSearchDiagnostics` prints one line per rejected candidate — turn it on
+> only to debug why a specific search returns nothing, and expect a very large log; it must stay
+> `false` in normal use.
+
 ## Where files live (storage tiers)
 
 Persisted files are split into **three tiers**; every update mechanism (release archives,
