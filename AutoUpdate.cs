@@ -255,7 +255,7 @@ public static class AutoUpdate
         // of opening the same temp archive a second time (sharing violation). The running
         // flow applies the update and restarts the app when it finishes.
         if (!await UpdateGate.WaitAsync(0))
-            return new(ManualUpdateStatus.UpdateInProgress, current.ToString(), null, null);
+            return new(ManualUpdateStatus.UpdateInProgress, current.ToString(), null, Progress);
         try
         {
             var tag = await GetLatestTagAsync();
