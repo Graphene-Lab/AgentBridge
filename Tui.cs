@@ -4635,7 +4635,11 @@ public static class ConsoleTui
                 {
                     Title = Dictionary.AboutTitle,
                     Width = Dim.Percent(55),
-                    Height = Dim.Percent(45),
+                    // Height from the CONTENT (art + blank + tagline + blank + version +
+                    // copyright + button row), never a percentage: at 45% on a 30-row
+                    // terminal the window ended at row 13, above the version line (row 11)
+                    // and the copyright (row 12), so neither was ever drawn.
+                    Height = AsciiArtLines.Length + 10,
                     SchemeName = "Dark",
                 };
                 int y = 1;
