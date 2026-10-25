@@ -111,15 +111,23 @@ each outcome:
     dotnet host, because the swap would target `dotnet` itself. Release installs run
     from the apphost: launch `agent.exe` (Windows) / `agent` (Linux/macOS);
   - **an update is already in progress** — the startup check or an earlier `/update` is
-    still downloading; the running flow will apply it and restart the app by itself, so
-    the second `/update` does nothing;
+    still downloading; the note appends the live percentage (`download 42%`), so a slow
+    transfer is distinguishable from a stuck one. The running flow applies the update and
+    restarts the app by itself, so the second `/update` does nothing;
   - **GitHub unreachable / agents busy / another instance is running** (see below).
 
 ### Why two `/update` can never collide
 
 The whole pipeline (startup check, the 30-minute retry and `/update`) is serialized by a
-single-flight gate, and every attempt downloads into its **own** subfolder under
-`%TEMP%\agentbridge-update\`. Before the gate existed two flows could download in parallel
+single-flight gate, and every attempt extracts into its **own** subfolder under
+`%TEMP%\agentbridge-update\`. The archive itself is downloaded once into
+`%TEMP%\agentbridge-update\partial-<rid>-<tag>.tar.gz` and is **kept across restarts**: the
+win-x64 archive is ~1.5 GB, so a slow link can need more than one session, and the next
+attempt continues from the last byte with a Range request instead of downloading from zero.
+There is no total download timeout (a transfer that keeps delivering is allowed to finish);
+a read that delivers nothing for two minutes is retried, resuming from the bytes already
+written. A partial archive that fails to extract is deleted, so the next attempt starts
+clean. Before the gate existed two flows could download in parallel
 against one fixed archive path, and the second `File.Create` failed with a Windows sharing
 violation ("*The process cannot access the file …tar.gz because it is being used by another
 process*") that surfaced as a bogus "update failed" while the first download kept running

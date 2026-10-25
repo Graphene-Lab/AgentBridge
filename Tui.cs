@@ -3505,7 +3505,9 @@ public static class ConsoleTui
                 AutoUpdate.ManualUpdateStatus.NewerThanLatest => string.Format(Dictionary.UpdateNewerThanLatest, result.CurrentVersion, result.LatestVersion),
                 AutoUpdate.ManualUpdateStatus.AgentsBusy => Dictionary.UpdateAgentsBusy,
                 AutoUpdate.ManualUpdateStatus.AnotherInstance => Dictionary.UpdateAnotherInstance,
-                AutoUpdate.ManualUpdateStatus.UpdateInProgress => Dictionary.UpdateInProgress,
+                AutoUpdate.ManualUpdateStatus.UpdateInProgress =>
+                    string.IsNullOrEmpty(result.Detail) ? Dictionary.UpdateInProgress
+                    : $"{Dictionary.UpdateInProgress} ({result.Detail})",
                 _ => string.Format(Dictionary.UpdateFailed, result.Detail ?? "unknown error"),
             });
         }
@@ -5052,7 +5054,15 @@ public static class ConsoleTui
             };
             var docsPath = AddField(dlg, Dictionary.SetupDocumentsPath, AIOrchestrator.Setup.DocumentsPath, 4);
             var pathErr = new Label { Text = "", X = 1, Y = 5, Width = Dim.Fill() - 2, SchemeName = "Hint" };
-            dlg.Add(logEnabled, autoStart, suggestion, pathErr);
+            // The running build, so the user never has to open About (or trust an updater
+            // message) to know which version is on screen.
+            var version = new Label
+            {
+                Text = string.Format(Dictionary.AboutVersion,
+                    System.Reflection.Assembly.GetExecutingAssembly().GetName().Version),
+                X = 1, Y = 6, Width = Dim.Fill() - 2, SchemeName = "Hint",
+            };
+            dlg.Add(logEnabled, autoStart, suggestion, pathErr, version);
 
             var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
             save.Accepting += (_, e) =>

@@ -36,6 +36,11 @@ public static class AutoUpdate
     /// <summary>Raised on update progress/state changes (the TUI shows them in the status bar).</summary>
     public static event Action<string>? OnStatus;
 
+    /// <summary>Last progress text ("download 42%"), empty when no transfer is running.
+    /// The TUI shows it in the "update already in progress" answer so the user can tell a
+    /// slow download from a stuck one.</summary>
+    public static string Progress { get; private set; } = "";
+
     // Serializes the whole update pipeline — the startup check (Program.cs), the 30-minute
     // retry (ScheduleRetryIn) and the TUI /update command all funnel here. Without it two
     // flows could download in parallel and collide on the same temp archive: the second
@@ -120,22 +125,29 @@ public static class AutoUpdate
 
     /// <summary>Startup cleanup: the previous update's .old rollback copy is removed (this
     /// start proves the new executable works) together with any stale temp update area
-    /// (fails while an updater is still running — that is fine).</summary>
+    /// (fails while an updater is still running — that is fine). Partially downloaded
+    /// archives are KEPT: a 1.5 GB transfer on a slow link often outlives one TUI session,
+    /// so the next start resumes it instead of fetching it again from zero.</summary>
     public static void CleanupOnStartup()
     {
         try
         {
             if (Environment.ProcessPath is { } p && File.Exists(p + ".old")) File.Delete(p + ".old");
-            if (Directory.Exists(TempRoot)) Directory.Delete(TempRoot, true);
+            if (!Directory.Exists(TempRoot)) return;
+            foreach (var entry in Directory.EnumerateFileSystemEntries(TempRoot))
+            {
+                if (Path.GetFileName(entry).StartsWith("partial-", StringComparison.Ordinal)) continue;
+                try { if (Directory.Exists(entry)) Directory.Delete(entry, true); else File.Delete(entry); } catch { }
+            }
         }
         catch { }
     }
 
     // Best-effort removal of stale update leftovers before a fresh attempt: orphaned
-    // per-attempt folders (crashed runs) and pre-1.26.09.10 archives that sat at the root.
-    // Files still held by a live updater fail to delete and are skipped — the next app
-    // start removes them via CleanupOnStartup.
-    private static void CleanupStaleUpdateArea()
+    // per-attempt folders (crashed runs), pre-1.26.09.10 archives that sat at the root and
+    // partial downloads of OTHER releases. Files still held by a live updater fail to delete
+    // and are skipped — the next app start removes them via CleanupOnStartup.
+    private static void CleanupStaleUpdateArea(string keep)
     {
         try
         {
@@ -143,7 +155,8 @@ public static class AutoUpdate
             foreach (var dir in Directory.EnumerateDirectories(TempRoot))
                 try { Directory.Delete(dir, true); } catch { }
             foreach (var file in Directory.EnumerateFiles(TempRoot))
-                try { File.Delete(file); } catch { }
+                if (!string.Equals(file, keep, StringComparison.OrdinalIgnoreCase))
+                    try { File.Delete(file); } catch { }
         }
         catch { }
     }
@@ -304,52 +317,106 @@ public static class AutoUpdate
         return tag?.StartsWith('v') == true ? tag : null;
     }
 
+    // Resumable download. The win-x64 archive is ~1.5 GB and a slow link can need more than
+    // one TUI session to fetch it, so the partial file is kept across runs and every attempt
+    // continues with a Range request. There is no total timeout: a transfer that keeps
+    // delivering must be allowed to finish (the old 20-minute cap aborted large archives on
+    // slow links and the next start began again from zero). A read that delivers nothing for
+    // two minutes is treated as stalled and retried, resuming from the bytes already written.
+    private static async Task DownloadAsync(string url, string path)
+    {
+        const int maxAttempts = 4;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+                var have = File.Exists(path) ? new FileInfo(path).Length : 0;
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                if (have > 0) request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(have, null);
+                using var resp = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                // 416: the partial already holds the whole file (a previous attempt finished
+                // the transfer but failed later, e.g. during extraction).
+                if (resp.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable) return;
+                resp.EnsureSuccessStatusCode();
+                var resuming = have > 0 && resp.StatusCode == System.Net.HttpStatusCode.PartialContent;
+                if (!resuming) have = 0;
+                var total = (resp.Content.Headers.ContentLength ?? 0) + have;
+                if (have > 0)
+                {
+                    Log.LogStep($"AutoUpdate: resuming the download at {have:N0} bytes", monitor: true);
+                    Progress = string.Format(Dictionary.UpdateProgress, total > 0 ? (int)(have * 100 / total) : 0);
+                    Status(Progress);
+                }
+                await using var src = await resp.Content.ReadAsStreamAsync();
+                await using var dst = new FileStream(path, resuming ? FileMode.Append : FileMode.Create,
+                    FileAccess.Write, FileShare.None, 81920, true);
+                var buffer = new byte[81920];
+                long read = have;
+                int lastPct = -1;
+                while (true)
+                {
+                    var n = await src.ReadAsync(buffer).AsTask().WaitAsync(TimeSpan.FromMinutes(2));
+                    if (n == 0) break;
+                    await dst.WriteAsync(buffer.AsMemory(0, n));
+                    read += n;
+                    if (total > 0)
+                    {
+                        var pct = (int)(read * 100 / total);
+                        if (pct >= lastPct + 5)
+                        {
+                            lastPct = pct;
+                            Progress = string.Format(Dictionary.UpdateProgress, pct);
+                            Status(Progress);
+                        }
+                    }
+                }
+                return;
+            }
+            catch (Exception ex) when (attempt < maxAttempts)
+            {
+                Log.LogStep($"AutoUpdate: download interrupted ({ex.GetType().Name}: {ex.Message}) — retry {attempt + 1}/{maxAttempts}", monitor: true);
+                await Task.Delay(TimeSpan.FromSeconds(5 * attempt));
+            }
+        }
+    }
+
     private static async Task ApplyAsync(string rid, string tag)
     {
         var url = $"{Repo}/releases/download/{tag}/agentbridge-{rid}.tar.gz";
 
-        // Each attempt works in its own subfolder under the shared temp root: two update
-        // flows can never open the same archive (the old fixed path let a second /update
-        // collide with an in-flight download — a sharing violation reported as a bogus
-        // "update failed"). The updater deletes its own subfolder when done; the next app
-        // start removes the whole root (CleanupOnStartup), orphaned folders included.
-        CleanupStaleUpdateArea();
+        // Partial downloads live at the root of the temp area, one per rid+tag: they survive
+        // an app restart (CleanupOnStartup keeps them) and the next attempt continues from
+        // the last byte instead of fetching ~1.5 GB again. The per-attempt work folder still
+        // isolates the extraction, and the updater deletes it when done.
+        var partial = Path.Combine(TempRoot, $"partial-{rid}-{tag}.tar.gz");
+        CleanupStaleUpdateArea(partial);
         var work = Path.Combine(TempRoot, $"update-{Guid.NewGuid():N}");
-        var archive = Path.Combine(work, $"agentbridge-{rid}.tar.gz");
         var extract = Path.Combine(work, "extract");
         Directory.CreateDirectory(work);
+        Directory.CreateDirectory(TempRoot);
 
         // Download with visible progress (the archive is large — runtime, kokoro.onnx,
         // plugins, OfficeManager). Status events reach the TUI status bar.
-        using (var http = new HttpClient { Timeout = TimeSpan.FromMinutes(20) })
-        {
-            using var resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
-            resp.EnsureSuccessStatusCode();
-            var total = resp.Content.Headers.ContentLength;
-            await using var src = await resp.Content.ReadAsStreamAsync();
-            await using var dst = File.Create(archive);
-            var buffer = new byte[81920];
-            long read = 0;
-            int lastPct = -1;
-            while (true)
-            {
-                var n = await src.ReadAsync(buffer);
-                if (n == 0) break;
-                await dst.WriteAsync(buffer.AsMemory(0, n));
-                read += n;
-                if (total is > 0)
-                {
-                    var pct = (int)(read * 100 / total.Value);
-                    if (pct >= lastPct + 5) { lastPct = pct; Status(string.Format(Dictionary.UpdateProgress, pct)); }
-                }
-            }
-        }
+        await DownloadAsync(url, partial);
 
         Directory.CreateDirectory(extract);
         // Antivirus real-time scans can hold the freshly written archive for a moment after
         // the download closes; retry the open instead of failing the update on a transient lock.
-        using (var gz = new GZipStream(OpenArchiveForRead(archive), CompressionMode.Decompress))
-            TarFile.ExtractToDirectory(gz, extract, overwriteFiles: true);
+        try
+        {
+            using (var gz = new GZipStream(OpenArchiveForRead(partial), CompressionMode.Decompress))
+                TarFile.ExtractToDirectory(gz, extract, overwriteFiles: true);
+        }
+        catch
+        {
+            // A partial archive that does not extract is unusable: drop it so the next
+            // attempt downloads clean instead of resuming a corrupt file forever.
+            try { File.Delete(partial); } catch { }
+            throw;
+        }
+        try { File.Delete(partial); } catch { }
+        Progress = "";
 
         // Legacy archives (pre-PersistentData layout) still carried the root config json
         // (appsettings/providers/telegram): strip them from the extract so an upgrade never
