@@ -56,6 +56,11 @@ Produces a per-machine MSI (Program Files\Graphene Lab\AgentBridge, Start-menu +
 desktop shortcut, uninstall entry). In CI the payload is the published
 `agentbridge-win-x64` archive.
 
+The shared Windows artwork is `branding/agentbridge.ico` (with the PNG master beside it).
+`AgentBridge.csproj` embeds it in `agent.exe`; the installer embeds the same small ICO for
+the desktop shortcut, Start menu shortcut, and Installed apps entry. Update the branding
+files and rebuild to change the icon; an MSI upgrade distributes the new artwork.
+
 ## 2. Submit to the Store (store-submit, automatic)
 
 `Submit-Store.ps1` drives the **Store Submission API** (`api.store.microsoft.com`,

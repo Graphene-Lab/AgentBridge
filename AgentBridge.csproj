@@ -10,6 +10,8 @@
     <!-- The executable is named `agent` (agent.exe on Windows, agent on Linux/macOS),
          like `qwen` in Qwen Code. -->
     <AssemblyName>agent</AssemblyName>
+    <!-- Embed the Windows icon in agent.exe, including single-file publish builds. -->
+    <ApplicationIcon>branding\agentbridge.ico</ApplicationIcon>
     <!-- Release gate (see AGENTS.md): IsPrerelease=true while iterating → the version gets
          "-prerelease" and the GitHub release workflow skips. Set IsPrerelease=false only when
          the test cycles proved the version works → real release: pushing master with the gate

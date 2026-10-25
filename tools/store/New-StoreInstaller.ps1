@@ -48,6 +48,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $exe = Join-Path $PayloadDir 'agent.exe'
 if (-not (Test-Path $exe)) { throw "agent.exe not found at '$exe' — is this a win-x64 AgentBridge payload?" }
+$icon = [System.IO.Path]::GetFullPath((Join-Path $root '..\..\branding\agentbridge.ico'))
+if (-not (Test-Path -LiteralPath $icon -PathType Leaf)) { throw "AgentBridge icon not found at '$icon'." }
 if (-not $OutDir) { $OutDir = Join-Path (Split-Path -Parent $PayloadDir) 'store-msi' }
 # MSI ProductVersion has only three sections (major.minor.build), so the release's date-based
 # fourth section must be folded into the build field: 1.26.09.06 -> 1.26.906, 1.26.09.11 ->
@@ -138,6 +140,15 @@ $pkg.Add([System.Xml.Linq.XElement]::new($X + 'StandardDirectory', [System.Xml.L
 $pkg.Add([System.Xml.Linq.XElement]::new($X + 'StandardDirectory', [System.Xml.Linq.XAttribute]::new('Id', 'ProgramMenuFolder')))
 $pkg.Add([System.Xml.Linq.XElement]::new($X + 'StandardDirectory', [System.Xml.Linq.XAttribute]::new('Id', 'DesktopFolder')))
 
+# Cache the small icon with Windows Installer for shortcuts and Installed apps.
+# Referencing agent.exe here would embed a second copy of the single-file payload.
+$pkg.Add([System.Xml.Linq.XElement]::new($X + 'Icon',
+    [System.Xml.Linq.XAttribute]::new('Id', 'AgentBridgeIcon.ico'),
+    [System.Xml.Linq.XAttribute]::new('SourceFile', $icon)))
+$pkg.Add([System.Xml.Linq.XElement]::new($X + 'Property',
+    [System.Xml.Linq.XAttribute]::new('Id', 'ARPPRODUCTICON'),
+    [System.Xml.Linq.XAttribute]::new('Value', 'AgentBridgeIcon.ico')))
+
 # Shortcuts
 $sc = [System.Xml.Linq.XElement]::new($X + 'ComponentGroup', [System.Xml.Linq.XAttribute]::new('Id', 'ShortcutComponents'))
 $scStart = [System.Xml.Linq.XElement]::new($X + 'Component',
@@ -149,6 +160,8 @@ $scStart.Add([System.Xml.Linq.XElement]::new($X + 'Shortcut',
     [System.Xml.Linq.XAttribute]::new('Name', 'Graphene AgentBridge'),
     [System.Xml.Linq.XAttribute]::new('Description', 'Local-first AI assistant'),
     [System.Xml.Linq.XAttribute]::new('Target', '[INSTALLFOLDER]agent.exe'),
+    [System.Xml.Linq.XAttribute]::new('Icon', 'AgentBridgeIcon.ico'),
+    [System.Xml.Linq.XAttribute]::new('IconIndex', '0'),
     [System.Xml.Linq.XAttribute]::new('WorkingDirectory', 'INSTALLFOLDER')))
 $scStart.Add([System.Xml.Linq.XElement]::new($X + 'RemoveFolder', [System.Xml.Linq.XAttribute]::new('Id', 'RemoveStartMenuFolder'), [System.Xml.Linq.XAttribute]::new('On', 'uninstall')))
 $sc.Add($scStart)
@@ -161,6 +174,8 @@ $scDesktop.Add([System.Xml.Linq.XElement]::new($X + 'Shortcut',
     [System.Xml.Linq.XAttribute]::new('Name', 'Graphene AgentBridge'),
     [System.Xml.Linq.XAttribute]::new('Description', 'Local-first AI assistant'),
     [System.Xml.Linq.XAttribute]::new('Target', '[INSTALLFOLDER]agent.exe'),
+    [System.Xml.Linq.XAttribute]::new('Icon', 'AgentBridgeIcon.ico'),
+    [System.Xml.Linq.XAttribute]::new('IconIndex', '0'),
     [System.Xml.Linq.XAttribute]::new('WorkingDirectory', 'INSTALLFOLDER')))
 $sc.Add($scDesktop)
 $pkg.Add($sc)
