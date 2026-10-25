@@ -162,14 +162,17 @@ jobs:
           changed_core=$(echo "$changed_core" | sed 's/^ //')
           if [ "$changed" = "true" ]; then
             echo "do_release=true" >> "$GITHUB_OUTPUT"
+            # NEVER wait: this trigger exists only because the packages are ALREADY visible
+            # on nuget.org (that is the change signal), and release.yml's wait checks for the
+            # release's OWN version (1.yy.MM.dd). A core package published on an earlier day
+            # — the normal case, e.g. AIOrchestrator 1.26.10.23 feeding release 1.26.10.25 —
+            # can never satisfy that check, so the whole build died after the 30-minute
+            # timeout (run 40172843120, 2026-10-25). The floating 1.* restore picks the
+            # highest published version, which is exactly the one detected here.
+            echo "nuget_wait=false" >> "$GITHUB_OUTPUT"
+            echo "nuget_wait_packages=" >> "$GITHUB_OUTPUT"
             if [ -n "$changed_core" ]; then
-              # The changed core packages are already visible on nuget.org (that is the signal),
-              # so the wait confirms and exits fast; it guards the floating 1.* restore race.
-              echo "nuget_wait=true" >> "$GITHUB_OUTPUT"
-              echo "nuget_wait_packages=$(echo $changed_core | tr ' ' ',')" >> "$GITHUB_OUTPUT"
-            else
-              echo "nuget_wait=false" >> "$GITHUB_OUTPUT"
-              echo "nuget_wait_packages=" >> "$GITHUB_OUTPUT"
+              echo "core packages already published: $changed_core"
             fi
           else
             echo "No change since the last release — nothing to publish."
