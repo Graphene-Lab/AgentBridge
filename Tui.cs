@@ -1718,8 +1718,10 @@ public static class ConsoleTui
         {
             ProviderConfigs.TryGet(_provider, out var cfg);
             var providerUrl = cfg?.BaseAddress?.ToString().TrimEnd('/') ?? "";
-            var provider = providerUrl.Length > 0 ? providerUrl
-                : _provider.Length > 0 ? _provider : Dictionary.None;
+            // Address AND provider name: the URL alone does not say which model is answering
+            // (several providers can share a gateway), so it reads "... 8787 Ornith".
+            var providerName = _provider.Length > 0 ? _provider : Dictionary.None;
+            var provider = providerUrl.Length > 0 ? $"{providerUrl} {providerName}" : providerName;
             var tools = EffectiveLoadedTools().Select(ToolShortName).ToArray();
             var toolsText = tools.Length > 0 ? string.Join(", ", tools) : Dictionary.None;
             var label = Dictionary.StatusTools;
