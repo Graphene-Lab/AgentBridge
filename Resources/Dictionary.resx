@@ -436,6 +436,7 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="DlgToolsCoreNone" xml:space="preserve"><value>Core (always on): none — disabled in tools.json</value></data>
   <data name="DlgToolsHint" xml:space="preserve"><value>↑↓ move · Space toggle · Close/Esc saves automatically</value></data>
   <data name="NoteNoToolsSelected" xml:space="preserve"><value>select at least one tool</value></data>
+  <data name="NoteToolOverlap" xml:space="preserve"><value>Overlapping active tools: {0}. The agent still works — consider deactivating one tool per purpose.</value></data>
   <data name="NoteToolsApplied" xml:space="preserve"><value>Tools updated: {0}. They take effect from the next message (no restart needed).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Delete file</value></data>
   <data name="StatusTools" xml:space="preserve"><value>tools</value></data>

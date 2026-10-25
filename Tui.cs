@@ -444,6 +444,7 @@ public static class ConsoleTui
             // custom combination or preset chosen in the last run is applied now, before the
             // first chat request, so the enabled tools survive a TUI restart.
             RestoreAgentSelection();
+            WarnToolOverlaps(startup: true);
         }
 
         public Task RunAsync()
@@ -1688,6 +1689,7 @@ public static class ConsoleTui
             {
                 "user" => Dictionary.HistoryYou,
                 "agent" => e.Error ? Dictionary.HistoryError : Dictionary.HistoryAgent,
+                "error" => Dictionary.HistoryError,
                 _ => "·",
             }).Append('\n');
             sb.Append(e.Text.Replace("\r\n", "\n")).Append("\n\n");
@@ -1701,13 +1703,25 @@ public static class ConsoleTui
             }
         }
 
-        private void AddNote(string text)
+        private void AddNote(string text, bool error = false)
         {
             Ui(() =>
             {
-                _history.Add(new Entry { Role = "system", Text = text });
+                _history.Add(new Entry { Role = error ? "error" : "system", Text = text });
                 RefreshHistory();
             });
+        }
+
+        // Non-blocking warning: two active tools declare the same purpose (ToolPurposeAttribute).
+        // The user sees it in red and can ignore it — the next message still runs with both.
+        private void WarnToolOverlaps(bool startup = false)
+        {
+            var conflicts = ToolPurposeConflicts.Find(EffectiveTools());
+            if (conflicts.Count == 0) return;
+            var text = string.Format(Dictionary.NoteToolOverlap, string.Join("; ",
+                conflicts.Select(c => $"{c.Purpose}: {string.Join(", ", c.Tools)}")));
+            if (startup) _history.Add(new Entry { Role = "error", Text = text });
+            else AddNote(text, error: true);
         }
 
         // Startup banner and feedback after a provider/tool change: the chain the product is
@@ -1876,8 +1890,10 @@ public static class ConsoleTui
         {
             private const string UserRole = "user";
             private const string AttachmentRole = "attachment";
+            private const string ErrorRole = "error";
             private TuiAttribute? _userAttribute;
             private TuiAttribute? _attachmentAttribute;
+            private TuiAttribute? _errorAttribute;
             private string[] _roles = [];
 
             /// <summary>Roles for the document just written to the chat log. Called once per
@@ -1901,6 +1917,12 @@ public static class ConsoleTui
                     foreach (CellVisualLineElement element in line.Elements)
                         element.Attribute = _attachmentAttribute.Value;
                 }
+                else if (_roles[index] == ErrorRole)
+                {
+                    _errorAttribute ??= new TuiAttribute(Color.Red, Color.Black);
+                    foreach (CellVisualLineElement element in line.Elements)
+                        element.Attribute = _errorAttribute.Value;
+                }
             }
 
             // One role per document line: the trimmed line is a role header → switch the
@@ -1917,22 +1939,22 @@ public static class ConsoleTui
 
                 var roles = new List<string>();
                 var isUser = false;
+                var isError = false;
                 var start = 0;
                 for (var i = 0; i <= text.Length; i++)
                 {
                     if (i < text.Length && text[i] != '\n') continue;
                     var line = text.AsSpan(start, i - start).TrimEnd('\r').Trim();
                     start = i + 1;
-                    if (line.SequenceEqual(Dictionary.HistoryYou)) isUser = true;
-                    else if (line.SequenceEqual(Dictionary.HistoryAgent)
-                        || line.SequenceEqual(Dictionary.HistoryError)
-                        || line.SequenceEqual("·"))
-                        isUser = false;
+                    if (line.SequenceEqual(Dictionary.HistoryYou)) { isUser = true; isError = false; }
+                    else if (line.SequenceEqual(Dictionary.HistoryError)) { isUser = false; isError = true; }
+                    else if (line.SequenceEqual(Dictionary.HistoryAgent) || line.SequenceEqual("·"))
+                    { isUser = false; isError = false; }
                     if ((markerPrefix.Length > 0 && line.StartsWith(markerPrefix, StringComparison.Ordinal))
                         || (hint.Length > 0 && line.SequenceEqual(hint)))
                         roles.Add(AttachmentRole);
                     else
-                        roles.Add(isUser ? UserRole : "");
+                        roles.Add(isUser ? UserRole : isError ? ErrorRole : "");
                 }
                 return roles.ToArray();
             }
@@ -2821,6 +2843,7 @@ public static class ConsoleTui
             SaveAgentSelection();
             UpdateStatusUi();
             AddEntryPointNote();
+            WarnToolOverlaps();
         }
 
         // ── /tools selection persistence ──
@@ -2987,6 +3010,7 @@ public static class ConsoleTui
             Log.LogStep("TUI /agent tools dialog closed");
             UpdateStatusUi();
             AddEntryPointNote();    // feedback: which tools the agent now actually has
+            WarnToolOverlaps();
 
             dlg.Dispose();
             _inputField?.SetFocus();

@@ -15,6 +15,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AIOrchestrator;
+using AIOrchestrator.API;
 
 /// <summary>Maps an agent-set id ("default-agent", "web-agent", ...) to the AIOrchestrator
 /// tool names used by <see cref="AgentHarness.ExecuteAction"/>, and enumerates the DYNAMIC
@@ -207,12 +208,14 @@ public static class AgentTools
 
     /// <summary>Dynamic "all-files" set: every tool currently loaded that the per-tool config
     /// leaves enabled (core tools included — they default ON like everything else). Reporting
-    /// tools follow their own gate too: disabled means absent from every set.</summary>
-    public static string[] AllFilesTools() => Catalog()
+    /// tools follow their own gate too: disabled means absent from every set. The set is
+    /// composed by the host (the user picked no individual tools), so tools that declare the
+    /// same purpose are pruned here — the generalist loses to the specialist (see
+    /// <see cref="ToolPurposeConflicts.Prune"/>).</summary>
+    public static string[] AllFilesTools() => ToolPurposeConflicts.Prune(Catalog()
         .Select(c => c.Name)
         .Where(IsEnabled)
-        .Where(IsReportingToolActive)
-        .ToArray();
+        .Where(IsReportingToolActive));
 
     /// <summary>Effective per-tool status: an explicit tools.json value wins; otherwise class-B
     /// tools default OFF and everything else ON (the "unspecified ⇒ ON" rule).</summary>

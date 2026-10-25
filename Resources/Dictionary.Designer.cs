@@ -1978,6 +1978,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Overlapping active tools: {0}...'.
+        /// </summary>
+        public static string NoteToolOverlap {
+            get {
+                return ResourceManager.GetString("NoteToolOverlap", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'tools: {0}'.
         /// </summary>
         public static string NoteToolsApplied {
