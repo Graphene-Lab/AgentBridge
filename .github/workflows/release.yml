@@ -587,12 +587,17 @@ jobs:
             artifacts/**/*.tar.gz
             artifacts/**/*.msi
           body: |
-            ### Windows robot icon
+            ### Restored document creation
 
-            AgentBridge now has a robot icon in the Windows executable, desktop and Start
-            menu shortcuts, and Installed apps. The artwork uses blue, magenta and coral
-            bands, with a larger head and compact antenna for clearer desktop rendering.
-            The ICO includes sizes from 16 to 256 pixels.
+            Updated the bundled tool plugins to restore document creation and editing
+            that failed with "Attempted to access a missing method."
+
+            The platform archives and Windows MSI include compatible builds of
+            DocumentTool, OfficeTool, OfficeSupportTool, SpreadsheetTool,
+            PresentationTool, PodcastTool, and FreeCADTool.
+
+            Windows users can close AgentBridge and install the new MSI, or use
+            `/update` to upgrade from an earlier application version.
           generate_release_notes: true
 
   # Microsoft Store submission: once the release exists with the MSI attached, point the
