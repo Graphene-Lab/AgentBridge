@@ -5206,6 +5206,8 @@ public static class ConsoleTui
             var visionCheck = AddFormCheckBox(dlg, Dictionary.ProviderSupportsVision, existing?.SupportsVision ?? false,
                 Dictionary.ProviderDescrVision, ref y);
             var visionMaxField = AddFormField(dlg, Dictionary.ProviderVisionMaxPixels, (existing?.VisionMaxPixels ?? 0).ToString(), Dictionary.ProviderDescrVisionMaxPixels, ref y);
+            var imageGenCheck = AddFormCheckBox(dlg, Dictionary.ProviderSupportsImageGeneration, existing?.SupportsImageGeneration ?? false,
+                "When the active provider's host runs an image generator on the SAME entry point, the agent can drive text-to-image through ImageTool (the host flips the global ON/OFF gate). Requires the image generator service running.", ref y);
             var extraBodyField = AddFormField(dlg, Dictionary.ProviderExtraBody,
                 existing?.ExtraBody is { Count: > 0 } eb ? JsonSerializer.Serialize(eb) : "",
                 Dictionary.ProviderDescrExtraBody, ref y);
@@ -5276,6 +5278,7 @@ public static class ConsoleTui
                     Timeout = TimeSpan.FromSeconds(secs),
                     SupportsVision = visionCheck.Value == CheckState.Checked,
                     VisionMaxPixels = int.TryParse((visionMaxField.Text ?? "").Trim(), out var vmp) && vmp > 0 ? vmp : 0,
+                    SupportsImageGeneration = imageGenCheck.Value == CheckState.Checked,
                     ExtraBody = extra,
                 };
                 formErr.Text = "";

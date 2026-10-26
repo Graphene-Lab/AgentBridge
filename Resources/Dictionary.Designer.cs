@@ -2392,6 +2392,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Supports image generation (text-to-image)'.
+        /// </summary>
+        public static string ProviderSupportsImageGeneration {
+            get {
+                return ResourceManager.GetString("ProviderSupportsImageGeneration", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to '← active'.
         /// </summary>
         public static string SetupActiveMarker {
