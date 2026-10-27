@@ -39,7 +39,8 @@ public static class AgentTools
     /// <summary>Agent reporting tools — the agent's own voice toward the maintainers
     /// (MalfunctionReporterTool: malfunction reports and feature requests as GitHub issues).
     /// Appended to every agent set when active, like the core tools; the user controls them
-    /// with their own persisted gate (TUI Help → Malfunction reports). Active = the tool's
+    /// with their own persisted gate (TUI Settings → General → "Malfunction report" check box).
+    /// Active = the tool's
     /// own Enabled AND the tools.json policy both allow it.</summary>
     public static readonly string[] ReportingTools = { "MalfunctionReporterTool" };
 

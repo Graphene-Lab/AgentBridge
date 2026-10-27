@@ -48,7 +48,8 @@ AppDomain.CurrentDomain.UnhandledException += (_, e) =>
     Console.Error.WriteLine(e.ExceptionObject is Exception ex ? ex.ToString() : e.ExceptionObject?.ToString());
     // Best-effort crash diagnostics to the project's GitHub issues — SANITIZED payload (only
     // the exception type + our stack frames, never messages/user data, see CrashReporter.cs).
-    // Disable from the TUI (Help → Crash report) or appsettings CrashReport:Enabled.
+    // Disable from the TUI (Settings → General → "Crash report" check box) or appsettings
+    // CrashReport:Enabled.
     CrashReporter.Report(e.ExceptionObject as Exception);
 };
 AppDomain.CurrentDomain.UnhandledException += AIOrchestrator.Utility.UnhandledException; //it catches application errors in order to prepare a log of the events that cause the crash
@@ -484,7 +485,8 @@ TelegramBridge.Init(startupProvider, anonymize);
 if (!AutoUpdate.LoadState(args.Contains("--no-update")))
     AutoUpdate.Enabled = app.Configuration.GetValue<bool>("AutoUpdate:Enabled", true);
 
-// Crash reporting toggle (TUI Help → Crash report / /crashreport): persisted state in the OS
+// Crash reporting toggle (TUI Settings → General → "Crash report" check box / /crashreport):
+// persisted state in the OS
 // app-data folder wins, else the appsettings default. Repo/token come from appsettings
 // (CrashReport:Repo, CrashReport:Token — token optional; without it the report opens as a
 // pre-filled GitHub issue the user reviews before submitting, see CrashReporter.cs).
@@ -493,7 +495,8 @@ if (!CrashReporter.LoadState())
 CrashReporter.Repo = app.Configuration["CrashReport:Repo"] ?? CrashReporter.Repo;
 CrashReporter.Token = app.Configuration["CrashReport:Token"];
 
-// Agent reporting toggle (TUI Help → Malfunction reports / /malfunctionreport): the agent
+// Agent reporting toggle (TUI Settings → General → "Malfunction report" check box /
+// /malfunctionreport): the agent
 // opens malfunction reports and feature requests as GitHub issues through the SAME delivery
 // pipeline (MalfunctionReporterTool → CrashReporter.SendIssue). Own persisted gate in the
 // OS app-data folder, independent from CrashReport:Enabled; default ON.

@@ -302,10 +302,10 @@ public static class ConsoleTui
                 MenuGroup: "help", MenuTitle: Dictionary.MenuDocumentation),
             new("update", "", Dictionary.CmdUpdate, (t, _) => t.UpdateAsync(),
                 MenuGroup: "help", MenuTitle: Dictionary.MenuCheckUpdates),
-            // No menu voice: the Help menu hosts a dedicated state toggle for this one
-            // (crashReportItem in BuildUI) — see ValidateMenuCoverage.
+            // No menu voice: crash sending is a check box in the General settings panel now
+            // (see ShowGeneralPanel) — see ValidateMenuCoverage.
             new("crashreport", "", Dictionary.CmdCrashReport, (t, _) => t.CrashReportAsync()),
-            // No menu voice: dedicated state toggle in the Help menu (malfunctionReportItem).
+            // No menu voice: malfunction reporting is a check box in the General settings panel now.
             new("malfunctionreport", "", Dictionary.CmdMalfunctionReport, (t, _) => t.MalfunctionReportAsync()),
         };
 
@@ -515,11 +515,11 @@ public static class ConsoleTui
 
         // ── Layout ──
 
-        // Slash commands whose menu voice is a custom item (state shown in the title,
-        // not just "run the command") — see ValidateMenuCoverage. "attach" is folded into
-        // the unified File panel (its toggle lives there), so it keeps the slash command
-        // but no separate menu voice.
-        private static readonly HashSet<string> MenuVoiceExempt = new(StringComparer.Ordinal) { "crashreport", "attach" };
+        // Slash commands with no menu voice of their own — see ValidateMenuCoverage.
+        // "attach" is folded into the unified File panel (its toggle lives there).
+        // "crashreport" and "malfunctionreport" are state switches now owned by the
+        // General settings panel (as check boxes), so they keep the slash command only.
+        private static readonly HashSet<string> MenuVoiceExempt = new(StringComparer.Ordinal) { "crashreport", "malfunctionreport", "attach" };
 
         // Commands placed in the menus by CommandMenuItem (see ValidateMenuCoverage).
         private readonly HashSet<string> _menuVoices = new(StringComparer.Ordinal);
@@ -564,38 +564,6 @@ public static class ConsoleTui
                 SchemeName = "Dark",
             };
 
-            // Terminal.Gui v2 has no checkmark on menu items — the state is shown in the title.
-            MenuItem autoUpdateItem = null!;
-            autoUpdateItem = new MenuItem(string.Format(Dictionary.MenuAutoUpdate, AutoUpdate.Enabled ? Dictionary.On : Dictionary.Off), Key.Empty, () =>
-            {
-                AutoUpdate.Toggle();
-                Log.LogStep($"TUI AutoUpdate toggled: {AutoUpdate.Enabled}", monitor: true);
-                autoUpdateItem.Title = string.Format(Dictionary.MenuAutoUpdate, AutoUpdate.Enabled ? Dictionary.On : Dictionary.Off);
-            });
-
-            // Crash-diagnostics toggle: whether sanitized crash reports are sent to the GitHub
-            // repository (see CrashReporter.cs). State shown in the title, like Auto-Update.
-            MenuItem crashReportItem = null!;
-            crashReportItem = new MenuItem(string.Format(Dictionary.MenuCrashReport, CrashReporter.Enabled ? Dictionary.On : Dictionary.Off), Key.Empty, () =>
-            {
-                CrashReporter.Toggle();
-                Log.LogStep($"TUI CrashReport toggled: {CrashReporter.Enabled}", monitor: true);
-                AddNote(CrashReporter.Enabled ? Dictionary.NoteCrashReportEnabled : Dictionary.NoteCrashReportDisabled);
-                crashReportItem.Title = string.Format(Dictionary.MenuCrashReport, CrashReporter.Enabled ? Dictionary.On : Dictionary.Off);
-            });
-
-            // Agent reporting toggle: whether the agent can open malfunction reports and feature
-            // requests as GitHub issues (see AIOrchestrator/API/MalfunctionReporterTool.cs).
-            // Own persisted gate, independent from the crash-report one above.
-            MenuItem malfunctionReportItem = null!;
-            malfunctionReportItem = new MenuItem(string.Format(Dictionary.MenuMalfunctionReport, MalfunctionReporterTool.Enabled ? Dictionary.On : Dictionary.Off), Key.Empty, () =>
-            {
-                MalfunctionReporterTool.Toggle();
-                Log.LogStep($"TUI MalfunctionReport toggled: {MalfunctionReporterTool.Enabled}", monitor: true);
-                AddNote(MalfunctionReporterTool.Enabled ? Dictionary.NoteMalfunctionReportEnabled : Dictionary.NoteMalfunctionReportDisabled);
-                malfunctionReportItem.Title = string.Format(Dictionary.MenuMalfunctionReport, MalfunctionReporterTool.Enabled ? Dictionary.On : Dictionary.Off);
-            });
-
             // Menus are assembled from the Commands registry (single source): each item
             // below is a command whose label/accelerator/action come from its registry
             // entry, so /help, the "/" palette and the menus can never drift apart.
@@ -616,11 +584,13 @@ public static class ConsoleTui
                     CommandMenuItem("files"),
                     CommandMenuItem("open"),
                 }),
+                // "General" opens first: it hosts the top-level switches (auto-update, crash
+                // report, malfunction report, anonymized log attachment) as check boxes.
                 new(Dictionary.MenuSettings, new MenuItem[]
                 {
+                    CommandMenuItem("general"),
                     CommandMenuItem("providers"),
                     CommandMenuItem("email"),
-                    CommandMenuItem("general"),
                     CommandMenuItem("tools"),
                     CommandMenuItem("taskscheduler"),
                     CommandMenuItem("ttsengine"),
@@ -642,9 +612,6 @@ public static class ConsoleTui
                 }),
                 new(Dictionary.MenuHelp, new MenuItem[]
                 {
-                    autoUpdateItem,
-                    crashReportItem,
-                    malfunctionReportItem,
                     CommandMenuItem("update"),
                     CommandMenuItem("help"),
                     CommandMenuItem("shortcuts"),
@@ -2946,8 +2913,9 @@ public static class ConsoleTui
             // disabled is not listed either (see docs-dev/ARCHITECTURE.md, "Agent sets & tool policy").
             var coreEnabled = AgentTools.CoreTools.Where(AgentTools.IsEnabled).ToArray();
             // Reporting tools are not checklist rows: they have their own dedicated toggle
-            // (Help → Malfunction reports) and are force-included in the combination when
-            // active — like the core tools above, the checklist cannot contradict that gate.
+            // (Settings → General → "Malfunction report" check box) and are force-included in
+            // the combination when active — like the core tools above, the checklist cannot
+            // contradict that gate.
             var toggleable = catalog.Where(c => !AgentTools.CoreTools.Contains(c.Name) && !AgentTools.ReportingTools.Contains(c.Name)).ToList();
             var coreLabel = new Label
             {
@@ -5048,9 +5016,12 @@ public static class ConsoleTui
             return tcs.Task;
         }
 
-        // General panel: step logging, auto-start at boot and the documents area path.
-        // The documents path is validated (and persisted) via TrySetDocumentsPath before
-        // the panel closes; an unusable path keeps the panel open with the reason shown.
+        // General panel: the top-level switches (auto-update, crash report, malfunction report,
+        // anonymized log attachment) as check boxes, then step logging, auto-start at boot and
+        // the documents area path. Nothing is applied until Save — a click here changes no
+        // setting on its own. The documents path is validated (and persisted) via
+        // TrySetDocumentsPath before the panel closes; an unusable path keeps the panel open
+        // with the reason shown.
         private void ShowGeneralPanel()
         {
             Log.LogStep("TUI General panel opened", monitor: true);
@@ -5058,21 +5029,52 @@ public static class ConsoleTui
             {
                 Title = Dictionary.SetupGeneralTab,
                 Width = Dim.Percent(70),
-                Height = Dim.Percent(45),
+                Height = Dim.Percent(58),
                 SchemeName = "Dark",
             };
 
+            // Auto-update: a published release newer than the running version is downloaded
+            // and applied on the next start (see AutoUpdate.cs).
+            var autoUpdate = new CheckBox
+            {
+                Text = Dictionary.SetupAutoUpdate,
+                Value = AutoUpdate.Enabled ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = 0,
+            };
+            // Crash report: whether sanitized crash dumps are sent to the GitHub repository.
+            var crashReport = new CheckBox
+            {
+                Text = Dictionary.SetupCrashReport,
+                Value = CrashReporter.Enabled ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = 1,
+            };
+            // Malfunction report: whether the agent may open malfunction reports and feature
+            // requests as GitHub issues (own gate, independent from the crash-report one).
+            var malfunctionReport = new CheckBox
+            {
+                Text = Dictionary.SetupMalfunctionReport,
+                Value = MalfunctionReporterTool.Enabled ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = 2,
+            };
+            // Attach anonymized log: when on, a malfunction report carries the current log file
+            // with sensitive values replaced by [EMAIL]/[NAME]/[KEY]/[IP]/[PASSWORD] labels.
+            var attachAnonymizedLog = new CheckBox
+            {
+                Text = Dictionary.SetupAttachAnonymizedLog,
+                Value = MalfunctionReporterTool.AttachAnonymizedLog ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = 3,
+            };
             var logEnabled = new CheckBox
             {
                 Text = Dictionary.SetupStepLogging,
                 Value = AIOrchestrator.Log.IsEnabled ? CheckState.Checked : CheckState.UnChecked,
-                X = 1, Y = 0,
+                X = 1, Y = 4,
             };
             var autoStart = new CheckBox
             {
                 Text = Dictionary.SetupAutoStart,
                 Value = SystemExtra.Util.GetAutoStart() ? CheckState.Checked : CheckState.UnChecked,
-                X = 1, Y = 1,
+                X = 1, Y = 5,
             };
             // Next-prompt suggestion: the server only computes it when a client asks
             // (/v1/suggest) and this flag is on, so SIP/Telegram chats never pay for it.
@@ -5080,19 +5082,20 @@ public static class ConsoleTui
             {
                 Text = Dictionary.SetupPromptSuggestion,
                 Value = AIOrchestrator.Setup.PromptSuggestion ? CheckState.Checked : CheckState.UnChecked,
-                X = 1, Y = 2,
+                X = 1, Y = 6,
             };
-            var docsPath = AddField(dlg, Dictionary.SetupDocumentsPath, AIOrchestrator.Setup.DocumentsPath, 4);
-            var pathErr = new Label { Text = "", X = 1, Y = 5, Width = Dim.Fill() - 2, SchemeName = "Hint" };
+            var docsPath = AddField(dlg, Dictionary.SetupDocumentsPath, AIOrchestrator.Setup.DocumentsPath, 8);
+            var pathErr = new Label { Text = "", X = 1, Y = 9, Width = Dim.Fill() - 2, SchemeName = "Hint" };
             // The running build, so the user never has to open About (or trust an updater
             // message) to know which version is on screen.
             var version = new Label
             {
                 Text = string.Format(Dictionary.AboutVersion,
                     System.Reflection.Assembly.GetExecutingAssembly().GetName().Version),
-                X = 1, Y = 6, Width = Dim.Fill() - 2, SchemeName = "Hint",
+                X = 1, Y = 10, Width = Dim.Fill() - 2, SchemeName = "Hint",
             };
-            dlg.Add(logEnabled, autoStart, suggestion, pathErr, version);
+            dlg.Add(autoUpdate, crashReport, malfunctionReport, attachAnonymizedLog,
+                logEnabled, autoStart, suggestion, pathErr, version);
 
             var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
             save.Accepting += (_, e) =>
@@ -5107,6 +5110,15 @@ public static class ConsoleTui
                     pathErr.Text = string.Format(Dictionary.SetupInvalidDocsPathText, pathNote);
                     return;
                 }
+                AutoUpdate.Enabled = autoUpdate.Value == CheckState.Checked;
+                AutoUpdate.SaveState();
+                CrashReporter.Enabled = crashReport.Value == CheckState.Checked;
+                CrashReporter.SaveState();
+                MalfunctionReporterTool.Enabled = malfunctionReport.Value == CheckState.Checked;
+                // SetAttachAnonymizedLog persists on its own only when the value changed, so
+                // SaveState() follows to make sure an Enabled-only change is written too.
+                MalfunctionReporterTool.SetAttachAnonymizedLog(attachAnonymizedLog.Value == CheckState.Checked);
+                MalfunctionReporterTool.SaveState();
                 AIOrchestrator.Log.IsEnabled = logEnabled.Value == CheckState.Checked;
                 SystemExtra.Util.SetAutoStart(autoStart.Value == CheckState.Checked);
                 AIOrchestrator.Setup.PromptSuggestion = suggestion.Value == CheckState.Checked;

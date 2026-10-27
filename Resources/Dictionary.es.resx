@@ -243,6 +243,10 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupImapPassword" xml:space="preserve"><value>Contraseña IMAP</value></data>
   <data name="SetupGeneralTab" xml:space="preserve"><value>General</value></data>
   <data name="SetupStepLogging" xml:space="preserve"><value>Activar el registro de pasos (carpeta logs/)</value></data>
+  <data name="SetupAutoUpdate" xml:space="preserve"><value>Actualización automática</value></data>
+  <data name="SetupCrashReport" xml:space="preserve"><value>Informe de fallos</value></data>
+  <data name="SetupMalfunctionReport" xml:space="preserve"><value>Informe de averías</value></data>
+  <data name="SetupAttachAnonymizedLog" xml:space="preserve"><value>Adjuntar registro anonimizado al reporter de averías</value></data>
   <data name="SetupAutoStart" xml:space="preserve"><value>Inicio automático al arrancar el sistema</value></data>
   <data name="SetupDocumentsPath" xml:space="preserve"><value>Ruta de documentos</value></data>
   <data name="SetupSave" xml:space="preserve"><value>Guardar</value></data>

@@ -2833,6 +2833,42 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Automatic update'.
+        /// </summary>
+        public static string SetupAutoUpdate {
+            get {
+                return ResourceManager.GetString("SetupAutoUpdate", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Crash report'.
+        /// </summary>
+        public static string SetupCrashReport {
+            get {
+                return ResourceManager.GetString("SetupCrashReport", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Malfunction report'.
+        /// </summary>
+        public static string SetupMalfunctionReport {
+            get {
+                return ResourceManager.GetString("SetupMalfunctionReport", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Attach anonymized log to the malfunction reporter'.
+        /// </summary>
+        public static string SetupAttachAnonymizedLog {
+            get {
+                return ResourceManager.GetString("SetupAttachAnonymizedLog", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Ctrl+PageDown / Ctrl+PageUp switches page · ↑↓ move within a page'.
         /// </summary>
         public static string SetupTabsHint {
