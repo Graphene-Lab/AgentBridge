@@ -427,3 +427,49 @@ the new repo is pushed by the pre-push hook without any script edit.
   machine — the CI archives never contain it. Deploy it manually next to the binary
   (see [sip.md](../docs/sip.md) → "Deploying the speech-to-text executable"); without it the SIP
   signalling and PIN gate keep working, only the speech recognition is unavailable.
+
+## 9. Checklist operativa: passi esterni per chiudere il task MCP del prompt iniziale
+
+Il codice (server.json), l'automazione in elease.yml (job mcp-bundle + mcp-registry) e la sezione
+MCP del README sono **completati, committati e pushati**. Per chiudere *effettivamente* il task del prompt
+iniziale restano tre passi esterni, non committabili via git.
+
+### 9a. Identità MCP su GitHub (description + topics) -- MANUALE
+description e 	opics sono modifiche delle Settings del repository, non di un file. Attualmente il repo
+recita "Personal AI Assistant" senza topics MCP -- quindi gh non può cambiarli e un commit non li tocca.
+- Apri https://github.com/Graphene-Lab/AgentBridge/settings/general
+- **Description**: aggiungi una frase che includa MCP, es.:
+  "Autonomous Personal AI Assistant for office work, exposed as a Model Context Protocol (MCP) server (io.github.Graphene-Lab/agentbridge) listed on the Official MCP Registry."
+- **Topics** (GitHub auto-completa al digitare) aggiungi:
+  mcp, mcp-server, model-context-protocol, i-agent, office-automation, dotnet, lazor
+- Nota: description e topics non *sostituiscono* la pubblicazione sul registry; la rendono solo riconoscibile
+  nelle ricerche e nei consigli.
+
+### 9b. Prima release reale -- attiva mcp-registry
+Il job mcp-registry si esegue **solo al primo tag *** di elease.yml.
+- Il backfill con l'input mcp_publish_version serve alla verifica locale/preview; per il publish vivo crea
+  e spina il tag <version> della Bridge (es. 1.26.10.22 -> version semver 26.10.22):
+
+`powershell
+git -C C:\Users\andre\OneDrive\Sorgenti\AgentBridge tag -a v1.26.10.22 -m "Release v1.26.10.22"
+git -C C:\Users\andre\OneDrive\Sorgenti\AgentBridge push origin v1.26.10.22
+`
+
+  Nota: il tag è creato *dentro* elease.yml con GITHUB_TOKEN, quindi un workflow separato su
+  on: push: tags: v* non si attiverà -- la pubblicazione è un job di elease.yml.
+- Aspetta l'esecuzione del job mcp-registry nella scheda Actions e l'attesa della disponibilità del package.
+- Verifica l'idempotenza con il registry live (base URL come da docs ufficiali, endpoint /v0.1/):
+
+`powershell
+Invoke-RestMethod -Uri "https://<registry-base>/v0.1/servers/io.github.Graphene-Lab%2Fagentbridge"
+`
+
+  Rispondi con la versione 26.10.22 e isLatest: true. Ripubblicare la *stessa* versione errore (riepublish
+  non permesso); il registry è in *preview* (reset possibili) -- il backfill mcp_publish_version e il
+  fallback manuale mcp-publisher coprono entrambi i casi.
+
+### 9c. Badge del registry + inclusione in github.com/mcp -- ESTERNO
+- **Badge**: dopo la prima pubblicazione funzionante, aggiungi nel README un badge che punti al server sul
+  registry, con link al package io.github.Graphene-Lab/agentbridge.
+- **Inclusione in https://github.com/mcp**: catalogo curato, *senza* API di submission pubblica -- richiede
+  di contattare/mantenere il catalogo (passo manuale, non automatizzabile).
