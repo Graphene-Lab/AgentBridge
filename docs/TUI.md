@@ -90,7 +90,7 @@ that the agent is working.
 | `/shortcuts` · `/keys` | Keyboard shortcuts overlay (also press `?` on an empty input) |
 | `/health` | Ping the server, report latency |
 | `/retry` | Resend the last prompt (also Ctrl+Y) |
-| `/exit` · `/quit` | Exit (also Ctrl+C twice, or Ctrl+D) |
+| `/exit` · `/quit` | Save the memory and exit (also Ctrl+C on an empty prompt, or Ctrl+D) |
 
 ## Scheduled tasks
 
@@ -264,9 +264,9 @@ found, the app downloads it, swaps the files and restarts itself — see
 | `@` | Open the file palette (toggle chat attachments) |
 | `?` | Shortcuts overlay (empty input) |
 | `Tab` | Complete the selected command in the palette |
-| `Esc` | Close dialog · clear input · twice: exit |
-| `Ctrl+C` | Cancel the reply · clear input · twice: exit |
-| `Ctrl+D` | Exit (empty input) |
+| `Esc` | Close dialog · clear input · twice: save memory and exit |
+| `Ctrl+C` | Cancel the reply · clear input · on an empty prompt: save memory, then exit |
+| `Ctrl+D` | Save the memory and exit (empty input) |
 | `Ctrl+L` | Clear the session history (menu bar too) |
 | `Ctrl+R` | Reverse-search prompt history |
 | `Ctrl+Y` | Retry the last prompt |
@@ -278,10 +278,45 @@ found, the app downloads it, swaps the files and restarts itself — see
 | `PgUp` / `PgDn` | Scroll the conversation history |
 | `F1` | Full help page |
 | `F10` | Activate the menu bar |
+| `F12` | Hide the window (restore it from the tray icon, the Dock or the taskbar) |
 
 The conversation auto-follows the stream while you are at the bottom; scrolling up
 (wheel or `PgUp`) pauses the follow so you can read, and scrolling down or sending a
 message resumes it.
+
+### Exiting: the memory is saved first
+
+Memory is written when a session is **closed** (`.mem/memory.json`, `.mem/skills.json`).
+Quitting used to stop the UI loop only, so the conversation you had interactively was
+thrown away without anything remembered. The exit is therefore a two-step gesture:
+
+1. `Ctrl+C` on an empty prompt (or `Esc` twice, `Ctrl+D`, `/exit`) clears the window and
+   starts the **memory save** — every open session is closed, which is what writes the
+   memory. A spinner and a "saving memory…" message show the operation in progress, and
+   every key is ignored until it finishes.
+2. When the save is done the message becomes *memory saved · Ctrl+C to exit*: press
+   `Ctrl+C` now to quit. **Typing a prompt instead** simply continues in a fresh session,
+   so nothing is lost by pressing the key too early.
+
+A session still busy after the save budget is left open (and logged) rather than disposed
+under a running agent; the status line reports how many sessions were closed.
+
+## Hiding the window (`F12`)
+
+`F12` sends the UI out of the way and back, without closing anything — the chats keep
+their state while the window is hidden.
+
+| Platform | What happens | How to bring it back |
+|---|---|---|
+| Windows | The console window is hidden and a notification-area icon appears | Click the tray icon, or press `Ctrl+Alt+F12` (then `Ctrl+Shift+F12`, then `Alt+F12` if another app owns that chord) |
+| macOS | Terminal / iTerm2 is hidden (`osascript`, System Events) | Click the Dock icon |
+| Linux (X11) | The window is hidden with `wmctrl` (fallback `xdotool`) | Click the taskbar entry |
+
+Where the platform cannot hide a window (no tray support, no `wmctrl`/`xdotool`, a remote
+session), `F12` changes nothing and the status line says the feature is not supported
+here, so the key is never a dead end. On Windows the hide only happens when the tray icon
+was actually registered — otherwise the window is left alone instead of disappearing with
+no way back. `F12` hidden mode is also undone automatically when the app exits.
 
 ## Mouse
 

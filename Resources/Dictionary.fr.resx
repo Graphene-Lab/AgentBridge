@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -25,8 +25,8 @@
   <data name="Connected" xml:space="preserve"><value>connecté</value></data>
   <data name="Unreachable" xml:space="preserve"><value>inaccessible</value></data>
   <data name="InputPlaceholder" xml:space="preserve"><value>Saisissez un message ou / pour les commandes...</value></data>
-  <data name="WelcomeMessage" xml:space="preserve"><value>Bienvenue dans AGENT — discutez avec les agents directement depuis le terminal.
-Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichiers · ? raccourcis · F1 aide · F10 le menu.</value></data>
+  <data name="WelcomeMessage" xml:space="preserve"><value>Bienvenue dans AGENT — parlez aux agents directement depuis le terminal.
+Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichiers · ? raccourcis · F1 aide · F10 le menu · F12 masque la fenêtre.</value></data>
   <data name="ServerNote" xml:space="preserve"><value>serveur : {0} — l'API continue de répondre en parallèle ({0}/v1/chat/completions)</value></data>
   <data name="HostErrorNote" xml:space="preserve"><value>échec du démarrage de l'hôte local ({0}) — connexion à une instance existante</value></data>
   <data name="WindowTitle" xml:space="preserve"><value>AGENT - Console de chat IA</value></data>
@@ -77,8 +77,8 @@ Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichie
   <data name="ShortQuestion" xml:space="preserve"><value>Affiche cette superposition de raccourcis (saisie vide)</value></data>
   <data name="ShortTab" xml:space="preserve"><value>Complète la commande sélectionnée dans la palette</value></data>
   <data name="ShortEsc" xml:space="preserve"><value>Fermer la boîte de dialogue · effacer la saisie · deux fois : quitter</value></data>
-  <data name="ShortCtrlC" xml:space="preserve"><value>Annuler la réponse · effacer la saisie · deux fois : quitter</value></data>
-  <data name="ShortCtrlD" xml:space="preserve"><value>Quitter (saisie vide)</value></data>
+  <data name="ShortCtrlC" xml:space="preserve"><value>Annule la réponse · vide la saisie · vide : enregistre la mémoire et quitte</value></data>
+  <data name="ShortCtrlD" xml:space="preserve"><value>Enregistre la mémoire et quitte (saisie vide)</value></data>
   <data name="ShortCtrlY" xml:space="preserve"><value>Réenvoie le dernier message</value></data>
   <data name="ShortCtrlR" xml:space="preserve"><value>Recherche inversée dans l'historique des messages</value></data>
   <data name="ShortUpDown" xml:space="preserve"><value>Historique des messages à la première/dernière ligne (aussi Ctrl+P / Ctrl+N) ; sinon déplace le curseur</value></data>
@@ -89,8 +89,7 @@ Saisissez un message et appuyez sur Entrée · / ouvre les commandes · @ fichie
   <data name="ShortPgUpDn" xml:space="preserve"><value>Faire défiler l'historique de la conversation</value></data>
   <data name="ShortF1" xml:space="preserve"><value>Affiche la page d'aide complète</value></data>
   <data name="ShortF10" xml:space="preserve"><value>Active la barre de menus</value></data>
-  <data name="StatusEscAgain" xml:space="preserve"><value>Appuyez à nouveau sur Échap pour quitter · ou Ctrl+C deux fois</value></data>
-  <data name="StatusCtrlCAgain" xml:space="preserve"><value>Appuyez à nouveau sur Ctrl+C pour quitter</value></data>
+  <data name="StatusEscAgain" xml:space="preserve"><value>Appuyez encore sur Esc pour enregistrer la mémoire et quitter · ou Ctrl+C</value></data>
   <data name="StatusCancelling" xml:space="preserve"><value>annulation…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>génération… attendez, ou Ctrl+C pour arrêter</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>génération…</value></data>
@@ -242,7 +241,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupImapUser" xml:space="preserve"><value>Utilisateur IMAP</value></data>
   <data name="SetupImapPassword" xml:space="preserve"><value>Mot de passe IMAP</value></data>
   <data name="SetupGeneralTab" xml:space="preserve"><value>Général</value></data>
-  <data name="SetupStepLogging" xml:space="preserve"><value>Activer la journalisation des étapes (dossier logs/)</value></data>
+  <data name="SetupStepLogging" xml:space="preserve"><value>Activer la journalisation du log (dossier logs/)</value></data>
   <data name="SetupAutoUpdate" xml:space="preserve"><value>Mise à jour automatique</value></data>
   <data name="SetupCrashReport" xml:space="preserve"><value>Rapport de plantage</value></data>
   <data name="SetupMalfunctionReport" xml:space="preserve"><value>Rapport de dysfonctionnement</value></data>
@@ -316,7 +315,7 @@ La zone de documents précédente est toujours active — rien n'a été modifi�
   <data name="NoteToolsApplied" xml:space="preserve"><value>Outils mis à jour : {0}. Actifs dès le message suivant (aucun redémarrage nécessaire).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Supprimer le fichier</value></data>
   <data name="StatusTools" xml:space="preserve"><value>outils</value></data>
-  <data name="StatusBarHints" xml:space="preserve"><value>F1 aide · F10 menu · / commandes · @ fichiers · ? raccourcis · Échap fermer · Ctrl+C annuler</value></data>
+  <data name="StatusBarHints" xml:space="preserve"><value>F1 aide · F10 menu · F12 masquer · / commandes · @ fichiers · ? raccourcis · Esc fermer · Ctrl+C annuler</value></data>
   <data name="DlgTelegramTitle" xml:space="preserve"><value>Telegram</value></data>
   <data name="DlgTelegramHint" xml:space="preserve"><value>La première connexion nécessite le code de vérification — saisissez-le ci-dessous quand la phase est « code ».</value></data>
   <data name="DlgTelegramLoginLabel" xml:space="preserve"><value>Code de vérification / mot de passe 2FA</value></data>
@@ -341,4 +340,12 @@ La zone de documents précédente est toujours active — rien n'a été modifi�
   <data name="NoteOpenedFile" xml:space="preserve"><value>Ouvert : {0}</value></data>
   <data name="NoteOpenFileNotFound" xml:space="preserve"><value>Aucune pièce jointe reçue ne correspond à « {0} » dans {1}</value></data>
   <data name="NoteOpenFailed" xml:space="preserve"><value>Ouverture impossible : {0}</value></data>
+  <data name="StatusSavingMemory" xml:space="preserve"><value>enregistrement de la mémoire…</value></data>
+  <data name="ShutdownSavingMemory" xml:space="preserve"><value>Enregistrement de la mémoire</value></data>
+  <data name="StatusCtrlCToExit" xml:space="preserve"><value>mémoire enregistrée · Ctrl+C pour quitter</value></data>
+  <data name="NoteMemorySaved" xml:space="preserve"><value>Mémoire enregistrée ({0} session(s) fermée(s)) · appuyez sur Ctrl+C pour quitter, ou saisissez un prompt pour démarrer une nouvelle session.</value></data>
+  <data name="NoteMemorySavedPartial" xml:space="preserve"><value>Mémoire enregistrée pour {0} session(s) ; {1} encore occupée(s) et laissée(s) ouverte(s) · Ctrl+C pour quitter</value></data>
+  <data name="NoteMemorySaveFailed" xml:space="preserve"><value>Mémoire non enregistrée : {0} — les sessions restent ouvertes · Ctrl+C quitte quand même</value></data>
+  <data name="ShortF12" xml:space="preserve"><value>Masque la fenêtre (l'icône de la zone de notification ou la barre des tâches la rouvre)</value></data>
+  <data name="NoteHideUnsupported" xml:space="preserve"><value>Impossible de masquer la fenêtre sur ce système — l'application reste visible</value></data>
 </root>

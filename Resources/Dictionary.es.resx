@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -25,8 +25,8 @@
   <data name="Connected" xml:space="preserve"><value>conectado</value></data>
   <data name="Unreachable" xml:space="preserve"><value>inalcanzable</value></data>
   <data name="InputPlaceholder" xml:space="preserve"><value>Escribe un mensaje o / para los comandos...</value></data>
-  <data name="WelcomeMessage" xml:space="preserve"><value>Bienvenido a AGENT — habla con los agentes directamente desde la terminal.
-Escribe un mensaje y pulsa Intro · / abre comandos · @ archivos · ? atajos · F1 ayuda · F10 el menú.</value></data>
+  <data name="WelcomeMessage" xml:space="preserve"><value>Bienvenido a AGENT — habla con los agentes directamente desde el terminal.
+Escribe un mensaje y pulsa Intro · / abre los comandos · @ archivos · ? atajos · F1 ayuda · F10 el menú · F12 oculta la ventana.</value></data>
   <data name="ServerNote" xml:space="preserve"><value>servidor: {0} — la API sigue respondiendo en paralelo ({0}/v1/chat/completions)</value></data>
   <data name="HostErrorNote" xml:space="preserve"><value>error al iniciar el host local ({0}) — conectando a una instancia existente</value></data>
   <data name="WindowTitle" xml:space="preserve"><value>AGENT - Consola de chat IA</value></data>
@@ -77,8 +77,8 @@ Escribe un mensaje y pulsa Intro · / abre comandos · @ archivos · ? atajos ·
   <data name="ShortQuestion" xml:space="preserve"><value>Muestra esta superposición de atajos (entrada vacía)</value></data>
   <data name="ShortTab" xml:space="preserve"><value>Completa el comando seleccionado en la paleta</value></data>
   <data name="ShortEsc" xml:space="preserve"><value>Cerrar diálogo · borrar entrada · dos veces: salir</value></data>
-  <data name="ShortCtrlC" xml:space="preserve"><value>Cancelar la respuesta · borrar entrada · dos veces: salir</value></data>
-  <data name="ShortCtrlD" xml:space="preserve"><value>Salir (entrada vacía)</value></data>
+  <data name="ShortCtrlC" xml:space="preserve"><value>Cancela la respuesta · vacía la entrada · vacía: guarda la memoria y sale</value></data>
+  <data name="ShortCtrlD" xml:space="preserve"><value>Guarda la memoria y sale (entrada vacía)</value></data>
   <data name="ShortCtrlY" xml:space="preserve"><value>Reenvía el último mensaje</value></data>
   <data name="ShortCtrlR" xml:space="preserve"><value>Búsqueda inversa en el historial de mensajes</value></data>
   <data name="ShortUpDown" xml:space="preserve"><value>Historial de mensajes en la primera/última línea (también Ctrl+P / Ctrl+N); si no, mueve el cursor</value></data>
@@ -89,8 +89,7 @@ Escribe un mensaje y pulsa Intro · / abre comandos · @ archivos · ? atajos ·
   <data name="ShortPgUpDn" xml:space="preserve"><value>Desplazar el historial de la conversación</value></data>
   <data name="ShortF1" xml:space="preserve"><value>Muestra la página de ayuda completa</value></data>
   <data name="ShortF10" xml:space="preserve"><value>Activa la barra de menús</value></data>
-  <data name="StatusEscAgain" xml:space="preserve"><value>Pulsa Esc de nuevo para salir · o Ctrl+C dos veces</value></data>
-  <data name="StatusCtrlCAgain" xml:space="preserve"><value>Pulsa Ctrl+C de nuevo para salir</value></data>
+  <data name="StatusEscAgain" xml:space="preserve"><value>Pulsa Esc de nuevo para guardar la memoria y salir · o Ctrl+C</value></data>
   <data name="StatusCancelling" xml:space="preserve"><value>cancelando…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>generando… espera, o Ctrl+C para detener</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>generando…</value></data>
@@ -242,7 +241,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupImapUser" xml:space="preserve"><value>Usuario IMAP</value></data>
   <data name="SetupImapPassword" xml:space="preserve"><value>Contraseña IMAP</value></data>
   <data name="SetupGeneralTab" xml:space="preserve"><value>General</value></data>
-  <data name="SetupStepLogging" xml:space="preserve"><value>Activar el registro de pasos (carpeta logs/)</value></data>
+  <data name="SetupStepLogging" xml:space="preserve"><value>Activar el registro del log (carpeta logs/)</value></data>
   <data name="SetupAutoUpdate" xml:space="preserve"><value>Actualización automática</value></data>
   <data name="SetupCrashReport" xml:space="preserve"><value>Informe de fallos</value></data>
   <data name="SetupMalfunctionReport" xml:space="preserve"><value>Informe de averías</value></data>
@@ -316,7 +315,7 @@ El área de documentos anterior sigue activa — no se ha cambiado nada.</value>
   <data name="NoteToolsApplied" xml:space="preserve"><value>Herramientas actualizadas: {0}. Efectivas desde el siguiente mensaje (sin reiniciar).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Eliminar archivo</value></data>
   <data name="StatusTools" xml:space="preserve"><value>herramientas</value></data>
-  <data name="StatusBarHints" xml:space="preserve"><value>F1 ayuda · F10 menú · / comandos · @ archivos · ? atajos · Esc cerrar · Ctrl+C cancelar</value></data>
+  <data name="StatusBarHints" xml:space="preserve"><value>F1 ayuda · F10 menú · F12 ocultar · / comandos · @ archivos · ? atajos · Esc cerrar · Ctrl+C cancelar</value></data>
   <data name="DlgTelegramTitle" xml:space="preserve"><value>Telegram</value></data>
   <data name="DlgTelegramHint" xml:space="preserve"><value>El primer inicio de sesión requiere el código de verificación — introdúcelo abajo cuando la fase sea « code ».</value></data>
   <data name="DlgTelegramLoginLabel" xml:space="preserve"><value>Código de verificación / contraseña 2FA</value></data>
@@ -341,4 +340,12 @@ El área de documentos anterior sigue activa — no se ha cambiado nada.</value>
   <data name="NoteOpenedFile" xml:space="preserve"><value>Abierto: {0}</value></data>
   <data name="NoteOpenFileNotFound" xml:space="preserve"><value>Ningún adjunto recibido coincide con "{0}" en {1}</value></data>
   <data name="NoteOpenFailed" xml:space="preserve"><value>No se puede abrir: {0}</value></data>
+  <data name="StatusSavingMemory" xml:space="preserve"><value>guardando memoria…</value></data>
+  <data name="ShutdownSavingMemory" xml:space="preserve"><value>Guardando memoria</value></data>
+  <data name="StatusCtrlCToExit" xml:space="preserve"><value>memoria guardada · Ctrl+C para salir</value></data>
+  <data name="NoteMemorySaved" xml:space="preserve"><value>Memoria guardada ({0} sesiones cerradas) · pulsa Ctrl+C para salir o escribe un prompt para iniciar una sesión nueva.</value></data>
+  <data name="NoteMemorySavedPartial" xml:space="preserve"><value>Memoria guardada para {0} sesiones; {1} aún ocupadas y sin cerrar · pulsa Ctrl+C para salir</value></data>
+  <data name="NoteMemorySaveFailed" xml:space="preserve"><value>Memoria no guardada: {0} — las sesiones siguen abiertas · pulsa Ctrl+C para salir igualmente</value></data>
+  <data name="ShortF12" xml:space="preserve"><value>Oculta la ventana (el icono de la bandeja o la barra de tareas la recupera)</value></data>
+  <data name="NoteHideUnsupported" xml:space="preserve"><value>No se puede ocultar la ventana en este sistema — la app sigue visible</value></data>
 </root>

@@ -186,6 +186,15 @@ public record ControlRequest
     /// <summary>When true, clear the session's conversation history.</summary>
     [JsonPropertyName("reset_history")]
     public bool? ResetHistory { get; init; }
+    /// <summary>When true, close (dispose) EVERY live session. Each close runs the
+    /// end-of-conversation memory recording, which a session that is simply dropped at
+    /// process exit never gets: the TUI uses this before it quits so no conversation is
+    /// lost. No session_id needed.</summary>
+    [JsonPropertyName("close_sessions")]
+    public bool? CloseSessions { get; init; }
+    /// <summary>When true, close only <see cref="SessionId"/> (same memory-recording path).</summary>
+    [JsonPropertyName("close_session")]
+    public bool? CloseSession { get; init; }
     /// <summary>Make the named provider the process-wide default for new chat sessions
     /// (persisted as the explicit default marker in providers.json). No session_id needed.</summary>
     [JsonPropertyName("set_default_provider")]

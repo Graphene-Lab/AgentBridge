@@ -137,6 +137,91 @@ public static class SessionStore
     /// <summary>Number of live sessions.</summary>
     public static int Count => Sessions.Count;
 
+    /// <summary>Ids of the live sessions (snapshot).</summary>
+    public static IReadOnlyList<string> Ids => Sessions.Keys.ToArray();
+
+    /// <summary>
+    /// Closes one session the "graceful" way: wait (bounded) for its gate, then remove it so
+    /// <see cref="ActiveSession.Dispose"/> runs and the end-of-conversation memory recording
+    /// fires. A session whose gate never frees is left alone — disposing an orchestrator under
+    /// a running agent would corrupt the run — and reported as skipped.
+    /// </summary>
+    /// <returns>True when the session was closed, false when it was busy or already gone.</returns>
+    public static async Task<bool> CloseAsync(string id, TimeSpan gateTimeout, CancellationToken ct = default)
+    {
+        if (!Sessions.TryGetValue(id, out var session)) return false;
+
+        var entered = false;
+        try
+        {
+            entered = await session.Gate.WaitAsync(gateTimeout, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { throw; }
+
+        if (!entered)
+        {
+            Log.LogStep($"Session close skipped, still busy after {gateTimeout.TotalSeconds:0}s: {id}");
+            return false;
+        }
+
+        try
+        {
+            // TryRemove disposes the session (and its gate) — do not release a disposed gate.
+            if (!Sessions.TryRemove(new KeyValuePair<string, ActiveSession>(id, session))) return false;
+            entered = false;
+            try { session.Dispose(); } catch { }
+            try { SessionRemoved?.Invoke(session); } catch { }
+            Log.LogStep($"Session closed: {id} (memory recorded)", monitor: true);
+            return true;
+        }
+        finally
+        {
+            if (entered) session.Gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Closes every live session so each one records its memory before the process goes away.
+    /// This is what makes an interactive exit (TUI Ctrl+C, /exit) as lossless as an idle
+    /// timeout: without it a session that is simply dropped at shutdown never reaches
+    /// <see cref="AgentHarness.Dispose"/> and remembers nothing.
+    /// </summary>
+    /// <returns>The number of sessions closed and the ones skipped because a run was using them.</returns>
+    public static async Task<(int Closed, int Skipped)> CloseAllAsync(TimeSpan gateTimeout, CancellationToken ct = default)
+    {
+        var ids = Sessions.Keys.ToArray();
+        int closed = 0, skipped = 0;
+        Log.LogStep($"Closing {ids.Length} live session(s) to record memory (timeout {gateTimeout.TotalSeconds:0}s)", monitor: true);
+
+        foreach (var id in ids)
+        {
+            if (ct.IsCancellationRequested)
+            {
+                Log.LogStep($"Session close cancelled with {ids.Length - closed - skipped} session(s) still open");
+                break;
+            }
+
+            try
+            {
+                if (await CloseAsync(id, gateTimeout, ct).ConfigureAwait(false)) closed++;
+                else if (Sessions.ContainsKey(id)) skipped++;
+            }
+            catch (OperationCanceledException)
+            {
+                Log.LogStep($"Session close cancelled while closing {id}");
+                break;
+            }
+            catch (Exception ex)
+            {
+                skipped++;
+                Log.LogStep($"Session close failed for {id}: {ex.Message}");
+            }
+        }
+
+        Log.LogStep($"Session close finished: {closed} closed, {skipped} skipped", monitor: true);
+        return (closed, skipped);
+    }
+
     // Disposes sessions idle for longer than IdleTimeout.
     private static void Cleanup()
     {

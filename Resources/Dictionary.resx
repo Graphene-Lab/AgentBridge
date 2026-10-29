@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -74,7 +74,7 @@
   <data name="Unreachable" xml:space="preserve"><value>unreachable</value></data>
   <data name="InputPlaceholder" xml:space="preserve"><value>Type a message or / for commands...</value></data>
   <data name="WelcomeMessage" xml:space="preserve"><value>Welcome to AGENT — talk to the agents straight from the terminal.
-Type a message and press Enter · / opens commands · @ files · ? shortcuts · F1 help · F10 the menu.</value></data>
+Type a message and press Enter · / opens commands · @ files · ? shortcuts · F1 help · F10 the menu · F12 hides the window.</value></data>
   <data name="HostErrorNote" xml:space="preserve"><value>local host start failed ({0}) — connecting to an existing instance</value></data>
   <data name="WindowTitle" xml:space="preserve"><value>AGENT - AI Chat Console</value></data>
   <data name="ChatFrameTitle" xml:space="preserve"><value>Chat</value></data>
@@ -135,8 +135,8 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="ShortQuestion" xml:space="preserve"><value>Show this shortcuts overlay (empty input)</value></data>
   <data name="ShortTab" xml:space="preserve"><value>Complete the selected command in the palette</value></data>
   <data name="ShortEsc" xml:space="preserve"><value>Close dialog · clear input · twice: exit</value></data>
-  <data name="ShortCtrlC" xml:space="preserve"><value>Cancel the reply · clear input · twice: exit</value></data>
-  <data name="ShortCtrlD" xml:space="preserve"><value>Exit (empty input)</value></data>
+  <data name="ShortCtrlC" xml:space="preserve"><value>Cancel the reply · clear input · empty: save memory &amp; exit</value></data>
+  <data name="ShortCtrlD" xml:space="preserve"><value>Save the memory and exit (empty input)</value></data>
   <data name="ShortCtrlY" xml:space="preserve"><value>Retry the last prompt</value></data>
   <data name="ShortCtrlR" xml:space="preserve"><value>Reverse-search prompt history</value></data>
   <data name="ShortUpDown" xml:space="preserve"><value>Prompt history at the first/last line (also Ctrl+P / Ctrl+N); otherwise move the caret</value></data>
@@ -147,8 +147,7 @@ Type a message and press Enter · / opens commands · @ files · ? shortcuts · 
   <data name="ShortPgUpDn" xml:space="preserve"><value>Scroll the conversation history</value></data>
   <data name="ShortF1" xml:space="preserve"><value>Show the full help page</value></data>
   <data name="ShortF10" xml:space="preserve"><value>Activate the menu bar</value></data>
-  <data name="StatusEscAgain" xml:space="preserve"><value>Press Esc again to exit · or Ctrl+C twice</value></data>
-  <data name="StatusCtrlCAgain" xml:space="preserve"><value>Press Ctrl+C again to exit</value></data>
+  <data name="StatusEscAgain" xml:space="preserve"><value>Press Esc again to save memory and exit · or Ctrl+C</value></data>
   <data name="StatusCancelling" xml:space="preserve"><value>cancelling…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>generating… wait, or Ctrl+C to stop</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>generating…</value></data>
@@ -367,7 +366,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupImapPassword" xml:space="preserve"><value>IMAP password</value></data>
   <data name="SetupGeneralTab" xml:space="preserve"><value>General</value></data>
   <data name="SetupTabsHint" xml:space="preserve"><value>Ctrl+PageDown / Ctrl+PageUp switches page · ↑↓ move within a page</value></data>
-  <data name="SetupStepLogging" xml:space="preserve"><value>Enable step logging (logs/ folder)</value></data>
+  <data name="SetupStepLogging" xml:space="preserve"><value>Enable logging (logs/ folder)</value></data>
   <data name="SetupAutoUpdate" xml:space="preserve"><value>Automatic update</value></data>
   <data name="SetupCrashReport" xml:space="preserve"><value>Crash report</value></data>
   <data name="SetupMalfunctionReport" xml:space="preserve"><value>Malfunction report</value></data>
@@ -444,7 +443,7 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="NoteToolsApplied" xml:space="preserve"><value>Tools updated: {0}. They take effect from the next message (no restart needed).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Delete file</value></data>
   <data name="StatusTools" xml:space="preserve"><value>tools</value></data>
-  <data name="StatusBarHints" xml:space="preserve"><value>F1 help · F10 menu · / commands · @ files · ? shortcuts · Esc close · Ctrl+C cancel</value></data>
+  <data name="StatusBarHints" xml:space="preserve"><value>F1 help · F10 menu · F12 hide · / commands · @ files · ? shortcuts · Esc close · Ctrl+C cancel</value></data>
   <data name="DlgTelegramTitle" xml:space="preserve"><value>Telegram</value></data>
   <data name="DlgTelegramHint" xml:space="preserve"><value>First login needs the verification code — enter it below when the phase is "code".</value></data>
   <data name="DlgTelegramLoginLabel" xml:space="preserve"><value>Verification code / 2FA password</value></data>
@@ -590,4 +589,12 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="TaskschedulerOnce" xml:space="preserve"><value>once</value></data>
   <data name="TaskschedulerRange" xml:space="preserve"><value>({0} → {1})</value></data>
   <data name="TaskschedulerHint" xml:space="preserve"><value>Change a plan with /taskscheduler suspend|reactivate|remove|delete|update|changeplanning &lt;id|name&gt;</value></data>
+  <data name="StatusSavingMemory" xml:space="preserve"><value>saving memory…</value></data>
+  <data name="ShutdownSavingMemory" xml:space="preserve"><value>Saving memory</value></data>
+  <data name="StatusCtrlCToExit" xml:space="preserve"><value>memory saved · Ctrl+C to exit</value></data>
+  <data name="NoteMemorySaved" xml:space="preserve"><value>Memory saved ({0} session(s) closed) · press Ctrl+C to exit, or type a prompt to start a new session.</value></data>
+  <data name="NoteMemorySavedPartial" xml:space="preserve"><value>Memory saved for {0} session(s); {1} still busy and left open · press Ctrl+C to exit</value></data>
+  <data name="NoteMemorySaveFailed" xml:space="preserve"><value>Memory not saved: {0} — the sessions stay open · press Ctrl+C to exit anyway</value></data>
+  <data name="ShortF12" xml:space="preserve"><value>Hide the window (the tray icon or taskbar brings it back)</value></data>
+  <data name="NoteHideUnsupported" xml:space="preserve"><value>Cannot hide the window on this system — the app stays visible</value></data>
 </root>

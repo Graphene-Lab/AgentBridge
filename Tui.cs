@@ -99,6 +99,34 @@ public static class ConsoleTui
         private int _histIndex = -1;
         private string _histDraft = "";
 
+        // ── Graceful exit: save the session memory, THEN quit ──
+        // Closing a session is what makes the engine record the end-of-conversation memory
+        // (AgentHarness.Dispose → Memory.OnConversationEnd). Quitting the TUI used to only
+        // stop the UI loop, so an interactive session — the one that carries the whole
+        // conversation — was thrown away with nothing remembered, while sessions that ended
+        // on their own (idle cleanup) did save. The exit is therefore a small state machine:
+        // the first exit key clears the window and asks the server to close every session,
+        // the next one quits. Keys are inert while the save runs.
+        private enum ShutdownPhase { Idle, Saving, Ready, Exiting }
+        private ShutdownPhase _shutdownPhase;
+        private Label? _shutdownLabel;
+        private int _shutdownFrame;
+        // Long enough for a slow memory write, short enough that a wedged session cannot hold
+        // the console hostage: a session still busy after this is skipped and logged.
+        private static readonly TimeSpan SessionCloseBudget = TimeSpan.FromSeconds(180);
+        private static readonly TimeSpan ChatDrainBudget = TimeSpan.FromSeconds(20);
+        // Closing a local session takes a few milliseconds, so without a floor the indicator
+        // would only flash and the "memory saved" message would appear instantly — the user
+        // would never see that anything was saved, and a habitual double Ctrl+C would still
+        // quit. The save therefore stays on screen for at least this long.
+        private static readonly TimeSpan ShutdownIndicatorFloor = TimeSpan.FromMilliseconds(900);
+
+        // F12 hides the terminal window (see WindowMinimizer). Created on first use: it
+        // spawns a tray thread on Windows and shells out on macOS/Linux, so it must not cost
+        // anything at startup.
+        private IWindowMinimizer? _minimizer;
+        private volatile bool _windowHidden;
+
         private string _provider = "";
         private string _modelName = "";
         private string _interactionMode = "";
@@ -364,6 +392,7 @@ public static class ConsoleTui
             ("PgUp / PgDn", Dictionary.ShortPgUpDn),
             ("F1", Dictionary.ShortF1),
             ("F10", Dictionary.ShortF10),
+            ("F12", Dictionary.ShortF12),
         };
 
         public Tui(string serverUrl, string? hostError)
@@ -465,6 +494,7 @@ public static class ConsoleTui
                 _app.AddTimeout(TimeSpan.FromMilliseconds(100), () =>
                 {
                     TickSpinner();
+                    TickShutdown();
                     return true;   // recurring spinner animation
                 });
                 RefreshHistory();
@@ -493,6 +523,13 @@ public static class ConsoleTui
             // for the lifetime of the process.
             AgentHarness.GlobalProgress -= OnAgentGlobalProgress;
             CancelChat();
+            try
+            {
+                // Never leave the console hidden or the tray thread running behind us.
+                if (_windowHidden) _minimizer?.Restore();
+                _minimizer?.Shutdown();
+            }
+            catch { }
             try { _app.Dispose(); } catch { }
             _http.Dispose();
             _chatHttp.Dispose();
@@ -646,6 +683,9 @@ public static class ConsoleTui
             _mainWindow.KeyDown += (_, key) =>
             {
                 if (key == Key.Esc) key.Handled = true;
+                // F12 may be pressed while the prompt is not focused: same toggle, and the
+                // input handler above marks it handled so it can never fire twice.
+                else if (key == Key.F12) { key.Handled = true; ToggleWindowVisibility(); }
                 // Puppet mode only: PrintScreen dumps the current screen to a file.
                 else if (PuppetMode.Enabled && key == Key.PrintScreen)
                 {
@@ -757,6 +797,20 @@ public static class ConsoleTui
                     || key == Key.PageUp || key == Key.PageDown)
                     key.Handled = true;
             };
+
+            // Memory-save indicator (see BeginShutdown): while the exit sequence closes every
+            // session this label is the only thing drawn over the freshly cleared transcript.
+            // It is added after the input so it sits on top of the empty chat area.
+            _shutdownLabel = new Label
+            {
+                Text = "",
+                X = Pos.Center(), Y = Pos.Center(),
+                Width = Dim.Auto(), Height = 1,
+                TextAlignment = Alignment.Center,
+                SchemeName = "Prompt",
+                Visible = false,
+            };
+            chatFrame.Add(_shutdownLabel);
 
             // Status line (dynamic state: connection, provider/model, tools, context,
             // capabilities, notes) above a real StatusBar with the static key hints.
@@ -920,15 +974,17 @@ public static class ConsoleTui
             else if (key == Key.Esc)
             {
                 // Keep the window's default "Esc quits" binding from firing: Esc here
-                // clears the input, and twice on an empty input exits the app.
+                // clears the input, and twice on an empty input starts the graceful exit
+                // (save the memory, then Ctrl+C to quit).
                 key.Handled = true;
+                if (_shutdownPhase == ShutdownPhase.Saving) return;
                 if ((_inputField?.Text ?? "").Length > 0)
                 {
                     _inputField!.Text = "";
                 }
                 else if (++_escCount >= 2)
                 {
-                    RequestExit();
+                    BeginShutdown();
                 }
                 else
                 {
@@ -939,6 +995,8 @@ public static class ConsoleTui
             else if (key == Key.C.WithCtrl)
             {
                 key.Handled = true;
+                // The memory save is not interruptible: a second Ctrl+C here does nothing.
+                if (_shutdownPhase == ShutdownPhase.Saving) return;
                 if (_chatRunning != 0)
                 {
                     CancelChat();
@@ -949,24 +1007,22 @@ public static class ConsoleTui
                 {
                     _inputField!.Text = "";
                 }
-                else if (++_escCount >= 2)
-                {
-                    RequestExit();
-                }
                 else
                 {
-                    _statusNote = Dictionary.StatusCtrlCAgain;
-                    UpdateStatusUi();
+                    // First press on an empty prompt: clear the window, save the session
+                    // memory, then this same key quits (see BeginShutdown).
+                    BeginShutdown();
                 }
             }
             else if (key == Key.D.WithCtrl)
             {
                 // Exit on an empty input; otherwise the Editor's native
                 // "delete char in front" applies (same guard as the old TUI).
-                if ((_inputField?.Text ?? "").Length == 0)
+                // Ctrl+D is a quit gesture too, so it goes through the memory save.
+                if ((_inputField?.Text ?? "").Length == 0 && _shutdownPhase != ShutdownPhase.Saving)
                 {
                     key.Handled = true;
-                    RequestExit();
+                    BeginShutdown();
                 }
             }
             else if (key == Key.Y.WithCtrl)
@@ -983,6 +1039,13 @@ public static class ConsoleTui
             {
                 key.Handled = true;
                 _ = ShowHelpAsync();
+            }
+            else if (key == Key.F12)
+            {
+                // Hide the terminal window (F12 again — or the tray icon, the Dock, the
+                // taskbar — brings it back). See WindowMinimizer.
+                key.Handled = true;
+                ToggleWindowVisibility();
             }
             else if (key == Key.O.WithCtrl)
             {
@@ -1207,6 +1270,231 @@ public static class ConsoleTui
             if (Volatile.Read(ref _chatRunning) != 0) UpdateStatus();
         }
 
+        // ── Graceful exit ──
+        // Exit gesture: the first one clears the window and saves the memory of every open
+        // session, the next one quits. While the save runs the gesture (and every other key)
+        // is inert; once it is done a prompt typed in the prompt simply starts a new session.
+        private void BeginShutdown()
+        {
+            switch (_shutdownPhase)
+            {
+                case ShutdownPhase.Saving:
+                case ShutdownPhase.Exiting:
+                    return;
+                case ShutdownPhase.Ready:
+                    RequestExit();
+                    return;
+            }
+            _shutdownPhase = ShutdownPhase.Saving;
+            Log.LogStep("TUI exit gesture: saving session memory first", monitor: true);
+            _ = Task.Run(SaveMemoryAndPrepareExitAsync);
+        }
+
+        /// <summary>
+        /// Closes every open session so the engine records the end-of-conversation memory,
+        /// then leaves the console ready to quit (or to start a new session). Runs off the UI
+        /// thread: the window only shows the animated indicator meanwhile.
+        /// </summary>
+        private async Task SaveMemoryAndPrepareExitAsync()
+        {
+            try
+            {
+                // A run in flight holds the session gate: cancel it and let it unwind, otherwise
+                // the server would have to skip that session (see SessionStore.CloseAsync).
+                CancelChat();
+                await WaitForChatIdleAsync(ChatDrainBudget);
+
+                Ui(() =>
+                {
+                    // The transcript belongs to the session being closed: clear the window so the
+                    // fresh one starts empty, and show the only thing that is still happening.
+                    _followBottom = true;
+                    _history.Clear();
+                    _pending = null;
+                    RefreshHistory();
+                    _statusNote = Dictionary.StatusSavingMemory;
+                    ShowShutdownIndicator();
+                    UpdateStatus();
+                });
+
+                var indicatorShownAt = Stopwatch.GetTimestamp();
+                var (closed, skipped, error) = await CloseAllSessionsAsync();
+
+                // Keep the indicator up long enough to be read (see ShutdownIndicatorFloor).
+                var elapsed = Stopwatch.GetElapsedTime(indicatorShownAt);
+                if (elapsed < ShutdownIndicatorFloor)
+                    await Task.Delay(ShutdownIndicatorFloor - elapsed);
+
+                Ui(() =>
+                {
+                    HideShutdownIndicator();
+                    if (error != null)
+                    {
+                        // The sessions are not gone (they simply stay open and keep working), so
+                        // the exit is still offered — only the memory write did not happen.
+                        AddNote(string.Format(Dictionary.NoteMemorySaveFailed, error), error: true);
+                    }
+                    else if (skipped > 0)
+                    {
+                        AddNote(string.Format(Dictionary.NoteMemorySavedPartial, closed, skipped), error: true);
+                    }
+                    else
+                    {
+                        AddNote(string.Format(Dictionary.NoteMemorySaved, closed));
+                    }
+                    UpdateStatus();
+                });
+
+                // The closed session is gone on the server: ask for a fresh one, so a prompt
+                // typed instead of the exit key starts a NEW conversation, not a dead id.
+                _sessionId = "";
+                await RefreshServerStateAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"TUI exit: memory save failed: {ex.Message}");
+                Ui(() =>
+                {
+                    HideShutdownIndicator();
+                    AddNote(string.Format(Dictionary.NoteMemorySaveFailed, ex.Message), error: true);
+                    UpdateStatus();
+                });
+            }
+            finally
+            {
+                // The exit must always become available again: a stuck Saving phase would make
+                // every key inert and leave the console with no way out.
+                _shutdownPhase = ShutdownPhase.Ready;
+                Ui(() =>
+                {
+                    _statusNote = Dictionary.StatusCtrlCToExit;
+                    UpdateStatus();
+                    _inputField?.SetFocus();
+                });
+            }
+        }
+
+        // Waits for the cancelled run to finish unwinding, so the session gate is free when
+        // the close request arrives. Bounded: a run that ignores cancellation is skipped by
+        // the server, and the exit must not wait on it forever.
+        private async Task WaitForChatIdleAsync(TimeSpan budget)
+        {
+            var waited = Stopwatch.StartNew();
+            while (Volatile.Read(ref _chatRunning) != 0 && waited.Elapsed < budget)
+                await Task.Delay(100);
+            if (Volatile.Read(ref _chatRunning) != 0)
+                Log.LogStep($"TUI exit: run still busy after {budget.TotalSeconds:0}s, closing sessions anyway");
+        }
+
+        /// <summary>
+        /// Asks the server to close every open session (POST /v1/control close_sessions),
+        /// which is what triggers the memory write. Best-effort: the outcome is reported, never
+        /// thrown — the exit must always be possible.
+        /// </summary>
+        private async Task<(int Closed, int Skipped, string? Error)> CloseAllSessionsAsync()
+        {
+            try
+            {
+                using var resp = await _http.PostAsync("/v1/control",
+                        new StringContent("{\"close_sessions\":true}", Encoding.UTF8, "application/json"))
+                    .WaitAsync(SessionCloseBudget);
+                if (!resp.IsSuccessStatusCode)
+                    return (0, 0, FriendlyHttp((int)resp.StatusCode));
+                using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                var closed = GetInt(doc.RootElement, "closed");
+                var skipped = GetInt(doc.RootElement, "skipped");
+                Log.LogStep($"TUI exit: sessions closed={closed} skipped={skipped}", monitor: true);
+                return (closed, skipped, null);
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"TUI exit: close_sessions failed: {ex.Message}");
+                return (0, 0, ex.Message);
+            }
+        }
+
+        private void ShowShutdownIndicator()
+        {
+            if (_shutdownLabel == null) return;
+            _shutdownFrame = 0;
+            _shutdownLabel.Text = ShutdownIndicatorText();
+            _shutdownLabel.Visible = true;
+        }
+
+        private void HideShutdownIndicator()
+        {
+            if (_shutdownLabel == null) return;
+            _shutdownLabel.Visible = false;
+            _shutdownLabel.Text = "";
+        }
+
+        // A still picture would read as a frozen console — exactly what the wait must not
+        // look like — so the glyph spins and a dot per tick marks the time passing.
+        private string ShutdownIndicatorText() =>
+            $"{SpinnerChars[_shutdownFrame % SpinnerChars.Length]}  {Dictionary.ShutdownSavingMemory}"
+            + new string('.', _shutdownFrame / 5 % 4);
+
+        private void TickShutdown()
+        {
+            if (_shutdownPhase != ShutdownPhase.Saving) return;
+            if (_shutdownLabel is not { Visible: true }) return;
+            _shutdownFrame++;
+            _shutdownLabel.Text = ShutdownIndicatorText();
+        }
+
+        // ── F12: hide the terminal window, get it back from the OS ──
+        // The TUI owns no window: hiding acts on the host terminal (notification-area icon on
+        // Windows, Dock on macOS, taskbar on Linux — see WindowMinimizer). When the platform
+        // cannot do it the status line says so and nothing changes: the console is never left
+        // unreachable.
+        private void ToggleWindowVisibility()
+        {
+            if (_shutdownPhase == ShutdownPhase.Exiting) return;
+            // A failure here must never escape the key handler: an exception on the UI loop
+            // would take the whole app down, which is the opposite of a convenience key.
+            try
+            {
+                _minimizer ??= WindowMinimizer.Create();
+                if (_windowHidden)
+                {
+                    _windowHidden = false;
+                    _minimizer.Restore();
+                    return;
+                }
+
+                Log.LogStep("TUI window hide requested (F12)");
+                var error = _minimizer.Hide(() => Ui(OnRestoreRequested));
+                if (error != null)
+                {
+                    _statusNote = error;
+                    UpdateStatusUi();
+                    return;
+                }
+                _windowHidden = true;
+            }
+            catch (Exception ex)
+            {
+                Log.LogStep($"TUI window hide failed: {ex.Message}");
+                _windowHidden = false;
+                try
+                {
+                    _minimizer?.Restore();
+                }
+                catch { }
+                _statusNote = Dictionary.NoteHideUnsupported;
+                UpdateStatusUi();
+            }
+        }
+
+        // Called from the platform's restore surface (tray icon click, global hotkey) — never
+        // from the keyboard while the window is hidden, since a hidden console gets no keys.
+        private void OnRestoreRequested()
+        {
+            if (!_windowHidden) return;
+            _windowHidden = false;
+            _minimizer?.Restore();
+        }
+
         private bool CaretOnFirstLine()
         {
             if (_inputField is not { Document: { } doc }) return true;
@@ -1265,6 +1553,25 @@ public static class ConsoleTui
         {
             var text = (_inputField?.Text ?? "").Trim();
             if (_inputPlaceholderActive || text.Length == 0) return;
+
+            // The memory save is running: sending now would open a conversation in a session
+            // the close is about to sweep away, so the prompt (and commands) wait for the
+            // end of the save. The text stays in the prompt — nothing typed is lost.
+            if (_shutdownPhase == ShutdownPhase.Saving)
+            {
+                _statusNote = Dictionary.StatusSavingMemory;
+                UpdateStatusUi();
+                return;
+            }
+            if (_shutdownPhase == ShutdownPhase.Ready)
+            {
+                // Typing instead of pressing the exit key means "I changed my mind": the
+                // fresh session created by the save takes the prompt, and the exit gesture
+                // is disarmed (the next Ctrl+C saves this new session, as usual).
+                _shutdownPhase = ShutdownPhase.Idle;
+                _escCount = 0;
+                _statusNote = "";
+            }
 
             if (text[0] == '/')
             {
@@ -2009,15 +2316,26 @@ public static class ConsoleTui
             return Task.CompletedTask;
         }
 
+        // /exit and the Chat → Exit menu item: routed through the same memory save, so the
+        // command line cannot quit while skipping the session close (see BeginShutdown).
         private Task ExitAsync()
         {
-            Ui(RequestExit);
+            Ui(BeginShutdown);
             return Task.CompletedTask;
         }
 
         private void RequestExit()
         {
             Log.LogStep("TUI exit requested", monitor: true);
+            _shutdownPhase = ShutdownPhase.Exiting;
+            HideShutdownIndicator();
+            // Never quit with the console hidden: the user would lose the window with the
+            // process. Restore first (no-op when it is visible).
+            if (_windowHidden)
+            {
+                _windowHidden = false;
+                _minimizer?.Restore();
+            }
             _app.RequestStop(_mainWindow);
         }
 
@@ -5058,6 +5376,8 @@ public static class ConsoleTui
             };
             // Attach anonymized log: when on, a malfunction report carries the current log file
             // with sensitive values replaced by [EMAIL]/[NAME]/[KEY]/[IP]/[PASSWORD] labels.
+            // Enabling this flag also turns on step logging (the log the report attaches), so the
+            // two check boxes stay linked and a Save always has a log to attach.
             var attachAnonymizedLog = new CheckBox
             {
                 Text = Dictionary.SetupAttachAnonymizedLog,
@@ -5070,6 +5390,14 @@ public static class ConsoleTui
                 Value = AIOrchestrator.Log.IsEnabled ? CheckState.Checked : CheckState.UnChecked,
                 X = 1, Y = 4,
             };
+            // The two flags are mirrored: enabling either one turns the other on. This is the
+            // "Allega log -> abilita la generazione dei log" linkage (Terminal.Gui CheckBox exposes
+            // ValueChanging/ValueChanged, not the WinForms CheckedChanged) so a report always has a
+            // log to attach.
+            attachAnonymizedLog.ValueChanged += (_, _) =>
+                logEnabled.Value = attachAnonymizedLog.Value == CheckState.Checked ? CheckState.Checked : CheckState.UnChecked;
+            logEnabled.ValueChanged += (_, _) =>
+                attachAnonymizedLog.Value = logEnabled.Value == CheckState.Checked ? CheckState.Checked : CheckState.UnChecked;
             var autoStart = new CheckBox
             {
                 Text = Dictionary.SetupAutoStart,

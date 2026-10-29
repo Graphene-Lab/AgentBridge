@@ -1534,6 +1534,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Cannot hide the window on this system - the app stays visible'.
+        /// </summary>
+        public static string NoteHideUnsupported {
+            get {
+                return ResourceManager.GetString("NoteHideUnsupported", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'session history cleared'.
         /// </summary>
         public static string NoteHistoryCleared {
@@ -1584,6 +1593,33 @@ namespace AgentBridge.Resources {
         public static string NoteLoadFilesFailed {
             get {
                 return ResourceManager.GetString("NoteLoadFilesFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Memory not saved: {0} - the sessions stay open - press Ctrl+C to exit anyway'.
+        /// </summary>
+        public static string NoteMemorySaveFailed {
+            get {
+                return ResourceManager.GetString("NoteMemorySaveFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Memory saved ({0} session(s) closed) - press Ctrl+C to exit, or type a prompt to start a new session.'.
+        /// </summary>
+        public static string NoteMemorySaved {
+            get {
+                return ResourceManager.GetString("NoteMemorySaved", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'Memory saved for {0} session(s); {1} still busy and left open - press Ctrl+C to exit'.
+        /// </summary>
+        public static string NoteMemorySavedPartial {
+            get {
+                return ResourceManager.GetString("NoteMemorySavedPartial", resourceCulture);
             }
         }
 
@@ -2995,6 +3031,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Hide the window (the tray icon or taskbar brings it back)'.
+        /// </summary>
+        public static string ShortF12 {
+            get {
+                return ResourceManager.GetString("ShortF12", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Move the cursor (with Ctrl: by word)'.
         /// </summary>
         public static string ShortLeftRight {
@@ -3130,6 +3175,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Saving memory'.
+        /// </summary>
+        public static string ShutdownSavingMemory {
+            get {
+                return ResourceManager.GetString("ShutdownSavingMemory", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'Agent set'.
         /// </summary>
         public static string StatusAgentSet {
@@ -3229,11 +3283,11 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to 'Press Ctrl+C again to exit'.
+        ///   Looks up a localized string similar to 'memory saved - Ctrl+C to exit'.
         /// </summary>
-        public static string StatusCtrlCAgain {
+        public static string StatusCtrlCToExit {
             get {
-                return ResourceManager.GetString("StatusCtrlCAgain", resourceCulture);
+                return ResourceManager.GetString("StatusCtrlCToExit", resourceCulture);
             }
         }
 
@@ -3369,6 +3423,15 @@ namespace AgentBridge.Resources {
         public static string StatusServerUnreachableHeadless {
             get {
                 return ResourceManager.GetString("StatusServerUnreachableHeadless", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to 'saving memory...'.
+        /// </summary>
+        public static string StatusSavingMemory {
+            get {
+                return ResourceManager.GetString("StatusSavingMemory", resourceCulture);
             }
         }
 

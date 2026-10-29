@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -26,7 +26,7 @@
   <data name="Unreachable" xml:space="preserve"><value>недоступен</value></data>
   <data name="InputPlaceholder" xml:space="preserve"><value>Введите сообщение или / для команд...</value></data>
   <data name="WelcomeMessage" xml:space="preserve"><value>Добро пожаловать в AGENT — общайтесь с агентами прямо из терминала.
-Введите сообщение и нажмите Enter · / открывает команды · @ файлы · ? сочетания · F1 справка · F10 меню.</value></data>
+Введите сообщение и нажмите Enter · / открывает команды · @ файлы · ? горячие клавиши · F1 справка · F10 меню · F12 скрывает окно.</value></data>
   <data name="ServerNote" xml:space="preserve"><value>сервер: {0} — API продолжает отвечать параллельно ({0}/v1/chat/completions)</value></data>
   <data name="HostErrorNote" xml:space="preserve"><value>не удалось запустить локальный хост ({0}) — подключение к существующему экземпляру</value></data>
   <data name="WindowTitle" xml:space="preserve"><value>AGENT - ИИ-консоль чата</value></data>
@@ -77,8 +77,8 @@
   <data name="ShortQuestion" xml:space="preserve"><value>Показать это наложение сочетаний (пустой ввод)</value></data>
   <data name="ShortTab" xml:space="preserve"><value>Дополнить выбранную команду в палитре</value></data>
   <data name="ShortEsc" xml:space="preserve"><value>Закрыть диалог · очистить ввод · дважды: выход</value></data>
-  <data name="ShortCtrlC" xml:space="preserve"><value>Отменить ответ · очистить ввод · дважды: выход</value></data>
-  <data name="ShortCtrlD" xml:space="preserve"><value>Выход (пустой ввод)</value></data>
+  <data name="ShortCtrlC" xml:space="preserve"><value>Отменить ответ · очистить ввод · пусто: сохранить память и выйти</value></data>
+  <data name="ShortCtrlD" xml:space="preserve"><value>Сохранить память и выйти (пустой ввод)</value></data>
   <data name="ShortCtrlY" xml:space="preserve"><value>Повторно отправить последнее сообщение</value></data>
   <data name="ShortCtrlR" xml:space="preserve"><value>Обратный поиск по истории сообщений</value></data>
   <data name="ShortUpDown" xml:space="preserve"><value>История сообщений в первой/последней строке (также Ctrl+P / Ctrl+N); в противном случае — перемещение курсора</value></data>
@@ -89,8 +89,7 @@
   <data name="ShortPgUpDn" xml:space="preserve"><value>Прокрутка истории разговора</value></data>
   <data name="ShortF1" xml:space="preserve"><value>Показать полную страницу справки</value></data>
   <data name="ShortF10" xml:space="preserve"><value>Активировать строку меню</value></data>
-  <data name="StatusEscAgain" xml:space="preserve"><value>Нажмите Esc ещё раз для выхода · или Ctrl+C дважды</value></data>
-  <data name="StatusCtrlCAgain" xml:space="preserve"><value>Нажмите Ctrl+C ещё раз для выхода</value></data>
+  <data name="StatusEscAgain" xml:space="preserve"><value>Нажмите Esc ещё раз, чтобы сохранить память и выйти · или Ctrl+C</value></data>
   <data name="StatusCancelling" xml:space="preserve"><value>отмена…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>генерация… подождите или Ctrl+C для остановки</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>генерация…</value></data>
@@ -242,7 +241,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupImapUser" xml:space="preserve"><value>IMAP-пользователь</value></data>
   <data name="SetupImapPassword" xml:space="preserve"><value>IMAP-пароль</value></data>
   <data name="SetupGeneralTab" xml:space="preserve"><value>Общие</value></data>
-  <data name="SetupStepLogging" xml:space="preserve"><value>Включить пошаговое журналирование (папка logs/)</value></data>
+  <data name="SetupStepLogging" xml:space="preserve"><value>Включить журнаvание (папа logs/)</value></data>
   <data name="SetupAutoUpdate" xml:space="preserve"><value>Автоматическое обновление</value></data>
   <data name="SetupCrashReport" xml:space="preserve"><value>Отчёт о сбоях</value></data>
   <data name="SetupMalfunctionReport" xml:space="preserve"><value>Отчёт о неисправностях</value></data>
@@ -316,7 +315,7 @@ Powered by Terminal.Gui</value></data>
   <data name="NoteToolsApplied" xml:space="preserve"><value>Инструменты обновлены: {0}. Действуют со следующего сообщения (перезапуск не нужен).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Удалить файл</value></data>
   <data name="StatusTools" xml:space="preserve"><value>инструменты</value></data>
-  <data name="StatusBarHints" xml:space="preserve"><value>F1 справка · F10 меню · / команды · @ файлы · ? сочетания · Esc закрыть · Ctrl+C отмена</value></data>
+  <data name="StatusBarHints" xml:space="preserve"><value>F1 справка · F10 меню · F12 скрыть · / команды · @ файлы · ? клавиши · Esc закрыть · Ctrl+C отмена</value></data>
   <data name="DlgTelegramTitle" xml:space="preserve"><value>Telegram</value></data>
   <data name="DlgTelegramHint" xml:space="preserve"><value>Первый вход требует код подтверждения — введите его ниже, когда фаза «code».</value></data>
   <data name="DlgTelegramLoginLabel" xml:space="preserve"><value>Код подтверждения / пароль 2FA</value></data>
@@ -341,4 +340,12 @@ Powered by Terminal.Gui</value></data>
   <data name="NoteOpenedFile" xml:space="preserve"><value>Открыто: {0}</value></data>
   <data name="NoteOpenFileNotFound" xml:space="preserve"><value>Нет полученного вложения, соответствующего "{0}", в {1}</value></data>
   <data name="NoteOpenFailed" xml:space="preserve"><value>Не удалось открыть: {0}</value></data>
+  <data name="StatusSavingMemory" xml:space="preserve"><value>сохранение памяти…</value></data>
+  <data name="ShutdownSavingMemory" xml:space="preserve"><value>Сохранение памяти</value></data>
+  <data name="StatusCtrlCToExit" xml:space="preserve"><value>память сохранена · Ctrl+C для выхода</value></data>
+  <data name="NoteMemorySaved" xml:space="preserve"><value>Память сохранена (сессий закрыто: {0}) · нажмите Ctrl+C для выхода или введите запрос, чтобы начать новую сессию.</value></data>
+  <data name="NoteMemorySavedPartial" xml:space="preserve"><value>Память сохранена для {0} сессий; {1} всё ещё заняты и оставлены открытыми · нажмите Ctrl+C для выхода</value></data>
+  <data name="NoteMemorySaveFailed" xml:space="preserve"><value>Память не сохранена: {0} — сессии остаются открытыми · нажмите Ctrl+C, чтобы всё равно выйти</value></data>
+  <data name="ShortF12" xml:space="preserve"><value>Скрыть окно (значок в трее или панель задач вернёт его)</value></data>
+  <data name="NoteHideUnsupported" xml:space="preserve"><value>На этой системе нельзя скрыть окно — приложение остаётся видимым</value></data>
 </root>

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -25,8 +25,8 @@
   <data name="Connected" xml:space="preserve"><value>verbunden</value></data>
   <data name="Unreachable" xml:space="preserve"><value>nicht erreichbar</value></data>
   <data name="InputPlaceholder" xml:space="preserve"><value>Nachricht eingeben oder / für Befehle...</value></data>
-  <data name="WelcomeMessage" xml:space="preserve"><value>Willkommen bei AGENT — sprechen Sie direkt vom Terminal aus mit den Agenten.
-Nachricht eingeben und Eingabetaste drücken · / öffnet Befehle · @ Dateien · ? Tastenkürzel · F1 Hilfe · F10 das Menü.</value></data>
+  <data name="WelcomeMessage" xml:space="preserve"><value>Willkommen bei AGENT — sprich direkt aus dem Terminal mit den Agenten.
+Nachricht eingeben und Enter drücken · / Befehle · @ Dateien · ? Tastenkürzel · F1 Hilfe · F10 das Menü · F12 blendet das Fenster aus.</value></data>
   <data name="ServerNote" xml:space="preserve"><value>Server: {0} — die API antwortet weiterhin parallel ({0}/v1/chat/completions)</value></data>
   <data name="HostErrorNote" xml:space="preserve"><value>Start des lokalen Hosts fehlgeschlagen ({0}) — Verbindung zu einer vorhandenen Instanz</value></data>
   <data name="WindowTitle" xml:space="preserve"><value>AGENT - KI-Chat-Konsole</value></data>
@@ -77,8 +77,8 @@ Nachricht eingeben und Eingabetaste drücken · / öffnet Befehle · @ Dateien �
   <data name="ShortQuestion" xml:space="preserve"><value>Zeigt diese Tastenkürzel-Überlagerung (leere Eingabe)</value></data>
   <data name="ShortTab" xml:space="preserve"><value>Vervollständigt den ausgewählten Befehl in der Palette</value></data>
   <data name="ShortEsc" xml:space="preserve"><value>Dialog schließen · Eingabe löschen · zweimal: beenden</value></data>
-  <data name="ShortCtrlC" xml:space="preserve"><value>Antwort abbrechen · Eingabe löschen · zweimal: beenden</value></data>
-  <data name="ShortCtrlD" xml:space="preserve"><value>Beenden (leere Eingabe)</value></data>
+  <data name="ShortCtrlC" xml:space="preserve"><value>Antwort abbrechen · Eingabe leeren · leer: Speicher sichern &amp; beenden</value></data>
+  <data name="ShortCtrlD" xml:space="preserve"><value>Speicher sichern und beenden (leere Eingabe)</value></data>
   <data name="ShortCtrlY" xml:space="preserve"><value>Letzte Eingabe erneut senden</value></data>
   <data name="ShortCtrlR" xml:space="preserve"><value>Rückwärtssuche im Eingabeverlauf</value></data>
   <data name="ShortUpDown" xml:space="preserve"><value>Eingabeverlauf in der ersten/letzten Zeile (auch Strg+P / Strg+N); sonst Cursor bewegen</value></data>
@@ -89,8 +89,7 @@ Nachricht eingeben und Eingabetaste drücken · / öffnet Befehle · @ Dateien �
   <data name="ShortPgUpDn" xml:space="preserve"><value>Unterhaltungsverlauf scrollen</value></data>
   <data name="ShortF1" xml:space="preserve"><value>Zeigt die vollständige Hilfeseite</value></data>
   <data name="ShortF10" xml:space="preserve"><value>Aktiviert die Menüleiste</value></data>
-  <data name="StatusEscAgain" xml:space="preserve"><value>Erneut Esc drücken zum Beenden · oder Strg+C zweimal</value></data>
-  <data name="StatusCtrlCAgain" xml:space="preserve"><value>Erneut Strg+C drücken zum Beenden</value></data>
+  <data name="StatusEscAgain" xml:space="preserve"><value>Esc erneut drücken, um den Speicher zu sichern und zu beenden · oder Ctrl+C</value></data>
   <data name="StatusCancelling" xml:space="preserve"><value>wird abgebrochen…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>wird generiert… warten, oder Strg+C zum Stoppen</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>wird generiert…</value></data>
@@ -242,7 +241,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupImapUser" xml:space="preserve"><value>IMAP-Benutzer</value></data>
   <data name="SetupImapPassword" xml:space="preserve"><value>IMAP-Passwort</value></data>
   <data name="SetupGeneralTab" xml:space="preserve"><value>Allgemein</value></data>
-  <data name="SetupStepLogging" xml:space="preserve"><value>Schrittprotokollierung aktivieren (Ordner logs/)</value></data>
+  <data name="SetupStepLogging" xml:space="preserve"><value>Logging aktivieren (Ordner logs/)</value></data>
   <data name="SetupAutoUpdate" xml:space="preserve"><value>Automatisches Update</value></data>
   <data name="SetupCrashReport" xml:space="preserve"><value>Absturzbericht</value></data>
   <data name="SetupMalfunctionReport" xml:space="preserve"><value>Störungsbericht</value></data>
@@ -316,7 +315,7 @@ Der vorherige Dokumentbereich ist weiterhin aktiv — es wurde nichts geändert.
   <data name="NoteToolsApplied" xml:space="preserve"><value>Werkzeuge aktualisiert: {0}. Gültig ab der nächsten Nachricht (kein Neustart nötig).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Datei löschen</value></data>
   <data name="StatusTools" xml:space="preserve"><value>Werkzeuge</value></data>
-  <data name="StatusBarHints" xml:space="preserve"><value>F1 Hilfe · F10 Menü · / Befehle · @ Dateien · ? Tastenkürzel · Esc schließen · Strg+C abbrechen</value></data>
+  <data name="StatusBarHints" xml:space="preserve"><value>F1 Hilfe · F10 Menü · F12 ausblenden · / Befehle · @ Dateien · ? Kürzel · Esc schließen · Ctrl+C abbrechen</value></data>
   <data name="DlgTelegramTitle" xml:space="preserve"><value>Telegram</value></data>
   <data name="DlgTelegramHint" xml:space="preserve"><value>Beim ersten Login wird der Verifizierungscode benötigt — unten eingeben, wenn die Phase „code“ ist.</value></data>
   <data name="DlgTelegramLoginLabel" xml:space="preserve"><value>Verifizierungscode / 2FA-Passwort</value></data>
@@ -341,4 +340,12 @@ Der vorherige Dokumentbereich ist weiterhin aktiv — es wurde nichts geändert.
   <data name="NoteOpenedFile" xml:space="preserve"><value>Geöffnet: {0}</value></data>
   <data name="NoteOpenFileNotFound" xml:space="preserve"><value>Kein empfangener Anhang zu "{0}" in {1}</value></data>
   <data name="NoteOpenFailed" xml:space="preserve"><value>Öffnen fehlgeschlagen: {0}</value></data>
+  <data name="StatusSavingMemory" xml:space="preserve"><value>Speicher wird gesichert…</value></data>
+  <data name="ShutdownSavingMemory" xml:space="preserve"><value>Speicher wird gesichert</value></data>
+  <data name="StatusCtrlCToExit" xml:space="preserve"><value>Speicher gesichert · Ctrl+C zum Beenden</value></data>
+  <data name="NoteMemorySaved" xml:space="preserve"><value>Speicher gesichert ({0} Sitzung(en) geschlossen) · Ctrl+C zum Beenden oder eine Eingabe für eine neue Sitzung.</value></data>
+  <data name="NoteMemorySavedPartial" xml:space="preserve"><value>Speicher für {0} Sitzung(en) gesichert; {1} noch beschäftigt und offen gelassen · Ctrl+C zum Beenden</value></data>
+  <data name="NoteMemorySaveFailed" xml:space="preserve"><value>Speicher nicht gesichert: {0} — die Sitzungen bleiben offen · Ctrl+C beendet trotzdem</value></data>
+  <data name="ShortF12" xml:space="preserve"><value>Fenster ausblenden (Infobereich oder Taskleiste holt es zurück)</value></data>
+  <data name="NoteHideUnsupported" xml:space="preserve"><value>Das Fenster lässt sich auf diesem System nicht ausblenden — die App bleibt sichtbar</value></data>
 </root>

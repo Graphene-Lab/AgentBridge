@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -26,7 +26,7 @@
   <data name="Unreachable" xml:space="preserve"><value>non raggiungibile</value></data>
   <data name="InputPlaceholder" xml:space="preserve"><value>Scrivi un messaggio o / per i comandi...</value></data>
   <data name="WelcomeMessage" xml:space="preserve"><value>Benvenuto in AGENT — parla con gli agenti direttamente dal terminale.
-Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie · F1 aiuto · F10 il menu.</value></data>
+Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie · F1 aiuto · F10 il menu · F12 nasconde la finestra.</value></data>
   <data name="HostErrorNote" xml:space="preserve"><value>avvio host locale non riuscito ({0}) — connessione a un'istanza esistente</value></data>
   <data name="WindowTitle" xml:space="preserve"><value>AGENT - Console chat IA</value></data>
   <data name="ChatFrameTitle" xml:space="preserve"><value>Chat</value></data>
@@ -81,8 +81,8 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="ShortQuestion" xml:space="preserve"><value>Mostra questo overlay delle scorciatoie (input vuoto)</value></data>
   <data name="ShortTab" xml:space="preserve"><value>Completa il comando selezionato nella palette</value></data>
   <data name="ShortEsc" xml:space="preserve"><value>Chiudi finestra · pulisci input · due volte: esci</value></data>
-  <data name="ShortCtrlC" xml:space="preserve"><value>Annulla la risposta · pulisci input · due volte: esci</value></data>
-  <data name="ShortCtrlD" xml:space="preserve"><value>Esci (input vuoto)</value></data>
+  <data name="ShortCtrlC" xml:space="preserve"><value>Annulla la risposta · svuota l'input · vuoto: salva la memoria ed esci</value></data>
+  <data name="ShortCtrlD" xml:space="preserve"><value>Salva la memoria ed esci (input vuoto)</value></data>
   <data name="ShortCtrlY" xml:space="preserve"><value>Riprova l'ultimo prompt</value></data>
   <data name="ShortCtrlR" xml:space="preserve"><value>Ricerca inversa nella cronologia dei prompt</value></data>
   <data name="ShortUpDown" xml:space="preserve"><value>Cronologia dei prompt alla prima/ultima riga (anche Ctrl+P / Ctrl+N); altrimenti sposta il cursore</value></data>
@@ -93,8 +93,7 @@ Scrivi un messaggio e premi Invio · / apre i comandi · @ file · ? scorciatoie
   <data name="ShortPgUpDn" xml:space="preserve"><value>Scorri la cronologia della conversazione</value></data>
   <data name="ShortF1" xml:space="preserve"><value>Mostra la pagina di aiuto completa</value></data>
   <data name="ShortF10" xml:space="preserve"><value>Attiva la barra dei menu</value></data>
-  <data name="StatusEscAgain" xml:space="preserve"><value>Premi di nuovo Esc per uscire · oppure Ctrl+C due volte</value></data>
-  <data name="StatusCtrlCAgain" xml:space="preserve"><value>Premi di nuovo Ctrl+C per uscire</value></data>
+  <data name="StatusEscAgain" xml:space="preserve"><value>Premi Esc di nuovo per salvare la memoria e uscire · oppure Ctrl+C</value></data>
   <data name="StatusCancelling" xml:space="preserve"><value>annullamento…</value></data>
   <data name="StatusGenerating" xml:space="preserve"><value>generazione… attendi, o Ctrl+C per fermare</value></data>
   <data name="StatusGeneratingShort" xml:space="preserve"><value>generazione…</value></data>
@@ -290,7 +289,7 @@ Powered by Terminal.Gui</value></data>
   <data name="SetupImapUser" xml:space="preserve"><value>Utente IMAP</value></data>
   <data name="SetupImapPassword" xml:space="preserve"><value>Password IMAP</value></data>
   <data name="SetupGeneralTab" xml:space="preserve"><value>Generale</value></data>
-  <data name="SetupStepLogging" xml:space="preserve"><value>Abilita la registrazione dei passi (cartella logs/)</value></data>
+  <data name="SetupStepLogging" xml:space="preserve"><value>Abilita la registrations del log (cartella logs/)</value></data>
   <data name="SetupAutoUpdate" xml:space="preserve"><value>Aggiornamento automatico</value></data>
   <data name="SetupCrashReport" xml:space="preserve"><value>Crash report</value></data>
   <data name="SetupMalfunctionReport" xml:space="preserve"><value>Malfunction report</value></data>
@@ -362,7 +361,7 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="NoteToolsApplied" xml:space="preserve"><value>Strumenti aggiornati: {0}. Validi dal messaggio successivo (nessun riavvio necessario).</value></data>
   <data name="DlgPickFileToDelete" xml:space="preserve"><value>Elimina file</value></data>
   <data name="StatusTools" xml:space="preserve"><value>strumenti</value></data>
-  <data name="StatusBarHints" xml:space="preserve"><value>F1 aiuto · F10 menu · / comandi · @ file · ? scorciatoie · Esc chiudi · Ctrl+C annulla</value></data>
+  <data name="StatusBarHints" xml:space="preserve"><value>F1 aiuto · F10 menu · F12 nascondi · / comandi · @ file · ? scorciatoie · Esc chiudi · Ctrl+C annulla</value></data>
   <data name="DlgTelegramTitle" xml:space="preserve"><value>Telegram</value></data>
   <data name="DlgTelegramHint" xml:space="preserve"><value>Il primo accesso richiede il codice di verifica — inseriscilo qui sotto quando la fase è "code".</value></data>
   <data name="DlgTelegramLoginLabel" xml:space="preserve"><value>Codice di verifica / password 2FA</value></data>
@@ -506,4 +505,12 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="TaskschedulerOnce" xml:space="preserve"><value>una volta</value></data>
   <data name="TaskschedulerRange" xml:space="preserve"><value>({0} → {1})</value></data>
   <data name="TaskschedulerHint" xml:space="preserve"><value>Cambia un piano con /taskscheduler suspend|reactivate|remove|delete|update|changeplanning &lt;id|nome&gt;</value></data>
+  <data name="StatusSavingMemory" xml:space="preserve"><value>salvataggio memoria…</value></data>
+  <data name="ShutdownSavingMemory" xml:space="preserve"><value>Salvataggio memoria</value></data>
+  <data name="StatusCtrlCToExit" xml:space="preserve"><value>memoria salvata · Ctrl+C per uscire</value></data>
+  <data name="NoteMemorySaved" xml:space="preserve"><value>Memoria salvata ({0} sessioni chiuse) · premi Ctrl+C per uscire, oppure scrivi un prompt per iniziare una nuova sessione.</value></data>
+  <data name="NoteMemorySavedPartial" xml:space="preserve"><value>Memoria salvata per {0} sessioni; {1} ancora occupate e lasciate aperte · premi Ctrl+C per uscire</value></data>
+  <data name="NoteMemorySaveFailed" xml:space="preserve"><value>Memoria non salvata: {0} — le sessioni restano aperte · premi comunque Ctrl+C per uscire</value></data>
+  <data name="ShortF12" xml:space="preserve"><value>Nasconde la finestra (l'icona nella tray o la barra delle applicazioni la riporta)</value></data>
+  <data name="NoteHideUnsupported" xml:space="preserve"><value>Non è possibile nascondere la finestra su questo sistema — l'app resta visibile</value></data>
 </root>

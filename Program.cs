@@ -54,11 +54,10 @@ AppDomain.CurrentDomain.UnhandledException += (_, e) =>
 };
 AppDomain.CurrentDomain.UnhandledException += AIOrchestrator.Utility.UnhandledException; //it catches application errors in order to prepare a log of the events that cause the crash
 
-// Logging toggle for headless runs: the TUI settings panel switches AIOrchestrator.Log on
-// interactively, but a headless service (or a test harness) needs the same switch on the
-// command line — the log file lands in logs/<pid>.txt next to the executable.
-if (args.Contains("--enable-log"))
-    AIOrchestrator.Log.IsEnabled = true;
+// Logging is ON by default. The TUI Settings → General panel toggles AIOrchestrator.Log
+// interactively, but a headless service (or a test harness) needs the same switch here on
+// the command line — the log file lands in logs/<pid>.txt next to the executable.
+AIOrchestrator.Log.IsEnabled = true;
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -432,6 +431,30 @@ Environment.SetEnvironmentVariable("PODCAST_TTS_ENGINE", ttsEngine);
 Console.WriteLine($"TTS engine: {ttsEngine}");
 
 var app = builder.Build();
+
+// How long a session close waits for a chat that is still using it. An agent tool keeps
+// running after the client cancelled its stream, and disposing the orchestrator under a live
+// run would corrupt it — so a busy session is skipped rather than killed.
+var sessionCloseTimeout = TimeSpan.FromSeconds(30);
+
+// Every shutdown path (TUI exit, headless Ctrl+C, a stop request) funnels through the host
+// lifetime: close the live sessions here so each conversation records its memory. The
+// recording runs in AgentHarness.Dispose, so a session that is merely dropped when the
+// process dies remembers nothing — an abrupt exit would silently lose the conversation.
+// Best-effort and bounded (the process must still exit promptly); the TUI normally already
+// closed everything before asking the app to stop, which makes this a no-op safety net.
+app.Lifetime.ApplicationStopping.Register(() =>
+{
+    if (SessionStore.Count == 0) return;
+    try
+    {
+        Log.LogStep($"Shutdown: recording the memory of {SessionStore.Count} live session(s)", monitor: true);
+        var flush = Task.Run(() => SessionStore.CloseAllAsync(sessionCloseTimeout));
+        if (!flush.Wait(TimeSpan.FromSeconds(120)))
+            Log.LogStep("Shutdown memory recording timed out", monitor: true);
+    }
+    catch (Exception ex) { Log.LogStep($"Shutdown memory recording failed: {ex.Message}"); }
+});
 
 // Tool plugins (DocumentTool, SpreadsheetTool, OfficeTool): loaded DYNAMICALLY from the
 // Tools/ folder next to the executable — no project depends on a plugin. The agent sets
@@ -1344,12 +1367,15 @@ app.MapGet("/v1/control", (string? session_id) =>
 // POST /v1/control — pilot endpoint (proprietary, extensible)
 //
 // The "control plane" of the server: switch the LLM currently in use for a session,
-// toggle feature flags (voice, tts, ...), reset the conversation, or create a session.
+// toggle feature flags (voice, tts, ...), reset the conversation, create a session or
+// close sessions (which is what makes a conversation record its memory).
 // Body (all fields optional):
 //   { "create": true }                         → create a new session (returns its id)
 //   { "session_id": "...", "llm_provider": "Zai" }      → switch the LLM in use (session only)
 //   { "session_id": "...", "features": { "voice": true, "tts": false } }
 //   { "session_id": "...", "reset_history": true }
+//   { "session_id": "...", "close_session": true }      → close that session (records memory)
+//   { "close_sessions": true }                 → close every live session (records memory)
 //   { "set_default_provider": "Zai" }          → process-wide default for NEW sessions (persisted);
 //                                                the current session is NOT switched
 //
@@ -1357,7 +1383,7 @@ app.MapGet("/v1/control", (string? session_id) =>
 // target provider's context window (the exact case "switch on the fly conflicts with
 // the context window of the model in use"); reset the conversation and retry.
 // ─────────────────────────────────────────────────────────────────────
-app.MapPost("/v1/control", (ControlRequest request) =>
+app.MapPost("/v1/control", async (ControlRequest request, CancellationToken ct) =>
 {
     // Make a provider the default for NEW sessions (persisted explicit marker). This is the
     // TUI main-settings "Set default" action — /model keeps switching only the current session.
@@ -1375,6 +1401,24 @@ app.MapPost("/v1/control", (ControlRequest request) =>
     {
         var created = SessionStore.Create(startupProvider, anonymize);
         return Results.Ok(SessionState(created));
+    }
+
+    // Closing a session is the only way a conversation records its memory without waiting
+    // for the idle timeout: the recording lives in AgentHarness.Dispose. The TUI calls this
+    // before quitting, so a conversation the user just had is never forgotten.
+    if (request.CloseSessions == true)
+    {
+        Log.LogStep("Control: closing every live session", monitor: true);
+        var (closed, skipped) = await SessionStore.CloseAllAsync(sessionCloseTimeout, ct);
+        return Results.Ok(new { ok = true, closed, skipped });
+    }
+
+    if (request.CloseSession == true)
+    {
+        if (string.IsNullOrEmpty(request.SessionId))
+            return Results.BadRequest(new { error = "session_id is required to close a session" });
+        var closed = await SessionStore.CloseAsync(request.SessionId, sessionCloseTimeout, ct);
+        return Results.Ok(new { ok = true, closed = closed ? 1 : 0, skipped = closed ? 0 : 1 });
     }
 
     if (string.IsNullOrEmpty(request.SessionId))
