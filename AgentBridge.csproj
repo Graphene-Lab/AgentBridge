@@ -168,6 +168,8 @@
   <ItemGroup>
     <None Include="docs\**\*" CopyToOutputDirectory="PreserveNewest" TargetPath="docs/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="scripts\setup-telegram.bat;scripts\setup-telegram.sh;scripts\sip-config.bat;scripts\sip-config.ps1;scripts\sip-config.sh" CopyToOutputDirectory="PreserveNewest" TargetPath="scripts/%(Filename)%(Extension)" />
+    <None Include="tools\mcp\build_bundle.py" />
+    <None Include="tools\mcp\smoke_test.js" />
     <!-- The OfficeManager web app (16-bit office, served at /OfficeManager + /ws/office hub):
          ships next to the executable like docs/ so the static files + WebSocket protocol are
          always available wherever the server runs. Developer-only content (docs-dev/, tools/,
