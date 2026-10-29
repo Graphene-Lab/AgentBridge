@@ -396,6 +396,29 @@ curl http://localhost:5290/health   # {"status":"healthy","timestamp":"..."}
 The full step-by-step guide — installation, JSON configuration, the terminal UI and how a
 client connects to localhost — is in the **[user manual](docs/MANUAL.md)**.
 
+## Use AgentBridge as an MCP server
+
+AgentBridge **is** a Model Context Protocol server: the same process that runs the agents
+speaks MCP at **`POST http://localhost:5290/mcp`** (JSON-RPC 2.0, `initialize` /
+`tools/list` / `tools/call`). Any MCP host can drive a local AgentBridge through the single
+tool `agent_run`. There is nothing extra to install: start AgentBridge as usual and the
+endpoint is already listening.
+
+| Host | How to connect |
+|---|---|
+| **VS Code / GitHub Copilot** | Add `http://localhost:5290/mcp` as an HTTP MCP server — `MCP: Add Server → HTTP` from the Command Palette, or copy the ready-made [`examples/vscode-mcp.json`](examples/vscode-mcp.json) into `.vscode/mcp.json` |
+| **Claude Desktop** | Install the `agentbridge-mcp.mcpb` extension from the [latest release](https://github.com/Graphene-Lab/AgentBridge/releases/latest) (Settings → Extensions → Advanced settings → Install extension). It is a small Node.js bridge that exposes the local endpoint over stdio and needs Node.js 18+ |
+| **Any stdio-only MCP client** | Run the same bundle yourself: `node <bundle>/index.js` with `AGENTBRIDGE_URL=http://localhost:5290/mcp` |
+| **Any MCP client with HTTP support** | Point it at `http://localhost:5290/mcp` |
+
+`agent_run` takes `prompt` (required) and optionally `model`, `llm_provider`,
+`max_iterations` and `session_id`: one autonomous run per call, using every tool the agent
+has enabled. The agent keeps working even if the client goes away.
+
+AgentBridge is listed on the **Official MCP Registry** as
+`io.github.Graphene-Lab/agentbridge`. The protocol reference, the per-host setup and the
+troubleshooting steps are in **[docs/MCP.md](docs/MCP.md)**.
+
 ## Planned work: the deterministic scheduler console
 
 An agent can schedule one-shot or recurring jobs with the built-in TaskScheduler tool. The plans are saved as JSON, they survive a restart, and each run is a normal agent chat. This is how the office work keeps going without a person starting every task.
@@ -427,6 +450,7 @@ The id is the number in the first column, so a long task name is never needed. A
 | [Text-to-speech](docs/TTS.md) | The two TTS engines, what each machine supports, platform prerequisites (Windows/Linux/macOS) and troubleshooting |
 | [Terminal UI reference](docs/TUI.md) | Every command, shortcut and mouse action |
 | [HTTP API reference](docs/API.md) | All endpoints: chat, sessions, LLM switching, TTS, voice, files, MCP connector |
+| [MCP server](docs/MCP.md) | Use AgentBridge from VS Code/Copilot, Claude Desktop or any MCP client: endpoint, `agent_run`, the registry entry, troubleshooting |
 | [SIP telephony](docs/sip.md) | Phone-gate the agents: config, PIN/allow-list security, NAT/trunk, STT deployment |
 | [Telegram chat](docs/telegram.md) | Connect the agents to Telegram: config, first login, allow-list, attachments |
 | [Architecture & operations](docs-dev/ARCHITECTURE.md) | *(developers — not shipped)* Launch modes, configuration keys, build & publish, project layout |
@@ -607,9 +631,11 @@ work it automates can indeed be automated.
   agent reads; only the model call leaves the machine, and only when you pick a cloud
   provider. A GDPR-ready anonymization switch strips names and identifiers before any
   external call and restores them in the reply.
-- **How is it different from an MCP server?** It exposes a native MCP connector and goes
-  further: tools run in-process as compiled .NET plugins inside an application-level
-  sandbox, with no separate servers, interpreters or HTTP hops.
+- **Is it an MCP server?** Yes. The MCP connector is part of the app (JSON-RPC at
+  `http://localhost:5290/mcp`, listed on the Official MCP Registry as
+  `io.github.Graphene-Lab/agentbridge`) and it goes further: tools run in-process as
+  compiled .NET plugins inside an application-level sandbox, with no separate servers,
+  interpreters or HTTP hops between the agent and its actions.
 - **What hardware does it need?** From a Raspberry Pi / Rockchip RK3588-class device up to
   a Ryzen AI Max+ 395, NVIDIA GB10 or Jetson — see the
   [hardware section](#agent-bridge-your-ai-assistant-for-office-work).

@@ -35,6 +35,15 @@ on:
         required: false
         type: string
         default: ''
+      # Backfill/repair path for the Official MCP Registry (job mcp-registry): publish, or
+      # re-align, ONE already released version without rebuilding the app. It maps the
+      # semver back to its release tag (v1.<semver> when the mapping is unambiguous) and
+      # republishes server.json at that version. Empty = publish the release being built.
+      mcp_publish_version:
+        description: 'Semver to (re)publish on the MCP Registry, e.g. 26.10.22. Empty = the version of this release.'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -545,8 +554,72 @@ jobs:
           name: store-msix
           path: store-msix/*.msix
 
+  # MCPB bundle for the Official MCP Registry.
+  #
+  # The registry only accepts a `remotes` entry when the URL is publicly reachable, and
+  # AgentBridge serves MCP on the user's own machine (http://localhost:5290/mcp), so the
+  # registry entry is a PACKAGE: the .mcpb bundle built here, attached to the release and
+  # referenced by server.json. The bundle is a small Node stdio <-> HTTP bridge (mcp/),
+  # carries no binaries and declares compatibility with win32/darwin/linux, so ONE asset
+  # serves all three platforms.
+  #
+  # tools/mcp/build_bundle.py produces a deterministic archive (sorted entries, pinned
+  # timestamps, LF-normalised sources), which is why server.json can carry a real
+  # fileSha256 in git and still match the bytes this job regenerates.
+  mcp-bundle:
+    needs: check-version
+    # Only a real release builds a bundle: the backfill path republishes an existing release
+    # and must use the asset already attached to it, not a fresh rebuild.
+    if: needs.check-version.outputs.do_release == 'true'
+    runs-on: ubuntu-latest
+    # A bundle problem must never block the app release: the archive upload below is a
+    # separate delivery channel and the registry publish is guarded on this job succeeding.
+    continue-on-error: true
+    outputs:
+      semver: ${{ steps.bundle.outputs.semver }}
+      sha256: ${{ steps.bundle.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build agentbridge-mcp.mcpb
+        id: bundle
+        shell: bash
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          # Registry versions must be strict semver (X.Y.Z) and the app uses 1.yy.MM.dd.
+          # Map the tag version to semver by dropping the leading "1." and the leading zeros
+          # of every component (sed strips "1."; awk %d strips the zeros):
+          #   v1.26.10.22 -> 26.10.22      v1.26.10.05 -> 26.10.5
+          # This is monotonic and deterministic, so the registry always marks the newest
+          # release as latest. Same mapping as docs-dev/RELEASING.md.
+          SEMVER=$(printf '%s' "${VERSION%-prerelease}" | sed -E 's/^1\.//' | awk -F. '{printf "%d.%d.%d", $1, $2, $3}')
+          if ! printf '%s' "$SEMVER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::cannot derive a semver registry version from '$VERSION'"
+            exit 1
+          fi
+          echo "app version '$VERSION' -> registry semver $SEMVER"
+          python3 tools/mcp/build_bundle.py --version "$SEMVER" --out dist | tee /tmp/bundle.log
+          echo "semver=$SEMVER" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum dist/agentbridge-mcp.mcpb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke-test the stdio bridge inside the bundle
+        shell: bash
+        run: |
+          # The bridge is the whole cross-platform story, so it is exercised on every release:
+          # an extracted bundle is run against a stub MCP server (no dependencies needed).
+          rm -rf /tmp/mcpb && mkdir -p /tmp/mcpb
+          python3 -c "import zipfile; zipfile.ZipFile('dist/agentbridge-mcp.mcpb').extractall('/tmp/mcpb')"
+          node tools/mcp/smoke_test.js /tmp/mcpb/index.js
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-bundle
+          path: dist/agentbridge-mcp.mcpb
+
   release:
-    needs: [check-version, build, store-msi]
+    needs: [check-version, build, store-msi, mcp-bundle]
     if: needs.check-version.outputs.do_release == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -586,6 +659,7 @@ jobs:
           files: |
             artifacts/**/*.tar.gz
             artifacts/**/*.msi
+            artifacts/**/*.mcpb
           body: |
             ### Restored document creation
 
@@ -599,6 +673,199 @@ jobs:
             Windows users can close AgentBridge and install the new MSI, or use
             `/update` to upgrade from an earlier application version.
           generate_release_notes: true
+
+  # Official MCP Registry publish: https://registry.modelcontextprotocol.io
+  #
+  # Runs on every release (and on demand via the mcp_publish_version input) so the listing
+  # follows the GitHub release with no manual step. Details:
+  #  * auth is GitHub OIDC (id-token: write) — no secret, and the registry grants exactly
+  #    the io.github.Graphene-Lab/* namespace of this repository. A PAT would be a
+  #    long-lived credential with a manual rotation.
+  #  * server.json is rewritten from the release tag before publishing: version = the
+  #    derived semver (never "latest"), identifier = the release asset URL, fileSha256 =
+  #    the hash of the bundle this run built. The committed server.json is what local
+  #    validation and the backfill path use.
+  #  * the registry rejects a name@version that already exists, so the version is probed
+  #    first and an already-published version is skipped (re-runs and backfills are safe).
+  #  * the registry HEAD-checks the asset URL while publishing, and the asset is attached by
+  #    the release job a few seconds earlier: the URL is polled before the publish.
+  #  * continue-on-error: a registry outage must never look like a failed release.
+  #  * `inputs.mcp_publish_version` (workflow_dispatch) republishes an already released
+  #    version without rebuilding; the tag is discovered from the releases.
+  mcp-registry:
+    needs: [check-version, mcp-bundle, release]
+    if: |
+      always() &&
+      (
+        (needs.check-version.outputs.do_release == 'true' && needs.mcp-bundle.result == 'success') ||
+        inputs.mcp_publish_version != ''
+      )
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      # Pinned: the publish tool is fetched from its own release and signature-verified below.
+      MCP_PUBLISHER_VERSION: v1.8.6
+      REGISTRY_URL: https://registry.modelcontextprotocol.io
+      SERVER_NAME: io.github.Graphene-Lab/agentbridge
+      BUNDLE_ASSET: agentbridge-mcp.mcpb
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        # Absent on a backfill-only run: the asset already attached to the release is used.
+        if: needs.mcp-bundle.result == 'success'
+        with:
+          name: mcp-bundle
+          path: dist
+
+      - name: Resolve tag, version and asset hash
+        id: prep
+        shell: bash
+        env:
+          BACKFILL: ${{ inputs.mcp_publish_version }}
+          RELEASE_VERSION: ${{ needs.check-version.outputs.version }}
+          BUNDLE_SEMVER: ${{ needs.mcp-bundle.outputs.semver }}
+        run: |
+          # Same 1.yy.MM.dd -> yy.M.d mapping as the mcp-bundle job (docs-dev/RELEASING.md).
+          map_ver() {
+            printf '%s' "${1#v}" | sed -E 's/-prerelease$//; s/^1\.//' | awk -F. '{printf "%d.%d.%d", $1, $2, $3}'
+          }
+          if [ -n "$BACKFILL" ]; then
+            SEMVER="$BACKFILL"
+            TAG=""
+            for candidate in $(gh release list --limit 100 --repo "$GITHUB_REPOSITORY" --json tagName --jq '.[].tagName'); do
+              if [ "$(map_ver "$candidate")" = "$SEMVER" ]; then TAG="$candidate"; break; fi
+            done
+            if [ -z "$TAG" ]; then
+              echo "::error::no GitHub release maps to registry version $SEMVER"
+              exit 1
+            fi
+            echo "backfill: version $SEMVER -> tag $TAG"
+          else
+            SEMVER="$BUNDLE_SEMVER"
+            TAG="v$RELEASE_VERSION"
+          fi
+          # Hash the exact bytes behind the release URL: the asset attached to the release is
+          # downloaded when present (always true for a backfill), otherwise the bundle built by
+          # this run is used (byte-identical, the archive is deterministic).
+          SHA=""
+          ASSET_DIR="${RUNNER_TEMP:-/tmp}/asset"
+          mkdir -p "$ASSET_DIR"
+          if gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$BUNDLE_ASSET" --dir "$ASSET_DIR" --clobber; then
+            SHA=$(sha256sum "${ASSET_DIR}/${BUNDLE_ASSET}" | cut -d' ' -f1)
+            echo "fileSha256 taken from the release asset of $TAG"
+          elif [ -f "dist/${BUNDLE_ASSET}" ]; then
+            SHA=$(sha256sum "dist/${BUNDLE_ASSET}" | cut -d' ' -f1)
+            echo "fileSha256 taken from the bundle built by this run"
+          else
+            echo "::error::$TAG carries no $BUNDLE_ASSET and no bundle was built - nothing to publish"
+            exit 1
+          fi
+          IDENTIFIER="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${BUNDLE_ASSET}"
+          echo "semver=$SEMVER"         >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"               >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA"            >> "$GITHUB_OUTPUT"
+          echo "identifier=$IDENTIFIER" >> "$GITHUB_OUTPUT"
+
+      - name: Rewrite server.json for this release
+        shell: bash
+        env:
+          SEMVER: ${{ steps.prep.outputs.semver }}
+          IDENTIFIER: ${{ steps.prep.outputs.identifier }}
+          SHA: ${{ steps.prep.outputs.sha256 }}
+        run: |
+          python3 - "$SEMVER" "$IDENTIFIER" "$SHA" <<'PY'
+          import json, sys
+          version, identifier, sha = sys.argv[1:4]
+          with open("server.json", encoding="utf-8") as handle:
+              doc = json.load(handle)
+          doc["version"] = version
+          for package in doc.get("packages", []):
+              package["identifier"] = identifier
+              package["version"] = version
+              package["fileSha256"] = sha
+          with open("server.json", "w", encoding="utf-8", newline="\n") as handle:
+              json.dump(doc, handle, indent=2, ensure_ascii=False)
+              handle.write("\n")
+          print(json.dumps({k: doc[k] for k in ("name", "version")}, indent=2))
+          for package in doc.get("packages", []):
+              print(package["registryType"], package["version"], package["fileSha256"], package["identifier"])
+          PY
+
+      - name: Probe the registry for an existing version
+        id: probe
+        shell: bash
+        env:
+          SEMVER: ${{ steps.prep.outputs.semver }}
+        run: |
+          # The name carries a "/" that must be percent-encoded, otherwise the route 404s.
+          ENCODED=$(printf '%s' "$SERVER_NAME" | sed 's|/|%2F|')
+          CODE=$(curl -sS -o /tmp/existing.json -w '%{http_code}' \
+            "$REGISTRY_URL/v0.1/servers/$ENCODED/versions/$SEMVER" || echo 000)
+          echo "GET versions/$SEMVER -> HTTP $CODE"
+          if [ "$CODE" = "200" ]; then
+            echo "::notice::$SERVER_NAME@$SEMVER is already published - nothing to do (versions are immutable)"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for the release asset to be downloadable
+        if: steps.probe.outputs.skip != 'true'
+        shell: bash
+        env:
+          IDENTIFIER: ${{ steps.prep.outputs.identifier }}
+        run: |
+          for attempt in $(seq 1 60); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' -I "$IDENTIFIER" || echo 000)
+            case "$CODE" in
+              200|301|302|303|307|308)
+                echo "asset reachable (HTTP $CODE) after $attempt attempt(s): $IDENTIFIER"
+                exit 0 ;;
+            esac
+            echo "attempt $attempt: HTTP $CODE - waiting for the release asset"
+            sleep 10
+          done
+          echo "::error::release asset never became reachable: $IDENTIFIER"
+          exit 1
+
+      - name: Install cosign
+        if: steps.probe.outputs.skip != 'true'
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Install mcp-publisher ${{ env.MCP_PUBLISHER_VERSION }}
+        if: steps.probe.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl -fsSL "${BASE}/mcp-publisher_linux_amd64.tar.gz" -o /tmp/mcp-publisher.tar.gz
+          curl -fsSL "${BASE}/mcp-publisher_linux_amd64.tar.gz.sigstore.json" -o /tmp/mcp-publisher.sigstore.json
+          # The publish tool runs with the ephemeral OIDC token, so verify what we download.
+          cosign verify-blob /tmp/mcp-publisher.tar.gz \
+            --bundle /tmp/mcp-publisher.sigstore.json \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+          tar xzf /tmp/mcp-publisher.tar.gz -C /tmp mcp-publisher
+          /tmp/mcp-publisher --help | head -n 5
+
+      - name: Publish to the Official MCP Registry
+        if: steps.probe.outputs.skip != 'true'
+        shell: bash
+        env:
+          SEMVER: ${{ steps.prep.outputs.semver }}
+        run: |
+          set -euo pipefail
+          /tmp/mcp-publisher login github-oidc
+          /tmp/mcp-publisher publish
+          ENCODED=$(printf '%s' "$SERVER_NAME" | sed 's|/|%2F|')
+          curl -sS "$REGISTRY_URL/v0.1/servers/$ENCODED/versions/latest" \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin); s=d.get("server",d); print("registry latest:", s.get("name"), s.get("version"))' \
+            || echo '(diagnostic lookup skipped)'
 
   # Microsoft Store submission: once the release exists with the MSI attached, point the
   # Partner Center draft package at the VERSIONED MSI URL (the AIOffice VPS streaming proxy

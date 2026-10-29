@@ -84,6 +84,10 @@ Example request:
 `agent_run` returns MCP content blocks plus a structured payload (`success`, `code`,
 `iterations`, optional `session_id`, optional `attachments`).
 
+Messages without an `id` (notifications) are answered `204 No Content`; the endpoint keeps no
+session state. To connect a real MCP host — VS Code/GitHub Copilot, Claude Desktop or any other
+client — see [MCP.md](MCP.md).
+
 ---
 
 ## `POST /v1/chat/completions` — chat with the agents

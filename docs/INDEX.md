@@ -34,6 +34,7 @@ A series of short guides written in plain language for anyone who uses AgentBrid
 | [Manual](MANUAL.md) | **Start here** — install, configure the JSON files, use the terminal UI, connect OpenAI or MCP clients |
 | [Terminal UI reference](TUI.md) | Every command, shortcut and mouse action |
 | [HTTP API reference](API.md) | All endpoints: chat, sessions, LLM switching, TTS, voice, files, MCP connector |
+| [MCP server](MCP.md) | Use AgentBridge from any MCP client — VS Code/Copilot, Claude Desktop, generic stdio/HTTP hosts — and the Official MCP Registry entry |
 | [Telegram chat](telegram.md) | Connect the agents to Telegram: config, first login, allow-list, attachments |
 | [SIP telephony](sip.md) | Phone-gate the agents: config, PIN/allow-list security, NAT/trunk, STT deployment |
 | [SIP entry point](sip-entry/README.md) | Unattended Kamailio + rtpengine entry-point installation |

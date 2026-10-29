@@ -1,0 +1,47 @@
+{
+  "manifest_version": "0.3",
+  "name": "agentbridge",
+  "display_name": "AgentBridge",
+  "version": "26.10.22",
+  "description": "Drive a local AgentBridge runtime from any MCP client: agents, office tools, documents and web research.",
+  "long_description": "AgentBridge is a self-hosted AI agent for office work (documents, spreadsheets, presentations, PDF reports, e-mail, web research). It already exposes MCP over HTTP at http://localhost:5290/mcp; this bundle is the stdio bridge that lets stdio-only MCP hosts use the same runtime. Start AgentBridge first, then add the extension: the `agent_run` tool executes one autonomous run for a prompt.",
+  "author": {
+    "name": "Graphene Lab",
+    "url": "https://github.com/Graphene-Lab"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Graphene-Lab/AgentBridge.git"
+  },
+  "homepage": "https://github.com/Graphene-Lab/AgentBridge",
+  "documentation": "https://github.com/Graphene-Lab/AgentBridge/blob/master/docs/MCP.md",
+  "support": "https://github.com/Graphene-Lab/AgentBridge/issues",
+  "license": "AGPL-3.0-only",
+  "keywords": ["mcp", "model-context-protocol", "ai-agent", "office-automation", "agentbridge"],
+  "server": {
+    "type": "node",
+    "entry_point": "index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/index.js"],
+      "env": {
+        "AGENTBRIDGE_URL": "${user_config.endpoint}"
+      }
+    }
+  },
+  "compatibility": {
+    "platforms": ["win32", "darwin", "linux"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  },
+  "user_config": {
+    "endpoint": {
+      "type": "string",
+      "title": "AgentBridge endpoint",
+      "description": "HTTP MCP endpoint of the running AgentBridge instance (default: http://localhost:5290/mcp).",
+      "default": "http://localhost:5290/mcp",
+      "required": false
+    }
+  }
+}

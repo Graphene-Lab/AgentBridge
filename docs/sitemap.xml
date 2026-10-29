@@ -21,6 +21,10 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://graphenelab.it/AgentBridge/MCP.md</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://graphenelab.it/AgentBridge/telegram.md</loc>
     <priority>0.6</priority>
   </url>

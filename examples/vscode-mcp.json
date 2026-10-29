@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "agentbridge": {
+      "type": "http",
+      "url": "http://localhost:5290/mcp"
+    }
+  }
+}

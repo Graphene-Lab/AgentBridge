@@ -276,6 +276,13 @@ concepts:
   while you are at the bottom; scrolling up pauses the follow, scrolling down resumes it.
 - **History** — `Up`/`Down` for previous prompts, `Ctrl+R` for reverse-search.
 - **Mouse** — menus, dialogs and lists are clickable; `Esc` always cancels a dialog.
+- **Exiting saves the memory** — the first `Ctrl+C` on an empty prompt (like `Esc` twice,
+  `Ctrl+D` or `/exit`) closes every open chat, so what is worth remembering is written to
+  the memory; the *saving memory…* spinner runs until it is done and only then does the
+  message become *`Ctrl+C` to exit*. Typing a prompt instead continues in a new session.
+- **Hiding the window** — `F12` sends the UI to the tray (Windows), the Dock (macOS) or the
+  taskbar (Linux) and restores it from there; where the platform offers nothing the status
+  line says so and the window stays visible.
 
 See [docs/TUI.md](TUI.md) for the full reference (every command, shortcut and mouse
 action).
@@ -309,7 +316,7 @@ see [section 6](#6-connect-a-client-to-localhost)):
 | `/providers` · `/setup` · `/modelsetup` | **LLM & Provider** | active-provider dropdown (the way to change the active provider) and add/edit/remove providers (including the per-provider API key) |
 | `/email` | **Email (SMTP + IMAP)** | outgoing SMTP and incoming IMAP settings, saved with validation |
 | `/general` | **General** | logging, documents path, auto-start |
-| `/exit` · `/quit` | **Exit** | also `Ctrl+C` twice, or `Ctrl+D` |
+| `/exit` · `/quit` | **Exit** | also `Ctrl+C` on an empty prompt, or `Ctrl+D` |
 
 > Platform-dependent features are honest: if the platform or the assets are missing, the
 > server reports them unavailable (the UI shows it, the API returns 501 and
@@ -399,6 +406,10 @@ The MCP response includes:
 - `content` (tool text blocks)
 - `structuredContent` (`success`, `code`, `iterations`, `elapsed_ms`, `session_id`, `attachments`)
 - `isError`
+
+To use the connector from a real MCP host — VS Code/GitHub Copilot, Claude Desktop or any
+other client, including the `.mcpb` extension published with every release — see
+**[MCP.md](MCP.md)**.
 
 ### The built-in web client (Giraffe AI)
 

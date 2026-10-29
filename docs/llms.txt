@@ -7,6 +7,7 @@
 - [User manual](https://graphenelab.it/AgentBridge/MANUAL.md): install, configure the JSON files, use the terminal UI, connect a client to localhost — start here
 - [Terminal UI reference](https://graphenelab.it/AgentBridge/TUI.md): every command, shortcut and mouse action
 - [HTTP API reference](https://graphenelab.it/AgentBridge/API.md): all endpoints — chat, sessions, LLM switching, TTS, voice, files, MCP connector
+- [MCP server](https://graphenelab.it/AgentBridge/MCP.md): use AgentBridge from any MCP client — VS Code/Copilot, Claude Desktop, generic hosts
 - [Telegram chat](https://graphenelab.it/AgentBridge/telegram.md): connect the agents to Telegram — config, first login, allow-list, attachments
 - [SIP telephony](https://graphenelab.it/AgentBridge/sip.md): phone-gate the agents — config, PIN/allow-list security, NAT/trunk, STT deployment
 - [Auto-update](https://graphenelab.it/AgentBridge/autoupdate.md): how the automatic update works and what it never touches

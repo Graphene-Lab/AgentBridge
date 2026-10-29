@@ -110,6 +110,16 @@ nested sync aborts the push.
    automatically (it first waits until today's version of every dependency package is visible
    on nuget.org, then builds the archives and creates the GitHub release).
 
+**MCP identity (same run, no extra step):** every release also updates the MCP listing. Job
+`mcp-bundle` builds `agentbridge-mcp.mcpb` (sources in `mcp/`, builder `tools/mcp/build_bundle.py`,
+smoke test `tools/mcp/smoke_test.js`); job `mcp-registry` then rewrites and publishes
+`server.json` to the Official MCP Registry as `io.github.Graphene-Lab/agentbridge` using GitHub
+OIDC (no secret, `continue-on-error`, so a registry outage never blocks a release). The bundle is
+deterministic **on purpose**: the `fileSha256` committed in `server.json` is a real hash — after
+editing anything in `mcp/` (or `LICENSE`, which the bundle ships) rebuild it with
+`python tools/mcp/build_bundle.py --version <current semver> --out dist` and commit the new hash.
+Details: [docs-dev/RELEASING.md](docs-dev/RELEASING.md).
+
 ## Dependencies: dual-reference pattern
 
 AgentBridge references its engine (`Graphene.AIOrchestrator`) with both:

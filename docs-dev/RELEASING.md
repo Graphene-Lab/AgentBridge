@@ -193,6 +193,107 @@ dependency repos' `publish.yml` triggers only on `v*` tag pushes, so a plain mas
 not even run it. Real publishes only come from pushing a `v*` date tag per dependency repo
 (see "The dependency packages") or from the next date's release with the gate off.
 
+## Official MCP Registry — automatic publish
+
+AgentBridge is listed on the [Official MCP Registry](https://registry.modelcontextprotocol.io)
+as **`io.github.Graphene-Lab/agentbridge`**. Nothing to run by hand: a release publishes it.
+
+### What gets published
+
+`server.json` (repository root) is the manifest. It declares one **`mcpb` package**: the
+`agentbridge-mcp.mcpb` asset attached to the matching GitHub release.
+
+Why a package and not a `remotes` URL: the registry only accepts a `remotes` entry when that
+URL is publicly reachable, and AgentBridge is a local server (`http://localhost:5290/mcp`).
+The bundle is the portable answer — a ~15 KB Node stdio↔HTTP bridge from `mcp/`, no binaries,
+compatible with Windows, macOS and Linux (`mcp/manifest.json` → `compatibility.platforms`).
+
+### Version mapping (`1.yy.MM.dd` → semver)
+
+The registry requires strict semver (`X.Y.Z`) and rejects `latest`. The release tag stays
+`v1.yy.MM.dd`; the published version drops the leading `1.` and the leading zeros of each
+component:
+
+| Tag | Registry version |
+|---|---|
+| `v1.26.10.22` | `26.10.22` |
+| `v1.26.10.05` | `26.10.5` |
+| `v1.26.08.09` | `26.8.9` |
+
+The mapping is monotonic, so the registry — which computes `is_latest` as the highest semver —
+always points at the newest release. It is **not invertible** (`26.10.5` also matches
+`v1.26.10.05`), so the backfill discovers the tag from the releases instead of rebuilding it.
+
+### The CI steps
+
+Job `mcp-bundle` (runs before `release`) builds the archive:
+
+```bash
+python3 tools/mcp/build_bundle.py --version <semver> --out dist
+```
+
+The archive is **deterministic** (sorted entries, pinned timestamps, LF-normalised sources), so
+the `fileSha256` in `server.json` matches the bytes of every rebuild of the same commit. The
+asset is uploaded with the archives and the MSI.
+
+That determinism is the invariant to respect: the `fileSha256` committed in `server.json` is a
+real hash, not a placeholder. After editing anything under `mcp/` (or `LICENSE`, which the
+bundle ships) rebuild locally and commit the new hash:
+
+```bash
+python tools/mcp/build_bundle.py --version 26.10.22 --out dist   # prints bundle/size/sha256
+```
+
+The job then extracts that archive and runs `node tools/mcp/smoke_test.js <extracted>/index.js`
+against a stub MCP server (no dependencies), so a regression in the bridge stops the registry
+publish instead of shipping a bundle no host can use. Run the same two commands locally after
+touching `mcp/`.
+
+Job `mcp-registry` (runs after `release`) then, with `permissions: id-token: write` and no secret:
+
+1. rewrites `server.json` from the tag: `version`, the `identifier` (release asset URL, which
+   must contain `mcp`) and `fileSha256` — the hash of the asset downloaded from the release when it is
+   already attached, of the bundle built by this run otherwise;
+2. probes `GET /v0.1/servers/io.github.Graphene-Lab%2Fagentbridge/versions/<semver>` — on
+   `200` it stops, because published versions are immutable and republishing fails;
+3. polls the asset URL until the registry can reach it (the registry HEAD-checks it);
+4. verifies and installs the pinned `mcp-publisher` (`MCP_PUBLISHER_VERSION`, cosign +
+   Sigstore bundle), then `login github-oidc` and `publish`.
+
+GitHub OIDC is used instead of a PAT: no secret to store or rotate, the token is per-run, and
+the registry grants exactly the `io.github.Graphene-Lab/*` namespace of this repository.
+
+`continue-on-error: true` on both jobs: the GitHub release and the Store submission never
+depend on the registry, which is still in preview.
+
+### Backfill / repair
+
+`workflow_dispatch` → **Build and Release AgentBridge** → `mcp_publish_version` (e.g.
+`26.10.22`) publishes, or re-aligns, an already released version without rebuilding the app:
+the job runs outside the normal release graph, resolves the tag from the releases, downloads
+the bundle already attached to it and publishes that hash. Use it after a registry failure or a
+rejected submission. Two caveats: a published `name@version` cannot be overwritten, so a wrong
+manifest needs a new release rather than a second backfill of the same version; and a release
+published before this feature carries no `.mcpb` asset, so it cannot be backfilled at all.
+
+### Manual fallback
+
+Requires a local login (`mcp-publisher login github`, device flow):
+
+```bash
+git checkout v1.26.10.22
+python tools/mcp/build_bundle.py --version 26.10.22 --out dist
+# update server.json by hand for that tag, then:
+mcp-publisher publish
+```
+
+### Repository identity (one-time, manual)
+
+The description and the topics are GitHub settings, not files: **Settings → General** →
+description, and topics `mcp`, `mcp-server`, `model-context-protocol`, `ai-agent`,
+`office-automation`, `dotnet`, `blazor`, `llm`. They drive discovery on GitHub and do **not**
+replace the registry entry, which is what MCP clients read.
+
 ## Dependency model: dual reference
 
 AgentBridge and AIOrchestrator reference their dependencies with the **dual-reference
