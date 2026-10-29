@@ -23,6 +23,7 @@ AgentBridge stands apart from the harnesses you are familiar with because it is 
 
 [![Download for your OS](https://img.shields.io/badge/Download%20for%20your%20OS-238636?style=for-the-badge&logo=download&logoColor=white)](https://graphenelab.it/AgentBridge/download/)
 [![Latest release](https://img.shields.io/github/v/release/Graphene-Lab/AgentBridge?style=for-the-badge&color=1f6feb)](https://github.com/Graphene-Lab/AgentBridge/releases/latest)
+[![MCP server](https://img.shields.io/badge/MCP%20server-modelcontextprotocol.io-6f42c1?style=for-the-badge)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Graphene-Lab%2Fagentbridge)
 
 The **Download for your OS** button detects your platform and starts the right archive
 (~460 MB, self-contained — no .NET installation needed, Kokoro TTS voices included).
@@ -414,6 +415,8 @@ endpoint is already listening.
 `agent_run` takes `prompt` (required) and optionally `model`, `llm_provider`,
 `max_iterations` and `session_id`: one autonomous run per call, using every tool the agent
 has enabled. The agent keeps working even if the client goes away.
+
+[![Official MCP Registry](https://img.shields.io/badge/Official%20MCP%20Registry-io.github.Graphene--Lab%2Fagentbridge-6f42c1)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Graphene-Lab%2Fagentbridge)
 
 AgentBridge is listed on the **Official MCP Registry** as
 `io.github.Graphene-Lab/agentbridge`. The protocol reference, the per-host setup and the
