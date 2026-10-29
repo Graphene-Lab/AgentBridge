@@ -430,46 +430,57 @@ the new repo is pushed by the pre-push hook without any script edit.
 
 ## 9. Checklist operativa: passi esterni per chiudere il task MCP del prompt iniziale
 
-Il codice (server.json), l'automazione in elease.yml (job mcp-bundle + mcp-registry) e la sezione
+Il codice (server.json), l'automazione in release.yml (job mcp-bundle + mcp-registry) e la sezione
 MCP del README sono **completati, committati e pushati**. Per chiudere *effettivamente* il task del prompt
-iniziale restano tre passi esterni, non committabili via git.
+iniziale i tre passi esterni qui sotto sono stati **eseguiti** (vedi 9d); restano documentati come procedura ripetibile.
 
-### 9a. Identità MCP su GitHub (description + topics) -- MANUALE
-description e 	opics sono modifiche delle Settings del repository, non di un file. Attualmente il repo
-recita "Personal AI Assistant" senza topics MCP -- quindi gh non può cambiarli e un commit non li tocca.
-- Apri https://github.com/Graphene-Lab/AgentBridge/settings/general
-- **Description**: aggiungi una frase che includa MCP, es.:
-  "Autonomous Personal AI Assistant for office work, exposed as a Model Context Protocol (MCP) server (io.github.Graphene-Lab/agentbridge) listed on the Official MCP Registry."
-- **Topics** (GitHub auto-completa al digitare) aggiungi:
-  mcp, mcp-server, model-context-protocol, i-agent, office-automation, dotnet, lazor
-- Nota: description e topics non *sostituiscono* la pubblicazione sul registry; la rendono solo riconoscibile
-  nelle ricerche e nei consigli.
+### 9a. Identita' MCP su GitHub (description + topics) -- SETTINGS, via gh
+Description e topics vivono nelle Settings del repository, non in un file: un commit non li tocca, ma la
+API di GitHub si' -- si impostano con `gh` (niente browser):
+
+```powershell
+gh repo edit Graphene-Lab/AgentBridge `
+  --description "Autonomous Personal AI Assistant for office work, exposed as a Model Context Protocol (MCP) server (io.github.Graphene-Lab/agentbridge) listed on the Official MCP Registry." `
+  --add-topic mcp --add-topic mcp-server --add-topic model-context-protocol
+```
+
+- Verifica: `gh repo view Graphene-Lab/AgentBridge --json description,repositoryTopics`
+- Nota: description e topics non *sostituiscono* la pubblicazione sul registry; la rendono riconoscibile
+  nelle ricerche e nei suggerimenti.
 
 ### 9b. Prima release reale -- attiva mcp-registry
-Il job mcp-registry si esegue **solo al primo tag *** di elease.yml.
-- Il backfill con l'input mcp_publish_version serve alla verifica locale/preview; per il publish vivo crea
-  e spina il tag <version> della Bridge (es. 1.26.10.22 -> version semver 26.10.22):
+Il job `mcp-registry` gira a **ogni** release prodotta da `release.yml` (non solo alla prima) ed e'
+idempotente: se la versione e' gia' sul registry il job termina con "already published - nothing to do".
 
-`powershell
-git -C C:\Users\andre\OneDrive\Sorgenti\AgentBridge tag -a v1.26.10.22 -m "Release v1.26.10.22"
-git -C C:\Users\andre\OneDrive\Sorgenti\AgentBridge push origin v1.26.10.22
-`
+- Il tag non va creato a mano: `daily-release.yml` (cron, oppure `workflow_dispatch` con
+  `ignore_time=true`) calcola la versione `1.yy.MM.dd` e chiama `release.yml`, che crea il tag
+  `v<version>` con `GITHUB_TOKEN`. Per lo stesso motivo un workflow separato su `on: push: tags: v*`
+  non si attiverebbe mai: la pubblicazione e' un job di `release.yml`.
+- Verifica live (endpoint `/v0.1/`, nome URL-encoded):
 
-  Nota: il tag è creato *dentro* elease.yml con GITHUB_TOKEN, quindi un workflow separato su
-  on: push: tags: v* non si attiverà -- la pubblicazione è un job di elease.yml.
-- Aspetta l'esecuzione del job mcp-registry nella scheda Actions e l'attesa della disponibilità del package.
-- Verifica l'idempotenza con il registry live (base URL come da docs ufficiali, endpoint /v0.1/):
+```powershell
+Invoke-RestMethod -Uri "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.Graphene-Lab%2Fagentbridge/versions/latest"
+```
 
-`powershell
-Invoke-RestMethod -Uri "https://<registry-base>/v0.1/servers/io.github.Graphene-Lab%2Fagentbridge"
-`
+  Atteso: `version` = semver derivata dal tag (`v1.26.10.30` -> `26.10.30`), `isLatest: true`,
+  `status: active`. Ripubblicare la *stessa* versione e' un errore (republish non permesso); il
+  registry e' in *preview* (reset possibili) -- il backfill `mcp_publish_version` e il fallback
+  manuale `mcp-publisher` coprono entrambi i casi.
 
-  Rispondi con la versione 26.10.22 e isLatest: true. Ripubblicare la *stessa* versione errore (riepublish
-  non permesso); il registry è in *preview* (reset possibili) -- il backfill mcp_publish_version e il
-  fallback manuale mcp-publisher coprono entrambi i casi.
+### 9c. Badge del registry + visibilita' su github.com/mcp
+- **Badge**: fatto. Due badge `modelcontextprotocol.io` nel README (header + sezione MCP).
+- **Inclusione in https://github.com/mcp**: *non* e' una submission manuale. `github.com/mcp` e' un
+  **aggregatore downstream** che consuma l'API del registry ufficiale con pull periodici (le docs
+  parlano di "regular but infrequent", es. una volta all'ora) e applica una curatela propria; non
+  esiste API di sottomissione. Una volta che il server e' `active` sul registry, la comparsa su
+  `github.com/mcp` dipende solo dalla sincronizzazione lato GitHub: nessuna azione ulteriore nostra e
+  nessun automatismo possibile da parte nostra. Se dopo qualche giorno non compare, l'unico canale e'
+  il feedback nelle community discussions di GitHub.
 
-### 9c. Badge del registry + inclusione in github.com/mcp -- ESTERNO
-- **Badge**: dopo la prima pubblicazione funzionante, aggiungi nel README un badge che punti al server sul
-  registry, con link al package io.github.Graphene-Lab/agentbridge.
-- **Inclusione in https://github.com/mcp**: catalogo curato, *senza* API di submission pubblica -- richiede
-  di contattare/mantenere il catalogo (passo manuale, non automatizzabile).
+### 9d. Stato del primo publish (release v1.26.10.30)
+- 9a: description aggiornata e 15 topics, inclusi `mcp`, `mcp-server`, `model-context-protocol`
+  (impostati via `gh repo edit`).
+- 9b: release `v1.26.10.30` -> asset `agentbridge-mcp.mcpb` (15.109 byte), job `mcp-registry` verde,
+  server `26.10.30` con `isLatest: true` e `status: active`; lo sha256 dell'asset scaricato coincide
+  con il `fileSha256` pubblicato (`08352ff8...ade8d77`).
+- 9c: badge nel README; `github.com/mcp` in attesa della sincronizzazione dell'aggregatore.
