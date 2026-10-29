@@ -661,14 +661,15 @@ jobs:
             artifacts/**/*.msi
             artifacts/**/*.mcpb
           body: |
-            ### Restored document creation
+            ### MCP server support
 
-            Updated the bundled tool plugins to restore document creation and editing
-            that failed with "Attempted to access a missing method."
+            AgentBridge is now an MCP server: this release ships the `agentbridge.mcpb`
+            bundle and publishes the listing on the Official MCP Registry as
+            `io.github.Graphene-Lab/agentbridge`, refreshed automatically at every release.
 
-            The platform archives and Windows MSI include compatible builds of
-            DocumentTool, OfficeTool, OfficeSupportTool, SpreadsheetTool,
-            PresentationTool, PodcastTool, and FreeCADTool.
+            Point VS Code / GitHub Copilot, Claude Desktop or any other MCP host at the
+            bundle with the configuration snippet in `docs/MCP.md` - it is a small stdio
+            bridge to the local AgentBridge HTTP endpoint and needs nothing beyond Node.
 
             Windows users can close AgentBridge and install the new MSI, or use
             `/update` to upgrade from an earlier application version.
