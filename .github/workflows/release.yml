@@ -926,6 +926,10 @@ jobs:
                   "runtimeArguments": [
                       {"type": "named", "name": "--publish", "value": "127.0.0.1:{PORT}:5290"},
                       {"type": "named", "name": "--volume", "value": "agentbridge-data:/app/PersistentData"},
+                      # The sandbox stays inside the container unless the user swaps this named volume
+                      # for a bind mount: a host has no way to know a folder on the user's disk, and a
+                      # literal placeholder in a volume path makes docker refuse to start.
+                      {"type": "named", "name": "--volume", "value": "agentbridge-documents:/documents"},
                   ],
               })
           doc["packages"] = packages

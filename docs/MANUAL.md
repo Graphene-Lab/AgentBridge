@@ -48,8 +48,9 @@ Extract the archive into a folder of your choice. No .NET installation is requir
 (self-contained single file), and the archive already includes the Kokoro TTS voices and
 model (`voices/`, `kokoro.onnx`) — text-to-speech works out of the box.
 The container image is the same Linux build; mount a volume on `/app/PersistentData` to keep the
-configuration, and publish only on loopback:
-`docker run -d -p 127.0.0.1:5290:5290 -v agentbridge-data:/app/PersistentData ghcr.io/graphene-lab/agentbridge:latest`.
+configuration, mount a folder on `/documents` (the sandbox the agent reads and writes), and publish
+only on loopback:
+`docker run -d -p 127.0.0.1:5290:5290 -v agentbridge-data:/app/PersistentData -v "$HOME/AgentBridge/documents:/documents" ghcr.io/graphene-lab/agentbridge:latest`.
 
 On Linux/macOS, make the executable runnable:
 

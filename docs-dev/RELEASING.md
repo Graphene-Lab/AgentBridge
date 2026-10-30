@@ -505,9 +505,15 @@ server locale puo' entrare in un catalogo che non installa bundle desktop. Il jo
 1. **Cosa costruisce**: build-context = l'archivio `agentbridge-linux-x64.tar.gz` gia' allegato alla
    release (va estratto, non ricompilato). `docker/Dockerfile` parte da
    `mcr.microsoft.com/dotnet/runtime-deps:10.0-noble` (la build e' self-contained), copia tutto in
-   `/app`, dichiara `VOLUME /app/PersistentData`, `EXPOSE 5290` ed entra con
-   `--headless --no-update --Urls http://0.0.0.0:5290`. Serve anche `fonts-dejavu-core`: la base non
-   ha font e gli strumenti di office generano PDF/DOCX.
+   `/app`, dichiara `VOLUME /app/PersistentData` e `VOLUME /documents`, `EXPOSE 5290` ed entra con
+   `--headless --no-update --DocumentsPath /documents --Urls http://0.0.0.0:5290`. Serve anche
+   `fonts-dejavu-core`: la base non ha font e gli strumenti di office generano PDF/DOCX.
+   `--DocumentsPath /documents` e' obbligatorio: senza, la sandbox e' la cartella Documenti del sistema
+   operativo, che nell'immagine non esiste, e l'utente non vedrebbe mai i file su cui l'agente lavora.
+   Con la root fissa basta `-v <cartella>:/documents` per rendere visibili i propri documenti; la voce
+   `oci` di `server.json` dichiara `agentbridge-documents:/documents` (volume nominato: sopravvive al
+   container ma resta dentro Docker). Non usare un placeholder del tipo `{DOCUMENTS}` nel path: un host
+   che non sostituisce le variabili passerebbe un nome di volume non valido e `docker run` fallirebbe.
 2. **Tag**: `ghcr.io/graphene-lab/agentbridge:<semver>` (lo stesso semver del registry, per esempio
    `26.10.30`) piu' `:latest`. Il path del package deve essere minuscolo (`${GITHUB_REPOSITORY,,}`).
 3. **Invariante da non rompere**: la label `io.modelcontextprotocol.server.name` deve valere
@@ -522,12 +528,19 @@ server locale puo' entrare in un catalogo che non installa bundle desktop. Il jo
 5. **Verifica dopo una release** (qualsiasi host con Docker):
 
    ```bash
-   docker run -d --name ab -p 127.0.0.1:5290:5290 ghcr.io/graphene-lab/agentbridge:<semver>
+   docker run -d --name ab -p 127.0.0.1:5290:5290 \
+     -v "$HOME/ab-docs:/documents" ghcr.io/graphene-lab/agentbridge:<semver>
    curl -s localhost:5290/health
    curl -s -X POST localhost:5290/mcp -H 'content-type: application/json' \
      -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}'
+   docker exec ab cat /app/PersistentData/rag_settings.json   # deve dire /documents
    docker rm -f ab
    ```
+
+   Un `agent_run` su un container appena creato risponde `No API key is configured for this provider`:
+   `providers.json` viene seminato con chiavi vuote ed endpoint su `127.0.0.1` (dentro il container =
+   il container stesso). Non e' un difetto dell'immagine: per una prova reale serve un provider
+   configurato, con `BaseAddress` `http://host.docker.internal:<porta>/` se il modello gira sull'host.
 
    Poi `GET /v0.1/servers/io.github.Graphene-Lab%2Fagentbridge/versions/latest` deve mostrare **due**
    voci in `packages` (`mcpb` e `oci`).

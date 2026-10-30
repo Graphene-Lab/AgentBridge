@@ -121,6 +121,7 @@ Each release publishes the Linux build to `ghcr.io` as well, with the same tree 
 docker run -d --name agentbridge \
   -p 127.0.0.1:5290:5290 \
   -v agentbridge-data:/app/PersistentData \
+  -v "$HOME/AgentBridge/documents:/documents" \
   ghcr.io/graphene-lab/agentbridge:latest
 ```
 
@@ -128,13 +129,33 @@ docker run -d --name agentbridge \
   authentication, and `agent_run` executes the agent's tools.
 - `-v agentbridge-data:/app/PersistentData` holds the configuration, the provider keys and the
   sessions. Without it every container starts from the seeded defaults.
+- `-v <host folder>:/documents` is the document sandbox. The container has its own filesystem and
+  the agent can only see what is mounted there: the image pins the sandbox root at `/documents`, so
+  a bind mount is what makes your real documents reachable and the files the agent writes visible
+  to you. Without it the sandbox is a container-only area that disappears with the container.
+- Whoever uses the `oci` package of the registry entry inherits `agentbridge-documents:/documents`,
+  a named volume: it survives the container but stays inside Docker. Swap it for a bind mount to
+  see the files from the host.
 - The image is large (about 2.7 GB unpacked): it carries the self-contained .NET runtime, the ONNX
   models and every tool plugin. It is for a host that already runs Docker, not for a small VM.
-- The entrypoint is `--headless --no-update`: no terminal inside, and the image owns its binaries.
+- The entrypoint is `--headless --no-update` with the sandbox root pinned at `/documents`: no
+  terminal inside, and the image owns its binaries.
 
 The container speaks the same MCP endpoint on the same port, so an HTTP host still points at
 `http://localhost:5290/mcp`. Give a stdio host the bundle with
 `AGENTBRIDGE_URL=http://127.0.0.1:5290/mcp` once the container is up.
+
+Two things the container does not get for free, because it is a separate machine:
+
+1. **A model.** The image is seeded with the stock `providers.json`: empty API keys, and endpoints on
+   `127.0.0.1` that inside the container mean the container itself. A fresh `agent_run` therefore
+   fails with `No API key is configured for this provider` or `Could not reach the provider`. Put a
+   configured `providers.json` into the `PersistentData` volume (one provider entry is enough), and
+   when the model runs on the host use `http://host.docker.internal:PORT/` as `BaseAddress` instead
+   of `127.0.0.1`. Local Ollama models work, but a small one answers a single agent run in minutes
+   and often exhausts `max_iterations`; the container is not the bottleneck.
+2. **Your documents.** See the `/documents` mount above. An empty sandbox is not an error: the agent
+   answers from the model alone, it just cannot see any file.
 
 ## The Official MCP Registry entry
 
@@ -175,6 +196,9 @@ the highest semver as `latest`, so the newest release is the one clients install
 | Different port | Start AgentBridge with `--Urls http://localhost:PORT` (or `ASPNETCORE_URLS`), then use the same URL in the host configuration and in `AGENTBRIDGE_URL` |
 | Docker: `initialize` answers but `tools/list` is empty | The container found no plugins: the build context must be the extracted archive, not an empty directory. Rebuild with `docker build -f docker/Dockerfile publish` |
 | Docker: settings lost after `docker rm` | No volume on `/app/PersistentData` |
+| Docker: `No API key is configured for this provider` | The seeded `providers.json` has empty keys. Copy a configured one into `/app/PersistentData`; for a model on the host use `http://host.docker.internal:PORT/` |
+| Docker: the agent sees no documents | The sandbox is `/documents` inside the container. Mount a host folder there, or accept a container-only sandbox |
+| Docker: `Max iterations (N) reached` | The model never called a tool: a small local model, or `max_iterations` too low for the task. Give a capable model, or raise the limit (1..200) |
 
 ## Related
 

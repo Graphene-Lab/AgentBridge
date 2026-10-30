@@ -41,9 +41,16 @@ ENV ASPNETCORE_URLS=http://0.0.0.0:5290 \
 WORKDIR /app
 COPY . /app/
 
+# The document sandbox. Without an explicit root the app indexes the OS Documents folder, which
+# does not exist in this image: the agent would come up with a sandbox it has to create itself,
+# outside any volume, and the user would never see the files it works on. Pin the root at
+# /documents so that a host folder is one bind mount away (-v <folder>:/documents).
+RUN mkdir -p /documents
+
 # Config, provider keys and sessions live under PersistentData next to the executable: without a
 # volume every container starts from the seeded defaults and loses them on the next run.
-VOLUME ["/app/PersistentData"]
+# The same holds for the sandbox: /documents survives `docker rm` only through a volume.
+VOLUME ["/app/PersistentData", "/documents"]
 EXPOSE 5290
 
 # No curl in the runtime-deps image, so the probe is a plain TCP connect.
@@ -52,4 +59,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=300s --retries=3 \
 
 # --headless: there is no terminal to drive the TUI in a container.
 # --no-update: the built-in self-updater swaps the binaries on disk; the image owns them.
-ENTRYPOINT ["/app/agent", "--headless", "--no-update", "--Urls", "http://0.0.0.0:5290"]
+# --DocumentsPath: the sandbox root created above, so the agent works where the volume is.
+ENTRYPOINT ["/app/agent", "--headless", "--no-update", "--DocumentsPath", "/documents", "--Urls", "http://0.0.0.0:5290"]
