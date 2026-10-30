@@ -618,6 +618,96 @@ jobs:
           name: mcp-bundle
           path: dist/agentbridge-mcp.mcpb
 
+  # Container image on ghcr.io carrying the same linux-x64 tree the archive ships, so the registry
+  # entry can offer an `oci` package next to the .mcpb bundle. Reason: the catalogue surfaces that
+  # list servers only show entries a client can actually install (a remote transport or a
+  # container/package), and a desktop-only .mcpb bundle is not installable there - see section 9c
+  # of docs-dev/RELEASING.md.
+  #
+  # Nothing is rebuilt: the build-context is the published archive, so the image and the installer
+  # archives cannot drift. continue-on-error: the app release and the .mcpb publish must never
+  # depend on the container - when the image is missing, mcp-registry publishes the manifest
+  # without the oci entry.
+  mcp-oci:
+    needs: [check-version, build]
+    if: needs.check-version.outputs.do_release == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the linux-x64 archive
+        uses: actions/download-artifact@v4
+        with:
+          name: agentbridge-linux-x64
+          path: artifact
+
+      - name: Unpack it as the build context
+        shell: bash
+        run: |
+          mkdir -p publish
+          tar -xzf artifact/agentbridge-linux-x64.tar.gz -C publish
+          test -x publish/agent && echo "build context ready: $(du -sh publish | cut -f1)"
+
+      - name: Derive the registry version and the image reference
+        id: ver
+        shell: bash
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          # Same 1.yy.MM.dd -> yy.M.d mapping as mcp-bundle and mcp-registry.
+          SEMVER=$(printf '%s' "${VERSION%-prerelease}" | sed -E 's/^1\.//' | awk -F. '{printf "%d.%d.%d", $1, $2, $3}')
+          if ! printf '%s' "$SEMVER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::cannot derive a semver registry version from '$VERSION'"
+            exit 1
+          fi
+          # ghcr requires a lowercase repository path.
+          echo "semver=$SEMVER" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}:$SEMVER" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and push the image
+        shell: bash
+        env:
+          IMAGE: ${{ steps.ver.outputs.image }}
+          SEMVER: ${{ steps.ver.outputs.semver }}
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            --build-arg VERSION="$SEMVER" \
+            --file docker/Dockerfile \
+            --tag "$IMAGE" \
+            --tag "${IMAGE%:*}:latest" \
+            publish
+          docker buildx imagetools inspect "$IMAGE" | head -n 20
+
+      - name: Make the ghcr package public
+        # The registry validates an `oci` package with an ANONYMOUS pull, so a private package is
+        # rejected. A new ghcr package is private by default: flipping the organization default
+        # (Packages -> package -> Package settings -> Change visibility) is the manual fallback
+        # documented in docs-dev/RELEASING.md section 9e.
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api --method PATCH "/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/agentbridge" \
+               -f visibility=public > /dev/null 2>&1; then
+            echo "ghcr package: public"
+          else
+            echo "::warning::could not set the ghcr package to public - the registry rejects a private image; do it once in Packages -> agentbridge -> Package settings (docs-dev/RELEASING.md)"
+          fi
+
   release:
     needs: [check-version, build, store-msi, mcp-bundle]
     if: needs.check-version.outputs.do_release == 'true'
@@ -694,7 +784,7 @@ jobs:
   #  * `inputs.mcp_publish_version` (workflow_dispatch) republishes an already released
   #    version without rebuilding; the tag is discovered from the releases.
   mcp-registry:
-    needs: [check-version, mcp-bundle, release]
+    needs: [check-version, mcp-bundle, release, mcp-oci]
     if: |
       always() &&
       (
@@ -778,17 +868,39 @@ jobs:
           SEMVER: ${{ steps.prep.outputs.semver }}
           IDENTIFIER: ${{ steps.prep.outputs.identifier }}
           SHA: ${{ steps.prep.outputs.sha256 }}
+          IMAGE: ${{ steps.oci.outputs.image }}
         run: |
-          python3 - "$SEMVER" "$IDENTIFIER" "$SHA" <<'PY'
+          python3 - "$SEMVER" "$IDENTIFIER" "$SHA" "${IMAGE:-}" <<'PY'
           import json, sys
-          version, identifier, sha = sys.argv[1:4]
+          version, identifier, sha, image = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
           with open("server.json", encoding="utf-8") as handle:
               doc = json.load(handle)
           doc["version"] = version
-          for package in doc.get("packages", []):
+          # One record per package type, never merged: the registry rejects an oci record that
+          # carries fileSha256 or version (an oci reference pins the version in its tag).
+          packages = [p for p in doc.get("packages", []) if p.get("registryType") != "oci"]
+          for package in packages:
               package["identifier"] = identifier
               package["version"] = version
               package["fileSha256"] = sha
+          if image:
+              packages.append({
+                  "registryType": "oci",
+                  "identifier": image,
+                  "transport": {"type": "streamable-http", "url": "http://localhost:{PORT}/mcp"},
+                  "environmentVariables": [{
+                      "name": "PORT",
+                      "description": "Host port to publish for the container. Must match the port in the transport URL.",
+                      "format": "string",
+                      "default": "5290",
+                  }],
+                  "runtimeHint": "docker",
+                  "runtimeArguments": [
+                      {"type": "named", "name": "--publish", "value": "127.0.0.1:{PORT}:5290"},
+                      {"type": "named", "name": "--volume", "value": "agentbridge-data:/app/PersistentData"},
+                  ],
+              })
+          doc["packages"] = packages
           with open("server.json", "w", encoding="utf-8", newline="\n") as handle:
               json.dump(doc, handle, indent=2, ensure_ascii=False)
               handle.write("\n")
@@ -813,6 +925,34 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Probe the container image for this version
+        id: oci
+        shell: bash
+        env:
+          SEMVER: ${{ steps.prep.outputs.semver }}
+        run: |
+          # The registry validates an `oci` package by pulling its manifest ANONYMOUSLY and
+          # comparing the io.modelcontextprotocol.server.name label with the server name, so the
+          # package is only advertised when exactly that pull would succeed. A failed mcp-oci job
+          # (or a private package) therefore degrades the entry to the .mcpb bundle instead of
+          # breaking the publish.
+          REPO="${GITHUB_REPOSITORY,,}"
+          IMAGE="ghcr.io/$REPO:$SEMVER"
+          TOKEN=$(curl -sS "https://ghcr.io/token?scope=repository:$REPO:pull&service=ghcr.io" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("token",""))' || true)
+          CODE=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json' \
+            "https://ghcr.io/v2/$REPO/manifests/$SEMVER" || echo 000)
+          echo "anonymous GET ghcr.io/v2/$REPO/manifests/$SEMVER -> HTTP $CODE"
+          if [ "$CODE" = "200" ]; then
+            echo "image=$IMAGE"  >> "$GITHUB_OUTPUT"
+            echo "include=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "include=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::$IMAGE is not anonymously pullable - publishing the entry without the oci package"
           fi
 
       - name: Wait for the release asset to be downloadable
@@ -862,7 +1002,24 @@ jobs:
         run: |
           set -euo pipefail
           /tmp/mcp-publisher login github-oidc
-          /tmp/mcp-publisher publish
+          if ! /tmp/mcp-publisher publish; then
+            # The oci record is the only unproven part of the manifest (the registry pulls the
+            # image and compares the label): retry with the .mcpb bundle alone, so a container
+            # problem can never cost the release its registry entry. A version is immutable only
+            # once published, so the retry publishes the same version cleanly.
+            echo "::warning::publish with the oci package failed - retrying with the .mcpb bundle only"
+            python3 - <<'PY'
+          import json
+          with open("server.json", encoding="utf-8") as handle:
+              doc = json.load(handle)
+          doc["packages"] = [p for p in doc.get("packages", []) if p.get("registryType") != "oci"]
+          with open("server.json", "w", encoding="utf-8", newline="\n") as handle:
+              json.dump(doc, handle, indent=2, ensure_ascii=False)
+              handle.write("\n")
+          print("packages after fallback:", [p["registryType"] for p in doc["packages"]])
+          PY
+            /tmp/mcp-publisher publish
+          fi
           ENCODED=$(printf '%s' "$SERVER_NAME" | sed 's|/|%2F|')
           curl -sS "$REGISTRY_URL/v0.1/servers/$ENCODED/versions/latest" \
             | python3 -c 'import json,sys; d=json.load(sys.stdin); s=d.get("server",d); print("registry latest:", s.get("name"), s.get("version"))' \
