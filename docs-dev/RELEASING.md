@@ -249,16 +249,28 @@ against a stub MCP server (no dependencies), so a regression in the bridge stops
 publish instead of shipping a bundle no host can use. Run the same two commands locally after
 touching `mcp/`.
 
-Job `mcp-registry` (runs after `release`) then, with `permissions: id-token: write` and no secret:
+Job `mcp-oci` (runs after `mcp-bundle`) publishes the container image, with `packages: write`:
+
+1. extracts the same `agentbridge-linux-x64.tar.gz` and builds `docker/Dockerfile` for `linux/amd64`
+   with `--build-arg VERSION=<semver>`;
+2. pushes `ghcr.io/graphene-lab/agentbridge:<semver>` and `:latest`;
+3. tries to switch the ghcr package to public through the org API, because a new package is private
+   and the registry pulls it anonymously (see 9e for the manual fallback).
+
+Job `mcp-registry` (runs after `release` and `mcp-oci`) then, with `permissions: id-token: write` and no secret:
 
 1. rewrites `server.json` from the tag: `version`, the `identifier` (release asset URL, which
-   must contain `mcp`) and `fileSha256` — the hash of the asset downloaded from the release when it is
-   already attached, of the bundle built by this run otherwise;
+   must contain `mcp`), `fileSha256` — the hash of the asset downloaded from the release when it is
+   already attached, of the bundle built by this run otherwise — and the `oci` package when the image
+   for this version is pullable;
 2. probes `GET /v0.1/servers/io.github.Graphene-Lab%2Fagentbridge/versions/<semver>` — on
    `200` it stops, because published versions are immutable and republishing fails;
-3. polls the asset URL until the registry can reach it (the registry HEAD-checks it);
-4. verifies and installs the pinned `mcp-publisher` (`MCP_PUBLISHER_VERSION`, cosign +
-   Sigstore bundle), then `login github-oidc` and `publish`.
+3. probes the image anonymously (`ghcr.io/token`, then the manifest): a missing or private image drops
+   the `oci` package from the manifest instead of advertising something no client can install;
+4. polls the asset URL until the registry can reach it (the registry HEAD-checks it);
+5. verifies and installs the pinned `mcp-publisher` (`MCP_PUBLISHER_VERSION`, cosign +
+   Sigstore bundle), then `login github-oidc` and `publish`; if the full manifest is rejected it
+   retries with the `mcpb` package only, so the listing is never lost over the image.
 
 GitHub OIDC is used instead of a PAT: no secret to store or rotate, the token is per-run, and
 the registry grants exactly the `io.github.Graphene-Lab/*` namespace of this repository.
@@ -430,7 +442,7 @@ the new repo is pushed by the pre-push hook without any script edit.
 
 ## 9. Checklist operativa: passi esterni per chiudere il task MCP del prompt iniziale
 
-Il codice (server.json), l'automazione in release.yml (job mcp-bundle + mcp-registry) e la sezione
+Il codice (server.json), l'automazione in release.yml (job mcp-bundle + mcp-oci + mcp-registry) e la sezione
 MCP del README sono **completati, committati e pushati**. Per chiudere *effettivamente* il task del prompt
 iniziale i tre passi esterni qui sotto sono stati **eseguiti** (vedi 9d); restano documentati come procedura ripetibile.
 
@@ -484,3 +496,49 @@ Invoke-RestMethod -Uri "https://registry.modelcontextprotocol.io/v0.1/servers/io
   server `26.10.30` con `isLatest: true` e `status: active`; lo sha256 dell'asset scaricato coincide
   con il `fileSha256` pubblicato (`08352ff8...ade8d77`).
 - 9c: badge nel README; `github.com/mcp` in attesa della sincronizzazione dell'aggregatore.
+### 9e. Immagine container (job `mcp-oci`) -- il prerequisito per github.com/mcp
+
+Il registry ufficiale accetta anche pacchetti `oci`, e un'immagine pubblica e' la ragione per cui un
+server locale puo' entrare in un catalogo che non installa bundle desktop. Il job `mcp-oci` di
+`release.yml` costruisce e pubblica l'immagine a ogni release, prima di `mcp-registry`.
+
+1. **Cosa costruisce**: build-context = l'archivio `agentbridge-linux-x64.tar.gz` gia' allegato alla
+   release (va estratto, non ricompilato). `docker/Dockerfile` parte da
+   `mcr.microsoft.com/dotnet/runtime-deps:10.0-noble` (la build e' self-contained), copia tutto in
+   `/app`, dichiara `VOLUME /app/PersistentData`, `EXPOSE 5290` ed entra con
+   `--headless --no-update --Urls http://0.0.0.0:5290`. Serve anche `fonts-dejavu-core`: la base non
+   ha font e gli strumenti di office generano PDF/DOCX.
+2. **Tag**: `ghcr.io/graphene-lab/agentbridge:<semver>` (lo stesso semver del registry, per esempio
+   `26.10.30`) piu' `:latest`. Il path del package deve essere minuscolo (`${GITHUB_REPOSITORY,,}`).
+3. **Invariante da non rompere**: la label `io.modelcontextprotocol.server.name` deve valere
+   esattamente `io.github.Graphene-Lab/agentbridge`, cioe' il `name` di `server.json`. Il validatore
+   del registry (`internal/validators/registries/oci.go`) fa un pull **anonimo** e confronta la label:
+   label diversa o package privato significa publish rifiutato. Le due stringhe si modificano insieme.
+4. **Visibilita' del package**: il primo push crea il package **privato**. Il job tenta da solo
+   `PATCH /orgs/{owner}/packages/container/agentbridge {"visibility":"public"}` con `GITHUB_TOKEN`; se
+   l'API rifiuta, la correzione e' manuale: org -> Packages -> `agentbridge` -> Package settings ->
+   Change visibility -> Public. Finche' il package e' privato il probe anonimo dell'immagine fallisce e
+   `mcp-registry` pubblica il manifest **senza** la voce `oci`: fallback automatico, nessun rosso.
+5. **Verifica dopo una release** (qualsiasi host con Docker):
+
+   ```bash
+   docker run -d --name ab -p 127.0.0.1:5290:5290 ghcr.io/graphene-lab/agentbridge:<semver>
+   curl -s localhost:5290/health
+   curl -s -X POST localhost:5290/mcp -H 'content-type: application/json' \
+     -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}'
+   docker rm -f ab
+   ```
+
+   Poi `GET /v0.1/servers/io.github.Graphene-Lab%2Fagentbridge/versions/latest` deve mostrare **due**
+   voci in `packages` (`mcpb` e `oci`).
+6. **Se la voce `oci` non compare** anche col package pubblico: leggere lo step "Publish to the
+   registry". Se il manifest completo viene rifiutato, il job ripubblica la stessa versione con il solo
+   `mcpb` (le versioni del registry diventano immutabili solo dopo il publish, quindi il retry e'
+   sicuro) e il motivo resta nel log. Rimedio manuale: `mcp-publisher publish` con un `server.json`
+   corretto.
+7. **Dimensione**: circa 2,7 GB spacchettata (agent 729 MB, `kokoro.onnx` 310 MB, 5 plugin). Non e' un
+   errore: e' l'archivio Linux completo con runtime, modelli e strumenti. La build richiede qualche
+   minuto e il job ha `continue-on-error`, quindi un problema di ghcr non blocca `release` ne'
+   `store-submit`.
+8. **`latest`**: il tag `:latest` dell'immagine e' un comodo alias mobile, non un dato del registry. In
+   `server.json` la versione e' sempre semver esplicita: lo schema vieta la stringa `"latest"`.

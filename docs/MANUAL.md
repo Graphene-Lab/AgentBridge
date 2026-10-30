@@ -42,10 +42,14 @@ for your OS:
 | Linux ARM64 (Raspberry Pi, etc.) | `agentbridge-linux-arm64.tar.gz` | `agent` |
 | macOS Intel | `agentbridge-osx-x64.tar.gz` | `agent` |
 | macOS Apple Silicon | `agentbridge-osx-arm64.tar.gz` | `agent` |
+| Docker (Linux x64) | image `ghcr.io/graphene-lab/agentbridge:latest` | - |
 
 Extract the archive into a folder of your choice. No .NET installation is required
 (self-contained single file), and the archive already includes the Kokoro TTS voices and
 model (`voices/`, `kokoro.onnx`) — text-to-speech works out of the box.
+The container image is the same Linux build; mount a volume on `/app/PersistentData` to keep the
+configuration, and publish only on loopback:
+`docker run -d -p 127.0.0.1:5290:5290 -v agentbridge-data:/app/PersistentData ghcr.io/graphene-lab/agentbridge:latest`.
 
 On Linux/macOS, make the executable runnable:
 

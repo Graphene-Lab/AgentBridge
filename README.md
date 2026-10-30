@@ -411,6 +411,7 @@ endpoint is already listening.
 | **Claude Desktop** | Install the `agentbridge-mcp.mcpb` extension from the [latest release](https://github.com/Graphene-Lab/AgentBridge/releases/latest) (Settings → Extensions → Advanced settings → Install extension). It is a small Node.js bridge that exposes the local endpoint over stdio and needs Node.js 18+ |
 | **Any stdio-only MCP client** | Run the same bundle yourself: `node <bundle>/index.js` with `AGENTBRIDGE_URL=http://localhost:5290/mcp` |
 | **Any MCP client with HTTP support** | Point it at `http://localhost:5290/mcp` |
+| **Docker** | `docker run -d -p 127.0.0.1:5290:5290 -v agentbridge-data:/app/PersistentData ghcr.io/graphene-lab/agentbridge:latest` — the image carries the same tree as the Linux archive (see [docs/MCP.md](docs/MCP.md#run-it-in-a-container)) |
 
 `agent_run` takes `prompt` (required) and optionally `model`, `llm_provider`,
 `max_iterations` and `session_id`: one autonomous run per call, using every tool the agent
@@ -419,8 +420,10 @@ has enabled. The agent keeps working even if the client goes away.
 [![Official MCP Registry](https://img.shields.io/badge/Official%20MCP%20Registry-io.github.Graphene--Lab%2Fagentbridge-6f42c1)](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Graphene-Lab%2Fagentbridge)
 
 AgentBridge is listed on the **Official MCP Registry** as
-`io.github.Graphene-Lab/agentbridge`. The protocol reference, the per-host setup and the
-troubleshooting steps are in **[docs/MCP.md](docs/MCP.md)**.
+`io.github.Graphene-Lab/agentbridge`, with two ways to install it: the `agentbridge-mcp.mcpb`
+stdio bundle and the `ghcr.io/graphene-lab/agentbridge` container image, both refreshed by every
+release. The protocol reference, the per-host setup and the troubleshooting steps are in
+**[docs/MCP.md](docs/MCP.md)**.
 
 ## Planned work: the deterministic scheduler console
 
