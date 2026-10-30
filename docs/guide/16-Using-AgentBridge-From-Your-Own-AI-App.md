@@ -45,7 +45,7 @@ If your program can install servers from the **Official MCP Registry**, search f
 
 The container image is a complete AgentBridge, but it is a separate machine, and two things are not inherited from your computer:
 
-- **The model configuration.** The image starts with the standard provider list: empty keys, and addresses that point to the container itself instead of your computer. Copy a configured `providers.json` into the configuration volume (`/app/PersistentData`), and when the model runs on your computer use `http://host.docker.internal:PORT/` as the `BaseAddress` instead of `http://localhost:PORT/`.
+- **The model configuration.** The image starts with the standard provider list: empty keys, and addresses that point to the container itself instead of your computer. Configure the model once in the installed program, with `/providers`, then copy its `providers.json` (the one inside `PersistentData`, next to the executable) into the container's configuration volume `/app/PersistentData`; when the model runs on your computer use `http://host.docker.internal:PORT/` as the `BaseAddress` instead of `http://localhost:PORT/`.
 - **Your documents.** Inside the container the agent reads `/documents`. Mount a folder of yours there, for example `-v "C:\Users\me\AgentBridge\documents:/documents"` on Windows or `-v "$HOME/AgentBridge/documents:/documents"` on Linux and macOS. Without that mount the documents area lives inside the container: the agent can still work, but you will never see the files it creates.
 
 A local model is enough to try the container, but expect a single job to take minutes with a small one: it is the model that is slow, not the container.
