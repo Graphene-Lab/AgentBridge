@@ -3,7 +3,7 @@
   "name": "io.github.Graphene-Lab/agentbridge",
   "title": "AgentBridge",
   "description": "Self-hosted AI agent for office work: run agents, office tools and documents from any MCP client.",
-  "version": "26.10.30",
+  "version": "26.11.1",
   "websiteUrl": "https://github.com/Graphene-Lab/AgentBridge",
   "repository": {
     "url": "https://github.com/Graphene-Lab/AgentBridge",
@@ -12,9 +12,9 @@
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/Graphene-Lab/AgentBridge/releases/download/v1.26.10.30/agentbridge-mcp.mcpb",
-      "version": "26.10.30",
-      "fileSha256": "08352ff8ebc4cb72ff8d521cdd512c28104ac234542a12a85341392efade8d77",
+      "identifier": "https://github.com/Graphene-Lab/AgentBridge/releases/download/v1.26.11.01/agentbridge-mcp.mcpb",
+      "version": "26.11.1",
+      "fileSha256": "25d88bc6cbc64e82d04c05fed10b8160095f16050fbba7c29f731d15007148d1",
       "transport": {
         "type": "stdio"
       }
