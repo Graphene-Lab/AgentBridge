@@ -416,6 +416,8 @@ To use the connector from a real MCP host — VS Code/GitHub Copilot, Claude Des
 other client, including the `.mcpb` extension published with every release — see
 **[MCP.md](MCP.md)**.
 
+> Before connecting a host, remember that the client is only the door: the work is done by the model configured in `/providers` and by the folder set as **Documents path** in `/general`. The plain-language walkthrough is [guide/16-Using-AgentBridge-From-Your-Own-AI-App.md](guide/16-Using-AgentBridge-From-Your-Own-AI-App.md).
+
 ### The built-in web client (Giraffe AI)
 
 The quickest client is the one bundled with the server: **`/web`** (menu **Web → GUI**)

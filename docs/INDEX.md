@@ -26,6 +26,7 @@ A series of short guides written in plain language for anyone who uses AgentBrid
 | [Privacy and security](guide/13-Privacy-and-Security.md) | The sandbox, anonymisation, what leaves your machine |
 | [The agent's memory](guide/14-The-Agents-Memory.md) | How the assistant remembers your work |
 | [Updates](guide/15-Updates.md) | How updates work and what they never touch |
+| [Your own AI app](guide/16-Using-AgentBridge-From-Your-Own-AI-App.md) | Using AgentBridge from Copilot, Claude Desktop or any other MCP client |
 
 ## Guides
 

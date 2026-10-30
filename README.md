@@ -423,7 +423,10 @@ AgentBridge is listed on the **Official MCP Registry** as
 `io.github.Graphene-Lab/agentbridge`, with two ways to install it: the `agentbridge-mcp.mcpb`
 stdio bundle and the `ghcr.io/graphene-lab/agentbridge` container image, both refreshed by every
 release. The protocol reference, the per-host setup and the troubleshooting steps are in
-**[docs/MCP.md](docs/MCP.md)**.
+**[docs/MCP.md](docs/MCP.md)**. New to all this? The guide
+**[Using AgentBridge from the AI app you already use](docs/guide/16-Using-AgentBridge-From-Your-Own-AI-App.md)**
+explains the connection in plain language, and what has to be configured inside AgentBridge (the
+model and the documents area) before any client can get real work done.
 
 ## Planned work: the deterministic scheduler console
 

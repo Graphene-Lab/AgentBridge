@@ -32,4 +32,8 @@ Automatic updates are enabled by default. If you prefer, you can turn the check 
 
 Updates are checked over a secure connection, and the old version is kept until the new one has started successfully, so there is always a way back. In the unlikely event that a new version fails to start, the previous one can be restored.
 
+## Using it from another program
+
+If you use Copilot, Claude Desktop or any other program that speaks the Model Context Protocol, you do not have to chat inside AgentBridge to use it. The next guide in the series, *Using AgentBridge from the AI app you already use*, explains how to connect that program and, above all, what still has to be prepared inside AgentBridge before it can get any work done.
+
 This is the end of the guide series. Every aspect of AgentBridge — from your first chat to scheduled work, from the phone to the podcast — has its own guide, and each one can be read on its own, whenever you need it.

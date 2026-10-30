@@ -17,6 +17,13 @@ the same port as the HTTP API.
 > The endpoint has **no authentication** and is meant for `localhost`. Do not publish it on
 > a public interface; if you change the binding, restrict it at the network level.
 
+> **The client is only the door.** An MCP host hands jobs to AgentBridge; the work is done by the
+> model configured inside AgentBridge (**/providers**, or *Settings* then *LLM & Provider*) and by
+> the folder set as **Documents path** (**/general**). With no provider configured every
+> `agent_run` fails with `No API key is configured for this provider`. The plain-language
+> walkthrough for end users is
+> [guide/16-Using-AgentBridge-From-Your-Own-AI-App.md](guide/16-Using-AgentBridge-From-Your-Own-AI-App.md).
+
 ## Methods and tools
 
 | Method | Purpose |
