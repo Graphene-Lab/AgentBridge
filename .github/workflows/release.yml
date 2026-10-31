@@ -751,15 +751,19 @@ jobs:
             artifacts/**/*.msi
             artifacts/**/*.mcpb
           body: |
-            ### MCP server support
+            ### `/update` works again, and Help -> About shows the right version
 
-            AgentBridge is now an MCP server: this release ships the `agentbridge.mcpb`
-            bundle and publishes the listing on the Official MCP Registry as
-            `io.github.Graphene-Lab/agentbridge`, refreshed automatically at every release.
+            `/update` no longer answers "cannot reach GitHub - check your connection" while
+            perfectly online. Release tags carry a semver suffix (`v1.26.10.30-prerelease`)
+            that the version parser rejected, so a tag that had just been read successfully
+            was indistinguishable from a network failure; the same bug silently disabled the
+            startup auto-update check. Tags are now parsed with the suffix ignored, a tag that
+            cannot be parsed is reported as such, and the "check your connection" message is
+            reserved for real network errors (DNS, TLS, refused connection, timeout).
 
-            Point VS Code / GitHub Copilot, Claude Desktop or any other MCP host at the
-            bundle with the configuration snippet in `docs/MCP.md` - it is a small stdio
-            bridge to the local AgentBridge HTTP endpoint and needs nothing beyond Node.
+            In the TUI, Help -> About now shows the version of the running build - the same
+            number the terminal prints at startup. The line was laid out underneath the
+            dialog's button area, so it was silently covered and never drawn.
 
             Windows users can close AgentBridge and install the new MSI, or use
             `/update` to upgrade from an earlier application version.

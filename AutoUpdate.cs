@@ -189,7 +189,13 @@ public static class AutoUpdate
         {
             var current = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
             var tag = await GetLatestTagAsync();
-            if (tag is null || !Version.TryParse(tag.TrimStart('v'), out var latest) || latest <= current) return;
+            if (tag is null) return;
+            if (!TryParseTagVersion(tag, out var latest))
+            {
+                Log.LogStep($"AutoUpdate: unrecognized release tag '{tag}' — skipping");
+                return;
+            }
+            if (latest <= current) return;
 
             // A second agent.exe instance (e.g. the Windows auto-start task plus a manual
             // launch) would keep the executable locked during the swap — the other
@@ -259,8 +265,12 @@ public static class AutoUpdate
         try
         {
             var tag = await GetLatestTagAsync();
-            if (tag is null || !Version.TryParse(tag.TrimStart('v'), out var latest))
-                return new(ManualUpdateStatus.Unreachable, current.ToString(), tag, null);
+            // No answer at all (no redirect, no tag) is the only case that means "GitHub did
+            // not answer"; a tag we cannot parse is a release-naming problem, not a network one.
+            if (tag is null)
+                return new(ManualUpdateStatus.Unreachable, current.ToString(), null, null);
+            if (!TryParseTagVersion(tag, out var latest))
+                return new(ManualUpdateStatus.Failed, current.ToString(), tag, $"unrecognized release tag '{tag}'");
             if (latest <= current)
                 return new(latest == current ? ManualUpdateStatus.UpToDate : ManualUpdateStatus.NewerThanLatest,
                     current.ToString(), tag, null);
@@ -295,6 +305,13 @@ public static class AutoUpdate
             // reaching this line means the process is still alive (defensive fallback).
             return new(ManualUpdateStatus.Failed, current.ToString(), tag, "the updater did not start");
         }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            // Real network trouble (DNS, TLS, refused connection, 15 s timeout on the tag
+            // lookup): this is what the "check your connection" hint is meant for.
+            Log.LogStep($"AutoUpdate (/update): GitHub unreachable — {ex.Message}");
+            return new(ManualUpdateStatus.Unreachable, current.ToString(), null, ex.Message);
+        }
         catch (Exception ex)
         {
             return new(ManualUpdateStatus.Failed, current.ToString(), null, ex.Message);
@@ -303,6 +320,32 @@ public static class AutoUpdate
         {
             UpdateGate.Release();
         }
+    }
+
+    /// <summary>
+    /// Parses a release tag such as <c>v1.26.10.30</c>, <c>1.26.10.30</c> or
+    /// <c>v1.26.10.30-prerelease</c> into a <see cref="Version"/>.
+    /// </summary>
+    /// <remarks>
+    /// The semver pre-release/build suffix is not part of the numeric version and
+    /// <see cref="Version.TryParse(string, out Version?)"/> rejects it — but the published tags
+    /// here DO carry one (the latest release is <c>v1.26.10.30-prerelease</c>). Treating that
+    /// parse failure as "GitHub unreachable" made /update claim a connection problem while
+    /// perfectly online, and silently disabled the startup auto-update. The suffix is dropped,
+    /// exactly like <see cref="AssemblyName.Version"/> drops it, so a <c>-prerelease</c> tag
+    /// compares equal to the same numeric version.
+    /// </remarks>
+    internal static bool TryParseTagVersion(string? tag, out Version version)
+    {
+        version = new Version(0, 0, 0, 0);
+        var text = tag?.Trim();
+        if (string.IsNullOrEmpty(text)) return false;
+        if (text[0] is 'v' or 'V') text = text[1..];
+        var cut = text.IndexOfAny(['-', '+']);
+        if (cut >= 0) text = text[..cut];
+        if (!Version.TryParse(text, out var parsed)) return false;
+        version = parsed;
+        return true;
     }
 
     // Redirect trick: /releases/latest answers with a redirect whose Location header

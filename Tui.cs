@@ -4942,35 +4942,43 @@ public static class ConsoleTui
             {
                 Log.LogStep("TUI About dialog opened", monitor: true);
                 // A real About window: the AGENT ASCII art (same gradient as the startup
-                // banner), the tagline and the © copyright with the project name.
+                // banner), the tagline, the version of the running build (the same number
+                // the terminal prints at startup) and the © copyright with the project name.
+                const int artTop = 1;
+                int taglineY = artTop + AsciiArtLines.Length + 1;
+                int versionY = taglineY + 2;   // the tagline spans two rows
+                int copyrightY = versionY + 1;
+                // The Dialog's button container owns the bottom of the window: whatever sits
+                // under it is drawn and then covered, i.e. invisible. With the old content
+                // height the version and copyright landed exactly there, so About showed only
+                // the "AGENT v2" tagline — which read as a wrong version number. The height
+                // must clear the button container (buttons + their padding), never be a
+                // percentage: on a short terminal the window then simply scrolls instead of
+                // hiding lines.
+                const int buttonAreaRows = 7;
                 var dlg = new Dialog
                 {
                     Title = Dictionary.AboutTitle,
                     Width = Dim.Percent(55),
-                    // Height from the CONTENT (art + blank + tagline + blank + version +
-                    // copyright + button row), never a percentage: at 45% on a 30-row
-                    // terminal the window ended at row 13, above the version line (row 11)
-                    // and the copyright (row 12), so neither was ever drawn.
-                    Height = AsciiArtLines.Length + 10,
+                    Height = copyrightY + buttonAreaRows,
                     SchemeName = "Dark",
                 };
-                int y = 1;
                 for (int i = 0; i < AsciiArtLines.Length; i++)
-                    dlg.Add(new Label { Text = AsciiArtLines[i], X = 2, Y = y++, SchemeName = $"Ascii{i}" });
-                dlg.Add(new Label { Text = Dictionary.AboutText, X = 2, Y = y + 1, Width = Dim.Fill() - 4 });
+                    dlg.Add(new Label { Text = AsciiArtLines[i], X = 2, Y = artTop + i, SchemeName = $"Ascii{i}" });
+                dlg.Add(new Label { Text = Dictionary.AboutText, X = 2, Y = taglineY, Width = Dim.Fill() - 4 });
                 // AboutText spans two screen rows (it contains a line break); the version
                 // and copyright lines follow below it.
                 dlg.Add(new Label
                 {
                     Text = string.Format(Dictionary.AboutVersion,
                         System.Reflection.Assembly.GetExecutingAssembly().GetName().Version),
-                    X = 2, Y = y + 3, Width = Dim.Fill() - 4,
+                    X = 2, Y = versionY, Width = Dim.Fill() - 4,
                     SchemeName = "Hint",
                 });
                 dlg.Add(new Label
                 {
                     Text = string.Format(Dictionary.AboutCopyright, DateTime.Now.Year),
-                    X = 2, Y = y + 4, Width = Dim.Fill() - 4,
+                    X = 2, Y = copyrightY, Width = Dim.Fill() - 4,
                     SchemeName = "Hint",
                 });
                 var ok = new Button { Text = Dictionary.Ok, IsDefault = true };
