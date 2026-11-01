@@ -492,6 +492,7 @@ feature-by-feature comparison with the closest alternatives in that space.
   endpoint any client uses, so you can chat in the TUI while a script keeps driving the
   agents on the same port, simultaneously.
 - **Map tool** — this tool represents a versatile solution for exploring the surrounding territory, offering professionals and individuals the ability to access detailed geographic information with remarkable simplicity. For businesses, it becomes a valuable strategic ally, enabling the identification of specific commercial activities in any geographic area while supporting market analysis through the mapping of competitors and services present in a given region. Sales teams can leverage it to generate new business contacts, while corporate logistics benefits from optimized route planning for deliveries or technical interventions. For private users, the tool transforms into a daily guide for discovering restaurants, pharmacies, ATMs, parks, museums, and tourist attractions nearby, facilitating the search for essential services and leisure venues. The platform supports various search methods: category-based search allows quick identification of all establishments of a particular type, while name-based search enables finding a specific place by typing its address or business name. An advanced search function applies precise filters, such as locating restaurants with a specific cuisine type, wheelchair-accessible facilities, or establishments open 24 hours a day. Route calculation completes the experience by providing detailed driving directions with distances and travel times, adaptable to different transportation modes including driving, cycling, or walking. With global coverage extending to every country worldwide, this search engine proves to be a powerful and reliable tool both for those making strategic business decisions and for those simply looking for a good restaurant or essential service nearby.
+- **Legal assistant tool** — professional legal opinions and consultations, not generic answers: [LegalAssistantTool](https://github.com/Graphene-Lab/LegalAssistantTool) grounds every statement in a verifiable body of law — the Italian civil and criminal codes, article by article — correlated with the case law that interprets them, quoting the article text and the exact judgment reference with a link to the official source, and it refuses to cite a norm or a decision that does not exist in its archive. Ask the agent for an opinion on a concrete case, attach the documents, and the answer comes back reasoned and cited — optionally turned into a formal Word document by the office tools. Other jurisdictions can be added on request.
 
 ## Quick start
 
@@ -744,7 +745,9 @@ work it automates can indeed be automated.
   harness whose tools are compiled .NET assemblies driven as plugins.
 - **Is AgentBridge free?** Yes — fully open-source under the
   [GNU Affero General Public License v3.0](LICENSE.md). The **plugin tools** — the agent's
-  action engine — ship under the same **AGPL v3.0** license (each `*Tool` repository).
+  action engine — ship under the same **AGPL v3.0** license (each `*Tool` repository), except
+  [LegalAssistantTool](https://github.com/Graphene-Lab/LegalAssistantTool), released under the
+  Andrea Bruno License 1.4.
 - **Which LLMs does it support?** DeepSeek, Z.ai, Gemini, Anthropic and any
   OpenAI-compatible endpoint — plus local models via Ollama, ExLlamaV2 or a local bridge,
   switchable on the fly.
@@ -758,6 +761,12 @@ work it automates can indeed be automated.
   `io.github.Graphene-Lab/agentbridge`) and it goes further: tools run in-process as
   compiled .NET plugins inside an application-level sandbox, with no separate servers,
   interpreters or HTTP hops between the agent and its actions.
+- **Can it give legal advice?** Yes, with a scope that is stated instead of implied. The
+  [LegalAssistantTool](https://github.com/Graphene-Lab/LegalAssistantTool) plugin answers Italian civil
+  and criminal questions and drafts legal opinions that cite only articles and judgments present in its
+  local archive, each with the exact reference and a link to the official source; a citation that cannot
+  be verified is removed before the answer is returned, and the output always carries the disclaimer
+  that it supports — and does not replace — a lawyer. Other countries can be added on request.
 - **What hardware does it need?** From a Raspberry Pi / Rockchip RK3588-class device up to
   a Ryzen AI Max+ 395, NVIDIA GB10 or Jetson — see the
   [hardware section](#agent-bridge-your-ai-assistant-for-office-work).
