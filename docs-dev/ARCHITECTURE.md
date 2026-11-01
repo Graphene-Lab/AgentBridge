@@ -357,6 +357,18 @@ who choose the all-in-one preset; the narrow presets (`web-agent`, `email-agent`
 remain for focused tasks and small models. Any custom combination remains possible via
 the additive `tools` field (API) and the `/tools` checklist (TUI).
 
+**A disabled tool does not exist for the agent.** The rule is stricter than "it is refused when
+called": whatever `AgentTools` resolves is what `BuildToolCatalog` turns into the catalog, and the
+catalog is the only source of tool names the model is shown. A plugin that is OFF — in
+`tools.json`, in the `/tools` checklist, or by class-B default — is therefore absent from the
+system prompt: it costs zero tokens on every turn, and the model cannot name it, let alone call
+it. No block listing the installed-but-inactive tools is injected into the prompt (the
+`InactiveToolsHint` helper was removed after
+[Graphene-Lab/OfficeTool#1](https://github.com/Graphene-Lab/OfficeTool/issues/1), where the agent
+tried `OfficeTool.create_docx` on a machine where that plugin was OFF, got a 404, and repeated the
+attempt across iterations). If an "enable this tool" suggestion is wanted later, it has to be an
+on-demand system tool that returns the list *when called* — never a per-turn prompt block.
+
 ### Lean orchestrator — system tools in front, plugins behind a subagent
 
 > **Design decision (2026-09-18), on top of the policy above.** The token cost of the large
