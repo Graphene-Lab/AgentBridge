@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using AIOrchestrator;
 using AIOrchestrator.API;
 using AgentBridge;
@@ -1957,6 +1958,85 @@ public static class ConsoleTui
             }
         }
 
+        private static string SanitizeForTui(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            var lines = text.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
+            var cleaned = new List<string>(lines.Length);
+            var inFence = false;
+
+            foreach (var rawLine in lines)
+            {
+                var line = rawLine.TrimEnd();
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    if (cleaned.Count > 0 && !string.IsNullOrWhiteSpace(cleaned[^1]))
+                        cleaned.Add(string.Empty);
+                    continue;
+                }
+
+                if (line.StartsWith("```", StringComparison.Ordinal) || line.StartsWith("~~~", StringComparison.Ordinal))
+                {
+                    inFence = !inFence;
+                    continue;
+                }
+
+                if (inFence) continue;
+
+                if (Regex.IsMatch(line, "^\\s{0,3}(?:[-*_]){3,}\\s*$")) continue;
+
+                var normalized = StripMarkdownInline(line);
+                if (!string.IsNullOrWhiteSpace(normalized))
+                    cleaned.Add(normalized);
+            }
+
+            var result = string.Join('\n', cleaned);
+            result = Regex.Replace(result, @"\n{3,}", "\n\n");
+            return result.Trim();
+        }
+
+        private static string StripMarkdownInline(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+
+            var line = text.Trim();
+
+            if (Regex.IsMatch(line, "^\\s*\\|?\\s*(?:[:]?---[:]?\\s*\\|\\s*)+:?---[:]?\\s*\\|?\\s*$"))
+                return string.Empty;
+
+            line = Regex.Replace(line, @"^\s{0,3}>\s?", string.Empty);
+            line = Regex.Replace(line, @"^\s{0,3}#{1,6}\s*", string.Empty);
+            line = Regex.Replace(line, @"^\s{0,3}[-*+]\s+", string.Empty);
+            line = Regex.Replace(line, @"^\s{0,3}\d+\.\s+", string.Empty);
+            line = Regex.Replace(line, @"^\s{0,3}(?:\*\s*|_\s*|\+\s*)$", string.Empty);
+
+            line = Regex.Replace(line, @"!\[(.*?)\]\((.*?)\)", "$1");
+            line = Regex.Replace(line, @"\[(.*?)\]\((.*?)\)", "$1");
+            line = Regex.Replace(line, @"\[(.*?)\]\[(.*?)\]", "$1");
+            line = Regex.Replace(line, @"<https?://[^>\s]+>", m => m.Value.Trim('<', '>'));
+
+            line = Regex.Replace(line, @"`{1,3}([^`]+)`{1,3}", "$1");
+            line = Regex.Replace(line, @"<[^>]+>", " ");
+            line = Regex.Replace(line, @"\\([\\`*_{}\[\]()#+\-.!|>])", "$1");
+
+            line = Regex.Replace(line, @"(?<!\*)\*\*(?!\*)(.+?)(?<!\*)\*\*(?!\*)", "$1");
+            line = Regex.Replace(line, @"(?<!_)__(?!_)(.+?)(?<!_)__(?!_)", "$1");
+            line = Regex.Replace(line, @"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", "$1");
+            line = Regex.Replace(line, @"(?<!_)_(?!_)(.+?)(?<!_)_(?!_)", "$1");
+            line = Regex.Replace(line, @"~~([^~]+)~~", "$1");
+            line = Regex.Replace(line, @"\|", " | ");
+            line = Regex.Replace(line, @"\s{2,}", " ").Trim();
+
+            if (line.Count(c => c == '|') >= 2)
+            {
+                line = line.Trim('|');
+                line = Regex.Replace(line, @"\s*\|\s*", " | ");
+            }
+
+            return line;
+        }
+
         private static void AppendEntry(StringBuilder sb, Entry e)
         {
             sb.Append(e.Role switch
@@ -1966,7 +2046,7 @@ public static class ConsoleTui
                 "error" => Dictionary.HistoryError,
                 _ => "·",
             }).Append('\n');
-            sb.Append(e.Text.Replace("\r\n", "\n")).Append("\n\n");
+            sb.Append(SanitizeForTui(e.Text)).Append("\n\n");
             if (e.Attachments is { Count: > 0 })
             {
                 // Full paths, not just the names: the user must see WHERE each delivered
