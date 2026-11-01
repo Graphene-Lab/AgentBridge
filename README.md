@@ -85,7 +85,10 @@ Concretely, what changes:
 - **Context economy.** Only the plugins that are **enabled** exist for the agent. A disabled
   plugin is absent from the catalog entirely: it costs zero context tokens and cannot be
   hallucinated, because for the agent it does not exist. Abilities are not paid for twice — once
-  in the prompt prefix on every turn, and again when they are unused.
+  in the prompt prefix on every turn, and again when they are unused. The agent cannot switch one
+  on either: nothing in the tool set writes the tool policy, so what an agent is allowed to do
+  stays your decision — taken from `/tools`, from `tools.json`, or from the `tools` field of an
+  API request.
 - **One artifact, no drift.** The tool and the code it calls are the same assembly, built and
   shipped together.
 - **A sandbox around every call.** Every tool call passes through the harness, which enforces the

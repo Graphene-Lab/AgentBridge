@@ -362,12 +362,16 @@ called": whatever `AgentTools` resolves is what `BuildToolCatalog` turns into th
 catalog is the only source of tool names the model is shown. A plugin that is OFF — in
 `tools.json`, in the `/tools` checklist, or by class-B default — is therefore absent from the
 system prompt: it costs zero tokens on every turn, and the model cannot name it, let alone call
-it. No block listing the installed-but-inactive tools is injected into the prompt (the
+it. It cannot enable one either: no tool in the catalog writes the tool policy — `tools.json`
+lives under `PersistentData\`, outside the sandbox root — so the choice belongs to the user (TUI
+`/tools`, `tools.json`, API `tools` field) and to nobody else. No block listing the
+installed-but-inactive tools is injected into the prompt (the
 `InactiveToolsHint` helper was removed after
 [Graphene-Lab/OfficeTool#1](https://github.com/Graphene-Lab/OfficeTool/issues/1), where the agent
 tried `OfficeTool.create_docx` on a machine where that plugin was OFF, got a 404, and repeated the
-attempt across iterations). If an "enable this tool" suggestion is wanted later, it has to be an
-on-demand system tool that returns the list *when called* — never a per-turn prompt block.
+attempt across iterations). This is deliberate and it is the whole point: a tool the user turned
+off is not a candidate the agent may propose, and it has no way to turn it back on. The only place
+a disabled plugin is listed is the `/tools` checklist, where the **user** sees it.
 
 ### Lean orchestrator — system tools in front, plugins behind a subagent
 

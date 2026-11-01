@@ -30,7 +30,8 @@ The entry-point line above the chat always shows the tools active in the convers
 And when you ask for something the current tools cannot do, the agent tells you plainly that it is
 unable: the tools you have not switched on are not shown to it at all, so it never wastes a turn
 trying to use something that is disabled. Open **`/tools`**, tick the tool you need and ask again.
-The agent works only with what is active in the conversation you are in.
+The agent works only with what is active in the conversation you are in, and it cannot switch a
+tool on by itself — what it is allowed to do is your decision and nobody else's.
 
 ## The documents area — the agent's knowledge of your office
 
