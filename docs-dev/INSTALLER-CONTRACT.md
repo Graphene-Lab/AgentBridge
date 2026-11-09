@@ -100,9 +100,9 @@ An installer for a tool that pilots an application **must**:
 7. **Be safe to re-run**: keep existing configuration, credentials and API keys instead of
    replacing them.
 8. **Make the first run simple**: automate database creation, admin credentials, API keys and
-   any other one-time setup. If a step genuinely cannot be automated, print — or open in the
-   default browser — the vendor's first-start documentation **for the exact version being
-   installed**.
+   any other one-time setup. At the end of a successful run, **open the vendor's first-start
+   documentation for the exact version being installed in the default browser** and print the
+   URL as well, so the guidance is visible even when no browser can be opened.
 9. **Explain the flow in the final message**: the one-click icon, what it starts, the login
    credentials, and the manual commands for troubleshooting.
 
@@ -145,16 +145,18 @@ documentation for the installed version is:
 - Odoo 20 User Docs — <https://www.odoo.com/documentation/20.0/applications.html>
 - Odoo 20 installation — <https://www.odoo.com/documentation/20.0/administration/install.html>
 
-The installer prints these links in its final message. It does not open a second browser tab,
-because the launcher already opens the application itself; the links are the fallback for a
-first-run step that could not be automated.
+The installer prints these links in its final message **and opens the user-docs page in the
+default browser** at the end of a successful run. This is deliberate: users who reached a
+working AgentBridge + Odoo stack still did not know what to do next, so the vendor's first
+steps are put in front of them instead of only being printed in a console they may close.
+The URL is printed as well, for headless runs where no browser can be opened.
 
 ## Reference implementations
 
 | Installer | What it does |
 |---|---|
-| **OdooTool — Windows** (`OdooTool/installer/install.ps1`) | Creates `start.ps1` and the **AI Odoo** shortcut on the Desktop and in the Start Menu. The launcher starts Odoo, opens `http://localhost:8069`, then starts `agentbridge\agent.exe`. |
-| **OdooTool — Linux/WSL** (`OdooTool/installer/install.sh`) | Creates `start.sh` and `ai-odoo.desktop` in `~/.local/share/applications` and `~/Desktop`. The launcher starts Odoo, runs `xdg-open` on the Odoo URL, then launches `agentbridge/agent`. |
+| **OdooTool — Windows** (`OdooTool/installer/install.ps1`) | Creates `start.ps1` and the **AI Odoo** shortcut on the Desktop and in the Start Menu. The launcher starts Odoo, opens `http://localhost:8069`, then starts `agentbridge\agent.exe`. At the end of the install it opens the Odoo 20 first-steps page in the default browser. |
+| **OdooTool — Linux/WSL** (`OdooTool/installer/install.sh`) | Creates `start.sh` and `ai-odoo.desktop` in `~/.local/share/applications` and `~/Desktop`. The launcher starts Odoo, runs `xdg-open` on the Odoo URL, then launches `agentbridge/agent`. At the end of the install it opens the Odoo 20 first-steps page in the default browser. |
 | **FreeCADTool** (`FreeCADTool/installer/`) | Creates the **AI FreeCAD** launcher; it starts AgentBridge and opens FreeCAD with the document, so the user can go from the desktop to a prompt that edits the open model. |
 
 ## Checklist for a new installer
@@ -166,7 +168,8 @@ first-run step that could not be automated.
 - [ ] The launcher starts AgentBridge **and** opens the application UI in the default browser.
 - [ ] The user can type a prompt immediately and the agent can act on the application.
 - [ ] Re-running the installer preserves configuration and credentials.
-- [ ] First run is automated, or the vendor's version-specific first-start page is printed/opened.
+- [ ] First run is automated, and the vendor's version-specific first-start page is opened in
+      the default browser (the URL is printed too).
 - [ ] The final message explains the one-click flow, the credentials and the manual commands.
 
 ## Where this contract is enforced
@@ -189,5 +192,6 @@ repository and add the same header comment to its installer sources.
 - **Rationale:** privacy-first local LLM deployment; fixed GPU/VRAM makes parallel agents
   contend instead of scale, with no time benefit and a risk of exhausting memory.
 - **Consequences:** every tool installer creates the launcher in the application menu and on
-  the desktop, automates the first run where possible, and keeps the standard icon stable even
-  when a user asks for an application-only shortcut.
+  the desktop, automates the first run where possible, opens the vendor's first-steps page at
+  the end of a successful installation, and keeps the standard icon stable even when a user
+  asks for an application-only shortcut.
