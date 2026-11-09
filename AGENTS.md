@@ -54,6 +54,18 @@ divergent edits directly in the wiki repo (they will be overwritten on the next 
 you add or rename a `docs/` page, the sync picks it up automatically; just make sure the
 links between guides use the file paths so the rewriter can map them to the wiki page names.
 
+## Tool installers: the launcher contract (READ BEFORE TOUCHING AN INSTALLER)
+
+Every installer that ships a tool plugin (OdooTool, FreeCADTool, future tools) must leave the
+user in the **single-agent** configuration: **AgentBridge + tool plugin + target application**.
+The launcher icon on the desktop and in the application menu starts **both** AgentBridge (with
+the plugin already active) and the application UI, in the system default browser. It must not
+open the application alone, and it must not make OfficeManager (the multi-agent view served at
+`/OfficeManager`) the default. The full decision record, rationale (local GPU/VRAM is shared,
+so parallel agents do not scale like a datacenter) and checklist are in
+**[docs-dev/INSTALLER-CONTRACT.md](docs-dev/INSTALLER-CONTRACT.md)**. Do not change an
+installer's launcher on a single user request without checking that contract.
+
 ## Release gate: IsPrerelease flag
 
 `AgentBridge.csproj` carries `<IsPrerelease>` (default `true`). It decides whether a GitHub
