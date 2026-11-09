@@ -15,7 +15,7 @@ Editor). Open the `.md` files in a Markdown viewer that supports Mermaid, or pas
 | [03-Streaming-calls.md](03-Streaming-calls.md) | How the streaming (SSE) calls work from `/v1/chat/completions` up to the LLM and back. |
 | [04-Telegram.md](04-Telegram.md) | The Telegram bridge implementation (WTelegramClient userbot, per-user sessions, access control). |
 | [05-Software-parts.md](05-Software-parts.md) | The software parts (AIOrchestrator library, plugins, AIOffice/AgentBridge hosts) and their interactions. |
-| [INSTALLER-CONTRACT.md](INSTALLER-CONTRACT.md) | The contract every tool installer (OdooTool, FreeCADTool, future tools) must follow: AgentBridge + plugin + app, launcher icons, first run. |
+| [INSTALLER-CONTRACT.md](INSTALLER-CONTRACT.md) | The contract every tool installer (OdooTool, FreeCADTool, future tools) must follow: AgentBridge + plugin + app, launcher icons that open the assistant chat, first run. |
 
 > These diagrams are a *navigational aid*, not a full contract. The authoritative behavior
 > lives in the code (`AgentBridge/*.cs`, `AIOrchestrator/*.cs`, `AIOffice/*.cs`) and in

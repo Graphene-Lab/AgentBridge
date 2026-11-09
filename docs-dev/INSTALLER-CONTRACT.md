@@ -6,7 +6,8 @@
 >
 > **The rule in one sentence:** an installer must leave the user in the single-agent
 > configuration **AgentBridge + tool plugin + target application**, with a launcher icon that
-> starts both — never the target application alone, and never OfficeManager by default.
+> starts the application and AgentBridge and opens the **assistant chat** — never the target
+> application alone, and never the application's login page instead of the assistant.
 
 ## The three-part stack
 
@@ -18,41 +19,48 @@ three parts together and leaves them ready to use.
 flowchart LR
   user["User"]
   launcher["Launcher icon<br/>(Desktop + application menu)"]
-  ab["AgentBridge<br/>agent.exe / agent<br/>TUI chat + OpenAI-compatible API"]
+  ab["AgentBridge<br/>agent.exe / agent<br/>agent engine + browser chat + API"]
   plugin["Tool plugin<br/>Tools/OdooTool, Tools/FreeCADTool, ..."]
   app["Target application<br/>Odoo at localhost:8069, FreeCAD, ..."]
-  om["OfficeManager<br/>/OfficeManager<br/>(multi-agent view, optional)"]
+  chat["Assistant chat<br/>localhost:5290/OfficeManager<br/>(the window that opens)"]
 
   user -->|"double-click"| launcher
+  launcher -->|"starts"| app
   launcher -->|"starts"| ab
-  launcher -->|"opens UI in the<br/>default browser"| app
+  ab -->|"serves"| chat
+  launcher -->|"opens in the<br/>default browser"| chat
   ab -->|"loads at startup"| plugin
   plugin -->|"drives the application"| app
-  user -->|"prompt"| ab
-  ab -.->|"available, not the default"| om
+  user -->|"prompt"| chat
+  app -.->|"running behind the chat;<br/>URL + login printed"| user
 ```
 
-The user's first interaction is a **prompt**: *"list the customers"*, *"create a quotation for
-Acme"*, *"make this bracket 2 mm thicker"*. AgentBridge passes it to the agent, the agent calls
-the tool plugin, and the plugin changes the application. The application UI is open in the
-browser so the user can watch the result.
+The user's first interaction is a **prompt in the assistant chat**: *"list the customers"*,
+*"create a quotation for Acme"*, *"make this bracket 2 mm thicker"*. AgentBridge passes it to
+the agent, the agent calls the tool plugin, and the plugin changes the application. The
+application is already running, so the user can open its UI (the installer prints the URL and
+the login) and watch the result.
 
-## AgentBridge vs OfficeManager
+## AgentBridge and OfficeManager
 
-These are not two names for the same thing, and they are not interchangeable as the default
-entry point.
+`OfficeManager` is the **browser chat served by AgentBridge** at `/OfficeManager` (port 5290 in
+the tool installers). It is the window the launcher opens: the place where the user types the
+prompt and watches the agent work. The name is historical — the same page also carries the
+optional multi-agent view — but in a standard tool installation it drives **one** agent.
 
 | | **AgentBridge** | **OfficeManager** |
 |---|---|---|
-| What it is | The base program: hosts the agent engine, the terminal/chat UI and the OpenAI-compatible API | A web view of the agents' office, served **by AgentBridge** at `/OfficeManager` |
-| Scope | **One** conversation/agent at a time — the normal local use | Visualises and drives **many** agent and subagent instances at once |
-| Default for installers | **Yes** — this is what the launcher must start | **No** — optional, for users who deliberately want the multi-agent view |
-| Hardware | One model in VRAM, one agent working | Many agents sharing the same GPU/VRAM |
+| What it is | The base program: agent engine, terminal UI, OpenAI-compatible API | The browser chat and office view served **by AgentBridge** at `/OfficeManager` |
+| Role in a tool install | Hosts the agent and loads the tool plugin | The window that opens; the user talks to the agent here |
+| Agents | One conversation/agent at a time — the normal local use | Can show many agent/subagent instances, but the installer does not configure them |
+| Hardware | One model in VRAM, one agent working | Many agents would share the same GPU/VRAM |
 
-OfficeManager is not a separate product that competes with AgentBridge: it is a surface
-inside AgentBridge for watching and steering a fleet of agents. It is genuinely useful when
-many agents run in parallel, and it remains available at `/OfficeManager` for anyone who wants
-it. It is simply **not the standard first screen** for a tool installation.
+OfficeManager is not a separate product that competes with AgentBridge: it is a surface inside
+AgentBridge. The installer opens it because it is the assistant's own chat — the user's first
+screen must be the prompt, not the application's login page. Opening the application's login
+page instead is the regression behind
+[OdooTool issue #7](https://github.com/Graphene-Lab/OdooTool/issues/7): users saw only the ERP
+login and could not find the assistant.
 
 ## Why the default is a single agent
 
@@ -79,8 +87,9 @@ Therefore the standard configuration for the end user is **one agent**:
 AgentBridge  <->  tool plugin  <->  target application
 ```
 
-This is why the installer's launcher starts AgentBridge (with the plugin already loaded) and
-the application UI — not OfficeManager, and not the application alone.
+This is why the installer's launcher starts the application and AgentBridge (with the plugin
+already loaded) and opens the assistant chat — one agent, not a multi-agent workload, and not
+the application alone.
 
 ## The installer contract
 
@@ -91,12 +100,16 @@ An installer for a tool that pilots an application **must**:
    make it **active by default** (write its configuration, credentials and API key).
 3. **Install the target application** and make it reachable on its local address.
 4. **Create launcher icons** in the system application menu/launcher **and** on the desktop.
-5. **Start both parts from the launcher**:
+5. **Start the stack from the launcher**:
    - start the target application (if it is not already running) and wait until it answers;
-   - open the application UI in the **system default browser** on its home page;
-   - start **AgentBridge** with the plugin active.
-6. **Leave the user able to type a prompt immediately**, with the application already open
-   beside the assistant.
+   - start **AgentBridge** with the plugin active (if the assistant chat is not already
+     answering — do not start a second instance);
+   - wait until the assistant chat answers;
+   - open the **assistant chat** in the **system default browser**
+     (`http://localhost:5290/OfficeManager` for the current tools).
+6. **Leave the user able to type a prompt immediately**, with the application already running
+   behind the chat. Print the application URL and login so the user can open its UI when they
+   want to watch the result.
 7. **Be safe to re-run**: keep existing configuration, credentials and API keys instead of
    replacing them.
 8. **Make the first run simple**: automate database creation, admin credentials, API keys and
@@ -110,18 +123,28 @@ The contract is about the **default** behaviour. A user who explicitly wants a d
 shortcut can be given an additional, clearly separate one; the standard icon stays as
 specified.
 
+If the tool embeds the assistant in the application itself (FreeCADTool's Chat workbench),
+opening the application with the document is the equivalent of opening the chat: the rule is
+that the user lands in the assistant, not that a browser tab is mandatory.
+
 ## Anti-patterns — do not do these
 
 - **A shortcut that opens only the application.** The user would get Odoo/FreeCAD with no
   assistant and would have to discover AgentBridge on their own. This is the most common
   regression request ("just open Odoo"), and it breaks the product's one-click promise.
-- **A shortcut that opens OfficeManager by default.** OfficeManager is the multi-agent view.
-  It is not the single-agent cockpit the installer is supposed to deliver, and on a local
-  machine it invites exactly the parallel-agent load described above.
+- **A shortcut that opens the application's login page instead of the assistant chat.** This
+  is the regression behind OdooTool issue #7: the user sees the ERP login and concludes the
+  assistant is missing. The chat is the first screen; the application is the data behind it.
+- **Waiting for the assistant chat before starting AgentBridge.** The wait loop must come
+  *after* the assistant is launched (and only when it is not already answering), otherwise a
+  cold start waits for a process that was never started and then reports a failure.
 - **Asking the user to start AgentBridge manually** after the installer finishes. The
   installer's job is to leave a working stack, not a list of instructions.
 - **Installing the plugin but leaving it inactive.** The plugin must be in `Tools/<Tool>/`
   with its configuration written before the launcher is created.
+- **Configuring a multi-agent workload by default.** One agent is the standard local
+  configuration (see above). The multi-agent view remains available, but the installer does
+  not enable or encourage it.
 - **Making the user go through the application's first-run wizard** (for example the Odoo
   database manager) when the installer can create the database and credentials itself.
 - **Changing or removing the default launcher to satisfy a single user request** without
@@ -155,8 +178,8 @@ The URL is printed as well, for headless runs where no browser can be opened.
 
 | Installer | What it does |
 |---|---|
-| **OdooTool — Windows** (`OdooTool/installer/install.ps1`) | Creates `start.ps1` and the **AI Odoo** shortcut on the Desktop and in the Start Menu. The launcher starts Odoo, opens `http://localhost:8069`, then starts `agentbridge\agent.exe`. At the end of the install it opens the Odoo 20 first-steps page in the default browser. |
-| **OdooTool — Linux/WSL** (`OdooTool/installer/install.sh`) | Creates `start.sh` and `ai-odoo.desktop` in `~/.local/share/applications` and `~/Desktop`. The launcher starts Odoo, runs `xdg-open` on the Odoo URL, then launches `agentbridge/agent`. At the end of the install it opens the Odoo 20 first-steps page in the default browser. |
+| **OdooTool — Windows** (`OdooTool/installer/install.ps1`) | Creates `start.ps1` and the **AI Odoo** shortcut on the Desktop and in the Start Menu. The launcher starts Odoo, starts `agentbridge\agent.exe` if the chat is not answering, waits for `http://localhost:5290/OfficeManager`, then opens it in the default browser. At the end of the install it opens the Odoo 20 first-steps page. |
+| **OdooTool — Linux/WSL** (`OdooTool/installer/install.sh`) | Creates `start.sh` and `ai-odoo.desktop` in `~/.local/share/applications` and `~/Desktop`. The launcher starts Odoo, starts `agentbridge/agent` detached if the chat is not answering, waits for `http://localhost:5290/OfficeManager`, then opens it with `xdg-open`. At the end of the install it opens the Odoo 20 first-steps page. |
 | **FreeCADTool** (`FreeCADTool/installer/`) | Creates the **AI FreeCAD** launcher; it starts AgentBridge and opens FreeCAD with the document, so the user can go from the desktop to a prompt that edits the open model. |
 
 ## Checklist for a new installer
@@ -165,7 +188,10 @@ The URL is printed as well, for headless runs where no browser can be opened.
 - [ ] The tool plugin is in `Tools/<Tool>/` and active by default.
 - [ ] The target application is installed and reachable on its local address.
 - [ ] A launcher icon exists in the application menu/launcher **and** on the desktop.
-- [ ] The launcher starts AgentBridge **and** opens the application UI in the default browser.
+- [ ] The launcher starts the application and AgentBridge, then opens the **assistant chat**
+      in the default browser (not the application's login page).
+- [ ] The final message prints the application URL and login, so its UI can be opened to watch
+      the result.
 - [ ] The user can type a prompt immediately and the agent can act on the application.
 - [ ] Re-running the installer preserves configuration and credentials.
 - [ ] First run is automated, and the vendor's version-specific first-start page is opened in
@@ -186,9 +212,10 @@ repository and add the same header comment to its installer sources.
 ## Decision record
 
 - **Date:** 2026-11-09
-- **Decision:** the default launcher for a tool installation starts AgentBridge (single agent)
-  with the tool plugin already active, and opens the target application UI. OfficeManager is
-  not the default entry point.
+- **Decision:** the default launcher for a tool installation starts the target application and
+  AgentBridge (single agent) with the tool plugin already active, and opens the assistant chat
+  (`/OfficeManager`, served by AgentBridge) in the default browser. The application URL and
+  login are printed; its UI is opened by the user when they want to watch the result.
 - **Rationale:** privacy-first local LLM deployment; fixed GPU/VRAM makes parallel agents
   contend instead of scale, with no time benefit and a risk of exhausting memory.
 - **Consequences:** every tool installer creates the launcher in the application menu and on

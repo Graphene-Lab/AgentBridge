@@ -44,10 +44,12 @@ that instance instead of failing (useful to attach a UI to a running service).
 
 Every installer that ships a tool plugin (OdooTool, FreeCADTool, future tools) must leave the
 user in the **single-agent** configuration: AgentBridge with the plugin active, plus the target
-application's UI. The launcher icon starts both; it does not open the application alone, and it
-does not make OfficeManager (the multi-agent view, served at `/OfficeManager`) the default.
-The rationale — local GPU/VRAM is shared, so parallel agents do not scale like a datacenter —
-and the full checklist are in **[INSTALLER-CONTRACT.md](INSTALLER-CONTRACT.md)**.
+application running. The launcher icon starts both and opens the **assistant chat** served by
+AgentBridge at `/OfficeManager`; it does not open the application alone, and it does not open
+the application's login page instead of the chat (the issue #7 regression). The application URL
+and login are printed so its UI can be opened to watch the result. The rationale — local
+GPU/VRAM is shared, so parallel agents do not scale like a datacenter — and the full checklist
+are in **[INSTALLER-CONTRACT.md](INSTALLER-CONTRACT.md)**.
 
 ## Release and DEBUG coexistence (resource conflicts)
 
