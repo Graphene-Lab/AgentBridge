@@ -54,6 +54,9 @@ startup (it refuses to run when broken) — start it once as the final check.
       release: it is pre-pended to the auto-generated notes on every release, so it must be
       updated (or emptied) here before pushing the gate-off commit — a stale note ships the
       previous release's news to every user and AI engine reading the release.
+- [ ] `NUGET_API_KEY` is still valid in the six dependency repos: nuget.org keys expire, and a
+      403 "API key has expired" fails the core publish and blocks the whole release (recovery in
+      docs-dev/RELEASING.md, "How the release wait works").
 - [ ] Tool plugins still resolve after the change (start the app, `/v1/models` lists the
       expected agent sets).
 
