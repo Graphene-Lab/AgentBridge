@@ -1525,7 +1525,11 @@ async function boot() {
   buildBehind();
   initInput();
   fitCanvas();
-  Chat.say("", "OFFICE MANAGER - arrows: move boss - tab/click: hire - enter: talk (a request with no hire goes to a free employee) - esc: release/close", "sys");
+  // The first thing a new user reads here. The office looks alive but does nothing on its own:
+  // the little people are AI agents that only work once you give one a task in the chat below.
+  // Spell that out plainly — a visitor who does not know to type a request reads the pacing
+  // figures as "the app is running but not working" (this is what issue #10 in OdooTool reported).
+  Chat.say("", "This is your AI office. The little people are agents that work for you. Type what you need in plain language below and press Enter — for example 'create a quotation for Acme'. A request with no hire goes to a free agent, or hires a new one. Arrows move the boss; Tab or click hires; Esc releases. The ERP itself (where you set up the company) is the application's own screen.", "sys");
   connect();
   requestAnimationFrame(frame);
 }
