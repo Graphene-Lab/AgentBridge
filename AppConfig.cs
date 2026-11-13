@@ -46,6 +46,11 @@ public static class AppConfig
     /// <summary>Telegram session file (auth keys, written on the first login).</summary>
     public static string TelegramSessionFile => Path.Combine(PersistentDir, "telegram.session");
 
+    /// <summary>Marker written once the first-start provider wizard has run — configured or
+    /// skipped. It is what makes the question a first-start question instead of a nag: the
+    /// file exists, so the wizard does not open again.</summary>
+    public static string ProviderSetupMarkerFile => Path.Combine(PersistentDir, "provider-setup.done");
+
     /// <summary>SDK-generated json that legitimately sits next to the executable — runtime
     /// payload, not configuration (never flagged by <see cref="GuardNoStrayRootJson"/>).</summary>
     private static string[] GeneratedRootJson()

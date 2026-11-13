@@ -18,6 +18,33 @@ using Terminal.Gui.Input;
 // is never silently black; the TUI clears the console when it draws.
 Console.WriteLine($"AgentBridge {Assembly.GetExecutingAssembly().GetName().Version} starting — loading components, please wait...");
 
+// Optional UI language: the TUI and every dialog read their strings from Resources/Dictionary,
+// which follows CurrentUICulture — the machine's own language. --lang <code> (or the
+// AGENTBRIDGE_LANG environment variable) forces one, so a guide, a screenshot session or a
+// support call can run the app in English on an Italian machine without changing Windows.
+// This is the only place that decides a language: everything else asks SystemLang.
+var langArg = args
+    .Select((a, i) => (Arg: a, Next: i + 1 < args.Length ? args[i + 1] : ""))
+    .Where(t => t.Arg.Equals("--lang", StringComparison.OrdinalIgnoreCase)
+             || t.Arg.Equals("--language", StringComparison.OrdinalIgnoreCase))
+    .Select(t => t.Next)
+    .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v) && !v.StartsWith("--"));
+var langCode = !string.IsNullOrWhiteSpace(langArg) ? langArg : Environment.GetEnvironmentVariable("AGENTBRIDGE_LANG");
+if (!string.IsNullOrWhiteSpace(langCode))
+{
+    try
+    {
+        var forced = new System.Globalization.CultureInfo(langCode.Trim());
+        System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = forced;
+        System.Globalization.CultureInfo.CurrentUICulture = forced;
+        Console.WriteLine($"UI language forced to '{forced.Name}' (--lang / AGENTBRIDGE_LANG).");
+    }
+    catch (System.Globalization.CultureNotFoundException)
+    {
+        Console.Error.WriteLine($"Unknown UI language '{langCode}' — keeping the system language.");
+    }
+}
+
 // The TUI nulls Console.Out/Error while it owns the screen (see the useTui block
 // below). Capture the real writers now so the crash handler can restore them and
 // still print a readable report when the process dies mid-TUI.

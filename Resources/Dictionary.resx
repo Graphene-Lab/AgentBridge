@@ -536,6 +536,25 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="FilesToggleAttach" xml:space="preserve"><value>Attach / detach</value></data>
   <data name="FilesRemove" xml:space="preserve"><value>Remove</value></data>
   <data name="FilesPickOne" xml:space="preserve"><value>Select a file first.</value></data>
+  <!-- First start: the wizard that asks which AI service to use. -->
+  <data name="FirstRunTitle" xml:space="preserve"><value>Welcome — choose your AI provider</value></data>
+  <data name="FirstRunIntro" xml:space="preserve"><value>AgentBridge needs an AI service to think with. Pick one, paste its API key, press Connect. You can change it later in Settings → LLM &amp; Providers.</value></data>
+  <data name="FirstRunProvider" xml:space="preserve"><value>Provider</value></data>
+  <data name="FirstRunModel" xml:space="preserve"><value>Model</value></data>
+  <data name="FirstRunApiKey" xml:space="preserve"><value>API key</value></data>
+  <data name="FirstRunFetch" xml:space="preserve"><value>Fetch models</value></data>
+  <data name="FirstRunConnect" xml:space="preserve"><value>Connect</value></data>
+  <data name="FirstRunSkip" xml:space="preserve"><value>Later</value></data>
+  <data name="FirstRunKeyHint" xml:space="preserve"><value>Create a key at {0}</value></data>
+  <data name="FirstRunNoKeyNeeded" xml:space="preserve"><value>No key needed: this model runs on this computer.</value></data>
+  <data name="FirstRunKeyRequired" xml:space="preserve"><value>Paste the API key first.</value></data>
+  <data name="FirstRunFetching" xml:space="preserve"><value>Asking {0} which models it serves…</value></data>
+  <data name="FirstRunFetched" xml:space="preserve"><value>{0} model(s) found.</value></data>
+  <data name="FirstRunFetchFailed" xml:space="preserve"><value>Could not read the model list: {0}</value></data>
+  <data name="FirstRunModelRequired" xml:space="preserve"><value>Type or fetch a model name.</value></data>
+  <data name="FirstRunModelPick" xml:space="preserve"><value>Models offered by {0}</value></data>
+  <data name="FirstRunSaved" xml:space="preserve"><value>Provider saved: {0} — model {1}. Type your first request.</value></data>
+  <data name="FirstRunSkipped" xml:space="preserve"><value>No provider configured yet. Set one in Settings → LLM &amp; Providers (or /providers) whenever you are ready.</value></data>
   <!-- Startup chat note + next-prompt suggestion + the provider form (add/edit). -->
   <data name="SetupPromptSuggestion" xml:space="preserve"><value>Suggest the next prompt (Tab accepts it)</value></data>
   <data name="ProviderEditing" xml:space="preserve"><value>Provider: {0}</value></data>

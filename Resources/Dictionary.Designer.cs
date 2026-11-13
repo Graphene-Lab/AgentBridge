@@ -4128,6 +4128,114 @@ namespace AgentBridge.Resources {
             }
         }
 
+        public static string FirstRunTitle {
+            get {
+                return ResourceManager.GetString("FirstRunTitle", resourceCulture);
+            }
+        }
+
+        public static string FirstRunIntro {
+            get {
+                return ResourceManager.GetString("FirstRunIntro", resourceCulture);
+            }
+        }
+
+        public static string FirstRunProvider {
+            get {
+                return ResourceManager.GetString("FirstRunProvider", resourceCulture);
+            }
+        }
+
+        public static string FirstRunModel {
+            get {
+                return ResourceManager.GetString("FirstRunModel", resourceCulture);
+            }
+        }
+
+        public static string FirstRunApiKey {
+            get {
+                return ResourceManager.GetString("FirstRunApiKey", resourceCulture);
+            }
+        }
+
+        public static string FirstRunFetch {
+            get {
+                return ResourceManager.GetString("FirstRunFetch", resourceCulture);
+            }
+        }
+
+        public static string FirstRunConnect {
+            get {
+                return ResourceManager.GetString("FirstRunConnect", resourceCulture);
+            }
+        }
+
+        public static string FirstRunSkip {
+            get {
+                return ResourceManager.GetString("FirstRunSkip", resourceCulture);
+            }
+        }
+
+        public static string FirstRunKeyHint {
+            get {
+                return ResourceManager.GetString("FirstRunKeyHint", resourceCulture);
+            }
+        }
+
+        public static string FirstRunNoKeyNeeded {
+            get {
+                return ResourceManager.GetString("FirstRunNoKeyNeeded", resourceCulture);
+            }
+        }
+
+        public static string FirstRunKeyRequired {
+            get {
+                return ResourceManager.GetString("FirstRunKeyRequired", resourceCulture);
+            }
+        }
+
+        public static string FirstRunFetching {
+            get {
+                return ResourceManager.GetString("FirstRunFetching", resourceCulture);
+            }
+        }
+
+        public static string FirstRunFetched {
+            get {
+                return ResourceManager.GetString("FirstRunFetched", resourceCulture);
+            }
+        }
+
+        public static string FirstRunFetchFailed {
+            get {
+                return ResourceManager.GetString("FirstRunFetchFailed", resourceCulture);
+            }
+        }
+
+        public static string FirstRunModelRequired {
+            get {
+                return ResourceManager.GetString("FirstRunModelRequired", resourceCulture);
+            }
+        }
+
+        public static string FirstRunModelPick {
+            get {
+                return ResourceManager.GetString("FirstRunModelPick", resourceCulture);
+            }
+        }
+
+        public static string FirstRunSaved {
+            get {
+                return ResourceManager.GetString("FirstRunSaved", resourceCulture);
+            }
+        }
+
+        public static string FirstRunSkipped {
+            get {
+                return ResourceManager.GetString("FirstRunSkipped", resourceCulture);
+            }
+        }
+
         public static string SetupPromptSuggestion {
             get {
                 return ResourceManager.GetString("SetupPromptSuggestion", resourceCulture);

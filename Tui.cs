@@ -498,6 +498,16 @@ public static class ConsoleTui
                     TickShutdown();
                     return true;   // recurring spinner animation
                 });
+                // First start: ask which AI service to use before the user types anything.
+                // It runs BEFORE the main window's loop, the way an installer asks before it
+                // shows the application: a modal dialog opened from inside the running loop
+                // nests a second loop in the one that owns the screen, and the TUI ends as
+                // soon as the nested one returns.
+                if (NeedsProviderSetup())
+                {
+                    try { ShowFirstRunWizard(); }
+                    catch (Exception ex) { Log.LogStep($"first-start wizard failed: {ex}"); }
+                }
                 RefreshHistory();
                 _ = Task.Run(RefreshServerStateAsync);
                 StartSipPolling();
@@ -3176,6 +3186,20 @@ public static class ConsoleTui
         // the success note appears only after both were accepted.
         private async Task ApplyProviderSelectionAsync(string chosen)
         {
+            // First start: there is no chat session yet, and a session-scoped switch would be
+            // refused with 400 "session_id is required for mutations" — an error a brand-new
+            // user must never see for doing the right thing. The selection is already written
+            // as the default provider, so the first message creates the session with it; only
+            // the process default has to be told.
+            if (string.IsNullOrEmpty(_sessionId))
+            {
+                if (await SetDefaultProviderAsync(chosen))
+                {
+                    _provider = chosen;
+                    AddNote(string.Format(Dictionary.SetupActiveProviderSaved, chosen));
+                }
+                return;
+            }
             if (!string.Equals(chosen, _provider, StringComparison.OrdinalIgnoreCase)
                 && !await SwitchModelAsync(chosen))
                 return;   // SwitchModelAsync already reported the reason
@@ -5100,6 +5124,162 @@ public static class ConsoleTui
                 catch (Exception ex) { tcs.SetException(ex); }
             });
             return tcs.Task;
+        }
+
+        // ── First start: which AI service? ──
+        // Two things nobody can guess: the service and its key. The wizard writes a normal
+        // provider entry (providers.json — so /providers and /model see it afterwards) and
+        // records that the question was asked. "Later" is an answer too, so the question is
+        // never repeated: without the marker a user who skipped once would meet it forever.
+        private static bool NeedsProviderSetup()
+            => !File.Exists(AppConfig.ProviderSetupMarkerFile)
+               && !ProviderConfigs.All.Any(p => !string.IsNullOrWhiteSpace(p.ApiKey));
+
+        private static void MarkProviderSetupAsked()
+        {
+            try { File.WriteAllText(AppConfig.ProviderSetupMarkerFile, DateTimeOffset.Now.ToString("O")); }
+            catch (Exception ex) { Log.LogStep($"first-start marker not written: {ex.Message}"); }
+        }
+
+        private void ShowFirstRunWizard()
+        {
+            Log.LogStep("TUI first-start wizard opened", monitor: true);
+            var dlg = new Dialog
+            {
+                Title = Dictionary.FirstRunTitle,
+                Width = Dim.Percent(84),
+                Height = 12,
+                SchemeName = "Dark",
+            };
+            dlg.Add(new Label
+            {
+                Text = Dictionary.FirstRunIntro, X = 1, Y = 0,
+                Width = Dim.Fill() - 2, SchemeName = "Hint",
+            });
+
+            var providerList = new DropDownList
+            {
+                ReadOnly = true,
+                X = 12, Y = 2, Width = 40,
+                Source = new ListWrapper<string>(new ObservableCollection<string>(ProviderPresets.All.Select(p => p.Label))),
+            };
+            dlg.Add(new Label { Text = Dictionary.FirstRunProvider, X = 1, Y = 2, Width = 11 }, providerList);
+            var presetNote = new Label { Text = "", X = 54, Y = 2, Width = Dim.Fill() - 55, SchemeName = "Hint" };
+            dlg.Add(presetNote);
+
+            var modelField = new TextField { Text = "", X = 12, Y = 3, Width = 34 };
+            dlg.Add(new Label { Text = Dictionary.FirstRunModel, X = 1, Y = 3, Width = 11 }, modelField);
+            var fetchBtn = new Button { Text = Dictionary.FirstRunFetch, X = 48, Y = 3 };
+            dlg.Add(fetchBtn);
+
+            var keyField = new TextField { Text = "", X = 12, Y = 4, Width = 40, Secret = true };
+            dlg.Add(new Label { Text = Dictionary.FirstRunApiKey, X = 1, Y = 4, Width = 11 }, keyField);
+            var keyHint = new Label { Text = "", X = 12, Y = 5, Width = Dim.Fill() - 13, SchemeName = "Hint" };
+            dlg.Add(keyHint);
+            var status = new Label { Text = "", X = 1, Y = 7, Width = Dim.Fill() - 2, SchemeName = "Hint" };
+            dlg.Add(status);
+
+            // The dropdown carries labels; the label is what maps back to the preset, so a
+            // reordered table can never mismatch the two.
+            ProviderPreset Current()
+            {
+                var label = (providerList.Text ?? "").Trim();
+                return ProviderPresets.All.FirstOrDefault(p => p.Label == label) ?? ProviderPresets.All[0];
+            }
+
+            void LoadPreset()
+            {
+                var preset = Current();
+                modelField.Text = preset.SuggestedModel;
+                presetNote.Text = preset.Note;
+                keyHint.Text = preset.NeedsKey
+                    ? string.Format(Dictionary.FirstRunKeyHint, preset.KeyUrl)
+                    : Dictionary.FirstRunNoKeyNeeded;
+                status.Text = "";
+            }
+
+            providerList.Text = ProviderPresets.All[0].Label;
+            providerList.ValueChanged += (_, _) => LoadPreset();
+            LoadPreset();
+
+            // The model list comes from the service, never from a guess. Fetching runs off the
+            // UI thread; the picker opens through a deferred timeout so no click is in flight
+            // when the nested dialog starts (same reason as OpenProviderEditor).
+            OnButtonClicked(fetchBtn, () =>
+            {
+                var preset = Current();
+                var key = (keyField.Text ?? "").Trim();
+                if (preset.NeedsKey && key.Length == 0) { status.Text = Dictionary.FirstRunKeyRequired; return; }
+                status.Text = string.Format(Dictionary.FirstRunFetching, preset.Label);
+                _ = Task.Run(async () =>
+                {
+                    string[] models;
+                    string? error = null;
+                    try { models = await ProviderPresets.FetchModelsAsync(preset, key); }
+                    catch (Exception ex) { models = Array.Empty<string>(); error = ex.Message; }
+                    Ui(() =>
+                    {
+                        if (error != null) { status.Text = string.Format(Dictionary.FirstRunFetchFailed, error); return; }
+                        status.Text = string.Format(Dictionary.FirstRunFetched, models.Length);
+                        if (models.Length == 0) return;
+                        if (models.Length == 1) { modelField.Text = models[0]; return; }
+                        _app.AddTimeout(TimeSpan.Zero, () =>
+                        {
+                            var picked = RunPickerDialog(string.Format(Dictionary.FirstRunModelPick, preset.Label), models);
+                            if (picked != null) modelField.Text = picked;
+                            return false;
+                        });
+                    });
+                });
+            });
+
+            var connect = new Button { Text = Dictionary.FirstRunConnect, IsDefault = true };
+            OnButtonClicked(connect, () =>
+            {
+                var preset = Current();
+                var key = (keyField.Text ?? "").Trim();
+                var model = (modelField.Text ?? "").Trim();
+                if (preset.NeedsKey && key.Length == 0) { status.Text = Dictionary.FirstRunKeyRequired; return; }
+                if (model.Length == 0) { status.Text = Dictionary.FirstRunModelRequired; return; }
+                var cfg = new ProviderConfig
+                {
+                    ProviderName = preset.Name,
+                    Protocol = preset.Protocol,
+                    CacheType = ProviderCacheType.PrefixCache,
+                    ModelName = model,
+                    BaseAddress = new Uri(preset.AddressFor(model)),
+                    EndPoint = preset.EndPoint,
+                    ApiKey = key,
+                    ContextWindow = preset.ContextWindow,
+                    Timeout = TimeSpan.FromMinutes(5),
+                };
+                ProviderConfigs.Upsert(cfg, persist: true);
+                ProviderConfigs.SetDefault(preset.Name, persist: true);
+                MarkProviderSetupAsked();
+                Log.LogStep($"TUI first-start wizard: {preset.Name} / {model}", monitor: true);
+                _app.RequestStop(dlg);
+                AddNote(string.Format(Dictionary.FirstRunSaved, preset.Name, model));
+                _ = ApplyProviderSelectionAsync(preset.Name);
+            });
+
+            var skip = new Button { Text = Dictionary.FirstRunSkip };
+            OnButtonClicked(skip, () =>
+            {
+                MarkProviderSetupAsked();
+                Log.LogStep("TUI first-start wizard skipped", monitor: true);
+                _app.RequestStop(dlg);
+                AddNote(Dictionary.FirstRunSkipped);
+            });
+
+            // Last added button is the Enter default: Skip first, Connect last.
+            dlg.AddButton(skip);
+            dlg.AddButton(connect);
+            dlg.Initialized += (_, _) => providerList.SetFocus();
+            Log.LogStep("first-start wizard: showing dialog", monitor: true);
+            _app.Run(dlg);
+            dlg.Dispose();
+            Log.LogStep("TUI first-start wizard closed", monitor: true);
+            _inputField?.SetFocus();
         }
 
         // LLM / Provider panel: ONE concept for the user — the "active provider". The

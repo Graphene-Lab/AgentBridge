@@ -201,6 +201,22 @@ reference: [docs/telegram.md](telegram.md).
 
 ## LLM & Provider settings
 
+### The first start asks the question for you
+
+On a fresh installation the app opens a wizard **before** the chat window, because the two
+things nobody can guess are the service and its key:
+
+| Field | What it does |
+|---|---|
+| **Provider** | A list of known services: DeepSeek, OpenAI, Anthropic, Google Gemini, Qwen (DashScope), OpenRouter, Mistral, and the local servers Ollama, LM Studio, or any other OpenAI-compatible endpoint. |
+| **Model** | Prefilled when the preset knows a good default; **Fetch models** asks the service itself which models the key can use and offers them in a picker, so the name is never guessed. |
+| **API key** | Masked as you type. Local servers need none, and the wizard says so. The line under the field is the page where the key is created. |
+
+**Connect** writes the provider into `providers.json`, marks it as the default and adopts it
+for the running process; the chat then starts with it. **Later** is an answer too: the
+question is asked once per installation (the marker is `PersistentData/provider-setup.done`)
+and the same settings are always available in `/providers`.
+
 `/providers` (aliases `/setup`, `/modelsetup`; menu **Settings → LLM & Provider**) opens the
 provider panel:
 
@@ -373,6 +389,20 @@ Rules and conventions:
 To add a new language: copy `Resources/Dictionary.resx` to `Dictionary.XX.resx`
 (XX = ISO 639-1 code), translate the values, and rebuild — the SDK picks the new satellite
 up automatically.
+
+### Forcing a language for one run
+
+`--lang <code>` (or the `AGENTBRIDGE_LANG` environment variable) starts the app in that
+language regardless of the operating system:
+
+```bash
+agent --tui --lang en
+set AGENTBRIDGE_LANG=de && agent --tui
+```
+
+It is meant for guides, screenshots and support calls — an Italian machine can show the
+English UI without changing Windows. The switch only sets `CurrentUICulture`; nothing else in
+the app hardcodes a language.
 
 ## Launch modes
 
