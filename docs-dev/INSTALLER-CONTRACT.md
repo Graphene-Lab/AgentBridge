@@ -6,8 +6,9 @@
 >
 > **The rule in one sentence:** an installer must leave the user in the single-agent
 > configuration **AgentBridge + tool plugin + target application**, with a launcher icon that
-> starts the application and AgentBridge and opens the **assistant chat** — never the target
-> application alone, and never the application's login page instead of the assistant.
+> starts the application, starts AgentBridge in a **visible terminal**, and opens the
+> **application** in the browser — never the application alone, and never a background assistant
+> nobody can see.
 
 ## The three-part stack
 
@@ -19,48 +20,53 @@ three parts together and leaves them ready to use.
 flowchart LR
   user["User"]
   launcher["Launcher icon<br/>(Desktop + application menu)"]
-  ab["AgentBridge<br/>agent.exe / agent<br/>agent engine + browser chat + API"]
+  ab["AgentBridge<br/>agent.exe / agent<br/>agent engine + terminal UI + API"]
   plugin["Tool plugin<br/>Tools/OdooTool, Tools/FreeCADTool, ..."]
   app["Target application<br/>Odoo at localhost:8069, FreeCAD, ..."]
-  chat["Assistant chat<br/>localhost:5290/OfficeManager<br/>(the window that opens)"]
+  chat["Assistant chat<br/>localhost:5290/OfficeManager<br/>(second entrance, not opened on start-up)"]
 
   user -->|"double-click"| launcher
   launcher -->|"starts"| app
-  launcher -->|"starts"| ab
+  launcher -->|"starts in a<br/>visible terminal"| ab
   ab -->|"serves"| chat
-  launcher -->|"opens in the<br/>default browser"| chat
+  launcher -->|"opens in the<br/>default browser"| app
   ab -->|"loads at startup"| plugin
   plugin -->|"drives the application"| app
-  user -->|"prompt"| chat
-  app -.->|"running behind the chat;<br/>URL + login printed"| user
+  user -->|"prompt in the TUI"| ab
+  app -.->|"running in the browser;<br/>the results appear here"| user
 ```
 
-The user's first interaction is a **prompt in the assistant chat**: *"list the customers"*,
+The user's first interaction is a **prompt in the assistant's terminal**: *"list the customers"*,
 *"create a quotation for Acme"*, *"make this bracket 2 mm thicker"*. AgentBridge passes it to
 the agent, the agent calls the tool plugin, and the plugin changes the application. The
-application is already running, so the user can open its UI (the installer prints the URL and
-the login) and watch the result.
+application is already running and already open in the browser, so the user watches the result
+where it lands.
 
 ## AgentBridge and OfficeManager
 
 `OfficeManager` is the **browser chat served by AgentBridge** at `/OfficeManager` (port 5290 in
-the tool installers). It is the window the launcher opens: the place where the user types the
-prompt and watches the agent work. The name is historical — the same page also carries the
-optional multi-agent view — but in a standard tool installation it drives **one** agent.
+the tool installers). It is a **second entrance**, not the first screen: the launcher starts the
+terminal UI, which is where the user types the prompt and watches the agent work, and opens the
+**target application** in the browser so the result is visible where it lands. The name is
+historical — the same page also carries the optional multi-agent view — but in a standard tool
+installation it drives **one** agent.
 
 | | **AgentBridge** | **OfficeManager** |
 |---|---|---|
 | What it is | The base program: agent engine, terminal UI, OpenAI-compatible API | The browser chat and office view served **by AgentBridge** at `/OfficeManager` |
-| Role in a tool install | Hosts the agent and loads the tool plugin | The window that opens; the user talks to the agent here |
+| Role in a tool install | Hosts the agent, loads the tool plugin, and is the launcher's visible window | An alternative window for users who prefer a browser; reachable on purpose |
 | Agents | One conversation/agent at a time — the normal local use | Can show many agent/subagent instances, but the installer does not configure them |
 | Hardware | One model in VRAM, one agent working | Many agents would share the same GPU/VRAM |
 
 OfficeManager is not a separate product that competes with AgentBridge: it is a surface inside
-AgentBridge. The installer opens it because it is the assistant's own chat — the user's first
-screen must be the prompt, not the application's login page. Opening the application's login
-page instead is the regression behind
-[OdooTool issue #7](https://github.com/Graphene-Lab/OdooTool/issues/7): users saw only the ERP
-login and could not find the assistant.
+AgentBridge. The launcher does not open it, because a user who double-clicks an icon for an ERP
+expects to see that ERP; opening the assistant's chat instead hid the application behind a page
+nobody had asked for (reversed 2026-11-14, see OdooTool's `INSTALLER-CONTRACT.md`). The old
+behaviour also produced the opposite complaint, recorded as
+[OdooTool issue #7](https://github.com/Graphene-Lab/OdooTool/issues/7): an Odoo-only shortcut
+showed the ERP login and the assistant was nowhere to be found. Both mistakes have the same
+root — opening *one* of the two halves instead of starting both and showing the one the user
+asked for.
 
 ## Why the default is a single agent
 
@@ -87,9 +93,14 @@ Therefore the standard configuration for the end user is **one agent**:
 AgentBridge  <->  tool plugin  <->  target application
 ```
 
-This is why the installer's launcher starts the application and AgentBridge (with the plugin
-already loaded) and opens the assistant chat — one agent, not a multi-agent workload, and not
-the application alone.
+This is why the installer's launcher starts the application, starts AgentBridge in a visible
+terminal, and opens the application in the browser — one agent, not a multi-agent workload, and
+not the application alone. The office view at `/OfficeManager` is the one place where several
+agents can be started, and it is therefore **never opened automatically**: with a local model it
+is a trap, because parallel agents share one GPU and one VRAM budget, slow each other down
+instead of finishing sooner, and can exhaust the memory and take the stack down. It stays
+available for the user who deliberately wants it, and for providers whose hardware scales with
+the number of agents.
 
 ## The installer contract
 

@@ -2124,9 +2124,10 @@ public static class ConsoleTui
             var toolsText = tools.Length > 0 ? string.Join(", ", tools) : Dictionary.None;
             var label = Dictionary.StatusTools;
             if (label.Length > 0) label = char.ToUpperInvariant(label[0]) + label[1..];
-            // ⟷ is drawn two cells wide by the terminal font (the layout grid counts one),
-            // so the cell right after it is swallowed: the second space keeps one visible.
-            AddNote($"{_serverUrl} ⟷  AgentBridge ⟷  {provider}\n{label}: {toolsText}");
+            // ASCII arrows on purpose: the Unicode arrow (U+27F7) is missing from the console
+            // font and renders as a boxed question mark on a stock Windows Terminal, which
+            // ruined every screenshot taken from this window.
+            AddNote($"{_serverUrl} <-> AgentBridge <-> {provider}\n{label}: {toolsText}");
         }
 
         // Thread-safe snapshots of the state collections (mutated by background tasks).

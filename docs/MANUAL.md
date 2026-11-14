@@ -259,7 +259,7 @@ update.
 ## 4. Use the terminal UI (GUI from the console)
 
 The default launch opens a full-screen chat in your console: menu bar, AGENT logo, a
-streaming chat panel, an entry-point line at the top (client ⟷ AgentBridge ⟷ provider),
+streaming chat panel, an entry-point line at the top (client <-> AgentBridge <-> provider),
 an input line at the bottom and a status bar showing provider, model and context usage.
 
 **The two "magic" keys:**
