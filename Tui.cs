@@ -1138,12 +1138,21 @@ public static class ConsoleTui
             if (_inputField is not { } ed || _inputArea is not { } area || _chatView is not { } chat) return;
             var width = ed.Viewport.Width;
             if (width <= 0) return;   // not laid out yet
-            var rows = Math.Clamp(EstimateWrapRows(ed.Text ?? "", width, ed.CaretOffset), 1, MaxInputLines);
-            if (rows == _inputLines) return;
-            _inputLines = rows;
-            ed.Height = rows;
-            area.Height = rows;
-            chat.Height = Dim.Fill() - rows - BannerRows;
+            var needed = EstimateWrapRows(ed.Text ?? "", width, ed.CaretOffset);
+            var rows = Math.Clamp(needed, 1, MaxInputLines);
+            if (rows != _inputLines)
+            {
+                _inputLines = rows;
+                ed.Height = rows;
+                area.Height = rows;
+                chat.Height = Dim.Fill() - rows - BannerRows;
+            }
+            // The editor scrolls to keep the caret visible, and it did so while the box was
+            // still one row tall: with the text wrapped over two rows it stayed at vpY=1, so
+            // the grown box showed only the tail of the prompt and the first row was off
+            // screen. Once everything fits, the scroll must go back to the top.
+            if (needed <= rows && ed.Viewport.Y > 0)
+                ed.ScrollVertical(-ed.Viewport.Y);
         }
 
         // Rows the startup ASCII-art banner occupies above the chat (0 once collapsed).
@@ -1979,20 +1988,28 @@ public static class ConsoleTui
             foreach (var rawLine in lines)
             {
                 var line = rawLine.TrimEnd();
-                if (string.IsNullOrWhiteSpace(line))
-                {
-                    if (cleaned.Count > 0 && !string.IsNullOrWhiteSpace(cleaned[^1]))
-                        cleaned.Add(string.Empty);
-                    continue;
-                }
 
+                // Fence markers are markup and go; what is inside a fence is CONTENT — a JSON
+                // payload, a command, an error message quoted verbatim — and must reach the
+                // screen untouched, blank lines included.
                 if (line.StartsWith("```", StringComparison.Ordinal) || line.StartsWith("~~~", StringComparison.Ordinal))
                 {
                     inFence = !inFence;
                     continue;
                 }
 
-                if (inFence) continue;
+                if (inFence)
+                {
+                    cleaned.Add(line);
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    if (cleaned.Count > 0 && !string.IsNullOrWhiteSpace(cleaned[^1]))
+                        cleaned.Add(string.Empty);
+                    continue;
+                }
 
                 if (Regex.IsMatch(line, "^\\s{0,3}(?:[-*_]){3,}\\s*$")) continue;
 
@@ -2031,9 +2048,12 @@ public static class ConsoleTui
             line = Regex.Replace(line, @"\\([\\`*_{}\[\]()#+\-.!|>])", "$1");
 
             line = Regex.Replace(line, @"(?<!\*)\*\*(?!\*)(.+?)(?<!\*)\*\*(?!\*)", "$1");
-            line = Regex.Replace(line, @"(?<!_)__(?!_)(.+?)(?<!_)__(?!_)", "$1");
+            // Underscore emphasis needs word boundaries: in "supplier_rank: 3 · customer_rank: 0"
+            // the two underscores are part of identifiers, not a delimiter pair, and stripping
+            // them turned field names into "supplierrank" — a wrong name in a technical answer.
+            line = Regex.Replace(line, @"(?<![\p{L}\p{N}_])__(?!\s)(.+?)(?<!\s)__(?![\p{L}\p{N}_])", "$1");
             line = Regex.Replace(line, @"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", "$1");
-            line = Regex.Replace(line, @"(?<!_)_(?!_)(.+?)(?<!_)_(?!_)", "$1");
+            line = Regex.Replace(line, @"(?<![\p{L}\p{N}_])_(?!\s)(.+?)(?<!\s)_(?![\p{L}\p{N}_])", "$1");
             line = Regex.Replace(line, @"~~([^~]+)~~", "$1");
             line = Regex.Replace(line, @"\|", " | ");
             line = Regex.Replace(line, @"\s{2,}", " ").Trim();

@@ -430,8 +430,37 @@ Setup.Load();
 // host's default agent set to AgentHarness (same as a request without a model — presets +
 // always-on core tools) and the configured startup provider (ProviderConfigs.Default alone is
 // file-order, so leaving it null would pick the FIRST provider in providers.json instead).
-AIOrchestrator.API.TaskSchedulerTool.SchedulerAgentToolNames = AgentTools.Resolve(null);
+// A scheduled task must see the tools the user actually enabled: with the bare preset a task
+// written to query the ERP fails inside its own run with "Unknown tool class 'OdooTool'" while
+// the same request works in the TUI — the plugin is installed, enabled in PersistentData\
+// toolset.json, and simply not offered to the scheduled chat.
+AIOrchestrator.API.TaskSchedulerTool.SchedulerAgentToolNames = ResolveSchedulerTools();
 AIOrchestrator.API.TaskSchedulerTool.SchedulerProvider = startupProvider;
+
+static string[] ResolveSchedulerTools()
+{
+    try
+    {
+        if (File.Exists(AppConfig.ToolsetFile))
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(AppConfig.ToolsetFile));
+            if (doc.RootElement.TryGetProperty("tools", out var tools) && tools.ValueKind == JsonValueKind.Array)
+            {
+                var names = tools.EnumerateArray()
+                    .Select(t => t.GetString())
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .Select(n => n!)
+                    .ToArray();
+                if (names.Length > 0) return AgentTools.WithReporting(names);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Scheduler: toolset.json unreadable ({ex.GetType().Name}) — using the default agent set.");
+    }
+    return AgentTools.Resolve(null);
+}
 
 // Optional path to the VoiceAgent executable for POST /v1/voice/listen
 // (appsettings "Voice:ExePath", CLI --Voice:ExePath). Null → server base directory.

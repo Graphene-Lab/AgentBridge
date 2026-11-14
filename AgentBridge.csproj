@@ -316,13 +316,22 @@
     <Copy SourceFiles="@(_SttFiles)" DestinationFiles="@(_SttFiles->'$(OutputPath)voiceagent-stt\%(RecursiveDir)%(Filename)%(Extension)')" />
     <Message Text="VoiceAgent (STT) output copied to $(OutputPath)voiceagent-stt\" Importance="high" />
   </Target>
+  <!-- server.json is the MCP registry manifest, not runtime data: it belongs to the repository
+       root and to the .mcpb bundle. The Web SDK's default Content glob copies every root .json
+       into the output, where the startup guard sees it as a stray config file and refuses to
+       start ("json file(s) found next to the executable") — a build that breaks the very binary
+       it produced. Never copy it. -->
+  <ItemGroup>
+    <Content Update="server.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+  </ItemGroup>
   <!-- Root user-editable config must NEVER sit next to the executable (single-config-directory
        rule, AppConfig + docs-dev/RELEASE-CHECKLIST.md). providers.json is copied in by
-       AIOrchestrator's Content items (ProjectReference) and appsettings.json by the Web SDK;
-       the copies are removed after Build and after Publish as a safety net — the app reads both
-       from PersistentData\ (seeded/migrated at startup by AppConfig.Initialize()). -->
+       AIOrchestrator's Content items (ProjectReference), appsettings.json and server.json by the
+       Web SDK; the copies are removed after Build and after Publish as a safety net — the app
+       reads the first two from PersistentData\ (seeded/migrated at startup by
+       AppConfig.Initialize()). -->
   <Target Name="RemoveRootConfigJson" AfterTargets="Build;Publish">
-    <Delete Files="$(OutputPath)appsettings.json;$(OutputPath)providers.json" Condition="Exists('$(OutputPath)appsettings.json') or Exists('$(OutputPath)providers.json')" />
-    <Delete Files="$(PublishDir)appsettings.json;$(PublishDir)providers.json" Condition="'$(PublishDir)' != '' and (Exists('$(PublishDir)appsettings.json') or Exists('$(PublishDir)providers.json'))" />
+    <Delete Files="$(OutputPath)appsettings.json;$(OutputPath)providers.json;$(OutputPath)server.json" Condition="Exists('$(OutputPath)appsettings.json') or Exists('$(OutputPath)providers.json') or Exists('$(OutputPath)server.json')" />
+    <Delete Files="$(PublishDir)appsettings.json;$(PublishDir)providers.json;$(PublishDir)server.json" Condition="'$(PublishDir)' != '' and (Exists('$(PublishDir)appsettings.json') or Exists('$(PublishDir)providers.json') or Exists('$(PublishDir)server.json'))" />
   </Target>
 </Project>
