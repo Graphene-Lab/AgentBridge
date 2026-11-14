@@ -98,10 +98,46 @@ public static class AgentTools
         var m = model?.Trim().ToLowerInvariant();
         if (string.Equals(m, "all-files", StringComparison.OrdinalIgnoreCase))
             return AllFilesTools();
+        // The selection saved by the TUI (/tools, PersistentData/toolset.json) is the operator's
+        // answer to "which tools does this installation have". It used to be restored by the TUI
+        // alone, so a plugin installed for Odoo was visible in the terminal and invisible in the
+        // OfficeManager chat that the Odoo installer opens. The saved custom list now applies to
+        // every session that asks for the default agent.
+        if (string.IsNullOrEmpty(m) || string.Equals(m, "default-agent", StringComparison.OrdinalIgnoreCase))
+        {
+            var saved = SavedSelection();
+            if (saved.Length > 0) return WithCore(saved);
+        }
         foreach (var p in Presets)
             if (string.Equals(p.Id, m, StringComparison.OrdinalIgnoreCase))
                 return WithCore(p.Tools);
         return WithCore(Presets[0].Tools);   // default-agent
+    }
+
+    /// <summary>The tool names the operator saved in <c>PersistentData/toolset.json</c>, filtered to
+    /// the tools that are actually loaded. Empty when the file is absent, unreadable, or holds no
+    /// known name, so callers fall back to the preset.</summary>
+    private static string[] SavedSelection()
+    {
+        try
+        {
+            var path = AppConfig.ToolsetFile;
+            if (!System.IO.File.Exists(path)) return Array.Empty<string>();
+            using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(path));
+            if (!doc.RootElement.TryGetProperty("tools", out var tools)
+                || tools.ValueKind != System.Text.Json.JsonValueKind.Array)
+                return Array.Empty<string>();
+            var loaded = Catalog().Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return tools.EnumerateArray()
+                .Where(t => t.ValueKind == System.Text.Json.JsonValueKind.String)
+                .Select(t => t.GetString() ?? "")
+                .Where(n => n.Length > 0 && loaded.Contains(n))
+                .ToArray();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
     }
 
     // ── Lean-orchestrator split (see docs-dev/ARCHITECTURE.md, "Lean orchestrator") ──
