@@ -454,6 +454,7 @@ L'area documenti precedente è ancora attiva — non è stato modificato nulla.<
   <data name="FilesPickOne" xml:space="preserve"><value>Seleziona prima un file.</value></data>
   <!-- Nota di avvio in chat + suggerimento del prossimo prompt + form provider. -->
   <data name="SetupPromptSuggestion" xml:space="preserve"><value>Suggerisci il prossimo prompt (Tab per accettarlo)</value></data>
+  <data name="SetupOrchestratorSplit" xml:space="preserve"><value>Tool dei plugin dietro un sub-agente (risparmia contesto, aggiunge un passo)</value></data>
   <data name="ProviderEditing" xml:space="preserve"><value>Provider: {0}</value></data>
   <data name="ProviderDescrName" xml:space="preserve"><value>Nome univoco mostrato nell'elenco provider</value></data>
   <data name="ProviderDescrProtocol" xml:space="preserve"><value>Formato di comunicazione del provider</value></data>

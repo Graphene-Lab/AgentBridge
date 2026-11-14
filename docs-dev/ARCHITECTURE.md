@@ -426,8 +426,39 @@ fan-out" decision) are in `AIOrchestrator/docs-dev/ARCHITECTURE.md` → "Agent A
   path cannot forget the split. The voice path passes both arrays to `VoiceConversation`, which
   owns the streaming loop. Paths OUTSIDE AgentBridge (AIOffice panels, `TaskSchedulerTool`'s
   scheduled chats) run flat: the split is host policy, not a library rule.
-- **Kill-switch**: `AGENTBRIDGE_ORCHESTRATOR_SPLIT` set to `0`, `false`, `off` or `no` (any case)
-  restores the flat single agent without a rebuild — useful to bisect a delegation problem.
+- **Switch, not a constant**: `AGENTBRIDGE_ORCHESTRATOR_SPLIT` set to `0`, `false`, `off` or `no`
+  (any case) restores the flat single agent without a rebuild — useful to bisect a delegation
+  problem. When the variable is absent the choice saved by the terminal UI is used
+  (`PersistentData/orchestrator-split.txt`, written by *Settings → Plugin tools behind a
+  sub-agent*); with neither present the split is on.
+- **Verified end-to-end** against a real LAN model server (a 125B MoE on a Ryzen AI Max+ 395,
+  reached through its API-key gateway): the orchestrator's turn-opening call costs **6,151 prompt
+  tokens with the split and 15,761 without (−61 % on the same task)**, the catalog drops from
+  46,106 to 17,154 chars, and a real client task (create an .xlsx) completed through the subagent
+  in both modes. With the kill-switch on, the agent reports that `launch_subagent` does not exist.
+  The measured counterweight: each new delegated conversation pays a **cold** prefill of the whole
+  set (~15.5 k tokens, ~13 s on that box), which the flat run never pays — the trade the split
+  makes, not a hidden cost. `e2e/OrchestratorSplit` prints all three numbers per run.
+
+#### When the split is not worth it
+
+The split trades a delegation round trip for a smaller prompt prefix. That is a good trade when
+the catalog is large and a bad one when it is small, and the difference is not marginal:
+
+| Tool set | Same read query, flat | Same read query, split |
+|---|---|---|
+| 5 tools (File, Web, Git, Odoo, reporter) | **5.7 s** | **300 s (timeout)** |
+
+Measured on 2026-11-14 while running a library of prompts against Odoo: with the split on, the
+orchestrator delegated even a plain "list five customers" to the subagent, which opened a
+browser, ran its own loop and never returned inside the client's five-minute budget; with the
+split off the same sentence was answered in under six seconds. The catalog of five tools is
+small enough to keep in front, and the round trip is pure cost.
+
+Rule of thumb: **split when the plugin catalog is large (tens of thousands of characters, many
+plugins), keep it flat when the set is small or when a single short question matters more than
+the per-turn token count.** The TUI setting exists so this is a decision the operator can take
+without an environment variable and without a rebuild.
 - **Verified end-to-end** against a real LAN model server (a 125B MoE on a Ryzen AI Max+ 395,
   reached through its API-key gateway): the orchestrator's turn-opening call costs **6,151 prompt
   tokens with the split and 15,761 without (−61 % on the same task)**, the catalog drops from

@@ -2044,7 +2044,9 @@ public static class ConsoleTui
             line = Regex.Replace(line, @"<https?://[^>\s]+>", m => m.Value.Trim('<', '>'));
 
             line = Regex.Replace(line, @"`{1,3}([^`]+)`{1,3}", "$1");
-            line = Regex.Replace(line, @"<[^>]+>", " ");
+            // Only real HTML tags start with a letter or a slash. The looser "<[^>]+>" also ate
+            // ASCII arrows: "<->" between two spaces disappeared from the entry-point line.
+            line = Regex.Replace(line, @"</?[A-Za-z][^>]*>", " ");
             line = Regex.Replace(line, @"\\([\\`*_{}\[\]()#+\-.!|>])", "$1");
 
             line = Regex.Replace(line, @"(?<!\*)\*\*(?!\*)(.+?)(?<!\*)\*\*(?!\*)", "$1");
@@ -5701,6 +5703,16 @@ public static class ConsoleTui
                 Value = AIOrchestrator.Setup.PromptSuggestion ? CheckState.Checked : CheckState.UnChecked,
                 X = 1, Y = 6,
             };
+            // Lean-orchestrator split: keeps the heavy plugin tool definitions out of the
+            // orchestrator's per-turn prompt prefix by running them behind a subagent. It pays
+            // with a large tool set and costs a delegation round-trip with a small one, so it is
+            // a switch rather than a constant (measured: 300 s vs 5.7 s on the same read query).
+            var orchestratorSplit = new CheckBox
+            {
+                Text = Dictionary.SetupOrchestratorSplit,
+                Value = AgentTools.SplitEnabled ? CheckState.Checked : CheckState.UnChecked,
+                X = 1, Y = 7,
+            };
             var docsPath = AddField(dlg, Dictionary.SetupDocumentsPath, AIOrchestrator.Setup.DocumentsPath, 8);
             var pathErr = new Label { Text = "", X = 1, Y = 9, Width = Dim.Fill() - 2, SchemeName = "Hint" };
             // The running build, so the user never has to open About (or trust an updater
@@ -5712,7 +5724,7 @@ public static class ConsoleTui
                 X = 1, Y = 10, Width = Dim.Fill() - 2, SchemeName = "Hint",
             };
             dlg.Add(autoUpdate, crashReport, malfunctionReport, attachAnonymizedLog,
-                logEnabled, autoStart, suggestion, pathErr, version);
+                logEnabled, autoStart, suggestion, orchestratorSplit, pathErr, version);
 
             var save = new Button { Text = Dictionary.SetupSave, IsDefault = true };
             save.Accepting += (_, e) =>
@@ -5739,6 +5751,7 @@ public static class ConsoleTui
                 AIOrchestrator.Log.IsEnabled = logEnabled.Value == CheckState.Checked;
                 SystemExtra.Util.SetAutoStart(autoStart.Value == CheckState.Checked);
                 AIOrchestrator.Setup.PromptSuggestion = suggestion.Value == CheckState.Checked;
+                AgentTools.SplitEnabled = orchestratorSplit.Value == CheckState.Checked;
                 AIOrchestrator.Setup.Save();
                 AddNote(pathNote == null ? Dictionary.SetupGeneralSaved : string.Format(Dictionary.SetupSavedWithNote, pathNote));
                 Log.LogStep("TUI General panel saved", monitor: true);

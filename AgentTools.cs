@@ -156,16 +156,44 @@ public static class AgentTools
     /// <summary>Kill-switch for the split: setting <see cref="SplitEnvVar"/> to 0/false/off/no
     /// (any case, surrounding spaces ignored) restores the flat single-agent behavior — every
     /// tool on the orchestrator — without a rebuild. Read per call, once per user turn, so the
-    /// environment lookup costs nothing and the switch stays testable.</summary>
+    /// environment lookup costs nothing and the switch stays testable. When the variable is
+    /// absent the persisted choice written by the terminal UI is used (see
+    /// <see cref="SplitChoiceFile"/>), and with neither present the split stays on.</summary>
     public static bool SplitEnabled
     {
         get
         {
             var raw = Environment.GetEnvironmentVariable(SplitEnvVar)?.Trim();
-            if (string.IsNullOrEmpty(raw)) return true;
-            return raw.ToLowerInvariant() is not ("0" or "false" or "off" or "no");
+            if (!string.IsNullOrEmpty(raw)) return !IsOff(raw);
+            try
+            {
+                var file = SplitChoiceFile;
+                if (File.Exists(file))
+                {
+                    var saved = File.ReadAllText(file).Trim();
+                    if (!string.IsNullOrEmpty(saved)) return !IsOff(saved);
+                }
+            }
+            catch { /* an unreadable preference must never change the default */ }
+            return true;
+        }
+        set
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(SplitChoiceFile);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(SplitChoiceFile, value ? "1" : "0");
+            }
+            catch { /* best effort: the toggle still applies to this session */ }
         }
     }
+
+    private static bool IsOff(string raw) =>
+        raw.ToLowerInvariant() is "0" or "false" or "off" or "no";
+
+    /// <summary>Where the terminal UI stores the choice. PersistentData survives updates.</summary>
+    private static string SplitChoiceFile => Path.Combine(AppConfig.PersistentDir, "orchestrator-split.txt");
 
     /// <summary>True when the tool is a native system tool (compiled into the AIOrchestrator
     /// assembly), false when it is a plugin loaded dynamically from the Tools/ folder — and

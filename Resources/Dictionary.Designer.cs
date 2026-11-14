@@ -1444,6 +1444,15 @@ namespace AgentBridge.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to 'Plugin tools behind a sub-agent (saves context, adds a step)'.
+        /// </summary>
+        public static string SetupOrchestratorSplit {
+            get {
+                return ResourceManager.GetString("SetupOrchestratorSplit", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to 'could not create session (HTTP {0})'.
         /// </summary>
         public static string NoteCreateSessionFailed {

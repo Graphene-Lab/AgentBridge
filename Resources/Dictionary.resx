@@ -557,6 +557,7 @@ The previous documents area is still active — nothing was changed.</value></da
   <data name="FirstRunSkipped" xml:space="preserve"><value>No provider configured yet. Set one in Settings → LLM &amp; Providers (or /providers) whenever you are ready.</value></data>
   <!-- Startup chat note + next-prompt suggestion + the provider form (add/edit). -->
   <data name="SetupPromptSuggestion" xml:space="preserve"><value>Suggest the next prompt (Tab accepts it)</value></data>
+  <data name="SetupOrchestratorSplit" xml:space="preserve"><value>Plugin tools behind a sub-agent (saves context, adds a step)</value></data>
   <data name="ProviderEditing" xml:space="preserve"><value>Provider: {0}</value></data>
   <data name="ProviderDescrName" xml:space="preserve"><value>Unique name shown in the provider list</value></data>
   <data name="ProviderDescrProtocol" xml:space="preserve"><value>Wire format the provider speaks</value></data>
