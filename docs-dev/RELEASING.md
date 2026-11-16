@@ -153,15 +153,18 @@ restore yesterday's engine and either crash the build with misleading errors (20
 "CrashReporter does not exist") or ship it silently. Fix the failed publish and re-run
 release.ps1; the wait is skipped as soon as the package is visible.
 
-If that failed publish is a **403 "The specified API key has expired"** (2026-11-10), the fix
-is not in the code: renew the key on nuget.org and update the `NUGET_API_KEY` secret in **all
-six** dependency repos (they share one key — `gh secret set NUGET_API_KEY --repo
-Graphene-Lab/<repo>`, or a single org-level secret). Then **delete the today-tag the failed run
-already pushed** on the changed core repo (`git tag -d v1.yy.MM.dd` + `git push origin
-:refs/tags/v1.yy.MM.dd`) before re-running `release.ps1`. The tag is on origin but published no
-package, so leaving it makes the pre-flight read "package still propagating": the re-run waits
-30 minutes for a package nobody is publishing and fails again. With the tag deleted the re-run
-re-creates it at HEAD and the publish fires normally.
+If that failed publish is a **refusal from nuget.org**, the credential is not the problem any more:
+packages are published by **trusted publishing** (OIDC), so there is no stored key that can expire.
+A red `publish.yml` run means the policy on nuget.org and the workflow disagree — check that the
+policy names this repository, the file `publish.yml` and **no** environment, then re-run the failed
+job (the pack step has already produced `./out/*.nupkg`, so no new tag is needed).
+
+The old recovery — renew the `NUGET_API_KEY` secret on six repos, then delete the day's tag — is
+gone with the stored key, which expired on 2026-10-30 and silently stopped every publish while the
+releases kept building against the last published engine (found 2026-11-16). One part of it survives
+for a different reason: **delete the day's tag when it exists but published no package**, because the
+pre-flight reads it as "package still propagating" and the re-run waits 30 minutes for something
+nobody is publishing. With the tag deleted the re-run re-creates it at HEAD and the publish fires.
 
 Consequence: a release on a day when **no core repo changed** skips the wait entirely
 (fast); when a core repo changed, its today-tag is created + pushed automatically and the
