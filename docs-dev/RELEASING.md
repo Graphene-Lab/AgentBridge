@@ -362,8 +362,9 @@ build dependencies, see below).
 
 The agent-tool plugins (`DocumentTool`, `SpreadsheetTool`, `OfficeTool`, `PresentationTool`,
 `OfficeSupportTool`) are **not** build dependencies and are **not** in the NuGet wait list.
-They are loaded dynamically from `Tools/` by `ToolPluginHost` (byte-loaded, never referenced)
-and ship in the release archives as **self-contained zips from their own GitHub Releases**:
+They are loaded dynamically from `Tools/` by `McpToolHost` (loaded from file into the default
+context, never referenced by the project) and ship in the release archives as **self-contained
+zips from their own GitHub Releases**:
 
 - every plugin repo (`Graphene-Lab/<Tool>`, PUBLIC) publishes a `<Tool>-<version>.zip` on each
   `v*` tag via its standard `plugin-release.yml` (plugin dll + xml + assets + unique deps,

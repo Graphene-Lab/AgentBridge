@@ -1,5 +1,8 @@
 # AgentBridge — notes for coding agents
 
+> **Before changing anything, read [docs-dev/GUARDRAILS.md](docs-dev/GUARDRAILS.md)** — the rules
+> that, if broken, break the update flow or the user's installation.
+
 > The full release/NuGet mechanism (diagrams, pitfalls, integration checklist) is in
 > **[docs-dev/RELEASING.md](docs-dev/RELEASING.md)** — read it before touching the release pipeline.
 
