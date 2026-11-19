@@ -293,7 +293,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/plugins publish/Tools publish/assets
-          for tool in DocumentTool SpreadsheetTool OfficeTool PresentationTool OfficeSupportTool PodcastTool FreeCADTool; do
+          for tool in DocumentTool SpreadsheetTool OfficeTool PresentationTool OfficeSupportTool PodcastTool FreeCADTool MapTool; do
             # Latest release tag via the /releases/latest redirect (no API call, no rate limit).
             tag=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/Graphene-Lab/$tool/releases/latest" \
                   | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^/]*$' | head -n1 || true)
