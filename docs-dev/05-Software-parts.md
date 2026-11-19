@@ -91,9 +91,9 @@ own: it is referenced (`ProjectReference` or `PackageReference`) by a host. It p
   (long-running background operations with completion event) and `LoadSkill` (generic guidance or
   bundled skills).
 
-> ⚠️ Watch out for the drift with `AIOrchestrator/README.md`: it still shows
-> `internal interface IAgentTool`. In the **actual code** (`API/BaseAgentTool.cs`) it is now an
-> abstract `class BaseAgentTool`. Docs can be obsolete — always check the code.
+> ⚠️ Docs can be obsolete — this file included. When a name here does not exist in the code
+> (`BaseAgentTool`, `McpToolHost`, `GetToolDefinitions`), the code is right and the text is old:
+> fix the text in the same commit.
 
 ## The plugin tools (`Tools/`)
 
