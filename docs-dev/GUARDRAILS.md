@@ -4,19 +4,20 @@ Rules that exist because breaking them broke a release, an update, or a user's i
 Verified against the working tree on **2026-11-19**. The detail of each rule lives in the document
 named in the last column; this file is the index you read first.
 
-> **When this file and the code disagree, neither side wins by default.** Decide with evidence,
-> then record the verdict in the same commit:
+> **When this file and the code disagree, neither side wins by default.** First decide what the
+> document *is*:
 >
-> 1. **Look for a decision record** — `git log -S "<symbol or rule>" --oneline`, the commit that
->    changed it, an issue, or a measurement written in a doc. If a decision exists, the older text
->    is stale: fix the documentation.
-> 2. **No record, and the code deviates from a rule written here** → the **code is the defect**.
->    Fix the code; do not rewrite the rule so that it matches the violation.
-> 3. **No rule exists at all** (a name, a folder, a convention) → it is a free choice: pick one,
->    write it down here, and make the code match.
+> | The document is… | How to recognise it | If the code differs |
+> |---|---|---|
+> | **Prescriptive** — a rule contributors must follow (contract, checklist, guardrail) | it says *must / never / always*, it has a checklist, the code or a build step refers to it | **the code is the defect**: fix the code, keep the rule |
+> | **Descriptive** — written after the fact, recording what the code does | it says *is / how it works*, it carries measurements and mechanism | the text is **stale**: update the text |
+> | **Mixed** — a rule plus the explanation of the mechanism (most real documents) | both of the above in the same file | split it: keep the rule, correct the description |
 >
-> A rule rewritten to match violating code teaches the next agent to violate it. When the verdict
-> is not obvious from the record, leave the finding open and say so — do not pick a side silently.
+> Then confirm with a decision record: `git log -S "<symbol or rule>" --oneline`. A deliberate,
+> recorded change means the older text is stale; a silent drift means the code is the defect.
+>
+> A rule rewritten to match violating code teaches the next agent to violate it. When the verdict is
+> not obvious from the record, leave the finding open and say so — do not pick a side silently.
 
 ## 1. Read before you edit
 
