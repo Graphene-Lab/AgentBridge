@@ -6,9 +6,12 @@
 >
 > **The rule in one sentence:** an installer must leave the user in the single-agent
 > configuration **AgentBridge + tool plugin + target application**, with a launcher icon that
-> starts the application, starts AgentBridge in a **visible terminal**, and opens the
-> **application** in the browser — never the application alone, and never a background assistant
-> nobody can see.
+> starts the application, starts AgentBridge in a **visible terminal**, and opens the **local start
+> page** in the browser — a page the installer writes itself, which says what is running on this
+> machine and links to the application, with the account. The assistant stays the terminal. Never
+> the application alone,
+> never a background assistant nobody can see, and never an ambiguous bare address that a module of
+> the application can take over.
 
 ## The three-part stack
 
@@ -23,13 +26,16 @@ flowchart LR
   ab["AgentBridge<br/>agent.exe / agent<br/>agent engine + terminal UI + API"]
   plugin["Tool plugin<br/>Tools/OdooTool, Tools/FreeCADTool, ..."]
   app["Target application<br/>Odoo at localhost:8069, FreeCAD, ..."]
-  chat["Assistant chat<br/>localhost:5290/OfficeManager<br/>(second entrance, not opened on start-up)"]
+  start["Local start page<br/>start.html<br/>(written by the installer)"]
+  chat["Assistant chat<br/>localhost:5290/OfficeManager<br/>(second entrance, linked not opened)"]
 
   user -->|"double-click"| launcher
   launcher -->|"starts"| app
   launcher -->|"starts in a<br/>visible terminal"| ab
+  launcher -->|"opens in the<br/>default browser"| start
+  start -->|"one click:<br/>explicit application URL"| app
+  start -->|"one click"| chat
   ab -->|"serves"| chat
-  launcher -->|"opens in the<br/>default browser"| app
   ab -->|"loads at startup"| plugin
   plugin -->|"drives the application"| app
   user -->|"prompt in the TUI"| ab
@@ -39,17 +45,17 @@ flowchart LR
 The user's first interaction is a **prompt in the assistant's terminal**: *"list the customers"*,
 *"create a quotation for Acme"*, *"make this bracket 2 mm thicker"*. AgentBridge passes it to
 the agent, the agent calls the tool plugin, and the plugin changes the application. The
-application is already running and already open in the browser, so the user watches the result
-where it lands.
+application is already running and reachable one click from the start page, so the user watches the
+result where it lands.
 
 ## AgentBridge and OfficeManager
 
 `OfficeManager` is the **browser chat served by AgentBridge** at `/OfficeManager` (port 5290 in
 the tool installers). It is a **second entrance**, not the first screen: the launcher starts the
 terminal UI, which is where the user types the prompt and watches the agent work, and opens the
-**target application** in the browser so the result is visible where it lands. The name is
-historical — the same page also carries the optional multi-agent view — but in a standard tool
-installation it drives **one** agent.
+**start page**, which links to the target application so the result is visible where it lands. The
+name is historical — the same page also carries the optional multi-agent view — but in a standard
+tool installation it drives **one** agent.
 
 | | **AgentBridge** | **OfficeManager** |
 |---|---|---|
@@ -67,6 +73,14 @@ behaviour also produced the opposite complaint, recorded as
 showed the ERP login and the assistant was nowhere to be found. Both mistakes have the same
 root — opening *one* of the two halves instead of starting both and showing the one the user
 asked for.
+
+A third variant appeared on 2026-11-20 and is the reason the destination is now a **local start
+page**. Opening the application's bare address (`http://localhost:8069`) is ambiguous: with Odoo's
+`website` module installed, that address serves a public site with a placeholder logo, and the ERP
+hides behind a small sign-in link. A reader reported seeing exactly that, plus the vendor's
+documentation site opened by the installer at the end, and concluded the installation had failed.
+The start page is a file the installer writes itself: no process, no port, no module can shadow it,
+and it links to the login page by an explicit address (`/web/login?db=odoo_agent`).
 
 ## Why the default is a single agent
 
@@ -115,20 +129,27 @@ An installer for a tool that pilots an application **must**:
    - start the target application (if it is not already running) and wait until it answers;
    - start **AgentBridge** with the plugin active (if the assistant chat is not already
      answering — do not start a second instance);
-   - wait until the assistant chat answers;
-   - open the **assistant chat** in the **system default browser**
-     (`http://localhost:5290/OfficeManager` for the current tools).
+   - open the **local start page** in the **system default browser**. It is a file the installer
+     writes on every run: what is running here, the credentials that exist, and a link to the
+     application by an explicit URL. It does **not** link the assistant chat: the assistant is the
+     terminal, and a browser chat offered as the way in splits the product in two.
 6. **Leave the user able to type a prompt immediately**, with the application already running
-   behind the chat. Print the application URL and login so the user can open its UI when they
-   want to watch the result.
+   one click behind the start page. Print the application URL and login as well, so the UI can be
+   opened to watch the result.
 7. **Be safe to re-run**: keep existing configuration, credentials and API keys instead of
-   replacing them.
+   replacing them. Read the account back from the application and print what really exists —
+   never a password this run did not apply.
 8. **Make the first run simple**: automate database creation, admin credentials, API keys and
-   any other one-time setup. At the end of a successful run, **open the vendor's first-start
-   documentation for the exact version being installed in the default browser** and print the
-   URL as well, so the guidance is visible even when no browser can be opened.
+   any other one-time setup. At the end of a successful run, **open the start page** in the
+   default browser and print its path, so the guidance is visible even when no browser can be
+   opened; the vendor's documentation URL is printed as a link, not opened.
 9. **Explain the flow in the final message**: the one-click icon, what it starts, the login
    credentials, and the manual commands for troubleshooting.
+10. **Ship an uninstaller** for the same platforms. It removes the application's data (the
+    database), the installation folder, the shortcuts and the firewall rule, and asks about
+    AgentBridge separately because it can host other tools. Deletion of data requires two
+    confirmations: a yes/no that lists what disappears, and the phrase **DESTROY ALL** typed in
+    capitals. A silent flag is allowed only for unattended runs and must be named explicitly.
 
 The contract is about the **default** behaviour. A user who explicitly wants a different
 shortcut can be given an additional, clearly separate one; the standard icon stays as
@@ -143,9 +164,15 @@ that the user lands in the assistant, not that a browser tab is mandatory.
 - **A shortcut that opens only the application.** The user would get Odoo/FreeCAD with no
   assistant and would have to discover AgentBridge on their own. This is the most common
   regression request ("just open Odoo"), and it breaks the product's one-click promise.
-- **A shortcut that opens the application's login page instead of the assistant chat.** This
-  is the regression behind OdooTool issue #7: the user sees the ERP login and concludes the
-  assistant is missing. The chat is the first screen; the application is the data behind it.
+- **A shortcut that opens the application's bare address.** With Odoo's `website` module that
+  address serves a public site, and the reader sees a page with a placeholder logo instead of the
+  login form (2026-11-20). The start page links to the explicit login URL instead.
+- **A shortcut that opens the assistant chat and nothing else.** This is the regression behind
+  OdooTool issue #7: the user sees a chat and cannot find the application they installed. Both
+  halves are started; the start page shows both doors.
+- **Opening the vendor's documentation site as the final step.** It is a page about the product,
+  not about the machine in front of the user, and it reads as "the installation produced nothing".
+  Print the link; open the start page.
 - **Waiting for the assistant chat before starting AgentBridge.** The wait loop must come
   *after* the assistant is launched (and only when it is not already answering), otherwise a
   cold start waits for a process that was never started and then reports a failure.
@@ -168,9 +195,10 @@ The installer must not leave the user at a setup screen it could have completed 
 For **Odoo 20 Community**, the OdooTool installer already:
 
 - creates the `odoo_agent` database with the `base` modules (`-i base --without-demo`);
-- sets the admin login and password (generated locally, printed in the final summary);
+- creates the admin account, or reads the existing login back from the database;
 - creates the API key and writes it to `agentbridge/PersistentData/odoo.json`;
-- starts Odoo and waits until `/web/login` answers.
+- starts Odoo and waits until `/web/login` answers;
+- writes `start.html` with the account and the two links, and opens it.
 
 The user must therefore **not** see the Odoo database manager. If they do, the installation did
 not complete: run the installer again (it resumes) and check the final summary. The vendor
@@ -179,18 +207,18 @@ documentation for the installed version is:
 - Odoo 20 User Docs — <https://www.odoo.com/documentation/20.0/applications.html>
 - Odoo 20 installation — <https://www.odoo.com/documentation/20.0/administration/install.html>
 
-The installer prints these links in its final message **and opens the user-docs page in the
-default browser** at the end of a successful run. This is deliberate: users who reached a
-working AgentBridge + Odoo stack still did not know what to do next, so the vendor's first
-steps are put in front of them instead of only being printed in a console they may close.
-The URL is printed as well, for headless runs where no browser can be opened.
+The installer prints these links in its final message **and opens the start page** in the default
+browser at the end of a successful run. An earlier version opened the vendor's user-docs page
+instead, on the theory that users who reached a working stack did not know what to do next; the
+report from a reader showed that a page about the product, in the browser's language, reads as
+"nothing was installed". The start page is about the machine in front of the user.
 
 ## Reference implementations
 
 | Installer | What it does |
 |---|---|
-| **OdooTool — Windows** (`OdooTool/installer/install.ps1`) | Creates `start.ps1` and the **AI Odoo** shortcut on the Desktop and in the Start Menu. The launcher starts Odoo, starts `agentbridge\agent.exe` if the chat is not answering, waits for `http://localhost:5290/OfficeManager`, then opens it in the default browser. At the end of the install it opens the Odoo 20 first-steps page. |
-| **OdooTool — Linux/WSL** (`OdooTool/installer/install.sh`) | Creates `start.sh` and `ai-odoo.desktop` in `~/.local/share/applications` and `~/Desktop`. The launcher starts Odoo, starts `agentbridge/agent` detached if the chat is not answering, waits for `http://localhost:5290/OfficeManager`, then opens it with `xdg-open`. At the end of the install it opens the Odoo 20 first-steps page. |
+| **OdooTool — Windows** (`OdooTool/installer/install.ps1`) | Writes `start.ps1`, `start.html` and the **AI Odoo** shortcut on the Desktop and in the Start Menu. The launcher starts Odoo, starts `agentbridge\agent.exe` in a visible console if 5290 is free, then opens `start.html`. The start page links to `/web/login?db=odoo_agent` and to the chat. At the end of the install it opens the same page. `uninstall.ps1` / `uninstall.bat` remove it all and require the phrase DESTROY ALL. |
+| **OdooTool — Linux/WSL** (`OdooTool/installer/install.sh`) | The same, with `start.sh`, `start.html` and `ai-odoo.desktop` in `~/.local/share/applications` and `~/Desktop`; `xdg-open` for the page; `uninstall.sh` for removal. |
 | **FreeCADTool** (`FreeCADTool/installer/`) | Creates the **AI FreeCAD** launcher; it starts AgentBridge and opens FreeCAD with the document, so the user can go from the desktop to a prompt that edits the open model. |
 
 ## Checklist for a new installer
@@ -199,14 +227,18 @@ The URL is printed as well, for headless runs where no browser can be opened.
 - [ ] The tool plugin is in `Tools/<Tool>/` and active by default.
 - [ ] The target application is installed and reachable on its local address.
 - [ ] A launcher icon exists in the application menu/launcher **and** on the desktop.
-- [ ] The launcher starts the application and AgentBridge, then opens the **assistant chat**
-      in the default browser (not the application's login page).
+- [ ] The launcher starts the application and AgentBridge, then opens the **local start page**
+      in the default browser; the page links to the application by an explicit URL and does not
+      link the assistant chat.
 - [ ] The final message prints the application URL and login, so its UI can be opened to watch
       the result.
 - [ ] The user can type a prompt immediately and the agent can act on the application.
-- [ ] Re-running the installer preserves configuration and credentials.
-- [ ] First run is automated, and the vendor's version-specific first-start page is opened in
-      the default browser (the URL is printed too).
+- [ ] Re-running the installer preserves configuration and credentials, and prints only
+      credentials that are true.
+- [ ] First run is automated; the start page is opened in the default browser and its path is
+      printed too.
+- [ ] An uninstaller exists for each platform, requires the typed phrase, and asks about
+      AgentBridge separately.
 - [ ] The final message explains the one-click flow, the credentials and the manual commands.
 
 ## Where this contract is enforced
@@ -233,3 +265,22 @@ repository and add the same header comment to its installer sources.
   the desktop, automates the first run where possible, opens the vendor's first-steps page at
   the end of a successful installation, and keeps the standard icon stable even when a user
   asks for an application-only shortcut.
+
+### Revised 2026-11-14 (OdooTool issue #7)
+
+- **Decision:** the browser opens the **application**, not the assistant chat. The chat becomes a
+  second entrance, reached on purpose. Rationale: a user who double-clicks an icon for an ERP
+  expects the ERP, and the chat hid it.
+
+### Revised 2026-11-20 (reader report)
+
+- **Decision:** the browser opens a **local start page** written by the installer, which links to
+  the application by an explicit URL (`/web/login?db=odoo_agent` for Odoo), shows the account that
+  really exists, and says which window is which. The assistant stays the terminal window, so the
+  page does not link the office chat. The vendor's documentation URL is printed, not opened.
+- **Rationale:** the application's bare address is ambiguous — with Odoo's `website` module it
+  serves a public site with a placeholder logo — and the documentation site reads as "nothing was
+  installed". A reader reported both on 2026-11-20 and concluded the installation had failed.
+- **Consequences:** every tool installer writes a start page and opens it; re-runs print the login
+  read back from the application and never a password that was not applied; each installer ships
+  an uninstaller whose data deletion requires the typed phrase **DESTROY ALL**.
